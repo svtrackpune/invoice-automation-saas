@@ -1,7 +1,7 @@
 'use client';
 
 import { usePathname } from 'next/navigation';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 
 const nav = [
   ['Overview', '/next-workspace', '⌂'], ['Sales', '/next-workspace/sales', '↗'], ['Quotations', '/next-workspace/quotation', '▤'],
@@ -30,6 +30,7 @@ export default function WorkspaceLayout({ children }: { children: React.ReactNod
   const [helpOpen, setHelpOpen] = useState(false);
   const flow = flows[pathname];
   const active = nav.findIndex(([, href]) => href === pathname);
+  const isOverview = pathname === '/next-workspace';
 
   useEffect(() => {
     try {
@@ -38,12 +39,19 @@ export default function WorkspaceLayout({ children }: { children: React.ReactNod
     } catch {}
   }, []);
 
-  useEffect(() => { setHelpOpen(false); }, [pathname]);
+  useEffect(() => { setHelpOpen(false); setOpen(false); }, [pathname]);
 
   const go = (href: string) => { setOpen(false); window.location.href = href; };
   const finishWelcome = () => { try { localStorage.setItem('mm_onboarding_seen', '1'); } catch {} setShowWelcome(false); };
 
-  if (pathname === '/next-workspace') return <>{children}</>;
+  if (isOverview) {
+    return <>
+      {children}
+      <button onClick={() => setHelpOpen(true)} className="fixed bottom-5 right-5 z-[80] flex items-center gap-2 rounded-full bg-slate-950 px-4 py-3 text-sm font-semibold text-white shadow-xl transition hover:-translate-y-0.5" aria-label="Get dashboard help"><span className="grid h-6 w-6 place-items-center rounded-full bg-white/15">?</span><span className="hidden sm:inline">Help</span></button>
+      {helpOpen && <HelpModal title="Moneymatters dashboard" text="The dashboard is your starting point. Use the Create actions for common work, or open a module from the dashboard. Sales, customers, inventory, accounting, tax and reports stay connected as you work." next="Start with Customers or create your first invoice" onClose={() => setHelpOpen(false)} />}
+      {showWelcome && <WelcomeModal onClose={finishWelcome} onHelp={() => { finishWelcome(); setHelpOpen(true); }} onGo={(href) => { finishWelcome(); go(href); }} />}
+    </>;
+  }
 
   return <div className="min-h-screen overflow-x-hidden bg-[#f5f7fb] text-slate-950">
     <header className="sticky top-0 z-50 border-b border-slate-200/80 bg-white/95 backdrop-blur-xl">
@@ -80,7 +88,7 @@ function FlowBar({ steps }: { steps: string[] }) {
 }
 
 function HelpModal({ title, text, next, onClose }: { title: string; text: string; next?: string; onClose: () => void }) {
-  return <div className="fixed inset-0 z-[100] grid place-items-center bg-slate-950/40 p-4 backdrop-blur-sm" onMouseDown={onClose}><section onMouseDown={e => e.stopPropagation()} className="w-full max-w-md overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-2xl"><div className="flex items-start justify-between border-b border-slate-100 p-5"><div><p className="text-[10px] font-bold uppercase tracking-[.16em] text-slate-400">Quick help</p><h2 className="mt-1 text-xl font-semibold text-slate-950">{title}</h2></div><button onClick={onClose} className="grid h-9 w-9 place-items-center rounded-xl bg-slate-100 text-slate-500">×</button></div><div className="p-5"><p className="text-sm leading-6 text-slate-600">{text}</p>{next && <div className="mt-4 rounded-2xl bg-slate-50 p-4"><p className="text-[10px] font-bold uppercase tracking-[.15em] text-slate-400">Suggested next step</p><p className="mt-1 text-sm font-semibold text-slate-900">{next}</p></div>}<button onClick={onClose} className="mt-5 w-full rounded-xl bg-slate-950 px-4 py-3 text-sm font-semibold text-white">Got it</button></div></section></div>;
+  return <div className="fixed inset-0 z-[100] grid place-items-center bg-slate-950/40 p-4 backdrop-blur-sm" onMouseDown={onClose}><section onMouseDown={e => e.stopPropagation()} className="w-full max-w-md overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-2xl"><div className="flex items-start justify-between border-b border-slate-100 p-5"><div><p className="text-[10px] font-bold uppercase tracking-[.16em] text-slate-400">Quick help</p><h2 className="mt-1 text-xl font-semibold text-slate-950">{title}</h2></div><button onClick={onClose} className="grid h-9 w-9 place-items-center rounded-xl bg-slate-100 text-slate-500" aria-label="Close help">×</button></div><div className="p-5"><p className="text-sm leading-6 text-slate-600">{text}</p>{next && <div className="mt-4 rounded-2xl bg-slate-50 p-4"><p className="text-[10px] font-bold uppercase tracking-[.15em] text-slate-400">Suggested next step</p><p className="mt-1 text-sm font-semibold text-slate-900">{next}</p></div>}<button onClick={onClose} className="mt-5 w-full rounded-xl bg-slate-950 px-4 py-3 text-sm font-semibold text-white">Got it</button></div></section></div>;
 }
 
 function WelcomeModal({ onClose, onHelp, onGo }: { onClose: () => void; onHelp: () => void; onGo: (href: string) => void }) {
