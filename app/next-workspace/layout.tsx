@@ -12,7 +12,9 @@ const flows: Record<string, { title: string; steps: string[] }> = {
   '/next-workspace/sales': { title: 'Sales', steps: ['Customer', 'Items', 'Review', 'Post', 'Payment', 'Receipt'] },
   '/next-workspace/quotation': { title: 'Quotation', steps: ['Customer', 'Items', 'Review', 'Send', 'Accept', 'Invoice'] },
   '/next-workspace/customers': { title: 'Customers', steps: ['Find', 'Profile', 'Transactions', 'Statement', 'Payment'] },
+  '/next-workspace/customer-settings': { title: 'Customer Settings', steps: ['Customer', 'Reminders', 'Discount', 'Save'] },
   '/next-workspace/inventory': { title: 'Inventory', steps: ['Item', 'Pricing', 'Tax', 'Discount', 'Stock', 'Save'] },
+  '/next-workspace/inventory-preferences': { title: 'Inventory Settings', steps: ['Products', 'Discount', 'Stock', 'Defaults', 'Save'] },
   '/next-workspace/accounting': { title: 'Accounting', steps: ['Transactions', 'Journal', 'Ledger', 'Trial Balance', 'Reports', 'Year End'] },
   '/next-workspace/tax': { title: 'Tax & ITR', steps: ['Tax Profile', 'Books', 'Adjustments', 'Tax Summary', 'ITR Working', 'Export'] },
   '/next-workspace/reports': { title: 'Reports', steps: ['Choose', 'Period', 'Review', 'Drill Down', 'Export'] },
@@ -22,11 +24,11 @@ const flows: Record<string, { title: string; steps: string[] }> = {
 
 export default function WorkspaceLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  // Overview already contains the richer cockpit shell. Keep it untouched and apply the shared shell to all functional pages.
-  if (pathname === '/next-workspace') return <>{children}</>;
   const [open, setOpen] = useState(false);
   const flow = flows[pathname];
   const active = nav.findIndex(([, href]) => href === pathname);
+  // Overview already contains the richer cockpit shell. Keep it untouched and apply the shared shell to functional pages.
+  if (pathname === '/next-workspace') return <>{children}</>;
   const go = (href: string) => { setOpen(false); window.location.href = href; };
   return <div className="min-h-screen bg-[#f5f7fb] text-slate-950">
     <header className="sticky top-0 z-50 border-b border-slate-200/80 bg-white/95 backdrop-blur-xl">
