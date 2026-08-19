@@ -1,3 +1,3 @@
 'use client';
-import CustomerManager from './CustomerManager';
-export default function CustomersPage(){return <CustomerManager/>}
+import Customer360 from './Customer360';
+export default function CustomersPage(){return <Customer360/>}
