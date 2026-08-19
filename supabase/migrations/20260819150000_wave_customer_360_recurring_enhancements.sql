@@ -59,6 +59,10 @@ LEFT JOIN public.quotations q ON q.customer_id=c.id AND q.business_id=c.business
 LEFT JOIN public.receipts r ON r.customer_id=c.id AND r.business_id=c.business_id
 GROUP BY c.id,c.business_id,c.display_name,c.email,c.phone,c.is_active,c.payment_reminders_enabled,c.reminder_days_before_due;
 
+ALTER VIEW public.customer_statement_entries SET (security_invoker = true);
+ALTER VIEW public.customer_statement_running SET (security_invoker = true);
+ALTER VIEW public.customer_360_summary SET (security_invoker = true);
+
 CREATE INDEX IF NOT EXISTS invoices_customer_date_idx ON public.invoices (business_id, customer_id, invoice_date);
 CREATE INDEX IF NOT EXISTS payments_customer_date_idx ON public.payments (business_id, customer_id, payment_date);
 CREATE INDEX IF NOT EXISTS quotations_customer_date_idx ON public.quotations (business_id, customer_id, quotation_date);
