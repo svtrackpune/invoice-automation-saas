@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 
@@ -8,7 +8,7 @@ type Job={id:string;document_type:string;document_id:string;template_id:string|n
 const money=(n:any,c='INR')=>new Intl.NumberFormat('en-IN',{style:'currency',currency:String(c||'INR').trim(),maximumFractionDigits:2}).format(Number(n||0));
 const text=(v:any)=>String(v??'');
 
-export default function DocumentsPage(){
+function DocumentsContent(){
  const qs=useSearchParams(); const type=qs.get('type')||'invoice'; const id=qs.get('id')||'';
  const [job,setJob]=useState<Job|null>(null); const [loading,setLoading]=useState(true); const [error,setError]=useState('');
  useEffect(()=>{(async()=>{if(!id){setError('Document id is required.');setLoading(false);return;}const r=await supabase.rpc('prepare_document_render',{p_document_type:type,p_document_id:id,p_template_id:null});if(r.error){setError(r.error.message);setLoading(false);return;}const j=await supabase.from('document_render_jobs').select('id,document_type,document_id,template_id,template_version,payload,status').eq('id',r.data).single();if(j.error)setError(j.error.message);else setJob(j.data as Job);setLoading(false);})()},[type,id]);
@@ -28,4 +28,8 @@ export default function DocumentsPage(){
   {(p.notes||p.terms||p.reason)&&<section className="mt-10 grid gap-6 border-t border-slate-200 pt-6 sm:grid-cols-2"><div>{p.notes&&<><p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Notes</p><p className="mt-2 whitespace-pre-line text-xs leading-5 text-slate-600">{p.notes}</p></>}</div><div>{(p.terms||p.reason)&&<><p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">{p.reason?'Reason':'Terms'}</p><p className="mt-2 whitespace-pre-line text-xs leading-5 text-slate-600">{p.reason||p.terms}</p></>}</div></section>}
   <footer className="mt-16 border-t border-slate-200 pt-4 text-[10px] text-slate-400 flex justify-between"><span>{text(b.name||'Moneymatters')}</span><span>Generated from Moneymatters</span></footer>
  </article></main>;
+}
+
+export default function DocumentsPage(){
+ return <Suspense fallback={<div className="grid min-h-screen place-items-center bg-slate-100 text-sm text-slate-500">Preparing document…</div>}><DocumentsContent /></Suspense>;
 }
