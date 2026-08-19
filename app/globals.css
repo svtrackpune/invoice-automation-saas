@@ -1,38 +1,10 @@
 @import "tailwindcss";
-
-:root { --background:#fbfaff; --foreground:#24213a; --violet:#7667d9; --violet-dark:#6254c7; --violet-soft:#f1efff; --violet-line:#e7e2ff; }
-@theme inline { --color-background:var(--background); --color-foreground:var(--foreground); --font-sans:var(--font-geist-sans); --font-mono:var(--font-geist-mono); }
-html{background:var(--background);scroll-behavior:smooth}
-body{margin:0;background:var(--background);color:var(--foreground);font-family:var(--font-geist-sans),Arial,Helvetica,sans-serif}
-button,input,select,textarea{font:inherit}button{cursor:pointer}
-::selection{background:#ded8ff;color:#24213a}
-/* Moneymatters visual system: white canvas + faint violet accents. */
-[class*="bg-slate-950"]{background-color:var(--violet-dark)!important}
-[class*="bg-slate-900"]{background-color:#6b5fc9!important}
-[class*="bg-slate-800"]{background-color:#8074dc!important}
-[class*="bg-slate-100"]{background-color:#f4f2ff!important}
-[class*="bg-slate-50"]{background-color:#fbfaff!important}
-[class*="hover\\:bg-slate-100"]:hover{background-color:#f1efff!important}
-[class*="hover\\:bg-slate-50"]:hover{background-color:#faf8ff!important}
-[class*="text-slate-950"]{color:#24213a!important}
-[class*="text-slate-600"]{color:#625d78!important}
-[class*="text-slate-500"]{color:#77718d!important}
-[class*="text-slate-400"]{color:#958faa!important}
-[class*="border-slate-200"]{border-color:#e7e2f5!important}
-[class*="border-slate-100"]{border-color:#f0edf9!important}
-input:focus,select:focus,textarea:focus{border-color:#b8aff0!important;box-shadow:0 0 0 4px rgba(118,103,217,.12)!important}
-.document-preview{background:#fff;color:#24213a;padding:42px;min-height:720px;box-shadow:0 8px 30px rgba(70,60,120,.08)}
-.template-2{border-top:12px solid var(--brand)}
-.template-3{border-left:10px solid var(--brand)}
-.template-4{padding:28px;font-size:.92rem}
-.template-4 table th,.template-4 table td{padding:.55rem}
-.template-5{border:1px solid #ddd7f0;box-shadow:none}
-@media print{
-  @page{size:A4;margin:12mm}
-  body{background:#fff!important}
-  body>*{display:none!important}
-  .document-preview{display:block!important;box-shadow:none!important;border:0!important;padding:0!important;min-height:0!important}
-  .document-preview *{visibility:visible!important}
-  .fixed{position:static!important}
-}
+:root{--background:#fbfaff;--foreground:#24213a;--violet:#7667d9;--violet-dark:#6254c7;--violet-soft:#f1efff;--violet-line:#e7e2ff}
+@theme inline{--color-background:var(--background);--color-foreground:var(--foreground);--font-sans:var(--font-geist-sans);--font-mono:var(--font-geist-mono)}
+html{background:var(--background);scroll-behavior:smooth}body{margin:0;background:var(--background);color:var(--foreground);font-family:var(--font-geist-sans),Arial,Helvetica,sans-serif}button,input,select,textarea{font:inherit}button{cursor:pointer}::selection{background:#ded8ff;color:#24213a}
+/* Moneymatters v1: white surfaces, faint violet workspace, restrained violet actions. */
+[class*="bg-slate-950"]{background-color:var(--violet-dark)!important}[class*="bg-slate-900"]{background-color:#6b5fc9!important}[class*="bg-slate-800"]{background-color:#8074dc!important}[class*="bg-slate-100"]{background-color:#f4f2ff!important}[class*="bg-slate-50"]{background-color:#fbfaff!important}[class*="bg-gray-950"]{background-color:var(--violet-dark)!important}[class*="bg-gray-900"]{background-color:#6b5fc9!important}[class*="bg-gray-100"]{background-color:#f4f2ff!important}[class*="bg-gray-50"]{background-color:#fbfaff!important}
+[class*="hover\\:bg-slate-100"]:hover,[class*="hover\\:bg-gray-100"]:hover{background-color:#f1efff!important}[class*="hover\\:bg-slate-50"]:hover,[class*="hover\\:bg-gray-50"]:hover{background-color:#faf8ff!important}[class*="text-slate-950"]{color:#24213a!important}[class*="text-slate-600"]{color:#625d78!important}[class*="text-slate-500"]{color:#77718d!important}[class*="text-slate-400"]{color:#958faa!important}[class*="border-slate-200"]{border-color:#e7e2f5!important}[class*="border-slate-100"]{border-color:#f0edf9!important}
+input:focus,select:focus,textarea:focus{border-color:#b8aff0!important;box-shadow:0 0 0 4px rgba(118,103,217,.12)!important}.document-preview{background:#fff;color:#24213a;padding:42px;min-height:720px;box-shadow:0 8px 30px rgba(70,60,120,.08)}.template-2{border-top:12px solid var(--brand)}.template-3{border-left:10px solid var(--brand)}.template-4{padding:28px;font-size:.92rem}.template-4 table th,.template-4 table td{padding:.55rem}.template-5{border:1px solid #ddd7f0;box-shadow:none}
+@media print{@page{size:A4;margin:12mm}body{background:#fff!important}body>*{display:none!important}.document-preview{display:block!important;box-shadow:none!important;border:0!important;padding:0!important;min-height:0!important}.document-preview *{visibility:visible!important}.fixed{position:static!important}}
 @media(max-width:640px){.document-preview{padding:22px;min-height:0}.document-preview table{font-size:12px}}
