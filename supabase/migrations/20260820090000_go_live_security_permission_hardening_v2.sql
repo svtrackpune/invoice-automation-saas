@@ -5,36 +5,19 @@
 
 -- Permission helpers must bypass table RLS or policies recurse through organization_members.
 create or replace function mm_private.has_permission(p_organization_id uuid,p_permission text,p_user_id uuid default auth.uid())
-returns boolean
-language sql
-stable
-security definer
-set search_path = public, mm_private
-as $$
+returns boolean language sql stable security definer set search_path = public, mm_private as $$
   select exists(
-    select 1
-    from public.organization_members om
+    select 1 from public.organization_members om
     left join public.member_permissions mp on mp.organization_id=om.organization_id and mp.user_id=om.user_id and mp.permission_key=p_permission
     left join public.role_permissions rp on rp.role=om.role and rp.permission_key=p_permission
-    where om.organization_id=p_organization_id
-      and om.user_id=p_user_id
-      and om.is_active
+    where om.organization_id=p_organization_id and om.user_id=p_user_id and om.is_active
       and coalesce(mp.allowed,rp.allowed,false)
   );
 $$;
 
 create or replace function mm_private.has_business_permission(p_business_id uuid,p_permission text,p_user_id uuid default auth.uid())
-returns boolean
-language sql
-stable
-security definer
-set search_path = public, mm_private
-as $$
-  select exists(
-    select 1 from public.businesses b
-    where b.id=p_business_id
-      and mm_private.has_permission(b.organization_id,p_permission,p_user_id)
-  );
+returns boolean language sql stable security definer set search_path = public, mm_private as $$
+  select exists(select 1 from public.businesses b where b.id=p_business_id and mm_private.has_permission(b.organization_id,p_permission,p_user_id));
 $$;
 
 revoke execute on function mm_private.has_permission(uuid,text,uuid) from public, anon;
@@ -68,11 +51,7 @@ revoke execute on function public.guard_quotation_status_transition() from publi
 
 -- Posting/reversal must enforce permissions even when called directly.
 create or replace function public.post_journal_entry(p_entry_id uuid)
-returns uuid
-language plpgsql
-security definer
-set search_path = public, mm_private
-as $$
+returns uuid language plpgsql security definer set search_path = public, mm_private as $$
 declare v_business_id uuid;
 begin
   select business_id into v_business_id from public.journal_entries where id=p_entry_id;
@@ -84,11 +63,7 @@ end;
 $$;
 
 create or replace function public.reverse_journal_entry(p_entry_id uuid,p_reversal_date date,p_reason text,p_created_by uuid default auth.uid())
-returns uuid
-language plpgsql
-security definer
-set search_path = public, mm_private
-as $$
+returns uuid language plpgsql security definer set search_path = public, mm_private as $$
 declare v_old public.journal_entries%rowtype; v_new uuid; v_num bigint; v_period text;
 begin
   select * into v_old from public.journal_entries where id=p_entry_id for update;
@@ -147,7 +122,7 @@ create policy business_settings_manage on public.business_settings for insert to
 create policy business_settings_manage_update on public.business_settings for update to authenticated using (mm_private.has_business_permission(business_id,'settings.manage')) with check (mm_private.has_business_permission(business_id,'settings.manage'));
 create policy business_settings_manage_delete on public.business_settings for delete to authenticated using (mm_private.has_business_permission(business_id,'settings.manage'));
 
--- No public-role policies remain on business data.
+-- Remove every public-role policy from public business data; recreate the affected policies below.
 DO $$
 declare r record;
 begin
@@ -156,11 +131,10 @@ begin
   end loop;
 end $$;
 
--- Recreate affected policies for authenticated users.
 create policy ai_agent_preferences_member on public.ai_agent_preferences for all to authenticated using (mm_private.has_business_permission(business_id,'settings.manage')) with check (mm_private.has_business_permission(business_id,'settings.manage'));
 create policy ai_insight_events_member on public.ai_insight_events for select to authenticated using (mm_private.has_business_permission(business_id,'ai.use'));
-create policy business_document_preferences_member_all on public.business_document_preferences for all to authenticated using (mm_private.is_org_member(mm_private.business_org(business_id))) with check (mm_private.is_org_member(mm_private.business_org(business_id)));
-create policy business_preferences_member_all on public.business_preferences for all to authenticated using (mm_private.is_org_member(mm_private.business_org(business_id))) with check (mm_private.is_org_member(mm_private.business_org(business_id)));
+create policy business_document_preferences_member_all on public.business_document_preferences for all to authenticated using (mm_private.has_business_permission(business_id,'settings.manage')) with check (mm_private.has_business_permission(business_id,'settings.manage'));
+create policy business_preferences_member_all on public.business_preferences for all to authenticated using (mm_private.has_business_permission(business_id,'settings.manage')) with check (mm_private.has_business_permission(business_id,'settings.manage'));
 create policy business_tax_profiles_member_all on public.business_tax_profiles for all to authenticated using (mm_private.has_business_permission(business_id,'settings.manage')) with check (mm_private.has_business_permission(business_id,'settings.manage'));
 create policy debit_note_lines_member on public.debit_note_lines for all to authenticated using (exists(select 1 from public.debit_notes d where d.id=debit_note_lines.debit_note_id and mm_private.has_business_permission(d.business_id,'accounting.view'))) with check (exists(select 1 from public.debit_notes d where d.id=debit_note_lines.debit_note_id and mm_private.has_business_permission(d.business_id,'accounting.adjust')));
 create policy tax_adjustments_member on public.tax_adjustments for all to authenticated using (mm_private.has_business_permission(business_id,'tax.manage')) with check (mm_private.has_business_permission(business_id,'tax.manage'));
