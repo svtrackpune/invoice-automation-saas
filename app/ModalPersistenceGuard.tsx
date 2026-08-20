@@ -20,7 +20,7 @@ export default function ModalPersistenceGuard() {
     const handleClickCapture = (event: MouseEvent) => {
       // A click whose target is the overlay itself is a backdrop click.
       // Stop it before React's bubbling handler can interpret it as "close".
-      if (isModalOverlay(event.target) && event.target === event.currentTarget) {
+      if (isModalOverlay(event.target)) {
         event.preventDefault();
         event.stopPropagation();
       }
