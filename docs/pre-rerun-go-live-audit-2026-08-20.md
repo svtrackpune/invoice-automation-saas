@@ -2,32 +2,19 @@
 
 ## Scope
 
-Before rerunning the complete v1 acceptance matrix, the live Supabase project and `main` branch were reviewed for authentication, tenant isolation, RLS, RPC privileges, accounting mutation controls, business settings, and existing production QA results.
+Before rerunning the complete v1 acceptance matrix, the live Supabase project and `main` branch were reviewed for authentication, tenant isolation, RLS, RPC privileges, accounting mutation controls, business settings, database-advisor findings, and existing production QA results.
 
 ## Findings fixed before rerun
 
-1. **Permission-helper RLS recursion**
-   - `mm_private.has_permission` and `mm_private.has_business_permission` were security-invoker helpers while policies depended on them, creating a potential `organization_members` RLS recursion path.
-   - Both helpers are now `SECURITY DEFINER` with an explicit `search_path` and are callable only by `authenticated`.
-
-2. **Anonymous RPC mutation surface**
-   - Anonymous execution was removed from journal creation/posting/reversal, chart seeding, document-number generation, and trigger-only helper functions.
-   - The only remaining public/anonymous public-schema RPC is the pure `calculate_invoice_discount` helper.
-
-3. **Direct journal posting authorization**
-   - `post_journal_entry` now derives the business from the entry and requires `accounting.post`.
-   - `reverse_journal_entry` now requires `accounting.adjust`, checks the accounting period, and uses an advisory lock for journal numbering.
-
-4. **Journal history RLS**
-   - Members retain read access to their own business journal history.
-   - Journal insert requires `accounting.post`.
-   - Journal update/delete requires `accounting.adjust`.
-   - Journal-line mutations inherit the parent journal business permission.
-
-5. **Business/settings authorization**
-   - Business identity updates now require `settings.manage`.
-   - Business settings writes now require `settings.manage`; member read access remains available.
-   - Document preferences, business preferences, tax profiles, AI agent settings, tax adjustments and tax filing profiles no longer use `public`-role policies and are explicitly scoped to authenticated users/permissions.
+1. **Permission-helper RLS recursion** — `mm_private.has_permission` and `mm_private.has_business_permission` are now `SECURITY DEFINER` helpers with an explicit search path, preventing recursive `organization_members` RLS evaluation.
+2. **Anonymous RPC mutation surface** — anonymous execution was removed from journal mutation, document-number generation, chart seeding, and internal trigger/cron helpers.
+3. **Direct journal authorization** — posting requires `accounting.post`; reversal requires `accounting.adjust`, checks the accounting period, and uses an advisory lock for journal numbering.
+4. **Journal history RLS** — members retain read access; journal inserts require posting permission; journal updates/deletes require adjustment permission; journal-line mutations inherit the parent journal permission.
+5. **Business/settings authorization** — business identity and business settings writes require `settings.manage`; affected preference/tax/AI policies are authenticated-only.
+6. **Report-view isolation** — live accounting/subledger/report views were changed to `security_invoker=true` so underlying RLS applies to the caller.
+7. **Function search-path hardening** — affected trigger/pure helper functions now have deterministic search paths.
+8. **Internal helper exposure** — trigger, cron and internal recalculation helpers were removed from the authenticated API execution surface.
+9. **Database cleanup** — duplicate indexes reported by Performance Advisor were removed.
 
 ## Live verification performed
 
@@ -36,7 +23,14 @@ Before rerunning the complete v1 acceptance matrix, the live Supabase project an
 - Anonymous execution of `next_document_number` was rejected with `permission denied for function next_document_number`.
 - A non-member UUID returns `false` for both `settings.manage` and `accounting.post` permission checks.
 - Owner business-settings update was tested inside a rolled-back transaction and was authorized.
-- Existing production PostgreSQL logs show the invoice-reminder cron completing successfully; no new database error was introduced by the hardening migration.
+- Report/subledger views can be queried under an authenticated transaction with RLS enforced.
+- Supabase Security Advisor now has **no ERROR-level security finding**. Remaining WARNs are primarily intentional authenticated `SECURITY DEFINER` application RPCs plus the separate Auth leaked-password-protection setting.
+- Performance Advisor's duplicate-index findings were addressed; remaining unindexed-FK and RLS-initplan findings are optimization items rather than data-integrity blockers.
+- Existing production PostgreSQL logs show the invoice-reminder cron completing successfully.
+
+## Important remaining production item
+
+**Leaked password protection is disabled in Supabase Auth.** This is an Auth/dashboard configuration rather than a database migration. It should be enabled before public launch.
 
 ## Existing production QA baseline
 
@@ -46,10 +40,11 @@ This audit does **not** mark the application production-ready by itself. The com
 
 ## Release gate after this audit
 
-1. Deploy/verify the `main` branch containing the hardening migration.
-2. Run the full v1 acceptance matrix, not only the previous 12 scenarios.
-3. Test owner/admin/accountant/staff/viewer permission boundaries.
-4. Test cross-business reads and writes.
-5. Reconcile invoice/payment/vendor/bank/inventory/report balances.
-6. Complete the mobile/device pass.
-7. Record the final production build result and any remaining P0/P1 issues.
+1. Enable leaked-password protection in Supabase Auth.
+2. Deploy/verify the `main` branch containing the hardening migrations.
+3. Run the full v1 acceptance matrix, not only the previous 12 scenarios.
+4. Test owner/admin/accountant/staff/viewer permission boundaries.
+5. Test cross-business reads and writes.
+6. Reconcile invoice/payment/vendor/bank/inventory/report balances.
+7. Complete the mobile/device pass.
+8. Record the final production build result and any remaining P0/P1 issues.
