@@ -90,9 +90,6 @@ create index if not exists bills_business_number_idx
 create index if not exists payments_business_customer_date_idx
   on public.payments(business_id,customer_id,payment_date desc,id desc);
 
-create index if not exists payments_business_vendor_date_idx
-  on public.payments(business_id,vendor_id,payment_date desc,id desc);
-
 create index if not exists payments_business_direction_date_idx
   on public.payments(business_id,direction,payment_date desc,id desc);
 
