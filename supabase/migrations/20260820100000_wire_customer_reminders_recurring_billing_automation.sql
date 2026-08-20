@@ -184,13 +184,26 @@ BEGIN
 END;
 $function$;
 
+CREATE EXTENSION IF NOT EXISTS pg_net WITH SCHEMA extensions;
+
 SELECT cron.unschedule('moneymatters-invoice-reminders')
 WHERE EXISTS (SELECT 1 FROM cron.job WHERE jobname='moneymatters-invoice-reminders');
+SELECT cron.unschedule('moneymatters-billing-automation')
+WHERE EXISTS (SELECT 1 FROM cron.job WHERE jobname='moneymatters-billing-automation');
 
 SELECT cron.schedule(
   'moneymatters-billing-automation',
   '0 * * * *',
-  $$SELECT public.process_due_recurring_invoices(now()); SELECT public.enqueue_all_invoice_reminders(now());$$
+  $$
+    SELECT public.process_due_recurring_invoices(now());
+    SELECT public.enqueue_all_invoice_reminders(now());
+    SELECT net.http_post(
+      url := 'https://qpczmbvqflaqwvyphepf.supabase.co/functions/v1/process-notifications',
+      body := jsonb_build_object('source','pg_cron','triggered_at',now()),
+      headers := jsonb_build_object('Content-Type','application/json'),
+      timeout_milliseconds := 10000
+    );
+  $$
 )
 WHERE NOT EXISTS (SELECT 1 FROM cron.job WHERE jobname='moneymatters-billing-automation');
 
