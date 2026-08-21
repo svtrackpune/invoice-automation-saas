@@ -22,7 +22,7 @@ function Auth({onReady}:{onReady:()=>void}){
   const[otpSent,setOtpSent]=useState(false),[busy,setBusy]=useState(false),[error,setError]=useState('');
   const selected=COUNTRIES.find(x=>x[0]===country)||COUNTRIES[0];
   const e164=`${selected[1]}${phone.replace(/\D/g,'')}`;
-  async function finishSignup(){const r=await supabase.auth.updateUser({email:email.trim().toLowerCase(),data:{display_name:name.trim(),phone:e164,country_code:selected[0]}});if(r.error){setError(r.error.message);return false}return true}
+
   async function submit(){
     setBusy(true);setError('');
     if(mode==='phone'){
@@ -32,26 +32,26 @@ function Auth({onReady}:{onReady:()=>void}){
     }
     if(mode==='signup'){
       if(!name.trim()||!email.trim()||!password||!phone.replace(/\D/g,'')){setError('Name, email, mobile number and password are required.');setBusy(false);return}
-      if(!otpSent){
-        const r=await supabase.auth.signUp({phone:e164,password,options:{data:{display_name:name.trim(),email:email.trim().toLowerCase(),phone:e164,country_code:selected[0]}}});
-        if(r.error){setError(r.error.message);setBusy(false);return}
-        if(r.data.session){const ok=await finishSignup();setBusy(false);if(ok)onReady();return}
-        setOtpSent(true);setBusy(false);return;
-      }
-      const r=await supabase.auth.verifyOtp({phone:e164,token:otp,type:'sms'});
+      // Temporary QA mode: use email/password as the authentication identity and keep
+      // mobile/country as user metadata. No email or phone verification is requested here.
+      const r=await supabase.auth.signUp({email:email.trim().toLowerCase(),password,options:{data:{display_name:name.trim(),phone:e164,country_code:selected[0]}}});
       if(r.error){setError(r.error.message);setBusy(false);return}
-      const ok=await finishSignup();setBusy(false);if(ok)onReady();return;
+      if(r.data.session){setBusy(false);onReady();return}
+      // If Supabase is still configured to require email confirmation, there will be no
+      // session. Surface the configuration issue instead of pretending signup succeeded.
+      setError('Testing signup is not fully enabled in Supabase. Email confirmation must be disabled temporarily.');setBusy(false);return;
     }
     const r=await supabase.auth.signInWithPassword({email:email.trim().toLowerCase(),password});setBusy(false);if(r.error){setError(r.error.message);return}onReady();
   }
+
   const title=mode==='signin'?'Sign in to your workspace':mode==='signup'?'Create your account':'Sign in with mobile OTP';
-  return <main className="min-h-screen bg-[radial-gradient(circle_at_top_left,#ede9fe,transparent_34%),linear-gradient(135deg,#fafafa,#f5f3ff)] p-5"><div className="mx-auto flex min-h-[calc(100vh-40px)] max-w-6xl items-center justify-center"><div className="grid w-full overflow-hidden rounded-[32px] border border-white bg-white shadow-2xl md:grid-cols-[1.05fr_.95fr]"><div className="hidden bg-violet-950 p-12 text-white md:block"><div className="flex h-full flex-col justify-between"><div><div className="mb-12 flex items-center gap-3"><div className="grid h-10 w-10 place-items-center rounded-xl bg-white text-violet-950 font-black">M</div><span className="text-lg font-bold">Moneymatters</span></div><p className="max-w-md text-4xl font-semibold leading-tight">Your business. Your numbers. One intelligent workspace.</p><p className="mt-5 max-w-md text-sm leading-6 text-violet-200">Invoices, customers, expenses, inventory, payments and accounting connected to the same source of truth.</p></div><div className="grid grid-cols-3 gap-3"><div className="rounded-2xl bg-white/10 p-4"><b>Sales</b><span className="mt-1 block text-xs text-violet-200">Invoice → payment</span></div><div className="rounded-2xl bg-white/10 p-4"><b>Stock</b><span className="mt-1 block text-xs text-violet-200">Purchase → inventory</span></div><div className="rounded-2xl bg-white/10 p-4"><b>Books</b><span className="mt-1 block text-xs text-violet-200">Automatic entries</span></div></div></div></div><div className="p-7 sm:p-12"><div className="mx-auto max-w-md"><p className="text-sm font-semibold text-violet-600">MONEYMATTERS</p><h1 className="mt-2 text-3xl font-semibold tracking-tight">{title}</h1><p className="mt-2 text-sm text-slate-500">{mode==='signin'?'Continue to your business dashboard.':mode==='signup'?'Email is required for durable business communication; mobile is required for account recovery.':'Use the mobile number registered to your Moneymatters account from anywhere.'}</p>
+  return <main className="min-h-screen bg-[radial-gradient(circle_at_top_left,#ede9fe,transparent_34%),linear-gradient(135deg,#fafafa,#f5f3ff)] p-5"><div className="mx-auto flex min-h-[calc(100vh-40px)] max-w-6xl items-center justify-center"><div className="grid w-full overflow-hidden rounded-[32px] border border-white bg-white shadow-2xl md:grid-cols-[1.05fr_.95fr]"><div className="hidden bg-violet-950 p-12 text-white md:block"><div className="flex h-full flex-col justify-between"><div><div className="mb-12 flex items-center gap-3"><div className="grid h-10 w-10 place-items-center rounded-xl bg-white text-violet-950 font-black">M</div><span className="text-lg font-bold">Moneymatters</span></div><p className="max-w-md text-4xl font-semibold leading-tight">Your business. Your numbers. One intelligent workspace.</p><p className="mt-5 max-w-md text-sm leading-6 text-violet-200">Invoices, customers, expenses, inventory, payments and accounting connected to the same source of truth.</p></div><div className="grid grid-cols-3 gap-3"><div className="rounded-2xl bg-white/10 p-4"><b>Sales</b><span className="mt-1 block text-xs text-violet-200">Invoice → payment</span></div><div className="rounded-2xl bg-white/10 p-4"><b>Stock</b><span className="mt-1 block text-xs text-violet-200">Purchase → inventory</span></div><div className="rounded-2xl bg-white/10 p-4"><b>Books</b><span className="mt-1 block text-xs text-violet-200">Automatic entries</span></div></div></div></div><div className="p-7 sm:p-12"><div className="mx-auto max-w-md"><p className="text-sm font-semibold text-violet-600">MONEYMATTERS</p><h1 className="mt-2 text-3xl font-semibold tracking-tight">{title}</h1><p className="mt-2 text-sm text-slate-500">{mode==='signin'?'Continue to your business dashboard.':mode==='signup'?'Email and mobile are saved now; verification will be enabled later for production.':'Use the mobile number registered to your Moneymatters account from anywhere.'}</p>
   {mode==='signup'&&<><div className="mt-6"><Field label="Your name *"><Input required value={name} onChange={e=>setName(e.target.value)} placeholder="Your name"/></Field></div><div className="mt-4"><Field label="Mobile number *"><PhoneField country={country} setCountry={setCountry} phone={phone} setPhone={setPhone}/></Field></div></>}
   {mode!=='phone'&&<><div className="mt-4"><Field label="Email *"><Input required type="email" value={email} onChange={e=>setEmail(e.target.value)} placeholder="you@company.com"/></Field></div><div className="mt-4"><Field label="Password *"><Input required type="password" value={password} onChange={e=>setPassword(e.target.value)} placeholder="••••••••"/></Field></div></>}
   {mode==='phone'&&<><div className="mt-6"><Field label="Registered mobile number *"><PhoneField country={country} setCountry={setCountry} phone={phone} setPhone={setPhone}/></Field></div>{otpSent&&<div className="mt-4"><Field label="OTP *"><Input autoFocus inputMode="numeric" maxLength={6} value={otp} onChange={e=>setOtp(e.target.value.replace(/\D/g,''))} placeholder="6-digit OTP"/></Field></div>}</>}
-  {mode==='signup'&&otpSent&&<div className="mt-3 rounded-xl bg-violet-50 p-3 text-xs text-violet-700">We sent an OTP to {e164}. Verify your mobile to finish creating the account.</div>}
+  {mode==='signup'&&<div className="mt-3 rounded-xl bg-violet-50 p-3 text-xs text-violet-700">Testing mode: no email or mobile OTP verification is required.</div>}
   {error&&<div className="mt-4 rounded-xl bg-rose-50 p-3 text-sm text-rose-700">{error}</div>}
-  <div className="mt-6"><Button disabled={busy||((mode==='phone'||mode==='signup')&&otpSent&&!otp)} onClick={submit}>{busy?'Please wait…':mode==='phone'?(otpSent?'Verify OTP':'Send OTP'):mode==='signup'?(otpSent?'Verify mobile & finish':'Create account'):'Sign in'}</Button></div>
+  <div className="mt-6"><Button disabled={busy||((mode==='phone')&&otpSent&&!otp)} onClick={submit}>{busy?'Please wait…':mode==='phone'?(otpSent?'Verify OTP':'Send OTP'):mode==='signup'?'Create account':'Sign in'}</Button></div>
   <div className="mt-5 flex flex-wrap gap-x-5 gap-y-2 text-sm font-semibold text-slate-500"><button onClick={()=>{setMode(mode==='signin'?'signup':'signin');setError('');setOtpSent(false);setOtp('')}} className="hover:text-violet-700">{mode==='signin'?"Don't have an account? Create one":"Already have an account? Sign in"}</button><button onClick={()=>{setMode(mode==='phone'?'signin':'phone');setError('');setOtpSent(false);setOtp('')}} className="hover:text-violet-700">{mode==='phone'?'Use email and password':'Forgot email? Sign in with mobile OTP'}</button></div>
 </div></div></div></div></main>
 }
