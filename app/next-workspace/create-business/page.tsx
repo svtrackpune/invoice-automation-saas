@@ -1,27 +1,108 @@
 'use client';
-import {useEffect,useMemo,useState} from 'react';
-import {supabase} from '@/lib/supabase';
 
-type Category={id:string;name:string;sort_order:number};
-type Subcategory={id:string;category_id:string;name:string;sort_order:number};
-const input='w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-100';
-const Field=({label,children,help}:{label:string;children:React.ReactNode;help?:string})=><label className="block"><span className="mb-1.5 block text-xs font-semibold text-slate-600">{label}</span>{children}{help&&<span className="mt-1 block text-[11px] text-slate-400">{help}</span>}</label>;
-const choices=[['Physical store / office','physical_store'],['Website','website'],['WhatsApp','whatsapp'],['Instagram / Facebook','social'],['Amazon','amazon'],['Flipkart','flipkart'],['Meesho','meesho'],['B2B / direct customers','b2b'],['Field sales','field_sales'],['Other','other']];
-const sizes=['Just me','2–5','6–10','11–25','26–50','51–100','100+'];
-const states=['Maharashtra','Karnataka','Telangana','Gujarat','Delhi','Tamil Nadu','Uttar Pradesh','Other'];
-export default function CreateBusiness(){
- const[name,setName]=useState(''),[type,setType]=useState('sole_proprietorship'),[categoryId,setCategoryId]=useState(''),[subcategoryId,setSubcategoryId]=useState(''),[sellingModel,setSellingModel]=useState<'products'|'services'|'both'>('products'),[channels,setChannels]=useState<string[]>([]),[teamSize,setTeamSize]=useState(''),[taxMode,setTaxMode]=useState<'gst'|'non_gst'>('gst'),[gstin,setGstin]=useState(''),[taxState,setTaxState]=useState('Maharashtra'),[email,setEmail]=useState(true),[whatsapp,setWhatsapp]=useState(true),[sms,setSms]=useState(false),[step,setStep]=useState(1),[busy,setBusy]=useState(false),[error,setError]=useState('');
- const[categories,setCategories]=useState<Category[]>([]),[subcategories,setSubcategories]=useState<Subcategory[]>([]);
- useEffect(()=>{(async()=>{const[c,s]=await Promise.all([supabase.from('business_categories').select('id,name,sort_order').eq('is_active',true).order('sort_order'),supabase.from('business_subcategories').select('id,category_id,name,sort_order').eq('is_active',true).order('sort_order')]);setCategories(c.data||[]);setSubcategories(s.data||[])})()},[]);
- const visibleSubs=useMemo(()=>subcategories.filter(s=>s.category_id===categoryId),[subcategories,categoryId]);
- const toggleChannel=(value:string)=>setChannels(v=>v.includes(value)?v.filter(x=>x!==value):[...v,value]);
- const next=()=>{setError('');if(step===1&&!name.trim())return setError('Business name is required.');if(step===1&&!categoryId)return setError('Please select a business category.');if(step===1&&!subcategoryId)return setError('Please select a business sub-category.');if(step===2&&!sellingModel)return setError('Please select what you mainly sell.');setStep(s=>Math.min(3,s+1))};
- const back=()=>{setError('');setStep(s=>Math.max(1,s-1))};
- const create=async()=>{if(taxMode==='gst'&&!taxState.trim())return setError('Tax state is required for tax-registered businesses.');setBusy(true);setError('');const regionMap:Record<string,string>={Maharashtra:'IN-MH',Karnataka:'IN-KA',Telangana:'IN-TS',Gujarat:'IN-GJ',Delhi:'IN-DL','Tamil Nadu':'IN-TN','Uttar Pradesh':'IN-UP',Other:'IN-OT'};const r=await supabase.rpc('create_business_for_current_user',{p_business_name:name.trim(),p_business_type:type,p_country_code:'IN',p_currency_code:'INR',p_tax_enabled:taxMode==='gst',p_tax_region:taxMode==='gst'?regionMap[taxState]:'',p_tax_mode:taxMode,p_notification_email:email,p_notification_whatsapp:whatsapp,p_notification_sms:sms,p_category_id:categoryId||null,p_subcategory_id:subcategoryId||null,p_selling_model:sellingModel,p_sales_channels:channels,p_team_size:teamSize||null,p_tax_state:taxMode==='gst'?taxState:null,p_gstin:taxMode==='gst'?(gstin.trim()||null):null});if(r.error){setError(r.error.message);setBusy(false);return}const contexts=await supabase.rpc('get_my_business_context');const rows=(contexts.data||[]) as Array<{business_id:string;business_name:string}>;const returned=typeof r.data==='string'?r.data:Array.isArray(r.data)?(typeof r.data[0]==='string'?r.data[0]:r.data[0]?.business_id):r.data?.business_id;const created=rows.find(x=>x.business_id===returned)||rows.filter(x=>x.business_name===name.trim()).at(-1)||rows.at(-1);if(created)localStorage.setItem('moneymatters.activeBusinessId',created.business_id);window.location.href='/next-workspace'};
- return <main className="min-h-screen bg-[#fbfaff] p-5 sm:p-8"><div className="mx-auto max-w-4xl pt-4 sm:pt-8"><div className="mb-5 flex items-center justify-between"><a href="/next-workspace" className="text-sm font-semibold text-violet-700">← Back to workspace</a><span className="text-xs font-semibold text-slate-400">Step {step} of 3</span></div><section className="overflow-hidden rounded-3xl border border-violet-100 bg-white shadow-[0_18px_60px_rgba(70,60,120,.08)]"><div className="bg-gradient-to-r from-violet-50 to-white p-7 sm:p-10"><span className="inline-flex rounded-full bg-violet-100 px-3 py-1 text-[10px] font-bold uppercase tracking-[.16em] text-violet-700">New business</span><h1 className="mt-4 text-3xl font-semibold tracking-tight">Create another business</h1><p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">Tell MoneyMatters what kind of business you run. This helps us configure the right workflows today and build better tools for businesses like yours.</p><div className="mt-6 grid grid-cols-3 gap-2">{['Business profile','How you operate','Tax & communication'].map((x,i)=><div key={x} className={`h-1.5 rounded-full ${i+1<=step?'bg-violet-600':'bg-violet-100'}`}/>)}</div></div><div className="p-7 sm:p-10">
- {step===1&&<div><div className="grid gap-5 sm:grid-cols-2"><Field label="Business name *"><input autoFocus className={input} value={name} onChange={e=>setName(e.target.value)} placeholder="e.g. ABC Traders"/></Field><Field label="Business type *"><select className={input} value={type} onChange={e=>setType(e.target.value)}><option value="sole_proprietorship">Sole proprietorship</option><option value="individual">Individual</option><option value="partnership">Partnership</option><option value="llp">LLP</option><option value="private_limited">Private limited</option><option value="public_limited">Public limited</option><option value="trust">Trust</option><option value="society">Society</option><option value="other">Other</option></select></Field><Field label="Business category *"><select className={input} value={categoryId} onChange={e=>{setCategoryId(e.target.value);setSubcategoryId('')}}><option value="">Select your industry</option>{categories.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select></Field><Field label="Business sub-category *"><select className={input} value={subcategoryId} disabled={!categoryId} onChange={e=>setSubcategoryId(e.target.value)}><option value="">{categoryId?'Select your business type':'Select a category first'}</option>{visibleSubs.map(s=><option key={s.id} value={s.id}>{s.name}</option>)}</select></Field></div><div className="mt-6 rounded-2xl border border-violet-100 bg-violet-50/50 p-4"><p className="text-xs font-semibold text-violet-800">Why we ask</p><p className="mt-1 text-xs leading-5 text-slate-600">Your category helps us understand which businesses use MoneyMatters and prioritize useful features, reports and integrations for each industry.</p></div></div>}
- {step===2&&<div><section><p className="text-[11px] font-bold uppercase tracking-[.16em] text-violet-600">How you operate</p><h2 className="mt-1 text-xl font-semibold">Tell us how you sell</h2><p className="mt-1 text-sm text-slate-500">You can select more than one sales channel.</p><div className="mt-5"><Field label="You mainly sell *"><div className="grid gap-3 sm:grid-cols-3">{[['Products','products'],['Services','services'],['Products + Services','both']].map(([label,value])=><button type="button" key={value} onClick={()=>setSellingModel(value as any)} className={`rounded-2xl border p-4 text-left ${sellingModel===value?'border-violet-400 bg-violet-50 shadow-sm':'border-slate-200 bg-white'}`}><b className="block text-sm">{label}</b><span className="mt-1 block text-xs text-slate-500">{value==='products'?'Physical or digital goods':value==='services'?'Professional or recurring services':'Both products and services'}</span></button>)}</div></Field></div><div className="mt-7"><Field label="Where do you sell?"><div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">{choices.map(([label,value])=><label key={value} className={`flex cursor-pointer items-center gap-3 rounded-xl border p-3 ${channels.includes(value)?'border-violet-300 bg-violet-50':'border-slate-200'}`}><input type="checkbox" checked={channels.includes(value)} onChange={()=>toggleChannel(value)} className="h-4 w-4 accent-violet-600"/><span className="text-sm font-medium">{label}</span></label>)}</div></Field></div><div className="mt-7"><Field label="Team size"><select className={input} value={teamSize} onChange={e=>setTeamSize(e.target.value)}><option value="">Prefer not to say</option>{sizes.map(x=><option key={x}>{x}</option>)}</select></Field></div></section></div>}
- {step===3&&<div><section className="rounded-2xl border border-violet-100 bg-violet-50/50 p-5"><p className="text-[11px] font-bold uppercase tracking-[.16em] text-violet-600">Tax registration *</p><h2 className="mt-1 text-xl font-semibold">How is this business registered for tax?</h2><div className="mt-4 grid gap-3 sm:grid-cols-2"><button type="button" onClick={()=>setTaxMode('gst')} className={`rounded-2xl border p-4 text-left ${taxMode==='gst'?'border-violet-400 bg-white shadow-sm':'border-slate-200 bg-white/70'}`}><b className="block text-sm">Tax registered</b><span className="mt-1 block text-xs leading-5 text-slate-500">Enable the tax system configured for this business and show tax fields on documents.</span></button><button type="button" onClick={()=>setTaxMode('non_gst')} className={`rounded-2xl border p-4 text-left ${taxMode==='non_gst'?'border-violet-400 bg-white shadow-sm':'border-slate-200 bg-white/70'}`}><b className="block text-sm">Not tax registered</b><span className="mt-1 block text-xs leading-5 text-slate-500">Tax charging and tax-specific workflows remain off.</span></button></div>{taxMode==='gst'&&<div className="mt-4 grid gap-4 sm:grid-cols-2"><Field label="Tax system"><select className={input} defaultValue="GST"><option>GST</option></select></Field><Field label="Tax state *"><select className={input} value={taxState} onChange={e=>setTaxState(e.target.value)}>{states.map(x=><option key={x}>{x}</option>)}</select></Field><div className="sm:col-span-2"><Field label="GSTIN (optional now)"><input className={input} value={gstin} onChange={e=>setGstin(e.target.value)} placeholder="You can add/verify GSTIN in Business Settings" help="We keep registration status separate from the GSTIN so onboarding is not blocked."/></Field></div></div>}</section><section className="mt-5 rounded-2xl border border-slate-200 p-5"><p className="text-[11px] font-bold uppercase tracking-[.16em] text-violet-600">Communication preferences</p><h2 className="mt-1 text-lg font-semibold">How should MoneyMatters communicate?</h2><div className="mt-4 grid gap-3 sm:grid-cols-3">{[['Email',email,setEmail],['WhatsApp',whatsapp,setWhatsapp],['SMS',sms,setSms]].map(([label,value,setValue])=><label key={String(label)} className="flex cursor-pointer gap-3 rounded-2xl border border-slate-200 p-4"><input type="checkbox" checked={Boolean(value)} onChange={e=>(setValue as (v:boolean)=>void)(e.target.checked)} className="mt-1 h-4 w-4 accent-violet-600"/><b className="text-sm">{String(label)}</b></label>)}</div></section></div>}
- {error&&<div className="mt-5 rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">{error}</div>}
- <div className="mt-7 flex flex-col-reverse gap-3 sm:flex-row sm:justify-between"><button type="button" onClick={back} disabled={step===1||busy} className="rounded-xl border border-slate-200 px-5 py-3 text-sm font-semibold text-slate-700 disabled:opacity-40">← Back</button><div className="flex gap-3"><a href="/next-workspace" className="rounded-xl border border-slate-200 px-5 py-3 text-sm font-semibold text-slate-700">Cancel</a>{step<3?<button type="button" onClick={next} className="rounded-xl bg-violet-600 px-5 py-3 text-sm font-semibold text-white">Continue →</button>:<button disabled={busy} onClick={create} className="rounded-xl bg-violet-600 px-5 py-3 text-sm font-semibold text-white disabled:opacity-50">{busy?'Creating business…':'Create business →'}</button>}</div></div>
- </div></section></div></main>}
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { supabase } from '@/lib/supabase';
+
+type Category = { id: string; name: string; sort_order: number };
+type Subcategory = { id: string; category_id: string; name: string; sort_order: number };
+
+type FieldProps = { label: string; children: ReactNode; help?: string };
+const input = 'w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-100';
+const Field = ({ label, children, help }: FieldProps) => (
+  <label className="block">
+    <span className="mb-1.5 block text-xs font-semibold text-slate-600">{label}</span>
+    {children}
+    {help && <span className="mt-1 block text-[11px] text-slate-400">{help}</span>}
+  </label>
+);
+
+const channels = [
+  ['Physical store / office', 'physical_store'], ['Website', 'website'], ['WhatsApp', 'whatsapp'],
+  ['Instagram / Facebook', 'social'], ['Amazon', 'amazon'], ['Flipkart', 'flipkart'],
+  ['Meesho', 'meesho'], ['B2B / direct customers', 'b2b'], ['Field sales', 'field_sales'], ['Other', 'other'],
+];
+const sizes = ['Just me', '2–5', '6–10', '11–25', '26–50', '51–100', '100+'];
+const states = ['Maharashtra', 'Karnataka', 'Telangana', 'Gujarat', 'Delhi', 'Tamil Nadu', 'Uttar Pradesh', 'Other'];
+
+export default function CreateBusiness() {
+  const [name, setName] = useState('');
+  const [type, setType] = useState('sole_proprietorship');
+  const [categoryId, setCategoryId] = useState('');
+  const [subcategoryId, setSubcategoryId] = useState('');
+  const [sellingModel, setSellingModel] = useState<'products' | 'services' | 'both'>('products');
+  const [salesChannels, setSalesChannels] = useState<string[]>([]);
+  const [teamSize, setTeamSize] = useState('');
+  const [taxMode, setTaxMode] = useState<'gst' | 'non_gst'>('gst');
+  const [gstin, setGstin] = useState('');
+  const [taxState, setTaxState] = useState('Maharashtra');
+  const [email, setEmail] = useState(true);
+  const [whatsapp, setWhatsapp] = useState(true);
+  const [sms, setSms] = useState(false);
+  const [step, setStep] = useState(1);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [subcategories, setSubcategories] = useState<Subcategory[]>([]);
+
+  useEffect(() => {
+    (async () => {
+      const [c, s] = await Promise.all([
+        supabase.from('business_categories').select('id,name,sort_order').eq('is_active', true).order('sort_order'),
+        supabase.from('business_subcategories').select('id,category_id,name,sort_order').eq('is_active', true).order('sort_order'),
+      ]);
+      setCategories(c.data || []);
+      setSubcategories(s.data || []);
+    })();
+  }, []);
+
+  const visibleSubs = useMemo(() => subcategories.filter((s) => s.category_id === categoryId), [subcategories, categoryId]);
+  const toggleChannel = (value: string) => setSalesChannels((v) => v.includes(value) ? v.filter((x) => x !== value) : [...v, value]);
+  const next = () => {
+    setError('');
+    if (step === 1 && !name.trim()) return setError('Business name is required.');
+    if (step === 1 && !categoryId) return setError('Please select a business category.');
+    if (step === 1 && !subcategoryId) return setError('Please select a business sub-category.');
+    if (step === 2 && !sellingModel) return setError('Please select what you mainly sell.');
+    setStep((s) => Math.min(3, s + 1));
+  };
+  const back = () => { setError(''); setStep((s) => Math.max(1, s - 1)); };
+
+  const create = async () => {
+    if (taxMode === 'gst' && !taxState.trim()) return setError('Tax state is required for GST businesses.');
+    setBusy(true); setError('');
+    const stateCode: Record<string, string> = { Maharashtra: 'MH', Karnataka: 'KA', Telangana: 'TS', Gujarat: 'GJ', Delhi: 'DL', 'Tamil Nadu': 'TN', 'Uttar Pradesh': 'UP', Other: 'OT' };
+    const r = await supabase.rpc('create_business_for_current_user', {
+      p_business_name: name.trim(), p_business_type: type, p_country_code: 'IN', p_currency_code: 'INR',
+      p_tax_enabled: taxMode === 'gst', p_tax_region: taxMode === 'gst' ? `IN-${stateCode[taxState] || 'OT'}` : null,
+      p_tax_mode: taxMode, p_notification_email: email, p_notification_whatsapp: whatsapp, p_notification_sms: sms,
+      p_category_id: categoryId || null, p_subcategory_id: subcategoryId || null, p_selling_model: sellingModel,
+      p_sales_channels: salesChannels, p_team_size: teamSize || null, p_tax_state: taxMode === 'gst' ? taxState : null,
+      p_gstin: taxMode === 'gst' ? gstin.trim() || null : null,
+    });
+    if (r.error) { setError(r.error.message); setBusy(false); return; }
+    const contexts = await supabase.rpc('get_my_business_context');
+    const rows = (contexts.data || []) as Array<{ business_id: string; business_name: string }>;
+    const returned = typeof r.data === 'string' ? r.data : Array.isArray(r.data) ? (typeof r.data[0] === 'string' ? r.data[0] : r.data[0]?.business_id) : r.data?.business_id;
+    const created = rows.find((x) => x.business_id === returned) || rows.filter((x) => x.business_name === name.trim()).at(-1) || rows.at(-1);
+    if (created) localStorage.setItem('moneymatters.activeBusinessId', created.business_id);
+    window.location.href = '/next-workspace';
+  };
+
+  return (
+    <main className="min-h-screen bg-[#fbfaff] p-5 sm:p-8">
+      <div className="mx-auto max-w-4xl pt-4 sm:pt-8">
+        <div className="mb-5 flex items-center justify-between"><a href="/next-workspace" className="text-sm font-semibold text-violet-700">← Back to workspace</a><span className="text-xs font-semibold text-slate-400">Step {step} of 3</span></div>
+        <section className="overflow-hidden rounded-3xl border border-violet-100 bg-white shadow-[0_18px_60px_rgba(70,60,120,.08)]">
+          <div className="bg-gradient-to-r from-violet-50 to-white p-7 sm:p-10"><span className="inline-flex rounded-full bg-violet-100 px-3 py-1 text-[10px] font-bold uppercase tracking-[.16em] text-violet-700">New business</span><h1 className="mt-4 text-3xl font-semibold tracking-tight">Create another business</h1><p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">Tell MoneyMatters what kind of business you run. This helps us configure the right workflows today and build better tools for businesses like yours.</p><div className="mt-6 grid grid-cols-3 gap-2">{['Business profile', 'How you operate', 'Tax & communication'].map((x, i) => <div key={x} className={`h-1.5 rounded-full ${i + 1 <= step ? 'bg-violet-600' : 'bg-violet-100'}`} />)}</div></div>
+          <div className="p-7 sm:p-10">
+            {step === 1 && <div><div className="grid gap-5 sm:grid-cols-2"><Field label="Business name *"><input autoFocus className={input} value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. ABC Traders" /></Field><Field label="Business type *"><select className={input} value={type} onChange={(e) => setType(e.target.value)}><option value="sole_proprietorship">Sole proprietorship</option><option value="individual">Individual</option><option value="partnership">Partnership</option><option value="llp">LLP</option><option value="private_limited">Private limited</option><option value="public_limited">Public limited</option><option value="trust">Trust</option><option value="society">Society</option><option value="other">Other</option></select></Field><Field label="Business category *"><select className={input} value={categoryId} onChange={(e) => { setCategoryId(e.target.value); setSubcategoryId(''); }}><option value="">Select your industry</option>{categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select></Field><Field label="Business sub-category *"><select className={input} value={subcategoryId} disabled={!categoryId} onChange={(e) => setSubcategoryId(e.target.value)}><option value="">{categoryId ? 'Select your business type' : 'Select a category first'}</option>{visibleSubs.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</select></Field></div><div className="mt-6 rounded-2xl border border-violet-100 bg-violet-50/50 p-4"><p className="text-xs font-semibold text-violet-800">Why we ask</p><p className="mt-1 text-xs leading-5 text-slate-600">Your category helps us understand which businesses use MoneyMatters and prioritize useful features, reports and integrations for each industry.</p></div></div>}
+            {step === 2 && <div><section><p className="text-[11px] font-bold uppercase tracking-[.16em] text-violet-600">How you operate</p><h2 className="mt-1 text-xl font-semibold">Tell us how you sell</h2><p className="mt-1 text-sm text-slate-500">You can select more than one sales channel.</p><div className="mt-5"><Field label="You mainly sell *"><div className="grid gap-3 sm:grid-cols-3">{[['Products', 'products'], ['Services', 'services'], ['Products + Services', 'both']].map(([label, value]) => <button type="button" key={value} onClick={() => setSellingModel(value as 'products' | 'services' | 'both')} className={`rounded-2xl border p-4 text-left ${sellingModel === value ? 'border-violet-400 bg-violet-50 shadow-sm' : 'border-slate-200 bg-white'}`}><b className="block text-sm">{label}</b><span className="mt-1 block text-xs text-slate-500">{value === 'products' ? 'Physical or digital goods' : value === 'services' ? 'Professional or recurring services' : 'Both products and services'}</span></button>)}</div></Field></div><div className="mt-7"><Field label="Where do you sell?"><div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">{channels.map(([label, value]) => <label key={value} className={`flex cursor-pointer items-center gap-3 rounded-xl border p-3 ${salesChannels.includes(value) ? 'border-violet-300 bg-violet-50' : 'border-slate-200'}`}><input type="checkbox" checked={salesChannels.includes(value)} onChange={() => toggleChannel(value)} className="h-4 w-4 accent-violet-600" /><span className="text-sm font-medium">{label}</span></label>)}</div></Field></div><div className="mt-7"><Field label="Team size"><select className={input} value={teamSize} onChange={(e) => setTeamSize(e.target.value)}><option value="">Prefer not to say</option>{sizes.map((x) => <option key={x}>{x}</option>)}</select></Field></div></section></div>}
+            {step === 3 && <div><section className="rounded-2xl border border-violet-100 bg-violet-50/50 p-5"><p className="text-[11px] font-bold uppercase tracking-[.16em] text-violet-600">Tax registration *</p><h2 className="mt-1 text-xl font-semibold">How is this business registered for tax?</h2><div className="mt-4 grid gap-3 sm:grid-cols-2"><button type="button" onClick={() => setTaxMode('gst')} className={`rounded-2xl border p-4 text-left ${taxMode === 'gst' ? 'border-violet-400 bg-white shadow-sm' : 'border-slate-200 bg-white/70'}`}><b className="block text-sm">Tax registered</b><span className="mt-1 block text-xs leading-5 text-slate-500">Enable the tax system configured for this business and show tax fields on documents.</span></button><button type="button" onClick={() => setTaxMode('non_gst')} className={`rounded-2xl border p-4 text-left ${taxMode === 'non_gst' ? 'border-violet-400 bg-white shadow-sm' : 'border-slate-200 bg-white/70'}`}><b className="block text-sm">Not tax registered</b><span className="mt-1 block text-xs leading-5 text-slate-500">Tax charging and tax-specific workflows remain off.</span></button></div>{taxMode === 'gst' && <div className="mt-4 grid gap-4 sm:grid-cols-2"><Field label="Tax system"><select className={input} defaultValue="GST"><option>GST</option></select></Field><Field label="Tax state *"><select className={input} value={taxState} onChange={(e) => setTaxState(e.target.value)}>{states.map((x) => <option key={x}>{x}</option>)}</select></Field><div className="sm:col-span-2"><Field label="GSTIN (optional now)" help="You can add or verify the GSTIN later in Business Settings."><input className={input} value={gstin} onChange={(e) => setGstin(e.target.value)} placeholder="e.g. 27AAAAA0000A1Z5" /></Field></div></div>}</section><section className="mt-5 rounded-2xl border border-slate-200 p-5"><p className="text-[11px] font-bold uppercase tracking-[.16em] text-violet-600">Communication preferences</p><h2 className="mt-1 text-lg font-semibold">How should MoneyMatters communicate?</h2><div className="mt-4 grid gap-3 sm:grid-cols-3">{([['Email', email, setEmail], ['WhatsApp', whatsapp, setWhatsapp], ['SMS', sms, setSms]] as const).map(([label, value, setValue]) => <label key={label} className="flex cursor-pointer gap-3 rounded-2xl border border-slate-200 p-4"><input type="checkbox" checked={value} onChange={(e) => setValue(e.target.checked)} className="mt-1 h-4 w-4 accent-violet-600" /><b className="text-sm">{label}</b></label>)}</div></section></div>}
+            {error && <div className="mt-5 rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">{error}</div>}
+            <div className="mt-7 flex flex-col-reverse gap-3 sm:flex-row sm:justify-between"><button type="button" onClick={back} disabled={step === 1 || busy} className="rounded-xl border border-slate-200 px-5 py-3 text-sm font-semibold text-slate-700 disabled:opacity-40">← Back</button><div className="flex gap-3"><a href="/next-workspace" className="rounded-xl border border-slate-200 px-5 py-3 text-sm font-semibold text-slate-700">Cancel</a>{step < 3 ? <button type="button" onClick={next} className="rounded-xl bg-violet-600 px-5 py-3 text-sm font-semibold text-white">Continue →</button> : <button disabled={busy} onClick={create} className="rounded-xl bg-violet-600 px-5 py-3 text-sm font-semibold text-white disabled:opacity-50">{busy ? 'Creating business…' : 'Create business →'}</button>}</div></div>
+          </div>
+        </section>
+      </div>
+    </main>
+  );
+}
