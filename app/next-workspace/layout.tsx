@@ -7,6 +7,20 @@ const groups=[{name:'Business',items:[['Home','/next-workspace'],['Sales & Payme
 const createItems=[['Invoice','/next-workspace/sales'],['Estimate','/next-workspace/quotation'],['Payment','/next-workspace/payments'],['Expense','/next-workspace/purchases'],['Customer','/next-workspace/customers'],['Vendor','/next-workspace/vendors'],['Product / Service','/next-workspace/items'],['New Business','/next-workspace/create-business']];
 const titles:Record<string,string>={'/next-workspace':'Home','/next-workspace/sales':'Sales & Payments','/next-workspace/quotation':'Estimates','/next-workspace/customers':'Customers','/next-workspace/vendors':'Vendors','/next-workspace/items':'Products & Services','/next-workspace/inventory':'Products & Services','/next-workspace/purchases':'Purchases & Bills','/next-workspace/recurring':'Recurring','/next-workspace/banking':'Banking','/next-workspace/payments':'Payments','/next-workspace/receipts':'Receipts','/next-workspace/accounting':'Accounting','/next-workspace/tax':'Tax & ITR','/next-workspace/reports':'Reports','/next-workspace/business-settings':'Business Settings','/next-workspace/brand':'Brand & Templates','/next-workspace/documents':'Documents','/next-workspace/whatsapp':'WhatsApp','/next-workspace/preferences':'Preferences','/next-workspace/data-migration':'Data & Migration','/next-workspace/profile':'My Profile','/next-workspace/create-business':'New Business'};
 
+type NavProps={pathname:string;go:(href:string)=>void;openGroups:Record<string,boolean>;setOpenGroups:React.Dispatch<React.SetStateAction<Record<string,boolean>>>};
+function Nav({pathname,go,openGroups,setOpenGroups}:NavProps){
+ return <nav>{groups.map(g=><section key={g.name} className="mb-4">
+  <button onClick={()=>setOpenGroups(v=>({...v,[g.name]:!v[g.name]}))} className="flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-left text-[11px] font-bold uppercase tracking-[.16em] text-slate-400 hover:bg-violet-50">
+   <span>{g.name}</span><span className="text-sm text-violet-500">{openGroups[g.name]?'⌄':'›'}</span>
+  </button>
+  <div className={`overflow-hidden transition-all duration-200 ${openGroups[g.name]?'max-h-[600px] opacity-100':'max-h-0 opacity-0'}`}>
+   <div className="pt-1">{g.items.map(([label,href])=><button key={href} onClick={()=>go(href)} className={`mb-1 flex w-full items-center rounded-xl px-3 py-2.5 text-left text-sm font-medium transition ${pathname===href?'bg-violet-50 text-violet-800 ring-1 ring-violet-100':'text-slate-600 hover:bg-violet-50 hover:text-violet-800'}`}>
+    <span className="mr-3 h-1.5 w-1.5 shrink-0 rounded-full bg-current opacity-50"/>{label}
+   </button>)}</div>
+  </div>
+ </section>)}</nav>;
+}
+
 export default function WorkspaceLayout({children}:{children:React.ReactNode}){
  const pathname=usePathname();
  const[mobile,setMobile]=useState(false),[create,setCreate]=useState(false),[account,setAccount]=useState(false),[userName,setUserName]=useState('Account'),[businesses,setBusinesses]=useState<BusinessContext[]>([]),[activeBusinessId,setActiveBusinessId]=useState('');
@@ -33,4 +47,3 @@ export default function WorkspaceLayout({children}:{children:React.ReactNode}){
   <style jsx global>{`@keyframes slideIn{from{transform:translateX(-100%);opacity:.7}to{transform:translateX(0);opacity:1}}`}</style>
  </div>
 }
-function Nav({pathname,go,openGroups,setOpenGroups}:{pathname:string;go:(href:string)=>void;openGroups:Record<string,boolean>;setOpenGroups:React.Dispatch<React.SetStateAction<Record<string,boolean>>>){return <nav>{groups.map(g=><section key={g.name} className="mb-4"><button onClick={()=>setOpenGroups(v=>({...v,[g.name]:!v[g.name]}))} className="flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-left text-[11px] font-bold uppercase tracking-[.16em] text-slate-400 hover:bg-violet-50"><span>{g.name}</span><span className="text-sm text-violet-500">{openGroups[g.name]?'⌄':'›'}</span></button><div className={`overflow-hidden transition-all duration-200 ${openGroups[g.name]?'max-h-[600px] opacity-100':'max-h-0 opacity-0'}`}><div className="pt-1">{g.items.map(([label,href])=><button key={href} onClick={()=>go(href)} className={`mb-1 flex w-full items-center rounded-xl px-3 py-2.5 text-left text-sm font-medium transition ${pathname===href?'bg-violet-50 text-violet-800 ring-1 ring-violet-100':'text-slate-600 hover:bg-violet-50 hover:text-violet-800'}`}><span className="mr-3 h-1.5 w-1.5 shrink-0 rounded-full bg-current opacity-50"/>{label}</button>)}</div></div></section>)}</nav>}
