@@ -1,0 +1,1 @@
+update public.expense_categories set is_active=false where name in ('Utilities','Office & Administrative','Travel & Transport');
