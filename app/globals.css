@@ -39,3 +39,9 @@ div.fixed.inset-0{background-color:transparent!important}
  .receipt-paper .receipt-title h1{font-size:21px!important}
  .receipt-paper .receipt-business{font-size:17px!important}
 }
+/* Document readability: slightly larger base and supporting text without changing the page width or layout. */
+.paper{font-size:10px!important}
+.paper .business-identity span,.paper .parties span,.paper .items td,.paper .receipt-title div,.paper .receipt-head>span,.paper .receipt-customer>span,.paper .payment-detail span,.paper .receipt-footer span{font-size:10px!important}
+.paper .items th,.paper .parties label,.paper .receipt-customer .label{font-size:9px!important}
+.receipt-paper .receipt-items{font-size:10px!important}
+@media(max-width:420px){.receipt-paper .receipt-items{font-size:9px!important}}
