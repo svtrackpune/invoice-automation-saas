@@ -54,7 +54,7 @@ BEGIN
   END IF;
 
   IF p_invoice_discount_type IS NOT NULL
-     AND p_invoice_discount_type NOT IN ('percentage','fixed') THEN
+     AND p_invoice_discount_type NOT IN ('percentage','amount') THEN
     RAISE EXCEPTION 'Invalid invoice discount type';
   END IF;
   IF coalesce(p_invoice_discount_value,0) < 0 THEN
