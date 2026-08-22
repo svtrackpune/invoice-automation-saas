@@ -1,0 +1,2 @@
+alter table public.expenses add column if not exists category_id uuid references public.expense_categories(id) on delete set null;
+create index if not exists expenses_business_category_date_idx on public.expenses(business_id,category_id,expense_date);
