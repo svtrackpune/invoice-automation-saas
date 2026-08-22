@@ -23,3 +23,19 @@ div.fixed.inset-0{background-color:transparent!important}
  *{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}
 }
 @media(max-width:640px){.document-preview{padding:22px;min-height:0}.document-preview table{font-size:12px}}
+/* Receipt paper: keep the full receipt readable on a phone without horizontal scrolling. */
+.receipt-paper{width:380px!important;max-width:calc(100vw - 24px)!important;margin-left:auto!important;margin-right:auto!important}
+@media(max-width:420px){
+ .receipt-paper{width:100%!important;max-width:calc(100vw - 16px)!important}
+ .receipt-paper .receipt-head{padding-left:24px!important;padding-right:24px!important}
+ .receipt-paper .receipt-title{padding-left:24px!important;padding-right:24px!important}
+ .receipt-paper .receipt-customer{margin-left:24px!important;margin-right:24px!important}
+ .receipt-paper .receipt-items{margin-left:24px!important;margin-right:24px!important;width:calc(100% - 48px)!important;font-size:8px!important}
+ .receipt-paper .receipt-items th,.receipt-paper .receipt-items td{padding:7px 5px!important}
+ .receipt-paper .receipt-totals{margin-left:24px!important;margin-right:24px!important}
+ .receipt-paper .payment-detail{margin-left:24px!important;margin-right:24px!important}
+ .receipt-paper .receipt-thanks{margin-left:24px!important;margin-right:24px!important}
+ .receipt-paper .receipt-footer{margin-left:24px!important;margin-right:24px!important}
+ .receipt-paper .receipt-title h1{font-size:21px!important}
+ .receipt-paper .receipt-business{font-size:17px!important}
+}
