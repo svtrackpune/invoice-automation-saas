@@ -1,0 +1,1 @@
+update public.expense_categories ec set account_id=a.id from public.accounts a where ec.name='Salaries & Wages' and a.business_id=ec.business_id and a.code='6100';
