@@ -1,0 +1,1 @@
+Receipt document requirements: item, qty, rate, amount; total, amount received, balance; business/customer/logo; five selected templates; no bank details, Pay Now or QR.
