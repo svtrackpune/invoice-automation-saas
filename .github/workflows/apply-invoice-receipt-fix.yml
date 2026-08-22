@@ -1,0 +1,73 @@
+name: apply invoice receipt fixes
+on:
+  push:
+    branches: [feature/receipt-render-and-invoice-status]
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/receipt-render-and-invoice-status
+      - name: Patch app
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+
+          p=Path('app/next-workspace/invoices/new/page.tsx')
+          s=p.read_text()
+          old="""const r=editId?await supabase.rpc('update_invoice_draft',{p_invoice_id:editId,p_customer_id:customerId,p_invoice_date:invoiceDate,p_due_date:dueDate,p_items:itemPayload,p_invoice_discount_type:discountType||null,p_invoice_discount_value:Number(discountValue||0),p_notes:notes||null,p_terms:terms||null,p_template_id:template||null}):await supabase.rpc('create_invoice_from_items',{p_business_id:ctx.business_id,p_customer_id:customerId,p_invoice_date:invoiceDate,p_due_date:dueDate,p_items:itemPayload,p_invoice_discount_type:discountType||null,p_invoice_discount_value:Number(discountValue||0),p_notes:notes||null,p_terms:terms||null});if(r.error){setError(r.error.message);setBusy(false);return}if(!editId&&template)await supabase.from('invoices').update({template_id:template}).eq('id',r.data);location.href=`/next-workspace/documents?type=invoice&id=${r.data}`;"""
+          new="""const r=editId?await supabase.rpc('update_invoice_draft',{p_invoice_id:editId,p_customer_id:customerId,p_invoice_date:invoiceDate,p_due_date:dueDate,p_items:itemPayload,p_invoice_discount_type:discountType||null,p_invoice_discount_value:Number(discountValue||0),p_notes:notes||null,p_terms:terms||null,p_template_id:template||null}):await supabase.rpc('create_invoice_from_items',{p_business_id:ctx.business_id,p_customer_id:customerId,p_invoice_date:invoiceDate,p_due_date:dueDate,p_items:itemPayload,p_invoice_discount_type:discountType||null,p_invoice_discount_value:Number(discountValue||0),p_notes:notes||null,p_terms:terms||null});if(r.error){setError(r.error.message);setBusy(false);return}if(!editId){if(template)await supabase.from('invoices').update({template_id:template}).eq('id',r.data);const posted=await supabase.rpc('post_invoice',{p_invoice_id:r.data,p_location_id:null});if(posted.error){setError(posted.error.message);setBusy(false);return}}location.href=`/next-workspace/documents?type=invoice&id=${r.data}`;"""
+          assert old in s, 'invoice save block not found'
+          p.write_text(s.replace(old,new))
+
+          p=Path('app/next-workspace/documents/page.tsx')
+          s=p.read_text()
+          s=s.replace('registration_number,tax_registration_number,country_code,currency_code,address,brand_primary_color', 'registration_number,tax_registration_number,country_code,currency_code,address,phone,mobile,email,business_email,website,brand_primary_color')
+
+          start=s.index('function Receipt(')
+          end=s.index('\n\nfunction DocumentsContent()', start)
+          receipt=r'''function Receipt({title,number,date,p,b,c,total,cf,logoUrl,items,invoiceTotal,balance}:{title:string;number:string;date:string;p:any;b:any;c:any;total:number;cf:any;logoUrl:string;items:any[];invoiceTotal:number;balance:number}){
+            const currency=p.currency_code||'INR';
+            return <article className="invoice-paper receipt-paper">
+              <header className="receipt-header"><BusinessIdentity b={b} url={logoUrl}/><div className="document-heading"><div className="document-title">{text(cf.title||title).toUpperCase()}</div><div className="document-meta"><div><span>Receipt No.</span><b>{number}</b></div><div><span>Date</span><b>{date}</b></div></div></div></header>
+              <section className="receipt-amount"><div className="section-label">AMOUNT RECEIVED</div><div className="receipt-total">{money(total,currency)}</div><div className="receipt-status">Payment received</div></section>
+              <section className="party-section"><div className="party-card"><div className="section-label">RECEIVED FROM</div><div className="party-name">{text(c.display_name||c.legal_name||'Customer')}</div>{lines(c.address||c.billing_address).map((x,i)=><div key={i} className="party-line">{x}</div>)}{c.phone&&<div className="party-line">{text(c.phone)}</div>}{c.email&&<div className="party-line">{text(c.email)}</div>}</div><div className="party-card business-side"><div className="section-label">BUSINESS</div><div className="party-name">{text(b.name||b.legal_name||'Business')}</div>{lines(b.address||b.business_address).map((x,i)=><div key={i} className="party-line">{x}</div>)}{(b.phone||b.mobile)&&<div className="party-line">{text(b.phone||b.mobile)}</div>}{(b.email||b.business_email)&&<div className="party-line">{text(b.email||b.business_email)}</div>}{b.website&&<div className="party-line">{text(b.website)}</div>}{(b.tax_registration_number||b.gstin)&&<div className="party-tax">GSTIN / Tax ID: {text(b.tax_registration_number||b.gstin)}</div>}</div></section>
+              <table className="invoice-table receipt-items"><thead><tr><th className="item-col">Item / Description</th><th>Qty</th><th>Rate</th><th>Amount</th></tr></thead><tbody>{items.length?items.map((x:any,i:number)=><tr key={i}><td className="item-col"><div className="item-name">{text(x.name||x.description||'Item')}</div>{x.description&&x.name&&<div className="item-description">{text(x.description)}</div>}</td><td>{x.quantity??1}{x.unit?` ${x.unit}`:''}</td><td>{money(x.unit_price,currency)}</td><td><b>{money(x.line_total??(Number(x.quantity||1)*Number(x.unit_price||0)),currency)}</b></td></tr>):<tr><td className="item-col">Payment received against invoice</td><td>—</td><td>—</td><td><b>{money(total,currency)}</b></td></tr>}</tbody></table>
+              <section className="totals-section"><Totals p={{subtotal:invoiceTotal,discount_total:0,tax_total:0,amount_paid:total,currency_code:currency}} total={invoiceTotal} balance={balance}/></section>
+              <section className="receipt-details"><div><span>Against invoice</span><b>{text(p.invoice_number||'—')}</b></div><div><span>Payment method</span><b>{text(p.payment_method||p.method||'Payment received')}</b></div><div><span>Reference</span><b>{text(p.payment_reference||p.reference||'—')}</b></div></section>
+              <div className="receipt-thanks">{cf.notes||'Thank you for your payment.'}</div><footer className="invoice-footer"><span>{text(b.name||b.legal_name||'Business')}</span><span>{cf.footer||'This receipt confirms payment received.'}</span></footer><div className="platform-footer">Moneymatters</div>
+            </article>;
+          }'''
+          s=s[:start]+receipt+s[end:]
+          s=s.replace("[notice,setNotice]=useState('')", "[notice,setNotice]=useState(''),[receiptItems,setReceiptItems]=useState<any[]>([]),[receiptInvoice,setReceiptInvoice]=useState<any>(null),[menu,setMenu]=useState(false)")
+
+          needle="    if(biz.data){setBusiness(biz.data);if(biz.data.logo_storage_path){const u=supabase.storage.from('business-branding-public').getPublicUrl(biz.data.logo_storage_path);setLogoUrl(u.data.publicUrl)}}\n    setLoading(false);"
+          insert="    if(biz.data){setBusiness(biz.data);if(biz.data.logo_storage_path){const u=supabase.storage.from('business-branding-public').getPublicUrl(biz.data.logo_storage_path);setLogoUrl(u.data.publicUrl)}}\n    if(type==='receipt'){const rr=await supabase.from('receipts').select('payment_id,amount,currency_code,payment_method,reference_number,receipt_date').eq('id',id).maybeSingle();if(rr.data?.payment_id){const pr=await supabase.from('payments').select('invoice_id,method,reference').eq('id',rr.data.payment_id).maybeSingle();if(pr.data?.invoice_id){const ir=await supabase.from('invoices').select('invoice_number,total,amount_paid,balance_due,currency_code').eq('id',pr.data.invoice_id).maybeSingle();if(ir.data){setReceiptInvoice(ir.data);const ii=await supabase.from('invoice_items').select('product_service_id,description,quantity,unit_price,line_total').eq('invoice_id',pr.data.invoice_id).order('sort_order');const ids=(ii.data||[]).map((x:any)=>x.product_service_id).filter(Boolean);let products:any[]=[];if(ids.length){const pp=await supabase.from('products_services').select('id,name,sku,unit').in('id',ids);products=pp.data||[]}setReceiptItems((ii.data||[]).map((x:any)=>{const ps=products.find((q:any)=>q.id===x.product_service_id);return {...x,name:ps?.name||x.description,sku:ps?.sku||'',unit:ps?.unit||''}}))}}}}}\n    setLoading(false);"
+          assert needle in s, 'document load needle not found'
+          s=s.replace(needle,insert)
+
+          old="<div className=\"toolbar-actions\"><button onClick={back} className=\"toolbar-secondary\">{editUrl?'Back to edit':'Back'}</button>{type==='invoice'&&<><button onClick={()=>{void shareDocument()}} className=\"toolbar-secondary\">Share</button><button onClick={()=>{void copyLink()}} className=\"toolbar-secondary\">Copy link</button></>}<button onClick={printDocument} className=\"toolbar-primary\">Print / Save PDF</button></div>"
+          new="<div className=\"toolbar-actions\">{editUrl&&<button onClick={back} className=\"toolbar-secondary\">Back to edit</button>}{type==='invoice'&&balance>0&&<button onClick={()=>location.href=`/next-workspace/payments?invoice=${id}`} className=\"toolbar-secondary\">Record payment</button>}<div className=\"action-menu\"><button onClick={()=>setMenu(v=>!v)} className=\"toolbar-primary\">Print / Save PDF <span>⌄</span></button>{menu&&<div className=\"action-dropdown\"><button onClick={printDocument}>Print / Save PDF</button><button onClick={shareDocument}>Share</button><button onClick={copyLink}>Copy link</button></div>}</div></div>"
+          assert old in s, 'toolbar block not found'
+          s=s.replace(old,new)
+
+          old="{isReceipt?<Receipt title={text(cf.title||title)} number={number} date={text(p.receipt_date||p.payment_date||p.invoice_date||'')} p={p} b={b} c={c} total={total} cf={cf} logoUrl={logoUrl}/>:"
+          new="{isReceipt?<Receipt title={text(cf.title||title)} number={number} date={text(p.receipt_date||p.payment_date||p.invoice_date||'')} p={{...p,invoice_number:receiptInvoice?.invoice_number}} b={b} c={c} total={Number(p.amount||receiptInvoice?.amount_paid||0)} cf={cf} logoUrl={logoUrl} items={receiptItems} invoiceTotal={Number(receiptInvoice?.total||p.amount||0)} balance={Number(receiptInvoice?.balance_due||0)}/>:"
+          assert old in s, 'receipt call not found'
+          s=s.replace(old,new)
+          s=s.replace('.toolbar-primary{border:0;background:#0f172a;color:white}.toolbar-secondary', '.toolbar-primary{border:0;background:#0f172a;color:white}.action-menu{position:relative}.action-dropdown{position:absolute;right:0;top:calc(100% + 6px);z-index:20;min-width:170px;padding:5px;border:1px solid #e2e8f0;border-radius:10px;background:white;box-shadow:0 14px 35px rgba(15,23,42,.15)}.action-dropdown button{display:block;width:100%;padding:9px 11px;border:0;border-radius:7px;background:white;text-align:left;font-size:12px;font-weight:700;color:#334155;cursor:pointer}.action-dropdown button:hover{background:#f8fafc}.toolbar-secondary')
+          s=s.replace('.receipt-thanks{text-align:center;', '.receipt-items{margin-top:8px}.receipt-thanks{text-align:center;')
+          p.write_text(s)
+          PY
+      - name: Commit patch
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add app/next-workspace/invoices/new/page.tsx app/next-workspace/documents/page.tsx
+          git diff --cached --quiet || git commit -m 'fix: invoice status and receipt documents'
+          git push origin feature/receipt-render-and-invoice-status
