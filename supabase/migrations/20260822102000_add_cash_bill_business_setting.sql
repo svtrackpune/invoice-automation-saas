@@ -1,0 +1,1 @@
+alter table public.business_settings add column if not exists cash_bill_enabled boolean not null default false;
