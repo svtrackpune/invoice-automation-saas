@@ -96,7 +96,7 @@ export default function Invoices() {
     if (menu?.id === id) { setMenu(null); return; }
     const rect = button.getBoundingClientRect();
     const width = 190;
-    const height = 210;
+    const height = 250;
     const left = Math.max(8, Math.min(window.innerWidth - width - 8, rect.right - width));
     const top = rect.bottom + 6 + height <= window.innerHeight ? rect.bottom + 6 : Math.max(8, rect.top - height - 6);
     setMenu({ id, top, left });
@@ -162,7 +162,17 @@ function InvoiceRow({ invoice, onAction }: { invoice: Invoice; onAction: (button
 function FixedActionMenu({ position, invoice, onClose }: { position: { top: number; left: number }; invoice?: Invoice; onClose: () => void }) {
   if (!invoice) return null;
   const go = (url: string) => { onClose(); location.href = url; };
-  return <div className="fixed z-[100] w-[190px] rounded-xl border border-slate-200 bg-white p-1 text-left shadow-2xl" style={{ top: position.top, left: position.left }} onClick={(event) => event.stopPropagation()}><Action label="View invoice" onClick={() => go(`/next-workspace/documents?type=invoice&id=${invoice.id}`)} /><Action label="Edit draft" onClick={() => go(`/next-workspace/sales?invoice=${invoice.id}`)} /><Action label="Duplicate" onClick={() => go(`/next-workspace/invoices/new?duplicate=${invoice.id}`)} /><Action label="Record payment" onClick={() => go(`/next-workspace/payments?invoice=${invoice.id}`)} /></div>;
+  const share = async () => {
+    const url = `${window.location.origin}/next-workspace/documents?type=invoice&id=${invoice.id}`;
+    const title = `Invoice ${invoice.invoice_number}`;
+    const text = `${invoice.customer?.display_name || 'Customer'} · ${money(invoice.balance_due)} due`;
+    try {
+      if (navigator.share) await navigator.share({ title, text, url });
+      else { await navigator.clipboard.writeText(url); window.alert('Invoice link copied.'); }
+    } catch { /* User cancelled the native share sheet. */ }
+    onClose();
+  };
+  return <div className="fixed z-[100] w-[190px] rounded-xl border border-slate-200 bg-white p-1 text-left shadow-2xl" style={{ top: position.top, left: position.left }} onClick={(event) => event.stopPropagation()}><Action label="View invoice" onClick={() => go(`/next-workspace/documents?type=invoice&id=${invoice.id}`)} /><Action label="Edit draft" onClick={() => go(`/next-workspace/invoices/new?edit=${invoice.id}`)} /><Action label="Share invoice" onClick={() => { void share(); }} /><Action label="Duplicate" onClick={() => go(`/next-workspace/invoices/new?duplicate=${invoice.id}`)} /><Action label="Record payment" onClick={() => go(`/next-workspace/payments?invoice=${invoice.id}`)} /></div>;
 }
 
 function Pagination({ total, page, pageCount, pageSize, onPage, onPageSize }: { total: number; page: number; pageCount: number; pageSize: string; onPage: (page: number) => void; onPageSize: (size: string) => void }) {
