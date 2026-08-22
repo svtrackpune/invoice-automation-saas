@@ -9,6 +9,11 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      # CI only: the application reads Supabase configuration at module load time.
+      # Plesk/production continues to use the real .env.production values.
+      NEXT_PUBLIC_SUPABASE_URL: https://build-placeholder.supabase.co
+      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: build-placeholder-key
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
