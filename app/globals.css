@@ -8,5 +8,16 @@ html{background:var(--background);scroll-behavior:smooth}body{margin:0;backgroun
 input:focus,select:focus,textarea:focus{border-color:#b8aff0!important;box-shadow:0 0 0 4px rgba(118,103,217,.12)!important}.document-preview{background:#fff;color:#24213a;padding:42px;min-height:720px;box-shadow:0 8px 30px rgba(70,60,120,.08)}.template-2{border-top:12px solid var(--brand)}.template-3{border-left:10px solid var(--brand)}.template-4{padding:28px;font-size:.92rem}.template-4 table th,.template-4 table td{padding:.55rem}.template-5{border:1px solid #ddd7f0;box-shadow:none}
 /* Modal/form UX contract: the workspace remains visible behind every popup. */
 div.fixed.inset-0{background-color:transparent!important}
-@media print{@page{size:A4;margin:12mm}body{background:#fff!important}body>*{display:none!important}.document-preview{display:block!important;box-shadow:none!important;border:0!important;padding:0!important;min-height:0!important}.document-preview *{visibility:visible!important}.fixed{position:static!important}}
+@media print{
+  @page{size:A4;margin:12mm}
+  body{background:#fff!important}
+  body>*{display:none!important}
+  /* The document viewer is a <main> containing the rendered invoice/receipt. */
+  body>main:has(article[class*="min-h-[1120px]"]){display:block!important;background:#fff!important;color:#24213a!important;min-height:0!important;padding:0!important;margin:0!important}
+  body>main:has(article[class*="min-h-[1120px]"]) article[class*="min-h-[1120px]"]{display:block!important;visibility:visible!important;box-shadow:none!important;border:0!important;margin:0 auto!important;max-width:none!important;min-height:0!important;padding:0!important;background:#fff!important}
+  body>main:has(article[class*="min-h-[1120px]"]) article[class*="min-h-[1120px]"] *{visibility:visible!important}
+  .document-preview{display:block!important;box-shadow:none!important;border:0!important;padding:0!important;min-height:0!important}
+  .document-preview *{visibility:visible!important}
+  .fixed{position:static!important}
+}
 @media(max-width:640px){.document-preview{padding:22px;min-height:0}.document-preview table{font-size:12px}}
