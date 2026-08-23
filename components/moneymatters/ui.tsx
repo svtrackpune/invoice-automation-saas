@@ -2,92 +2,24 @@
 
 import React, { forwardRef, useId } from 'react';
 
-export type ButtonProps = React.ButtonHTMLAttributes<HTMLButtonElement> & {
-  variant?: 'primary' | 'secondary' | 'ghost' | 'danger';
-  size?: 'sm' | 'md' | 'lg';
-};
-
+export type ButtonProps = React.ButtonHTMLAttributes<HTMLButtonElement> & { variant?: 'primary' | 'secondary' | 'ghost' | 'danger'; size?: 'sm' | 'md' | 'lg' };
 const buttonBase = 'inline-flex items-center justify-center gap-2 rounded-xl font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-300 focus-visible:ring-offset-1 disabled:pointer-events-none disabled:opacity-50';
-const buttonVariants = {
-  primary: 'bg-violet-600 text-white hover:bg-violet-700',
-  secondary: 'border border-slate-200 bg-white text-slate-700 hover:bg-violet-50 hover:border-violet-200',
-  ghost: 'text-slate-600 hover:bg-violet-50 hover:text-violet-800',
-  danger: 'border border-rose-200 bg-white text-rose-600 hover:bg-rose-50',
-};
+const buttonVariants = { primary: 'bg-violet-600 text-white hover:bg-violet-700', secondary: 'border border-slate-200 bg-white text-slate-700 hover:bg-violet-50 hover:border-violet-200', ghost: 'text-slate-600 hover:bg-violet-50 hover:text-violet-800', danger: 'border border-rose-200 bg-white text-rose-600 hover:bg-rose-50' };
 const buttonSizes = { sm: 'px-3 py-2 text-xs', md: 'px-4 py-2.5 text-sm', lg: 'px-5 py-3 text-sm' };
-
-export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button({ variant = 'primary', size = 'md', className = '', type = 'button', ...props }, ref) {
-  return <button ref={ref} type={type} className={`${buttonBase} ${buttonVariants[variant]} ${buttonSizes[size]} ${className}`} {...props} />;
-});
-
+export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button({ variant='primary', size='md', className='', type='button', ...props }, ref) { return <button ref={ref} type={type} className={`${buttonBase} ${buttonVariants[variant]} ${buttonSizes[size]} ${className}`} {...props}/>; });
 export type InputProps = React.InputHTMLAttributes<HTMLInputElement> & { invalid?: boolean };
-export const Input = forwardRef<HTMLInputElement, InputProps>(function Input({ invalid = false, className = '', ...props }, ref) {
-  return <input ref={ref} className={`w-full rounded-xl border bg-white px-3 py-2.5 text-sm text-slate-900 outline-none placeholder:text-slate-400 focus:border-violet-400 focus:ring-2 focus:ring-violet-100 disabled:bg-slate-50 disabled:text-slate-400 ${invalid ? 'border-rose-300 focus:border-rose-400 focus:ring-rose-100' : 'border-slate-200'} ${className}`} {...props} />;
-});
-
-export const Select = forwardRef<HTMLSelectElement, React.SelectHTMLAttributes<HTMLSelectElement>>(function Select({ className = '', ...props }, ref) {
-  return <select ref={ref} className={`w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-100 disabled:bg-slate-50 ${className}`} {...props} />;
-});
-
-export const Textarea = forwardRef<HTMLTextAreaElement, React.TextareaHTMLAttributes<HTMLTextAreaElement>>(function Textarea({ className = '', ...props }, ref) {
-  return <textarea ref={ref} className={`w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none placeholder:text-slate-400 focus:border-violet-400 focus:ring-2 focus:ring-violet-100 disabled:bg-slate-50 ${className}`} {...props} />;
-});
-
-export function Field({ label, children, htmlFor, required = false, help, error, className = '' }: { label: string; children: React.ReactNode; htmlFor?: string; required?: boolean; help?: string; error?: string; className?: string }) {
-  return <div className={className}><label htmlFor={htmlFor} className="block text-xs font-semibold text-slate-600">{label}{required && <span className="ml-0.5 text-rose-500">*</span>}</label><div className="mt-1.5">{children}</div>{error ? <p role="alert" className="mt-1.5 text-xs font-medium text-rose-600">{error}</p> : help ? <p className="mt-1.5 text-[11px] text-slate-400">{help}</p> : null}</div>;
-}
-
-export function FormSection({ title, description, children, className = '' }: { title: string; description?: string; children: React.ReactNode; className?: string }) {
-  return <section className={`rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6 ${className}`}><div className="mb-5"><h2 className="text-base font-semibold text-slate-900">{title}</h2>{description && <p className="mt-1 text-xs leading-5 text-slate-500">{description}</p>}</div>{children}</section>;
-}
-
-export function Card({ children, className = '' }: { children: React.ReactNode; className?: string }) {
-  return <section className={`rounded-2xl border border-slate-200 bg-white shadow-sm ${className}`}>{children}</section>;
-}
-
-export function StatusBadge({ status, tone = 'neutral' }: { status: string; tone?: 'neutral' | 'success' | 'warning' | 'danger' | 'info' }) {
-  const tones = { neutral: 'bg-slate-100 text-slate-600', success: 'bg-emerald-50 text-emerald-700', warning: 'bg-amber-50 text-amber-700', danger: 'bg-rose-50 text-rose-700', info: 'bg-violet-50 text-violet-700' };
-  return <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-[10px] font-semibold capitalize ${tones[tone]}`}>{status.replaceAll('_', ' ')}</span>;
-}
-
-export function SearchInput({ value, onChange, placeholder = 'Search…', ...props }: React.InputHTMLAttributes<HTMLInputElement> & { value?: string; onChange?: React.ChangeEventHandler<HTMLInputElement> }) {
-  return <div className="relative"><span aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">⌕</span><Input {...props} value={value} onChange={onChange} placeholder={placeholder} className="pl-9" /></div>;
-}
-
-export function EmptyState({ title, description, action }: { title: string; description?: string; action?: React.ReactNode }) {
-  return <div className="rounded-2xl border border-dashed border-slate-200 p-10 text-center"><p className="text-sm font-semibold text-slate-700">{title}</p>{description && <p className="mx-auto mt-1 max-w-md text-xs leading-5 text-slate-400">{description}</p>}{action && <div className="mt-4">{action}</div>}</div>;
-}
-
-export function Alert({ children, tone = 'error' }: { children: React.ReactNode; tone?: 'error' | 'success' | 'info' | 'warning' }) {
-  const styles = { error: 'border-rose-200 bg-rose-50 text-rose-700', success: 'border-emerald-200 bg-emerald-50 text-emerald-700', info: 'border-violet-200 bg-violet-50 text-violet-800', warning: 'border-amber-200 bg-amber-50 text-amber-800' };
-  return <div role="status" className={`rounded-xl border px-4 py-3 text-sm ${styles[tone]}`}>{children}</div>;
-}
-
-export function Modal({ open, onClose, title, description, children, footer, size = 'md' }: { open: boolean; onClose: () => void; title: string; description?: string; children: React.ReactNode; footer?: React.ReactNode; size?: 'sm' | 'md' | 'lg' }) {
-  const titleId = useId();
-  React.useEffect(() => {
-    if (!open) return;
-    const previous = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-    const onKey = (event: KeyboardEvent) => { if (event.key === 'Escape') onClose(); };
-    document.addEventListener('keydown', onKey);
-    return () => { document.body.style.overflow = previous; document.removeEventListener('keydown', onKey); };
-  }, [open, onClose]);
-  if (!open) return null;
-  const widths = { sm: 'max-w-md', md: 'max-w-2xl', lg: 'max-w-4xl' };
-  return <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/30 p-3 backdrop-blur-[1px]" role="presentation" onMouseDown={e => { if (e.target === e.currentTarget) onClose(); }}><div role="dialog" aria-modal="true" aria-labelledby={titleId} className={`flex max-h-[92vh] w-full ${widths[size]} flex-col overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-2xl`}><header className="flex shrink-0 items-start justify-between gap-4 border-b border-slate-100 px-5 py-4 sm:px-6"><div><h2 id={titleId} className="text-lg font-semibold text-slate-900">{title}</h2>{description && <p className="mt-1 text-xs text-slate-500">{description}</p>}</div><Button variant="ghost" size="sm" aria-label="Close dialog" onClick={onClose} className="h-9 w-9 px-0 text-lg">×</Button></header><div className="min-h-0 flex-1 overflow-y-auto p-5 sm:p-6">{children}</div>{footer && <footer className="flex shrink-0 flex-wrap justify-end gap-2 border-t border-slate-100 bg-slate-50/70 px-5 py-3 sm:px-6">{footer}</footer>}</div></div>;
-}
-
-export function MoneyInput(props: React.InputHTMLAttributes<HTMLInputElement>) {
-  return <Input inputMode="decimal" type="number" min="0" step="0.01" {...props} />;
-}
-
-export function DateInput(props: React.InputHTMLAttributes<HTMLInputElement>) {
-  return <Input type="date" {...props} />;
-}
-
-export function PageHeader({ eyebrow, title, description, actions }: { eyebrow?: string; title: string; description?: string; actions?: React.ReactNode }) {
-  return <header className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between"><div>{eyebrow && <p className="text-[10px] font-bold uppercase tracking-[.18em] text-violet-600">{eyebrow}</p>}<h1 className="mt-1 text-3xl font-semibold tracking-tight text-slate-950">{title}</h1>{description && <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-500">{description}</p>}</div>{actions && <div className="flex flex-wrap gap-2">{actions}</div>}</header>;
-}
-
-export function SectionDivider() { return <div className="border-t border-slate-100" aria-hidden="true" />; }
+export const Input = forwardRef<HTMLInputElement, InputProps>(function Input({ invalid=false, className='', ...props }, ref) { return <input ref={ref} className={`w-full rounded-xl border bg-white px-3 py-2.5 text-sm text-slate-900 outline-none placeholder:text-slate-400 focus:border-violet-400 focus:ring-2 focus:ring-violet-100 disabled:bg-slate-50 disabled:text-slate-400 ${invalid?'border-rose-300 focus:border-rose-400 focus:ring-rose-100':'border-slate-200'} ${className}`} {...props}/>; });
+export const Select = forwardRef<HTMLSelectElement, React.SelectHTMLAttributes<HTMLSelectElement>>(function Select({ className='', ...props }, ref) { return <select ref={ref} className={`w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-100 disabled:bg-slate-50 ${className}`} {...props}/>; });
+export const Textarea = forwardRef<HTMLTextAreaElement, React.TextareaHTMLAttributes<HTMLTextAreaElement>>(function Textarea({ className='', ...props }, ref) { return <textarea ref={ref} className={`w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none placeholder:text-slate-400 focus:border-violet-400 focus:ring-2 focus:ring-violet-100 disabled:bg-slate-50 ${className}`} {...props}/>; });
+export function Field({ label, children, htmlFor, required=false, help, error, className='' }: { label:string; children:React.ReactNode; htmlFor?:string; required?:boolean; help?:string; error?:string; className?:string }) { return <div className={className}><label htmlFor={htmlFor} className="block text-xs font-semibold text-slate-600">{label}{required&&<span className="ml-0.5 text-rose-500">*</span>}</label><div className="mt-1.5">{children}</div>{error?<p role="alert" className="mt-1.5 text-xs font-medium text-rose-600">{error}</p>:help?<p className="mt-1.5 text-[11px] text-slate-400">{help}</p>:null}</div>; }
+export function FormSection({ title, description, children, actions, className='' }: { title:string; description?:string; children:React.ReactNode; actions?:React.ReactNode; className?:string }) { return <section className={`rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6 ${className}`}><div className="mb-5 flex items-start justify-between gap-4"><div><h2 className="text-base font-semibold text-slate-900">{title}</h2>{description&&<p className="mt-1 text-xs leading-5 text-slate-500">{description}</p>}</div>{actions&&<div className="shrink-0">{actions}</div>}</div>{children}</section>; }
+export function Card({ children, className='' }: { children:React.ReactNode; className?:string }) { return <section className={`rounded-2xl border border-slate-200 bg-white shadow-sm ${className}`}>{children}</section>; }
+export function StatusBadge({ status, tone='neutral' }: { status:string; tone?:'neutral'|'success'|'warning'|'danger'|'info' }) { const tones={neutral:'bg-slate-100 text-slate-600',success:'bg-emerald-50 text-emerald-700',warning:'bg-amber-50 text-amber-700',danger:'bg-rose-50 text-rose-700',info:'bg-violet-50 text-violet-700'}; return <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-[10px] font-semibold capitalize ${tones[tone]}`}>{status.replaceAll('_',' ')}</span>; }
+export function SearchInput({ value, onChange, placeholder='Search…', ...props }: React.InputHTMLAttributes<HTMLInputElement> & { value?:string; onChange?:React.ChangeEventHandler<HTMLInputElement> }) { return <div className="relative"><span aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">⌕</span><Input {...props} value={value} onChange={onChange} placeholder={placeholder} className="pl-9"/></div>; }
+export function EmptyState({ title, description, action }: { title:string; description?:string; action?:React.ReactNode }) { return <div className="rounded-2xl border border-dashed border-slate-200 p-10 text-center"><p className="text-sm font-semibold text-slate-700">{title}</p>{description&&<p className="mx-auto mt-1 max-w-md text-xs leading-5 text-slate-400">{description}</p>}{action&&<div className="mt-4">{action}</div>}</div>; }
+export function Alert({ children, title, tone='error', variant }: { children:React.ReactNode; title?:string; tone?:'error'|'success'|'info'|'warning'; variant?:'error'|'success'|'info'|'warning' }) { const actual=variant||tone; const styles={error:'border-rose-200 bg-rose-50 text-rose-700',success:'border-emerald-200 bg-emerald-50 text-emerald-700',info:'border-violet-200 bg-violet-50 text-violet-800',warning:'border-amber-200 bg-amber-50 text-amber-800'}; return <div role="status" className={`rounded-xl border px-4 py-3 text-sm ${styles[actual]}`}>{title&&<p className="font-semibold">{title}</p>}<div className={title?'mt-1':''}>{children}</div></div>; }
+export function Modal({ open, onClose, title, description, children, footer, size='md' }: { open:boolean; onClose:()=>void; title:string; description?:string; children:React.ReactNode; footer?:React.ReactNode; size?:'sm'|'md'|'lg' }) { const titleId=useId(); React.useEffect(()=>{if(!open)return;const previous=document.body.style.overflow;document.body.style.overflow='hidden';const onKey=(event:KeyboardEvent)=>{if(event.key==='Escape')onClose()};document.addEventListener('keydown',onKey);return()=>{document.body.style.overflow=previous;document.removeEventListener('keydown',onKey)}},[open,onClose]); if(!open)return null; const widths={sm:'max-w-md',md:'max-w-2xl',lg:'max-w-4xl'}; return <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/30 p-3 backdrop-blur-[1px]" role="presentation" onMouseDown={e=>{if(e.target===e.currentTarget)onClose()}}><div role="dialog" aria-modal="true" aria-labelledby={titleId} className={`flex max-h-[92vh] w-full ${widths[size]} flex-col overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-2xl`}><header className="flex shrink-0 items-start justify-between gap-4 border-b border-slate-100 px-5 py-4 sm:px-6"><div><h2 id={titleId} className="text-lg font-semibold text-slate-900">{title}</h2>{description&&<p className="mt-1 text-xs text-slate-500">{description}</p>}</div><Button variant="ghost" size="sm" aria-label="Close dialog" onClick={onClose} className="h-9 w-9 px-0 text-lg">×</Button></header><div className="min-h-0 flex-1 overflow-y-auto p-5 sm:p-6">{children}</div>{footer&&<footer className="flex shrink-0 flex-wrap justify-end gap-2 border-t border-slate-100 bg-slate-50/70 px-5 py-3 sm:px-6">{footer}</footer>}</div></div>; }
+export function MoneyInput(props:React.InputHTMLAttributes<HTMLInputElement>){return <Input inputMode="decimal" type="number" min="0" step="0.01" {...props}/>;}
+export function DateInput(props:React.InputHTMLAttributes<HTMLInputElement>){return <Input type="date" {...props}/>;}
+export function PageHeader({ eyebrow, title, description, actions }: { eyebrow?:string; title:string; description?:string; actions?:React.ReactNode }) { return <header className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between"><div>{eyebrow&&<p className="text-[10px] font-bold uppercase tracking-[.18em] text-violet-600">{eyebrow}</p>}<h1 className="mt-1 text-3xl font-semibold tracking-tight text-slate-950">{title}</h1>{description&&<p className="mt-2 max-w-3xl text-sm leading-6 text-slate-500">{description}</p>}</div>{actions&&<div className="flex flex-wrap gap-2">{actions}</div>}</header>; }
+export function SectionDivider(){return <div className="border-t border-slate-100" aria-hidden="true"/>; }
