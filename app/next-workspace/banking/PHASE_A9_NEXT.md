@@ -1,0 +1,1 @@
+CI gate: run npm run build and GitHub CI before merge. No schema or accounting-engine changes are part of Phase A.9.
