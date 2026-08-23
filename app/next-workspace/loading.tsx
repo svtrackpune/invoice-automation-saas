@@ -1,0 +1,3 @@
+export default function WorkspaceLoading() {
+  return <main className="min-h-[calc(100vh-90px)] bg-[#f7f6fb] p-4 sm:p-7"><div className="mx-auto max-w-7xl animate-pulse"><div className="h-3 w-24 rounded bg-slate-200"/><div className="mt-3 h-9 w-64 rounded bg-slate-200"/><div className="mt-3 h-4 w-96 max-w-full rounded bg-slate-200"/><div className="mt-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">{Array.from({length:4}).map((_,i)=><div key={i} className="h-32 rounded-3xl border border-slate-200 bg-white"/> )}</div><div className="mt-6 h-80 rounded-3xl border border-slate-200 bg-white"/></div></main>;
+}
