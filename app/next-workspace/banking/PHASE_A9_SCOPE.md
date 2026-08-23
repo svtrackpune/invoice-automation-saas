@@ -1,0 +1,1 @@
+Phase A.9 scope: controlled Banking/Reconciliation UI only. Existing accounting queries/RPCs remain authoritative.
