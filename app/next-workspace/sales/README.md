@@ -1,1 +1,0 @@
-Controlled Sales/Invoice workspace uses the shared Moneymatters UI primitives and existing invoice/payment RPCs.
