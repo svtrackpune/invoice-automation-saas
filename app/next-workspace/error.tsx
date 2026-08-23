@@ -1,0 +1,5 @@
+'use client';
+
+export default function WorkspaceError({ reset }: { error: Error & { digest?: string }; reset: () => void }) {
+  return <main className="grid min-h-[calc(100vh-90px)] place-items-center bg-[#f7f6fb] p-6"><section className="w-full max-w-lg rounded-3xl border border-slate-200 bg-white p-8 text-center shadow-xl"><div className="mx-auto grid h-12 w-12 place-items-center rounded-2xl bg-rose-50 text-rose-700">!</div><p className="mt-5 text-[10px] font-bold uppercase tracking-[.2em] text-rose-600">Something needs another try</p><h1 className="mt-2 text-2xl font-bold">We couldn't load this workspace.</h1><p className="mt-2 text-sm leading-6 text-slate-500">Your data has not been deleted. Try the page again, or return to the dashboard.</p><div className="mt-6 flex justify-center gap-2"><button type="button" onClick={() => reset()} className="rounded-xl bg-violet-600 px-4 py-2.5 text-sm font-semibold text-white">Try again</button><button type="button" onClick={() => { window.location.href = '/next-workspace'; }} className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold">Dashboard</button></div></section></main>;
+}
