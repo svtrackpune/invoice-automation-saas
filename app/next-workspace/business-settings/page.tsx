@@ -1,10 +1,10 @@
 'use client';
 import {useEffect,useState} from 'react';
-import {supabase,type BusinessContext} from '@/lib/supabase';
+import {supabase} from '@/lib/supabase';
 import {useWorkspace} from '@/lib/workspace-context';
 
 type Address={line1?:string;line2?:string;city?:string;state?:string;postal_code?:string;country?:string};
-type Business={id:string;name:string;legal_name:string|null;business_type:string|null;registration_number:string|null;tax_registration_number:string|null;country_code:string;currency_code:string;fiscal_year_start_month:number;timezone:string|null;address:Address;phone:string|null;email:string|null;website:string|null;inventory_enabled:boolean;selling_model:string|null;brand_primary_color:string;brand_secondary_color:string;brand_accent_color};
+type Business={id:string;name:string;legal_name:string|null;business_type:string|null;registration_number:string|null;tax_registration_number:string|null;country_code:string;currency_code:string;fiscal_year_start_month:number;timezone:string|null;address:Address;phone:string|null;email:string|null;website:string|null;inventory_enabled:boolean;selling_model:string|null;brand_primary_color:string;brand_secondary_color:string;brand_accent_color:string};
 type Settings={cash_bill_enabled:boolean};
 type TaxProfile={tax_regime:string;gst_registration_type:string|null;gstin:string|null;pan:string|null;tax_state:string|null;accounting_basis:string;books_mode:string;presumptive_section:string|null};
 const input='w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-100';const select=input;
