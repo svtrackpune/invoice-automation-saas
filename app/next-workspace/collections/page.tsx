@@ -1,3 +1,3 @@
 'use client';
-import { Collections } from '../workflow-intelligence';
-export default function Page(){return <Collections/>}
+import { CollectionsWorkflow } from '../collection-workflow';
+export default function Page(){return <CollectionsWorkflow/>}
