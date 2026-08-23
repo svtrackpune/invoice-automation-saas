@@ -1,0 +1,18 @@
+'use client';
+
+import { useEffect, useState } from 'react';
+import { supabase } from '@/lib/supabase';
+import { useWorkspace } from '@/lib/workspace-context';
+import { ErrorState, LoadingState } from '../workspace-ui';
+
+type Event={id:string;kind:string;title:string;date:string;amount:number;detail:string};
+const money=(n:number)=>new Intl.NumberFormat('en-IN',{style:'currency',currency:'INR',maximumFractionDigits:0}).format(Number(n||0));
+
+export default function Activity(){
+ const{business,loading:workspaceLoading}=useWorkspace();
+ const[events,setEvents]=useState<Event[]>([]),[loading,setLoading]=useState(true),[error,setError]=useState('');
+ useEffect(()=>{if(!business){setLoading(false);return}let alive=true;(async()=>{const[inv,bills,pay]=await Promise.all([supabase.from('invoices').select('id,invoice_number,invoice_date,total,status').eq('business_id',business.business_id).order('invoice_date',{ascending:false}).limit(20),supabase.from('bills').select('id,bill_number,bill_date,total,status').eq('business_id',business.business_id).order('bill_date',{ascending:false}).limit(20),supabase.from('payments').select('id,amount,payment_date,direction,reference').eq('business_id',business.business_id).order('payment_date',{ascending:false}).limit(20)]);if(!alive)return;const e=inv.error||bills.error||pay.error;if(e)setError(e.message);setEvents([...((inv.data||[]).map(x=>({id:x.id,kind:'Invoice',title:`Invoice ${x.invoice_number}`,date:x.invoice_date,amount:Number(x.total||0),detail:`Status: ${x.status}`}))),...((bills.data||[]).map(x=>({id:x.id,kind:'Purchase',title:`Purchase ${x.bill_number}`,date:x.bill_date,amount:Number(x.total||0),detail:`Status: ${x.status}`}))),...((pay.data||[]).map(x=>({id:x.id,kind:x.direction==='inbound'?'Payment received':'Payment made',title:x.reference||'Payment',date:x.payment_date,amount:Number(x.amount||0),detail:x.direction==='inbound'?'Money in':'Money out'})))].sort((a,b)=>new Date(b.date).getTime()-new Date(a.date).getTime()).slice(0,50));setLoading(false)})();return()=>{alive=false}},[business]);
+ if(workspaceLoading||loading)return <LoadingState label="Loading business activity…"/>;
+ if(!business)return <div className="p-6"><ErrorState message="No business workspace is active."/></div>;
+ return <main className="min-h-screen bg-[#fbfaff] p-4 sm:p-6 lg:p-8"><div className="mx-auto max-w-[1000px]"><header className="mb-7"><p className="text-[10px] font-bold uppercase tracking-[.18em] text-violet-600">Control centre</p><h1 className="mt-1 text-3xl font-semibold">Activity</h1><p className="mt-2 text-sm text-slate-500">A human-readable timeline of recent business transactions. Formal audit records remain in the accounting layer.</p></header>{error&&<div className="mb-5"><ErrorState message={error}/></div>}<section className="rounded-2xl border border-slate-200 bg-white p-5"><div className="space-y-1">{events.map((event,index)=><div key={`${event.kind}-${event.id}`} className="relative flex gap-4 py-4"><div className="flex w-5 shrink-0 justify-center"><span className="relative z-10 mt-1 h-2.5 w-2.5 rounded-full bg-violet-500" />{index<events.length-1&&<span className="absolute bottom-0 top-6 w-px bg-slate-200"/>}</div><div className="min-w-0 flex-1"><div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between"><b className="text-sm">{event.title}</b><span className="text-xs text-slate-400">{event.date}</span></div><p className="mt-1 text-xs text-slate-500">{event.detail} · {money(event.amount)}</p></div></div>)}{!events.length&&<p className="p-8 text-center text-sm text-slate-500">No recent activity.</p>}</div></section></div></main>;
+}
