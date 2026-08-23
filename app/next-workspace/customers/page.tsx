@@ -1,6 +1,3 @@
 'use client';
-import CustomerManager from './CustomerManager';
-
-export default function CustomersPage(){
-  return <CustomerManager/>;
-}
+import CustomerManagerControlled from './CustomerManagerControlled';
+export default function CustomersPage(){ return <CustomerManagerControlled/>; }
