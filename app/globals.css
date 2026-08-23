@@ -2,46 +2,12 @@
 :root{--background:#fbfaff;--foreground:#24213a;--violet:#7667d9;--violet-dark:#6254c7;--violet-soft:#f1efff;--violet-line:#e7e2ff}
 @theme inline{--color-background:var(--background);--color-foreground:var(--foreground);--font-sans:var(--font-geist-sans);--font-mono:var(--font-geist-mono)}
 html{background:var(--background);scroll-behavior:smooth}body{margin:0;background:var(--background);color:var(--foreground);font-family:var(--font-geist-sans),Arial,Helvetica,sans-serif}button,input,select,textarea{font:inherit}button{cursor:pointer}::selection{background:#ded8ff;color:#24213a}
-/* Moneymatters v1: white surfaces, faint violet workspace, restrained violet actions. */
 [class*="bg-slate-950"]{background-color:var(--violet-dark)!important}[class*="bg-slate-900"]{background-color:#6b5fc9!important}[class*="bg-slate-800"]{background-color:#8074dc!important}[class*="bg-slate-100"]{background-color:#f4f2ff!important}[class*="bg-slate-50"]{background-color:#fbfaff!important}[class*="bg-gray-950"]{background-color:var(--violet-dark)!important}[class*="bg-gray-900"]{background-color:#6b5fc9!important}[class*="bg-gray-100"]{background-color:#f4f2ff!important}[class*="bg-gray-50"]{background-color:#fbfaff!important}
 [class*="hover\\:bg-slate-100"]:hover,[class*="hover\\:bg-gray-100"]:hover{background-color:#f1efff!important}[class*="hover\\:bg-slate-50"]:hover,[class*="hover\\:bg-gray-50"]:hover{background-color:#faf8ff!important}[class*="text-slate-950"]{color:#24213a!important}[class*="text-slate-600"]{color:#625d78!important}[class*="text-slate-500"]{color:#77718d!important}[class*="text-slate-400"]{color:#958faa!important}[class*="border-slate-200"]{border-color:#e7e2f5!important}[class*="border-slate-100"]{border-color:#f0edf9!important}
-input:focus,select:focus,textarea:focus{border-color:#b8aff0!important;box-shadow:0 0 0 4px rgba(118,103,217,.12)!important}.document-preview{background:#fff;color:#24213a;padding:42px;min-height:720px;box-shadow:0 8px 30px rgba(70,60,120,.08)}.template-2{border-top:12px solid var(--brand)}.template-3{border-left:10px solid var(--brand)}.template-4{padding:28px;font-size:.92rem}.template-4 table th,.template-4 table td{padding:.55rem}.template-5{border:1px solid #ddd7f0;box-shadow:none}
-/* Modal/form UX contract: the workspace remains visible behind every popup. */
+input:focus,select:focus,textarea:focus{border-color:#b8aff0!important;box-shadow:0 0 0 4px rgba(118,103,217,.12)!important}.input{width:100%;border:1px solid #e7e2f5;border-radius:.75rem;background:#fff;padding:.65rem .8rem;font-size:.875rem;outline:none}.input:disabled{opacity:.6;cursor:not-allowed}.document-preview{background:#fff;color:#24213a;padding:42px;min-height:720px;box-shadow:0 8px 30px rgba(70,60,120,.08)}.template-2{border-top:12px solid var(--brand)}.template-3{border-left:10px solid var(--brand)}.template-4{padding:28px;font-size:.92rem}.template-4 table th,.template-4 table td{padding:.55rem}.template-5{border:1px solid #ddd7f0;box-shadow:none}
 div.fixed.inset-0{background-color:transparent!important}
-/* Print/PDF: the document page itself is printable. The previous rule hid the entire Next.js root, which produced a blank browser print preview. */
-@media print{
- @page{size:A4;margin:12mm}
- html,body{background:#fff!important}
- body{margin:0!important}
- body>*{display:block!important}
- .document-preview{display:block!important;box-shadow:none!important;border:0!important;padding:0!important;min-height:0!important}
- .document-preview *{visibility:visible!important}
- .fixed{position:static!important}
- [class*="print:hidden"]{display:none!important}
- .document-print-shell{background:#fff!important;padding:0!important;margin:0!important;min-height:0!important}
- article{box-shadow:none!important}
- *{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}
-}
+@media print{@page{size:A4;margin:12mm}html,body{background:#fff!important}body{margin:0!important}body>*{display:block!important}.document-preview{display:block!important;box-shadow:none!important;border:0!important;padding:0!important;min-height:0!important}.document-preview *{visibility:visible!important}.fixed{position:static!important}[class*="print:hidden"]{display:none!important}.document-print-shell{background:#fff!important;padding:0!important;margin:0!important;min-height:0!important}article{box-shadow:none!important}*{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}}
 @media(max-width:640px){.document-preview{padding:22px;min-height:0}.document-preview table{font-size:12px}}
-/* Receipt paper: keep the full receipt readable on a phone without horizontal scrolling. */
 .receipt-paper{width:380px!important;max-width:calc(100vw - 24px)!important;margin-left:auto!important;margin-right:auto!important}
-@media(max-width:420px){
- .receipt-paper{width:100%!important;max-width:calc(100vw - 16px)!important}
- .receipt-paper .receipt-head{padding-left:24px!important;padding-right:24px!important}
- .receipt-paper .receipt-title{padding-left:24px!important;padding-right:24px!important}
- .receipt-paper .receipt-customer{margin-left:24px!important;margin-right:24px!important}
- .receipt-paper .receipt-items{margin-left:24px!important;margin-right:24px!important;width:calc(100% - 48px)!important;font-size:8px!important}
- .receipt-paper .receipt-items th,.receipt-paper .receipt-items td{padding:7px 5px!important}
- .receipt-paper .receipt-totals{margin-left:24px!important;margin-right:24px!important}
- .receipt-paper .payment-detail{margin-left:24px!important;margin-right:24px!important}
- .receipt-paper .receipt-thanks{margin-left:24px!important;margin-right:24px!important}
- .receipt-paper .receipt-footer{margin-left:24px!important;margin-right:24px!important}
- .receipt-paper .receipt-title h1{font-size:21px!important}
- .receipt-paper .receipt-business{font-size:17px!important}
-}
-/* Document readability: slightly larger base and supporting text without changing the page width or layout. */
-.paper{font-size:10px!important}
-.paper .business-identity span,.paper .parties span,.paper .items td,.paper .receipt-title div,.paper .receipt-head>span,.paper .receipt-customer>span,.paper .payment-detail span,.paper .receipt-footer span{font-size:10px!important}
-.paper .items th,.paper .parties label,.paper .receipt-customer .label{font-size:9px!important}
-.receipt-paper .receipt-items{font-size:10px!important}
-@media(max-width:420px){.receipt-paper .receipt-items{font-size:9px!important}}
+@media(max-width:420px){.receipt-paper{width:100%!important;max-width:calc(100vw - 16px)!important}.receipt-paper .receipt-head{padding-left:24px!important;padding-right:24px!important}.receipt-paper .receipt-title{padding-left:24px!important;padding-right:24px!important}.receipt-paper .receipt-customer{margin-left:24px!important;margin-right:24px!important}.receipt-paper .receipt-items{margin-left:24px!important;margin-right:24px!important;width:calc(100% - 48px)!important;font-size:8px!important}.receipt-paper .receipt-items th,.receipt-paper .receipt-items td{padding:7px 5px!important}.receipt-paper .receipt-totals{margin-left:24px!important;margin-right:24px!important}.receipt-paper .payment-detail{margin-left:24px!important;margin-right:24px!important}.receipt-paper .receipt-thanks{margin-left:24px!important;margin-right:24px!important}.receipt-paper .receipt-footer{margin-left:24px!important;margin-right:24px!important}.receipt-paper .receipt-title h1{font-size:21px!important}.receipt-paper .receipt-business{font-size:17px!important}}
+.paper{font-size:10px!important}.paper .business-identity span,.paper .parties span,.paper .items td,.paper .receipt-title div,.paper .receipt-head>span,.paper .receipt-customer>span,.paper .payment-detail span,.paper .receipt-footer span{font-size:10px!important}.paper .items th,.paper .parties label,.paper .receipt-customer .label{font-size:9px!important}.receipt-paper .receipt-items{font-size:10px!important}@media(max-width:420px){.receipt-paper .receipt-items{font-size:9px!important}}
