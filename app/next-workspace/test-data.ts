@@ -1,6 +1,6 @@
 export type DemoCustomer = { id: string; name: string; email: string; phone: string };
 export type DemoItem = { id: string; name: string; price: number; tax: number };
-export type DemoInvoice = { id: string; number: string; customerId: string; date: string; dueDate: string; total: number; paid: number; status: 'draft' | 'sent' | 'partially_paid' | 'paid' | 'overdue' };
+export type DemoInvoice = { id: string; number: string; customerId: string; date: string; dueDate: string; total: number; paid: number; status: 'draft' | 'sent' | 'partially_paid' | 'paid' | 'overdue'; sourceEstimateId?: string };
 export type DemoEstimate = { id: string; number: string; customerId: string; date: string; validUntil: string; total: number; status: 'draft' | 'sent' | 'accepted' | 'converted' };
 
 export const demoBusiness = { id: 'demo-business', name: 'Moneymatters Demo Business', role: 'Owner' };
