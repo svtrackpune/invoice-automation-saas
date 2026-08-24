@@ -1,0 +1,240 @@
+/* Moneymatters Template 3 — Modern
+   Presentation only. Uses the existing document structure, accounting data,
+   GST/discount rules, bank selection and online-payment selection. */
+.paper.template-modern {
+  position: relative;
+  overflow: hidden;
+  padding: 34px 42px 28px;
+  border-radius: 14px;
+  border: 1px solid #e7e2ff;
+  background: #fff;
+  color: #172033;
+}
+
+.paper.template-modern::before {
+  content: "";
+  display: block;
+  height: 7px;
+  margin: -34px -42px 28px;
+  background: linear-gradient(90deg, var(--accent), #8b5cf6, #c4b5fd);
+}
+
+.paper.template-modern .document-header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 255px;
+  gap: 28px;
+  align-items: start;
+  padding: 0 0 24px;
+  border-bottom: 1px solid #e8e3f8;
+}
+
+/* Logo owns the top-left branding position; address remains in FROM. */
+.paper.template-modern .business-identity {
+  gap: 14px;
+  align-items: flex-start;
+}
+.paper.template-modern .logo {
+  width: 112px;
+  height: 88px;
+  border: 1px solid #e5defb;
+  border-radius: 12px;
+  background: #faf8ff;
+}
+.paper.template-modern .logo img {
+  width: 102px;
+  height: 78px;
+  max-width: 102px;
+  max-height: 78px;
+}
+.paper.template-modern .business-brand-copy {
+  padding-top: 2px;
+}
+.paper.template-modern .business-brand-copy strong {
+  font-size: 20px;
+  color: var(--accent);
+}
+.paper.template-modern .tagline {
+  margin-bottom: 6px;
+  color: #6b6680;
+  font-size: 12px;
+}
+
+.paper.template-modern .heading {
+  text-align: right;
+}
+.paper.template-modern .title {
+  font-size: 34px;
+  line-height: 1;
+  letter-spacing: -.035em;
+  color: var(--accent);
+}
+.paper.template-modern .meta {
+  margin-top: 13px;
+  font-size: 14px;
+  line-height: 1.75;
+}
+.paper.template-modern .header-due {
+  margin-top: 14px;
+  min-width: 205px;
+  padding: 12px 15px;
+  border-radius: 9px;
+  background: var(--accent);
+  box-shadow: 0 8px 20px rgba(91, 33, 182, .12);
+}
+.paper.template-modern .header-due span {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: .1em;
+}
+.paper.template-modern .header-due strong {
+  font-size: 21px;
+}
+
+.paper.template-modern .parties {
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  padding: 20px 0;
+}
+.paper.template-modern .parties > div {
+  min-height: 118px;
+  padding: 15px 16px;
+  border: 1px solid #e6e0f8;
+  border-radius: 12px;
+  background: #fbfaff;
+}
+.paper.template-modern .parties .from {
+  text-align: left;
+}
+.paper.template-modern .parties label {
+  font-size: 11px;
+  color: var(--accent);
+  letter-spacing: .1em;
+}
+.paper.template-modern .parties > div > strong {
+  margin-top: 7px;
+  font-size: 15px;
+}
+.paper.template-modern .parties span {
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.paper.template-modern .items {
+  border: 1px solid #ded5fa;
+  border-radius: 11px;
+  overflow: hidden;
+}
+.paper.template-modern .items th {
+  padding: 11px 9px;
+  background: var(--table);
+  font-size: 12px;
+  letter-spacing: .02em;
+  text-transform: uppercase;
+}
+.paper.template-modern .items td {
+  padding: 12px 9px;
+  font-size: 14px;
+  border-bottom: 1px solid #eeeaf7;
+}
+.paper.template-modern .items tr:last-child td {
+  border-bottom: 0;
+}
+.paper.template-modern .items td small {
+  font-size: 12px;
+}
+.paper.template-modern .item-type {
+  font-size: 10px;
+  padding: 3px 8px;
+  border: 1px solid #ddd6fe;
+}
+
+.paper.template-modern .body-grid {
+  grid-template-columns: minmax(0, 1fr) 300px;
+  gap: 25px;
+  padding-top: 20px;
+}
+.paper.template-modern .document-notes {
+  padding: 0 0 12px;
+}
+.paper.template-modern .document-notes label {
+  font-size: 11px;
+  color: var(--accent);
+  letter-spacing: .1em;
+}
+.paper.template-modern .document-notes p {
+  margin-top: 7px;
+  font-size: 14px;
+  line-height: 1.55;
+}
+.paper.template-modern .totals {
+  border: 1px solid #ded5fa;
+  border-radius: 10px;
+  padding: 10px 14px;
+  background: #fff;
+}
+.paper.template-modern .totals > div {
+  padding: 5px 0;
+}
+.paper.template-modern .totals .grand {
+  margin: 6px -14px 0;
+  padding: 10px 14px;
+  border-top: 0;
+  background: var(--accent);
+  color: #fff;
+  font-size: 17px;
+}
+.paper.template-modern .totals .grand strong {
+  color: #fff;
+}
+.paper.template-modern .totals .due {
+  color: var(--accent);
+  font-size: 15px;
+}
+
+.paper.template-modern .payment {
+  margin-top: 20px;
+  padding: 16px 18px;
+  border: 1px solid #ded5fa;
+  border-radius: 11px;
+  background: #fbfaff;
+}
+.paper.template-modern .payment label,
+.paper.template-modern .bank-details label {
+  color: var(--accent);
+  font-size: 11px;
+  letter-spacing: .1em;
+}
+.paper.template-modern .payment strong,
+.paper.template-modern .payment span,
+.paper.template-modern .bank-details strong,
+.paper.template-modern .bank-details span {
+  font-size: 14px;
+}
+.paper.template-modern .pay-link {
+  background: var(--accent);
+  border-radius: 7px;
+  padding: 8px 14px;
+}
+.paper.template-modern .qr {
+  width: 92px;
+  height: 92px;
+  border: 1px solid #cfc2f5;
+  background: #fff;
+  border-radius: 9px;
+}
+.paper.template-modern footer {
+  margin-top: 22px;
+  font-size: 11px;
+}
+
+@media (max-width: 860px) {
+  .paper.template-modern .document-header,
+  .paper.template-modern .body-grid,
+  .paper.template-modern .parties {
+    grid-template-columns: 1fr;
+  }
+  .paper.template-modern .heading,
+  .paper.template-modern .parties .from {
+    text-align: left;
+  }
+}
