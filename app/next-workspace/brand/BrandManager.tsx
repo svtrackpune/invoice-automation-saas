@@ -25,7 +25,7 @@ function Preview({ type, keyName, brand, logoUrl, large = false }: { type: DocTy
   const primary = brand.brand_primary_color || '#111827';
   const accent = brand.brand_accent_color || '#7c3aed';
   const title = type === 'invoice' ? 'TAX INVOICE' : type === 'quotation' ? 'ESTIMATE' : 'PAYMENT RECEIPT';
-  const dark = keyName === 'bold' || keyName === 'professional';
+  const dark = keyName === 'professional';
   const serif = keyName === 'classic' || keyName === 'premium';
   const compact = keyName === 'minimal';
   const accentColor = keyName === 'classic' ? '#7f1d1d' : keyName === 'professional' ? '#0f3b66' : keyName === 'premium' ? '#5b21b6' : keyName === 'minimal' ? '#111827' : primary;
