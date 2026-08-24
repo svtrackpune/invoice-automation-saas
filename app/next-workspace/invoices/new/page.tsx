@@ -10,9 +10,11 @@ type Customer = { id: string; display_name: string; legal_name: string | null; e
 type Product = { id: string; name: string; sku: string | null; description: string | null; item_type: string; unit: string | null; sales_price: number; default_tax_rate_id: string | null; discount_enabled: boolean; max_discount_type: string; max_discount_value: number };
 type Tax = { id: string; name: string; rate: number };
 type Template = { id: string; template_name: string };
+type Bank = { id: string; name: string; institution_name: string | null; account_last4: string | null };
 type Line = { product_service_id: string; description: string; quantity: number; unit_price: number; discount_type: string; discount_value: number; tax_rate_id: string };
 type TaxProfile = { tax_regime: string | null; gst_registration_type: string | null };
 type DocumentDefaults = { invoice_due_days: number; invoice_notes: string | null; default_payment_terms: string | null; invoice_template_id: string | null };
+type PaymentDisplayMode = 'none' | 'bank' | 'online';
 
 const money = (n: number) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 2 }).format(Number(n || 0));
 const today = () => new Date().toISOString().slice(0, 10);
@@ -32,6 +34,7 @@ export default function NewInvoice() {
   const [products, setProducts] = useState<Product[]>([]);
   const [taxes, setTaxes] = useState<Tax[]>([]);
   const [templates, setTemplates] = useState<Template[]>([]);
+  const [banks, setBanks] = useState<Bank[]>([]);
   const [taxProfile, setTaxProfile] = useState<TaxProfile>({ tax_regime: 'NONE', gst_registration_type: 'NONE' });
   const [defaults, setDefaults] = useState<DocumentDefaults>({ invoice_due_days: 0, invoice_notes: '', default_payment_terms: '', invoice_template_id: null });
   const [customerId, setCustomerId] = useState('');
@@ -43,6 +46,8 @@ export default function NewInvoice() {
   const [notes, setNotes] = useState('');
   const [terms, setTerms] = useState('');
   const [template, setTemplate] = useState('');
+  const [paymentMode, setPaymentMode] = useState<PaymentDisplayMode>('none');
+  const [paymentBankId, setPaymentBankId] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [customerFormOpen, setCustomerFormOpen] = useState(false);
@@ -57,7 +62,7 @@ export default function NewInvoice() {
       if (!business) { location.href = '/'; return; }
       if (!mounted) return;
       setCtx(business);
-      const [cs, ps, ts, tp, ds, dp, tm] = await Promise.all([
+      const [cs, ps, ts, tp, ds, dp, tm, ba] = await Promise.all([
         supabase.from('customers').select('id,display_name,legal_name,email,phone,payment_terms_days,payment_reminders_enabled,reminder_days_before_due,default_discount_type,default_discount_value,billing_address,shipping_address').eq('business_id', business.business_id).eq('is_active', true).order('display_name'),
         supabase.from('products_services').select('id,name,sku,description,item_type,unit,sales_price,default_tax_rate_id,discount_enabled,max_discount_type,max_discount_value').eq('business_id', business.business_id).eq('is_active', true).eq('sell_enabled', true).order('name'),
         supabase.from('tax_rates').select('id,name,rate').eq('business_id', business.business_id).eq('is_active', true).order('rate'),
@@ -65,22 +70,23 @@ export default function NewInvoice() {
         supabase.from('business_settings').select('invoice_due_days,invoice_notes,default_payment_terms').eq('business_id', business.business_id).maybeSingle(),
         supabase.from('business_document_preferences').select('template_id').eq('business_id', business.business_id).eq('document_type', 'invoice').maybeSingle(),
         supabase.from('document_templates').select('id,template_name').eq('document_type', 'invoice').eq('is_active', true).order('template_name'),
+        supabase.from('bank_accounts').select('id,name,institution_name,account_last4').eq('business_id', business.business_id).eq('is_active', true).order('name'),
       ]);
       if (!mounted) return;
-      setCustomers((cs.data || []) as Customer[]); setProducts((ps.data || []) as Product[]); setTaxes((ts.data || []) as Tax[]); setTemplates((tm.data || []) as Template[]);
+      setCustomers((cs.data || []) as Customer[]); setProducts((ps.data || []) as Product[]); setTaxes((ts.data || []) as Tax[]); setTemplates((tm.data || []) as Template[]); setBanks((ba.data || []) as Bank[]);
       setTaxProfile((tp.data || { tax_regime: 'NONE', gst_registration_type: 'NONE' }) as TaxProfile);
       const d = (ds.data || {}) as { invoice_due_days?: number | null; invoice_notes?: string | null; default_payment_terms?: string | null };
       const documentDefaults: DocumentDefaults = { invoice_due_days: Number(d.invoice_due_days || 0), invoice_notes: d.invoice_notes || '', default_payment_terms: d.default_payment_terms || '', invoice_template_id: dp.data?.template_id || null };
       setDefaults(documentDefaults); setDueDate(plusDays(documentDefaults.invoice_due_days)); setNotes(documentDefaults.invoice_notes || ''); setTerms(documentDefaults.default_payment_terms || ''); setTemplate(documentDefaults.invoice_template_id || '');
       if (editId) {
         const [ir, itemsResult] = await Promise.all([
-          supabase.from('invoices').select('id,customer_id,invoice_date,due_date,notes,terms,discount_type,discount_value,template_id,status').eq('id', editId).eq('business_id', business.business_id).maybeSingle(),
+          supabase.from('invoices').select('id,customer_id,invoice_date,due_date,notes,terms,discount_type,discount_value,template_id,status,payment_display_mode,payment_bank_account_id').eq('id', editId).eq('business_id', business.business_id).maybeSingle(),
           supabase.from('invoice_items').select('product_service_id,description,quantity,unit_price,discount_type,discount_value,tax_rate_id').eq('invoice_id', editId).order('sort_order'),
         ]);
         if (ir.error || itemsResult.error) { setError(ir.error?.message || itemsResult.error?.message || 'Unable to load invoice.'); setEditLoaded(true); return; }
         if (!ir.data) { setError('Invoice not found.'); setEditLoaded(true); return; }
         if (ir.data.status !== 'draft') { setError('Only draft invoices can be edited. This invoice has already been posted or paid.'); setEditLoaded(true); return; }
-        setCustomerId(ir.data.customer_id || ''); setInvoiceDate(ir.data.invoice_date || today()); setDueDate(ir.data.due_date || plusDays(documentDefaults.invoice_due_days)); setNotes(ir.data.notes || ''); setTerms(ir.data.terms || documentDefaults.default_payment_terms || ''); setDiscountType(normalizeDiscountType(ir.data.discount_type)); setDiscountValue(Number(ir.data.discount_value || 0)); setTemplate(ir.data.template_id || documentDefaults.invoice_template_id || '');
+        setCustomerId(ir.data.customer_id || ''); setInvoiceDate(ir.data.invoice_date || today()); setDueDate(ir.data.due_date || plusDays(documentDefaults.invoice_due_days)); setNotes(ir.data.notes || ''); setTerms(ir.data.terms || documentDefaults.default_payment_terms || ''); setDiscountType(normalizeDiscountType(ir.data.discount_type)); setDiscountValue(Number(ir.data.discount_value || 0)); setTemplate(ir.data.template_id || documentDefaults.invoice_template_id || ''); setPaymentMode((ir.data.payment_display_mode || 'none') as PaymentDisplayMode); setPaymentBankId(ir.data.payment_bank_account_id || '');
         setLines((itemsResult.data || []).map((x: any) => ({ product_service_id: x.product_service_id || '', description: x.description || '', quantity: Number(x.quantity || 1), unit_price: Number(x.unit_price || 0), discount_type: normalizeDiscountType(x.discount_type), discount_value: Number(x.discount_value || 0), tax_rate_id: x.tax_rate_id || '' })));
       }
       setEditLoaded(true);
@@ -94,26 +100,10 @@ export default function NewInvoice() {
   const taxEnabled = taxRegime !== 'NONE' && !composition;
   const customer = customers.find(x => x.id === customerId);
 
-  const addLine = () => {
-    const p = products[0];
-    if (!p) { setItemFormOpen(true); return; }
-    setLines(x => [...x, { product_service_id: p.id, description: p.description || p.name, quantity: 1, unit_price: Number(p.sales_price || 0), discount_type: '', discount_value: 0, tax_rate_id: taxEnabled ? (p.default_tax_rate_id || '') : '' }]);
-  };
+  const addLine = () => { const p = products[0]; if (!p) { setItemFormOpen(true); return; } setLines(x => [...x, { product_service_id: p.id, description: p.description || p.name, quantity: 1, unit_price: Number(p.sales_price || 0), discount_type: '', discount_value: 0, tax_rate_id: taxEnabled ? (p.default_tax_rate_id || '') : '' }]); };
   const changeLine = (i: number, key: keyof Line, value: string | number) => setLines(x => x.map((line, j) => j === i ? { ...line, [key]: value } : line));
-  const lineDiscount = (line: Line, product?: Product) => {
-    if (!product?.discount_enabled) return 0;
-    const base = Number(line.quantity || 0) * Number(line.unit_price || 0);
-    let value = line.discount_type === 'percentage' ? base * Number(line.discount_value || 0) / 100 : Number(line.discount_value || 0);
-    const maxType = normalizeDiscountType(product.max_discount_type);
-    if (Number(product.max_discount_value || 0) > 0) { const max = maxType === 'percentage' ? base * Number(product.max_discount_value) / 100 : Number(product.max_discount_value); value = Math.min(value, max); }
-    return Math.max(0, Math.min(base, value));
-  };
-  const totals = useMemo(() => {
-    let subtotal = 0, discount = 0, tax = 0;
-    for (const line of lines) { const product = products.find(x => x.id === line.product_service_id); const base = Number(line.quantity || 0) * Number(line.unit_price || 0); const d = lineDiscount(line, product); const rate = taxEnabled ? (taxes.find(t => t.id === line.tax_rate_id)?.rate || 0) : 0; subtotal += base; discount += d; tax += (base - d) * rate / 100; }
-    const base = Math.max(0, subtotal - discount); const invoiceDiscount = discountType === 'percentage' ? base * Number(discountValue || 0) / 100 : Number(discountValue || 0); const applied = Math.min(base, Math.max(0, invoiceDiscount));
-    return { subtotal, discount: discount + applied, tax, total: Math.max(0, subtotal - discount - applied + tax) };
-  }, [lines, products, taxes, discountType, discountValue, taxEnabled]);
+  const lineDiscount = (line: Line, product?: Product) => { if (!product?.discount_enabled) return 0; const base = Number(line.quantity || 0) * Number(line.unit_price || 0); let value = line.discount_type === 'percentage' ? base * Number(line.discount_value || 0) / 100 : Number(line.discount_value || 0); const maxType = normalizeDiscountType(product.max_discount_type); if (Number(product.max_discount_value || 0) > 0) { const max = maxType === 'percentage' ? base * Number(product.max_discount_value) / 100 : Number(product.max_discount_value); value = Math.min(value, max); } return Math.max(0, Math.min(base, value)); };
+  const totals = useMemo(() => { let subtotal = 0, discount = 0, tax = 0; for (const line of lines) { const product = products.find(x => x.id === line.product_service_id); const base = Number(line.quantity || 0) * Number(line.unit_price || 0); const d = lineDiscount(line, product); const rate = taxEnabled ? (taxes.find(t => t.id === line.tax_rate_id)?.rate || 0) : 0; subtotal += base; discount += d; tax += (base - d) * rate / 100; } const base = Math.max(0, subtotal - discount); const invoiceDiscount = discountType === 'percentage' ? base * Number(discountValue || 0) / 100 : Number(discountValue || 0); const applied = Math.min(base, Math.max(0, invoiceDiscount)); return { subtotal, discount: discount + applied, tax, total: Math.max(0, subtotal - discount - applied + tax) }; }, [lines, products, taxes, discountType, discountValue, taxEnabled]);
 
   const selectCustomer = (id: string) => { setCustomerId(id); const c = customers.find(x => x.id === id); if (c) { setDueDate(plusDays(Number(c.payment_terms_days || defaults.invoice_due_days || 0))); setDiscountType(normalizeDiscountType(c.default_discount_type)); setDiscountValue(Number(c.default_discount_value || 0)); } };
   const onCustomerCreated = (c: CreatedCustomer) => { setCustomers(x => [...x, c as Customer].sort((a, b) => a.display_name.localeCompare(b.display_name))); setCustomerId(c.id); setCustomerFormOpen(false); };
@@ -121,14 +111,22 @@ export default function NewInvoice() {
 
   const saveInvoice = async () => {
     if (!ctx || !customerId || !lines.length || totals.total <= 0) return;
+    if (paymentMode === 'bank' && !paymentBankId) { setError('Select a bank account for the invoice.'); return; }
     setBusy(true); setError('');
     const itemPayload = lines.map((l, i) => ({ ...l, tax_rate_id: taxEnabled ? l.tax_rate_id : '', sort_order: i }));
     const r = editId
       ? await supabase.rpc('update_invoice_draft', { p_invoice_id: editId, p_customer_id: customerId, p_invoice_date: invoiceDate, p_due_date: dueDate, p_items: itemPayload, p_invoice_discount_type: discountType || null, p_invoice_discount_value: Number(discountValue || 0), p_notes: notes || null, p_terms: terms || null, p_template_id: template || null })
       : await supabase.rpc('create_invoice_from_items', { p_business_id: ctx.business_id, p_customer_id: customerId, p_invoice_date: invoiceDate, p_due_date: dueDate, p_items: itemPayload, p_invoice_discount_type: discountType || null, p_invoice_discount_value: Number(discountValue || 0), p_notes: notes || null, p_terms: terms || null });
     if (r.error) { setError(r.error.message); setBusy(false); return; }
-    if (!editId && template) await supabase.from('invoices').update({ template_id: template }).eq('id', r.data);
-    location.href = `/next-workspace/documents?type=invoice&id=${r.data}`;
+    const invoiceId = String(r.data);
+    if (template) { const tr = await supabase.from('invoices').update({ template_id: template }).eq('id', invoiceId).eq('business_id', ctx.business_id); if (tr.error) { setError(tr.error.message); setBusy(false); return; } }
+    const paymentSelection = await supabase.rpc('set_invoice_payment_display', { p_invoice_id: invoiceId, p_payment_display_mode: paymentMode, p_bank_account_id: paymentMode === 'bank' ? paymentBankId : null });
+    if (paymentSelection.error) { setError(paymentSelection.error.message); setBusy(false); return; }
+    if (paymentMode === 'online') {
+      const link = await supabase.functions.invoke('create-payment-link', { body: { invoice_id: invoiceId } });
+      if (link.error || link.data?.error) { setError(link.error?.message || link.data?.error || 'Unable to create payment link.'); setBusy(false); return; }
+    }
+    location.href = `/next-workspace/documents?type=invoice&id=${invoiceId}`;
   };
 
   if (!ctx || !editLoaded) return <div className="grid min-h-screen place-items-center text-sm text-slate-500">Loading invoice editor…</div>;
@@ -139,7 +137,7 @@ export default function NewInvoice() {
       <div className="mx-auto max-w-7xl">
         <header className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-end">
           <div><p className="text-xs font-semibold uppercase tracking-[0.18em] text-violet-600">{editId ? 'Edit draft invoice' : 'New invoice'}</p><h1 className="text-3xl font-bold tracking-tight">Create an invoice</h1><p className="mt-1 text-sm text-slate-500">{ruleLabel}</p></div>
-          <div className="sm:ml-auto flex gap-2"><Button secondary onClick={() => location.href = '/next-workspace/documents'}>Cancel</Button><Button disabled={busy || !customerId || !lines.length || totals.total <= 0} onClick={saveInvoice}>{busy ? 'Saving…' : editId ? 'Save draft' : 'Save invoice'}</Button></div>
+          <div className="sm:ml-auto flex gap-2"><Button secondary onClick={() => location.href = '/next-workspace/documents'}>Cancel</Button><Button disabled={busy || !customerId || !lines.length || totals.total <= 0 || (paymentMode === 'bank' && !paymentBankId)} onClick={saveInvoice}>{busy ? 'Saving…' : editId ? 'Save draft' : 'Save invoice'}</Button></div>
         </header>
         {error && <Card className="mb-4 border-red-200 bg-red-50 p-4 text-sm text-red-700">{error}</Card>}
         <div className="grid gap-5 lg:grid-cols-[1fr_360px]">
@@ -153,8 +151,13 @@ export default function NewInvoice() {
               </tbody></table>{!lines.length && <div className="p-10 text-center text-sm text-slate-500">No items yet. Add your first line.</div>}</div>
             </Card>
             <Card className="p-5"><div className="grid gap-4 sm:grid-cols-2"><Field label="Invoice discount"><div className="flex gap-2"><Select value={discountType} onChange={e => setDiscountType(e.target.value)}><option value="">None</option><option value="percentage">Percentage</option><option value="amount">Amount</option></Select><Input type="number" min="0" value={discountValue} onChange={e => setDiscountValue(Number(e.target.value))} /></div></Field><Field label="Notes" wide><Input value={notes} onChange={e => setNotes(e.target.value)} /></Field><Field label="Payment terms" wide><Input value={terms} onChange={e => setTerms(e.target.value)} /></Field><Field label="Template"><Select value={template} onChange={e => setTemplate(e.target.value)}><option value="">Business default</option>{templates.map(t => <option key={t.id} value={t.id}>{t.template_name}</option>)}</Select></Field></div></Card>
+            <Card className="p-5 border-violet-100"><div className="flex items-start justify-between gap-4"><div><h2 className="font-bold">Payment display on invoice</h2><p className="mt-1 text-xs text-slate-500">Choose exactly what the customer sees on the printed, copied or shared invoice.</p></div><button type="button" role="switch" aria-checked={paymentMode !== 'none'} onClick={() => setPaymentMode(paymentMode === 'none' ? (banks.length ? 'bank' : 'online') : 'none')} className={`relative h-7 w-12 shrink-0 rounded-full transition ${paymentMode !== 'none' ? 'bg-violet-600' : 'bg-slate-300'}`}><span className={`absolute top-1 h-5 w-5 rounded-full bg-white shadow transition ${paymentMode !== 'none' ? 'left-6' : 'left-1'}`} /></button></div>
+              {paymentMode !== 'none' && <div className="mt-4 grid gap-3 sm:grid-cols-2"><button type="button" onClick={() => setPaymentMode('bank')} className={`rounded-2xl border p-4 text-left ${paymentMode === 'bank' ? 'border-violet-500 bg-violet-50 ring-2 ring-violet-100' : 'border-slate-200 bg-white'}`}><b className="block text-sm">Show bank details</b><span className="mt-1 block text-[11px] text-slate-500">Display the selected business bank account on the invoice.</span></button><button type="button" onClick={() => setPaymentMode('online')} className={`rounded-2xl border p-4 text-left ${paymentMode === 'online' ? 'border-violet-500 bg-violet-50 ring-2 ring-violet-100' : 'border-slate-200 bg-white'}`}><b className="block text-sm">Pay Now + payment QR</b><span className="mt-1 block text-[11px] text-slate-500">Uses the default backend payment gateway and generates the customer payment link/QR.</span></button></div>}
+              {paymentMode === 'bank' && <div className="mt-4"><Field label="Bank account" required><Select value={paymentBankId} onChange={e => setPaymentBankId(e.target.value)}><option value="">Select bank account…</option>{banks.map(b => <option key={b.id} value={b.id}>{b.name}{b.institution_name ? ` · ${b.institution_name}` : ''}{b.account_last4 ? ` ···${b.account_last4}` : ''}</option>)}</Select></Field>{!banks.length && <p className="mt-2 text-xs text-amber-600">No active bank accounts are configured. Add one in Document Settings → Bank Accounts.</p>}</div>}
+              {paymentMode === 'online' && <div className="mt-4 rounded-2xl bg-slate-50 p-4 text-xs text-slate-600"><b className="text-slate-900">Automatic payment gateway</b><p className="mt-1">When you save the invoice, Moneymatters creates or reuses the backend payment link. The same link becomes the Pay Now action and QR payload on the invoice.</p></div>}
+            </Card>
           </div>
-          <Card className="h-fit p-5 lg:sticky lg:top-5"><h2 className="font-bold">Invoice summary</h2><div className="mt-4 space-y-3 text-sm"><div className="flex justify-between"><span>Subtotal</span><span>{money(totals.subtotal)}</span></div><div className="flex justify-between"><span>Discount</span><span>-{money(totals.discount)}</span></div>{taxEnabled && <div className="flex justify-between"><span>Tax</span><span>{money(totals.tax)}</span></div>}<div className="border-t pt-3 flex justify-between text-lg font-bold"><span>Total</span><span>{money(totals.total)}</span></div></div>{customer && <div className="mt-5 rounded-2xl bg-slate-50 p-4 text-xs text-slate-600"><div className="font-semibold text-slate-900">{customer.display_name}</div><div>Payment terms: {customer.payment_terms_days || defaults.invoice_due_days || 0} days</div>{customer.phone && <div>{customer.phone}</div>}</div>}</Card>
+          <Card className="h-fit p-5 lg:sticky lg:top-5"><h2 className="font-bold">Invoice summary</h2><div className="mt-4 space-y-3 text-sm"><div className="flex justify-between"><span>Subtotal</span><span>{money(totals.subtotal)}</span></div><div className="flex justify-between"><span>Discount</span><span>-{money(totals.discount)}</span></div>{taxEnabled && <div className="flex justify-between"><span>Tax</span><span>{money(totals.tax)}</span></div>}<div className="border-t pt-3 flex justify-between text-lg font-bold"><span>Total</span><span>{money(totals.total)}</span></div></div>{customer && <div className="mt-5 rounded-2xl bg-slate-50 p-4 text-xs text-slate-600"><div className="font-semibold text-slate-900">{customer.display_name}</div><div>Payment terms: {customer.payment_terms_days || defaults.invoice_due_days || 0} days</div>{customer.phone && <div>{customer.phone}</div>}</div>}{paymentMode !== 'none' && <div className="mt-4 rounded-2xl border border-violet-100 bg-violet-50/60 p-4 text-xs"><b className="text-violet-900">Invoice payment display</b><div className="mt-1">{paymentMode === 'bank' ? `Bank details${paymentBankId ? ` · ${banks.find(b => b.id === paymentBankId)?.name || ''}` : ''}` : 'Pay Now + QR'}</div></div>}</Card>
         </div>
         {customerFormOpen && <CustomerCreateModal open={customerFormOpen} onClose={() => setCustomerFormOpen(false)} onCreated={onCustomerCreated} businessId={ctx.business_id} />}
         {itemFormOpen && <ItemServiceModal open={itemFormOpen} onClose={() => setItemFormOpen(false)} onCreated={onItemCreated} businessId={ctx.business_id} />}
