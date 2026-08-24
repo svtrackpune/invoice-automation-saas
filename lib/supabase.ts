@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import { businessAwareFetch } from './active-business-fetch';
 
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
@@ -8,6 +9,9 @@ if (!url || !key) {
 }
 
 export const supabase = createClient(url, key, {
+  global: {
+    fetch: businessAwareFetch,
+  },
   auth: {
     persistSession: true,
     autoRefreshToken: true,
