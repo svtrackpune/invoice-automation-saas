@@ -1,10 +1,7 @@
 -- Per-invoice payment display selection.
 -- none = no payment block; bank = selected business bank account; online = backend gateway + Pay Now + QR.
 
-alter table public.invoices
-  add column if not exists payment_display_mode text not null default 'none',
-  add column if not exists payment_bank_account_id uuid null;
-
+alter table public.invoices add column if not exists payment_display_mode text not null default 'none', add column if not exists payment_bank_account_id uuid null;
 alter table public.invoices drop constraint if exists invoices_payment_display_mode_check;
 alter table public.invoices add constraint invoices_payment_display_mode_check check (payment_display_mode in ('none','bank','online'));
 alter table public.invoices drop constraint if exists invoices_payment_bank_account_fk;
