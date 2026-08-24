@@ -238,3 +238,292 @@
     text-align: left;
   }
 }
+
+/* Moneymatters Template 5 — Minimal
+   Typography-led, whitespace-first presentation. Accounting and payment data
+   remain untouched; this layer only refines the document presentation. */
+.paper.template-minimal {
+  --minimal-ink: #111827;
+  --minimal-muted: #64748b;
+  --minimal-line: #dbe1e8;
+  --minimal-soft: #f8fafc;
+  position: relative;
+  padding: 48px 56px 40px !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: #fff !important;
+  color: var(--minimal-ink) !important;
+  box-shadow: 0 12px 40px rgba(15, 23, 42, .08) !important;
+}
+
+.paper.template-minimal .document-header {
+  grid-template-columns: minmax(0, 1fr) 260px !important;
+  gap: 42px !important;
+  padding-bottom: 30px !important;
+  border-bottom: 1px solid var(--minimal-line) !important;
+}
+
+.paper.template-minimal .business-identity {
+  gap: 18px;
+  align-items: flex-start;
+}
+.paper.template-minimal .logo {
+  width: 118px !important;
+  height: 88px !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+}
+.paper.template-minimal .logo img {
+  width: 112px !important;
+  height: 82px !important;
+  max-width: 112px !important;
+  max-height: 82px !important;
+}
+.paper.template-minimal .business-brand-copy {
+  padding-top: 2px;
+}
+.paper.template-minimal .business-brand-copy strong {
+  color: var(--minimal-ink) !important;
+  font-size: 20px !important;
+  font-weight: 800;
+  letter-spacing: -.02em;
+}
+.paper.template-minimal .tagline {
+  color: var(--minimal-muted) !important;
+  font-size: 11px !important;
+  font-weight: 600;
+  letter-spacing: .02em;
+  margin-bottom: 7px;
+}
+
+.paper.template-minimal .heading {
+  text-align: right !important;
+}
+.paper.template-minimal .title {
+  color: var(--minimal-ink) !important;
+  font-size: 38px !important;
+  line-height: 1 !important;
+  font-weight: 800 !important;
+  letter-spacing: -.055em !important;
+}
+.paper.template-minimal .meta {
+  margin-top: 14px !important;
+  color: var(--minimal-muted) !important;
+  font-size: 12px !important;
+  line-height: 1.8 !important;
+}
+.paper.template-minimal .meta strong {
+  color: var(--minimal-ink) !important;
+  font-weight: 700;
+}
+.paper.template-minimal .header-due {
+  margin-top: 15px !important;
+  padding: 9px 0 !important;
+  border-radius: 0 !important;
+  border-top: 1px solid var(--minimal-ink) !important;
+  border-bottom: 1px solid var(--minimal-line) !important;
+  background: transparent !important;
+  color: var(--minimal-ink) !important;
+}
+.paper.template-minimal .header-due span {
+  color: var(--minimal-muted) !important;
+  font-size: 10px !important;
+  text-transform: uppercase;
+  letter-spacing: .13em;
+}
+.paper.template-minimal .header-due strong {
+  color: var(--minimal-ink) !important;
+  font-size: 16px !important;
+}
+
+.paper.template-minimal .parties {
+  grid-template-columns: 1.15fr .85fr !important;
+  gap: 56px !important;
+  padding: 28px 0 24px !important;
+}
+.paper.template-minimal .parties > div {
+  min-height: 96px !important;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+}
+.paper.template-minimal .parties .from {
+  text-align: right !important;
+}
+.paper.template-minimal .parties label,
+.paper.template-minimal .document-notes label,
+.paper.template-minimal .payment label,
+.paper.template-minimal .bank-details label {
+  color: var(--minimal-muted) !important;
+  font-size: 10px !important;
+  font-weight: 800;
+  letter-spacing: .14em;
+}
+.paper.template-minimal .parties > div > strong {
+  margin-top: 8px !important;
+  color: var(--minimal-ink) !important;
+  font-size: 14px !important;
+  font-weight: 800;
+}
+.paper.template-minimal .parties span {
+  color: #475569 !important;
+  font-size: 12px !important;
+  line-height: 1.55 !important;
+}
+
+.paper.template-minimal .items {
+  border: 0 !important;
+  border-collapse: collapse;
+}
+.paper.template-minimal .items th {
+  padding: 10px 8px !important;
+  border-top: 1px solid var(--minimal-ink) !important;
+  border-bottom: 1px solid var(--minimal-ink) !important;
+  background: #fff !important;
+  color: var(--minimal-ink) !important;
+  font-size: 10px !important;
+  font-weight: 800 !important;
+  letter-spacing: .12em !important;
+  text-transform: uppercase;
+}
+.paper.template-minimal .items td {
+  padding: 13px 8px !important;
+  border-bottom: 1px solid #edf1f5 !important;
+  color: #334155;
+  font-size: 13px !important;
+}
+.paper.template-minimal .items tr:last-child td {
+  border-bottom: 1px solid var(--minimal-line) !important;
+}
+.paper.template-minimal .items td:first-child strong {
+  color: var(--minimal-ink);
+  font-weight: 750;
+}
+.paper.template-minimal .items td small {
+  color: var(--minimal-muted);
+  font-size: 11px;
+}
+.paper.template-minimal .item-type {
+  padding: 2px 6px !important;
+  border: 1px solid #d8dee6 !important;
+  border-radius: 4px !important;
+  background: #fff !important;
+  color: #475569 !important;
+  font-size: 9px !important;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+.paper.template-minimal .item-type.service {
+  background: #fff !important;
+  color: #475569 !important;
+}
+
+.paper.template-minimal .body-grid {
+  grid-template-columns: minmax(0, 1fr) 285px !important;
+  gap: 48px !important;
+  padding-top: 22px !important;
+}
+.paper.template-minimal .document-notes {
+  padding: 0 !important;
+}
+.paper.template-minimal .document-notes + .document-notes {
+  margin-top: 18px !important;
+}
+.paper.template-minimal .document-notes p {
+  margin-top: 7px !important;
+  color: #475569 !important;
+  font-size: 12px !important;
+  line-height: 1.6 !important;
+}
+.paper.template-minimal .totals {
+  width: 100% !important;
+  border-top: 1px solid var(--minimal-ink) !important;
+  border-bottom: 1px solid var(--minimal-line) !important;
+  border-radius: 0 !important;
+  padding: 7px 0 !important;
+  background: transparent !important;
+}
+.paper.template-minimal .totals > div {
+  padding: 5px 0 !important;
+  color: #475569;
+  font-size: 12px;
+}
+.paper.template-minimal .totals .grand {
+  margin-top: 6px !important;
+  padding: 10px 0 !important;
+  border-top: 1px solid var(--minimal-line) !important;
+  background: transparent !important;
+  color: var(--minimal-ink) !important;
+  font-size: 18px !important;
+}
+.paper.template-minimal .totals .grand strong,
+.paper.template-minimal .totals .due strong {
+  color: var(--minimal-ink) !important;
+}
+.paper.template-minimal .totals .due {
+  padding-top: 9px !important;
+  color: var(--minimal-ink) !important;
+  font-size: 13px !important;
+  font-weight: 800;
+}
+
+.paper.template-minimal .payment {
+  margin-top: 24px !important;
+  padding: 14px 0 !important;
+  border: 0 !important;
+  border-top: 1px solid var(--minimal-line) !important;
+  border-bottom: 1px solid var(--minimal-line) !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  color: var(--minimal-ink) !important;
+}
+.paper.template-minimal .payment strong,
+.paper.template-minimal .payment span,
+.paper.template-minimal .bank-details strong,
+.paper.template-minimal .bank-details span {
+  font-size: 12px !important;
+}
+.paper.template-minimal .pay-link {
+  background: var(--minimal-ink) !important;
+  border-radius: 4px !important;
+  padding: 7px 12px !important;
+}
+.paper.template-minimal .qr {
+  width: 72px !important;
+  height: 72px !important;
+  border: 1px solid var(--minimal-line) !important;
+  border-radius: 0 !important;
+  background: #fff !important;
+  color: var(--minimal-ink) !important;
+}
+.paper.template-minimal footer {
+  margin-top: 26px !important;
+  padding-top: 12px !important;
+  border-top: 1px solid var(--minimal-line) !important;
+  color: var(--minimal-muted) !important;
+  font-size: 10px !important;
+}
+.paper.template-minimal .platform {
+  color: var(--minimal-muted) !important;
+  font-size: 10px !important;
+}
+.paper.template-minimal .platform a {
+  color: var(--minimal-ink) !important;
+}
+
+@media (max-width: 860px) {
+  .paper.template-minimal {
+    padding: 32px 28px 30px !important;
+  }
+  .paper.template-minimal .document-header,
+  .paper.template-minimal .body-grid,
+  .paper.template-minimal .parties {
+    grid-template-columns: 1fr !important;
+  }
+  .paper.template-minimal .heading,
+  .paper.template-minimal .parties .from {
+    text-align: left !important;
+  }
+}
