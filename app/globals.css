@@ -16,10 +16,5 @@ div.fixed.inset-0{background-color:transparent!important}
 .document-settings-shell .rounded-3xl.border.bg-white{border-color:#ebe8f4!important;box-shadow:0 6px 22px rgba(45,39,80,.045)!important}
 .document-settings-shell .rounded-2xl.border{border-color:#eeeaf6!important}
 .document-settings-shell .bg-violet-600{background:#6f5bd3!important}
-.document-settings-shell .hover\\:bg-slate-50:hover{background:#faf9ff!important}
+.document-settings-shell [class~="hover:bg-slate-50"]:hover{background:#faf9ff!important}
 .document-settings-shell .text-violet-600{color:#6f5bd3!important}
-.document-settings-shell .text-violet-700{color:#5e4cb8!important}
-.document-settings-shell .ring-violet-100{--tw-ring-color:#eee9ff!important}
-.document-settings-shell [type="color"]{padding:3px!important;border-radius:12px!important}
-.document-settings-shell .template-preview-card{background:linear-gradient(145deg,#fbfaff,#f6f5fb)}
-@media(max-width:640px){.document-settings-shell{padding:16px 10px 36px}.document-settings-shell .grid-cols-3{grid-template-columns:1fr}.document-settings-shell .grid-cols-2{grid-template-columns:1fr}}
