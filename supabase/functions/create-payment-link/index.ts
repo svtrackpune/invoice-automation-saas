@@ -1,5 +1,5 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient } from "npm:@supabase/supabase-js@2";
 
 const cors = {
   "Access-Control-Allow-Origin": "*",
@@ -37,9 +37,6 @@ Deno.serve(async (req) => {
     }
     const businessId = ctx[0].business_id;
 
-    // Authentication and tenant resolution happen with the user's JWT.
-    // Database/payment-link writes then use service role so RLS cannot turn a
-    // valid invoice into a misleading 404 during payment-link creation.
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
     if (!serviceKey) return json({ error: "Payment service is not configured" }, 503);
     const admin = createClient(Deno.env.get("SUPABASE_URL")!, serviceKey);
