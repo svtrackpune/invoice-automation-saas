@@ -38,7 +38,7 @@ export default function DocumentReviewCenter({ type, id }: { type: string; id: s
     location.href = type === 'invoice' ? '/next-workspace/invoices' : '/next-workspace';
   };
 
-  const save = async () => {
+  const finalize = async () => {
     if (type !== 'invoice' || !id || status !== 'draft') return;
     setBusy(true);
     setError('');
@@ -50,9 +50,9 @@ export default function DocumentReviewCenter({ type, id }: { type: string; id: s
       return;
     }
     setStatus('sent');
-    setNotice('Invoice saved and posted successfully.');
+    setNotice('Invoice finalized and posted. Accounting impact has been created.');
     setBusy(false);
-    setTimeout(() => { location.href = '/next-workspace/invoices'; }, 500);
+    setTimeout(() => { location.href = '/next-workspace/invoices'; }, 700);
   };
 
   const draft = type === 'invoice' && status === 'draft';
@@ -65,8 +65,8 @@ export default function DocumentReviewCenter({ type, id }: { type: string; id: s
         <div className="fixed inset-x-0 bottom-0 z-[80] border-t border-slate-200 bg-white/95 px-4 py-3 shadow-[0_-10px_40px_rgba(15,23,42,.12)] backdrop-blur sm:px-6">
           <div className="mx-auto flex max-w-6xl flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <div className="min-w-0">
-              <div className="text-sm font-semibold text-slate-900">Review invoice before saving</div>
-              <div className="text-xs text-slate-500">Check customer, items, quantities, GST, totals, payment details and the final layout.</div>
+              <div className="text-sm font-semibold text-slate-900">Review invoice before posting</div>
+              <div className="text-xs text-slate-500">Check customer, items, quantities, GST, totals, payment details and the final layout. Nothing affects the ledger until you finalize the invoice.</div>
               {error && <div className="mt-1 text-xs font-medium text-red-600">{error}</div>}
               {notice && <div className="mt-1 text-xs font-medium text-emerald-600">{notice}</div>}
             </div>
@@ -77,8 +77,8 @@ export default function DocumentReviewCenter({ type, id }: { type: string; id: s
               <button type="button" onClick={edit} disabled={!id || busy || status === 'missing'} className="rounded-xl border border-violet-200 bg-violet-50 px-4 py-2.5 text-sm font-semibold text-violet-700 hover:bg-violet-100 disabled:opacity-50">
                 Edit Invoice
               </button>
-              <button type="button" onClick={save} disabled={!draft || busy} className="rounded-xl bg-violet-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-violet-700 disabled:cursor-not-allowed disabled:opacity-50">
-                {busy ? 'Saving…' : 'Save Invoice'}
+              <button type="button" onClick={finalize} disabled={!draft || busy} className="rounded-xl bg-violet-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-violet-700 disabled:cursor-not-allowed disabled:opacity-50">
+                {busy ? 'Posting…' : 'Finalize & Post'}
               </button>
             </div>
           </div>
