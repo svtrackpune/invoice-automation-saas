@@ -15,7 +15,13 @@ export default function DocumentReviewCenter({ type, id }: { type: string; id: s
     let active = true;
     (async () => {
       if (!id) { if (active) setStatus('missing'); return; }
-      const result = await supabase.from('invoices').select('status,amount_paid').eq('id', id).maybeSingle();
+      const context = await supabase.rpc('get_my_business_context');
+      if (context.error || !context.data?.[0]?.business_id) {
+        if (active) { setError(context.error?.message || 'Business context not found.'); setStatus('error'); }
+        return;
+      }
+      const businessId = context.data[0].business_id;
+      const result = await supabase.from('invoices').select('status,amount_paid').eq('id', id).eq('business_id', businessId).maybeSingle();
       if (!active) return;
       if (result.error) { setError(result.error.message); setStatus('error'); return; }
       setStatus(result.data?.status || 'missing');
