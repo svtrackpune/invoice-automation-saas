@@ -1,0 +1,69 @@
+name: One-time configurable tax rollout
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Apply tax workflow changes
+        shell: python
+        run: |
+          from pathlib import Path
+
+          # Tax centre: add reusable business tax profiles using the existing tax_rates table.
+          p = Path('app/next-workspace/tax/page.tsx')
+          s = p.read_text(encoding='utf-8')
+          imp = "import {supabase,type BusinessContext} from '@/lib/supabase';"
+          newimp = imp + "\nimport TaxProfilesManager from './TaxProfilesManager';"
+          if "./TaxProfilesManager" not in s:
+              if s.count(imp) != 1: raise SystemExit('tax page import anchor not found exactly once')
+              s = s.replace(imp, newimp, 1)
+          anchor = '<div className="mt-5 grid gap-5 lg:grid-cols-[1fr_340px]">'
+          if '<TaxProfilesManager />' not in s:
+              if s.count(anchor) != 1: raise SystemExit('tax page insertion anchor not found exactly once')
+              s = s.replace(anchor, '<TaxProfilesManager />\n ' + anchor, 1)
+          p.write_text(s, encoding='utf-8')
+
+          # Invoice editor: tax is driven by the configured tax regime, not GST alone.
+          p = Path('app/next-workspace/invoices/new/page.tsx')
+          s = p.read_text(encoding='utf-8')
+          old = "const taxRegime=String(taxProfile.tax_regime||'NONE').toUpperCase(),gstType=String(taxProfile.gst_registration_type||'NONE').toUpperCase(),composition=taxRegime==='GST'&&gstType==='COMPOSITION',gstEligible=taxRegime==='GST'&&!composition,taxEnabled=gstEligible&&gstEnabled,customer=customers.find(x=>x.id===customerId);"
+          new = "const taxRegime=String(taxProfile.tax_regime||'NONE').toUpperCase(),gstType=String(taxProfile.gst_registration_type||'NONE').toUpperCase(),composition=taxRegime==='GST'&&gstType==='COMPOSITION',gstEligible=taxRegime==='GST'&&!composition,taxEligible=taxRegime!=='NONE'&&!composition,taxEnabled=taxEligible&&gstEnabled,customer=customers.find(x=>x.id===customerId);"
+          if s.count(old) != 1: raise SystemExit(f'invoice tax eligibility anchor count={s.count(old)}')
+          s = s.replace(old,new,1)
+          old = "const ruleLabel=composition?'Composition GST: tax is not charged separately':gstEligible?`GST registered · ${gstType}${gstEnabled?' · GST ON':' · GST OFF'}`:'Non-GST business: GST unavailable';"
+          new = "const ruleLabel=composition?'Composition GST: tax is not charged separately':taxEligible?`${taxRegime==='GST'?'GST registered':`${taxRegime} enabled`} · Tax profiles apply per item`:'No tax regime configured';"
+          if s.count(old) != 1: raise SystemExit(f'invoice rule label anchor count={s.count(old)}')
+          s = s.replace(old,new,1)
+          p.write_text(s,encoding='utf-8')
+
+          # Renderer: call the column Tax instead of hard-coding GST; the configured profile name is preserved per line by tax_rate_id.
+          p = Path('app/next-workspace/documents/DocumentViewer.tsx')
+          s = p.read_text(encoding='utf-8')
+          old = "{taxed && <th>GST</th>}"
+          new = "{taxed && <th>Tax</th>}"
+          if s.count(old) != 1: raise SystemExit(f'renderer tax header anchor count={s.count(old)}')
+          s = s.replace(old,new,1)
+          p.write_text(s,encoding='utf-8')
+
+          # Remove this workflow after applying the deterministic changes.
+          wf = Path('.github/workflows/one-time-configurable-tax.yml')
+          wf.unlink()
+
+      - name: Commit changes
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add app/next-workspace/tax/page.tsx app/next-workspace/tax/TaxProfilesManager.tsx app/next-workspace/invoices/new/page.tsx app/next-workspace/documents/DocumentViewer.tsx .github/workflows/one-time-configurable-tax.yml
+          git diff --cached --check
+          git commit -m "feat: make tax profiles configurable per business"
+          git push
