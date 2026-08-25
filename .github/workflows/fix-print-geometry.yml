@@ -1,0 +1,74 @@
+name: Fix deterministic print geometry
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  fix-print:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Replace print renderer
+        shell: python
+        run: |
+          from pathlib import Path
+          p = Path('app/next-workspace/documents/DocumentViewer.tsx')
+          s = p.read_text(encoding='utf-8')
+          start = s.index("  const print = () => {")
+          end = s.index(";\n\n  if (loading)", start) + 2
+          new = '''  const print = () => {
+    const paper = document.querySelector('.paper') as HTMLElement | null;
+    if (!paper) return;
+    const receipt = paper.classList.contains('receipt-paper');
+    const pageWidth = receipt ? '2.5in' : '210mm';
+    const pageHeight = receipt ? 'auto' : '297mm';
+    const viewportWidth = receipt ? '240px' : '794px';
+    const viewportHeight = receipt ? '1000px' : '1123px';
+    const frame = document.createElement('iframe');
+    frame.style.cssText = `position:fixed;left:-10000px;top:0;width:${viewportWidth};height:${viewportHeight};border:0;visibility:hidden;`;
+    document.body.appendChild(frame);
+    const doc = frame.contentDocument;
+    if (!doc) { frame.remove(); return; }
+    doc.open();
+    const styles = Array.from(document.head.querySelectorAll('style')).map((style) => style.textContent || '').join('');
+    doc.write(`<!doctype html><html><head><meta charset="utf-8"><style>${styles}
+      @page { size: ${pageWidth} ${pageHeight}; margin: 0; }
+      html,body { margin:0 !important; padding:0 !important; background:#fff !important; width:${pageWidth} !important; }
+      .page { padding:0 !important; background:#fff !important; }
+      .paper { margin:0 !important; box-shadow:none !important; }
+      ${receipt ? ` .receipt-paper { width:2.5in !important; max-width:2.5in !important; min-height:0 !important; } ` : `
+      .paper:not(.receipt-paper) { width:210mm !important; min-width:210mm !important; max-width:210mm !important; min-height:297mm !important; }
+      .paper:not(.receipt-paper) .document-header { grid-template-columns:minmax(0,1fr) 250px !important; }
+      .paper:not(.receipt-paper) .parties { grid-template-columns:minmax(0,1.15fr) minmax(0,.85fr) !important; }
+      `}
+    </style></head><body>${paper.outerHTML}</body></html>`);
+    doc.close();
+    setTimeout(() => {
+      frame.contentWindow?.focus();
+      frame.contentWindow?.print();
+      setTimeout(() => frame.remove(), 1000);
+    }, 250);
+  };'''
+          s = s[:start] + new + s[end:]
+          p.write_text(s, encoding='utf-8')
+
+      - name: Verify
+        run: |
+          grep -q "const viewportWidth = receipt ? '240px' : '794px'" app/next-workspace/documents/DocumentViewer.tsx
+          grep -q "@page { size: ${pageWidth} ${pageHeight}; margin: 0; }" app/next-workspace/documents/DocumentViewer.tsx
+          git diff --check
+
+      - name: Commit and remove workflow
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          rm .github/workflows/fix-print-geometry.yml
+          git add app/next-workspace/documents/DocumentViewer.tsx .github/workflows/fix-print-geometry.yml
+          git commit -m "fix: make invoice A4 and receipt print geometry deterministic"
+          git push
