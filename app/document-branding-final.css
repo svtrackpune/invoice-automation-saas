@@ -17,48 +17,156 @@
   text-align: center;
   line-height: 1.25;
   white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: normal;
+}
+
+/* The top-left branding zone contains logo + tagline only. Business details
+   are intentionally rendered in the FROM block. */
+.paper:not(.receipt-paper) .business-brand-copy > strong {
+  display: none !important;
 }
 
 .paper.template-classic {
-  --document-logo-width: 100px;
-  --document-logo-height: 78px;
+  --document-logo-width: 150px;
+  --document-logo-height: 117px;
 }
 .paper.template-classic .logo {
-  width: var(--document-logo-width);
-  height: var(--document-logo-height);
+  width: var(--document-logo-width) !important;
+  height: var(--document-logo-height) !important;
 }
 .paper.template-classic .logo img {
-  max-width: 92px;
-  max-height: 68px;
+  width: 138px !important;
+  height: 102px !important;
+  max-width: 138px !important;
+  max-height: 102px !important;
 }
 
 .paper.template-professional,
 .paper.template-professional.theme-dark {
-  --document-logo-width: 92px;
-  --document-logo-height: 78px;
+  --document-logo-width: 138px;
+  --document-logo-height: 117px;
 }
-.paper.template-professional:not(.theme-dark) .logo {
-  width: var(--document-logo-width);
-  height: var(--document-logo-height);
+.paper.template-professional:not(.theme-dark) .logo,
+.paper.template-professional.theme-dark .logo {
+  width: var(--document-logo-width) !important;
+  height: var(--document-logo-height) !important;
 }
-.paper.template-professional:not(.theme-dark) .logo img {
-  max-width: 84px;
-  max-height: 68px;
+.paper.template-professional:not(.theme-dark) .logo img,
+.paper.template-professional.theme-dark .logo img {
+  width: 126px !important;
+  height: 102px !important;
+  max-width: 126px !important;
+  max-height: 102px !important;
 }
 
 .paper.template-modern {
-  --document-logo-width: 112px;
-  --document-logo-height: 88px;
+  --document-logo-width: 168px;
+  --document-logo-height: 132px;
+}
+.paper.template-modern .logo,
+.paper.template-modern .logo img {
+  width: var(--document-logo-width) !important;
+  height: var(--document-logo-height) !important;
+  max-width: var(--document-logo-width) !important;
+  max-height: var(--document-logo-height) !important;
 }
 
 .paper.template-premium {
-  --document-logo-width: 132px;
-  --document-logo-height: 98px;
+  --document-logo-width: 198px;
+  --document-logo-height: 147px;
+}
+.paper.template-premium .logo,
+.paper.template-premium .logo img {
+  width: var(--document-logo-width) !important;
+  height: var(--document-logo-height) !important;
+  max-width: var(--document-logo-width) !important;
+  max-height: var(--document-logo-height) !important;
 }
 
 .paper.template-minimal {
-  --document-logo-width: 118px;
-  --document-logo-height: 88px;
+  --document-logo-width: 177px;
+  --document-logo-height: 132px;
+}
+.paper.template-minimal .logo,
+.paper.template-minimal .logo img {
+  width: var(--document-logo-width) !important;
+  height: var(--document-logo-height) !important;
+  max-width: var(--document-logo-width) !important;
+  max-height: var(--document-logo-height) !important;
+}
+
+/* Every information block is constrained to its allocated geometry. Long
+   values wrap inside the block instead of widening the invoice or colliding
+   with neighbouring content. */
+.paper:not(.receipt-paper) .parties,
+.paper:not(.receipt-paper) .parties > div,
+.paper:not(.receipt-paper) .bill-to,
+.paper:not(.receipt-paper) .from,
+.paper:not(.receipt-paper) .body-grid,
+.paper:not(.receipt-paper) .notes-column,
+.paper:not(.receipt-paper) .totalwrap,
+.paper:not(.receipt-paper) .payment,
+.paper:not(.receipt-paper) .bank-details,
+.paper:not(.receipt-paper) footer {
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.paper:not(.receipt-paper) .parties > div > strong,
+.paper:not(.receipt-paper) .parties > div > span,
+.paper:not(.receipt-paper) .parties > div a,
+.paper:not(.receipt-paper) .document-notes p,
+.paper:not(.receipt-paper) .bank-details strong,
+.paper:not(.receipt-paper) .bank-details span,
+.paper:not(.receipt-paper) footer span,
+.paper:not(.receipt-paper) footer a {
+  white-space: normal !important;
+  overflow-wrap: anywhere;
+  word-break: normal;
+  max-width: 100%;
+}
+
+/* Product name and description always wrap within the item column. */
+.paper .items {
+  width: 100%;
+  max-width: 100%;
+}
+.paper .items th,
+.paper .items td {
+  max-width: 0;
+  overflow-wrap: anywhere;
+  word-break: normal;
+}
+.paper .items td:first-child,
+.paper .items td:first-child strong,
+.paper .items td:first-child small {
+  white-space: normal !important;
+  overflow-wrap: anywhere;
+  word-break: normal;
+}
+.paper .items td:first-child strong,
+.paper .items td:first-child small {
+  display: block;
+  max-width: 100%;
+}
+.paper .items td:first-child small {
+  margin-top: 2px;
+}
+
+/* Taglines and footer content follow the same visual wrapping rule. */
+.paper .tagline,
+.paper footer,
+.paper footer span,
+.paper footer a,
+.paper .receipt-thanks,
+.paper .receipt-footer,
+.paper .receipt-footer span {
+  white-space: normal !important;
+  overflow-wrap: anywhere;
+  word-break: normal;
+  max-width: 100%;
 }
 
 /* The approved receipt design already centers its logo and tagline as a stack. */
@@ -76,5 +184,14 @@
 @media print {
   .paper:not(.receipt-paper) .business-identity .tagline {
     position: absolute;
+  }
+  .paper .items td:first-child,
+  .paper .items td:first-child strong,
+  .paper .items td:first-child small,
+  .paper .parties > div > span,
+  .paper .parties > div > strong,
+  .paper footer span {
+    overflow-wrap: anywhere;
+    word-break: normal;
   }
 }
