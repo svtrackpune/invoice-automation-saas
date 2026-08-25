@@ -26,9 +26,9 @@ jobs:
     const paper = document.querySelector('.paper') as HTMLElement | null;
     if (!paper) return;
     const receipt = paper.classList.contains('receipt-paper');
-    const pageWidth = receipt ? '2.5in' : '210mm';
+    const pageWidth = receipt ? '3.1in' : '210mm';
     const pageHeight = receipt ? 'auto' : '297mm';
-    const viewportWidth = receipt ? '240px' : '794px';
+    const viewportWidth = receipt ? '298px' : '794px';
     const viewportHeight = receipt ? '1000px' : '1123px';
     const frame = document.createElement('iframe');
     frame.style.cssText = `position:fixed;left:-10000px;top:0;width:${viewportWidth};height:${viewportHeight};border:0;visibility:hidden;`;
@@ -42,7 +42,7 @@ jobs:
       html,body { margin:0 !important; padding:0 !important; background:#fff !important; width:${pageWidth} !important; }
       .page { padding:0 !important; background:#fff !important; }
       .paper { margin:0 !important; box-shadow:none !important; }
-      ${receipt ? ` .receipt-paper { width:2.5in !important; max-width:2.5in !important; min-height:0 !important; } ` : `
+      ${receipt ? ` .receipt-paper { width:3.1in !important; max-width:3.1in !important; min-height:0 !important; } ` : `
       .paper:not(.receipt-paper) { width:210mm !important; min-width:210mm !important; max-width:210mm !important; min-height:297mm !important; }
       .paper:not(.receipt-paper) .document-header { grid-template-columns:minmax(0,1fr) 250px !important; }
       .paper:not(.receipt-paper) .parties { grid-template-columns:minmax(0,1.15fr) minmax(0,.85fr) !important; }
@@ -60,7 +60,7 @@ jobs:
 
       - name: Verify
         run: |
-          grep -q "const viewportWidth = receipt ? '240px' : '794px'" app/next-workspace/documents/DocumentViewer.tsx
+          grep -q "const viewportWidth = receipt ? '298px' : '794px'" app/next-workspace/documents/DocumentViewer.tsx
           grep -q "@page { size: ${pageWidth} ${pageHeight}; margin: 0; }" app/next-workspace/documents/DocumentViewer.tsx
           git diff --check
 
@@ -70,5 +70,5 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           rm .github/workflows/fix-print-geometry.yml
           git add app/next-workspace/documents/DocumentViewer.tsx .github/workflows/fix-print-geometry.yml
-          git commit -m "fix: make invoice A4 and receipt print geometry deterministic"
+          git commit -m "fix: make invoice A4 and receipt 3.1-inch print geometry deterministic"
           git push
