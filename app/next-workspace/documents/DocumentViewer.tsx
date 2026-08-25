@@ -45,8 +45,8 @@ function ReceiptTotals({ payload, total, received, balance }: { payload: any; to
 function BankDetails({ bank }: { bank: any }) {
   const metadata = bank?.metadata || {};
   const accountNumber = metadata.account_number || metadata.account_no || metadata.accountNumber || (bank.account_last4 ? `•••• ${bank.account_last4}` : '');
-  const ifsc = metadata.ifsc || metadata.ifsc_code || metadata.ifscCode;
-  const branch = metadata.branch || metadata.branch_name;
+  const ifsc = metadata.ifsc || metadata.ifsc_code || metadata.ifscCode || bank?.ifsc_code;
+  const branch = metadata.branch || metadata.branch_name || bank?.branch_name;
   const upi = metadata.upi_id || metadata.upiId;
   return <div className="bank-details"><label>BANK DETAILS</label><strong>{text(bank?.name || 'Bank account')}</strong>{bank?.institution_name && <span>{text(bank.institution_name)}</span>}{accountNumber && <span>Account: {text(accountNumber)}</span>}{ifsc && <span>IFSC: {text(ifsc)}</span>}{branch && <span>Branch: {text(branch)}</span>}{upi && <span>UPI: {text(upi)}</span>}</div>;
 }
@@ -77,7 +77,7 @@ function Paper({ type, payload, business, customer, items, theme, fields, total,
     <section className="parties"><div className="bill-to"><label>BILL TO</label><strong>{text(customer.display_name || customer.legal_name || 'Customer')}</strong>{addressLines(customer.address || customer.billing_address).map((line, index) => <span key={index}>{line}</span>)}{customer.phone && <span>{text(customer.phone)}</span>}{customer.email && <span>{text(customer.email)}</span>}</div><div className="from"><label>FROM</label><strong>{text(business.name || business.legal_name || 'Business')}</strong>{addressLines(business.address || business.business_address).map((line, index) => <span key={index}>{line}</span>)}{(business.phone || business.mobile) && <span>{text(business.phone || business.mobile)}</span>}{(business.email || business.business_email) && <span>{text(business.email || business.business_email)}</span>}{business.tax_registration_number && <span>GSTIN: {text(business.tax_registration_number)}</span>}</div></section>
     <LineItems items={items} payload={payload} receipt={false} />
     <div className="body-grid"><div className="notes-column">{fields.notes && <section className="document-notes"><label>NOTES</label><p>{text(fields.notes)}</p></section>}{fields.terms && <section className="document-notes terms"><label>TERMS & CONDITIONS</label><p>{text(fields.terms)}</p></section>}</div><div className="totalwrap"><InvoiceTotals payload={payload} total={total} balance={balance} /></div></div>
-    {type === 'invoice' && <PaymentSection paymentMode={paymentMode} paymentLink={paymentLink} paymentSelection={paymentSelection} balance={balance} currency={payload.currency_code} premium={theme.className === 'template-premium'} />}
+    {(type === 'invoice' || paymentSelection?.bank) && <PaymentSection paymentMode={type === 'invoice' ? paymentMode : 'bank'} paymentLink={paymentLink} paymentSelection={paymentSelection} balance={balance} currency={payload.currency_code} premium={theme.className === 'template-premium'} />}
     <footer><span>{text(business.name || business.legal_name || 'Business')}</span><span>{text(fields.footer || 'This is a computer generated document.')}</span></footer><div className="platform"><a href="https://mm.nilanga.in" target="_blank" rel="noreferrer">Moneymatters</a></div>
   </article>;
 }
@@ -101,6 +101,15 @@ export default function DocumentViewer({ type, id }: { type: string; id: string 
       if (!active) return;
       setJob(loaded.data); setTemplate(templateResult.data); setPreferences(preferenceResult.data); if (businessResult.data) setBusiness(businessResult.data);
       const invoiceId = payload.invoice_id || payload.invoice?.id || payload.source_invoice_id || payload.payment?.invoice_id || (type === 'invoice' ? id : null);
+      if (businessId) {
+        let selectedBank = null;
+        const selectedBankId = payload?.document_context?.selected_bank_account_id || null;
+        if (selectedBankId) {
+          const bankResult = await supabase.from('bank_accounts').select('id,name,institution_name,account_last4,account_holder_name,ifsc_code,branch_name,account_type,currency_code,metadata').eq('id', selectedBankId).eq('business_id', businessId).eq('is_active', true).maybeSingle();
+          selectedBank = bankResult.data || null;
+        }
+        if (selectedBank) setPaymentSelection({ payment_display_mode: 'bank', bank: selectedBank });
+      }
       if (type === 'invoice' && businessId && invoiceId) {
         const invoiceResult = await supabase.from('invoices').select('payment_display_mode,payment_bank_account_id,payment_link,payment_qr_payload').eq('id', invoiceId).eq('business_id', businessId).maybeSingle();
         if (invoiceResult.data) {
@@ -109,7 +118,7 @@ export default function DocumentViewer({ type, id }: { type: string; id: string 
             const bankResult = await supabase.from('bank_accounts').select('id,name,institution_name,account_last4,metadata').eq('id', invoiceResult.data.payment_bank_account_id).eq('business_id', businessId).eq('is_active', true).maybeSingle();
             bank = bankResult.data || null;
           }
-          setPaymentSelection({ ...invoiceResult.data, bank });
+          setPaymentSelection({ ...invoiceResult.data, bank: bank || selectedBank || null });
         }
       }
       if (type === 'receipt' && invoiceId) {
