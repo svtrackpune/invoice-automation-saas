@@ -1,0 +1,80 @@
+/* Final document branding alignment.
+   Presentation-only: keeps each approved template's structure while placing
+   the business tagline directly below and centered to its logo. */
+.paper:not(.receipt-paper) .business-identity {
+  position: relative;
+  align-items: flex-start;
+  padding-bottom: 28px;
+}
+
+.paper:not(.receipt-paper) .business-brand-copy .tagline {
+  position: absolute;
+  left: 0;
+  top: calc(var(--document-logo-height) + 6px);
+  width: var(--document-logo-width);
+  margin: 0 !important;
+  padding: 0 !important;
+  text-align: center;
+  line-height: 1.25;
+  white-space: normal;
+}
+
+.paper.template-classic {
+  --document-logo-width: 100px;
+  --document-logo-height: 78px;
+}
+.paper.template-classic .logo {
+  width: var(--document-logo-width);
+  height: var(--document-logo-height);
+}
+.paper.template-classic .logo img {
+  max-width: 92px;
+  max-height: 68px;
+}
+
+.paper.template-professional,
+.paper.template-professional.theme-dark {
+  --document-logo-width: 92px;
+  --document-logo-height: 78px;
+}
+.paper.template-professional:not(.theme-dark) .logo {
+  width: var(--document-logo-width);
+  height: var(--document-logo-height);
+}
+.paper.template-professional:not(.theme-dark) .logo img {
+  max-width: 84px;
+  max-height: 68px;
+}
+
+.paper.template-modern {
+  --document-logo-width: 112px;
+  --document-logo-height: 88px;
+}
+
+.paper.template-premium {
+  --document-logo-width: 132px;
+  --document-logo-height: 98px;
+}
+
+.paper.template-minimal {
+  --document-logo-width: 118px;
+  --document-logo-height: 88px;
+}
+
+/* The approved receipt design already centers its logo and tagline as a stack. */
+.paper.receipt-paper .receipt-head .tagline {
+  position: static;
+  width: auto;
+}
+
+@media (max-width: 860px) {
+  .paper:not(.receipt-paper) .business-identity {
+    padding-bottom: 30px;
+  }
+}
+
+@media print {
+  .paper:not(.receipt-paper) .business-identity .tagline {
+    position: absolute;
+  }
+}
