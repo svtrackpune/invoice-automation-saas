@@ -15,24 +15,33 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Apply root print viewport fix
+      - name: Apply deterministic print geometry
         shell: python
         run: |
           from pathlib import Path
           path = Path('app/next-workspace/documents/DocumentViewer.tsx')
           source = path.read_text(encoding='utf-8')
           old = "frame.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0;visibility:hidden;'"
-          new = "frame.style.cssText = 'position:fixed;left:-10000px;top:0;width:794px;height:1123px;border:0;visibility:hidden;'"
           if source.count(old) != 1:
               raise SystemExit(f'Expected exactly one print iframe style, found {source.count(old)}')
-          path.write_text(source.replace(old, new), encoding='utf-8')
+          new = "frame.style.cssText = type === 'receipt' ? 'position:fixed;left:-10000px;top:0;width:298px;height:1200px;border:0;visibility:hidden;' : 'position:fixed;left:-10000px;top:0;width:794px;height:1123px;border:0;visibility:hidden;'"
+          source = source.replace(old, new)
+          old_css = "@page{size:A4;margin:0}html,body{margin:0;padding:0;background:#fff}.page{padding:0!important;background:#fff!important}.paper{margin:0!important;box-shadow:none!important}"
+          if source.count(old_css) != 1:
+              raise SystemExit(f'Expected exactly one print CSS block, found {source.count(old_css)}')
+          new_css = "@page{size:A4;margin:0}html,body{margin:0;padding:0;background:#fff}.page{padding:0!important;background:#fff!important}.paper{margin:0!important;box-shadow:none!important}.paper:not(.receipt-paper) .document-header{grid-template-columns:minmax(0,1fr) 250px!important}.paper:not(.receipt-paper) .parties{grid-template-columns:minmax(0,1fr) minmax(0,1fr)!important}.receipt-paper{width:3.10in!important;max-width:3.10in!important;min-height:0!important}.receipt-paper .receipt-head,.receipt-paper .receipt-title,.receipt-paper .receipt-customer,.receipt-paper .receipt-items,.receipt-paper .receipt-totals,.receipt-paper .payment-detail,.receipt-paper .receipt-thanks,.receipt-paper .receipt-footer{max-width:100%!important;box-sizing:border-box!important}.receipt-paper .receipt-items{width:calc(100% - 16px)!important;margin-left:8px!important;margin-right:8px!important}@media print{.paper:not(.receipt-paper){width:210mm!important;min-height:297mm!important}.receipt-paper{width:3.10in!important;max-width:3.10in!important;min-height:0!important}}"
+          source = source.replace(old_css, new_css)
+          path.write_text(source, encoding='utf-8')
 
-      - name: Verify root fix and build
+      - name: Verify source-only correction
         shell: bash
         run: |
-          grep -n "left:-10000px;top:0;width:794px;height:1123px" app/next-workspace/documents/DocumentViewer.tsx
-          npm install --no-audit --no-fund
-          npm run build
+          grep -n "width:794px;height:1123px" app/next-workspace/documents/DocumentViewer.tsx
+          grep -n "width:298px;height:1200px" app/next-workspace/documents/DocumentViewer.tsx
+          grep -n "3.10in" app/next-workspace/documents/DocumentViewer.tsx
+          grep -n "document-header.*grid-template-columns:minmax(0,1fr) 250px" app/next-workspace/documents/DocumentViewer.tsx
+          grep -n "parties.*grid-template-columns:minmax(0,1fr) minmax(0,1fr)" app/next-workspace/documents/DocumentViewer.tsx
+          git diff --check
 
       - name: Commit fix and remove one-time workflow
         shell: bash
@@ -42,5 +51,5 @@ jobs:
           rm .github/workflows/one-time-print-parties-fix.yml
           git add app/next-workspace/documents/DocumentViewer.tsx .github/workflows/one-time-print-parties-fix.yml
           git diff --cached --check
-          git commit -m "fix: use real print viewport for document layout"
+          git commit -m "fix: deterministic invoice and receipt print geometry"
           git push
