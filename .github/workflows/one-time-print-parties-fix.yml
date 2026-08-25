@@ -31,7 +31,7 @@ jobs:
         shell: bash
         run: |
           grep -n "paper .parties{display:grid!important" app/next-workspace/documents/DocumentViewer.tsx
-          npm ci
+          npm install
           npm run build
 
       - name: Commit fix and remove one-time workflow
