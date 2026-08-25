@@ -18,9 +18,11 @@ const text = (value: any) => String(value ?? '');
 const addressLines = (value: any) => {
   if (!value) return [];
   if (typeof value === 'object') {
-    const first = [value.line1, value.address_line1, value.street, value.line2, value.address_line2].filter(Boolean).map(String).join(', ');
-    const second = [value.city, value.state, value.postal_code || value.pin || value.pincode, value.country].filter(Boolean).map(String).join(', ');
-    return [first, second].filter(Boolean);
+    const first = [value.line1, value.address_line1, value.street].filter(Boolean).map(String).join(', ');
+    const second = [value.line2, value.address_line2].filter(Boolean).map(String).join(', ');
+    const third = [value.city, value.state, value.postal_code || value.pin || value.pincode].filter(Boolean).map(String).join(', ');
+    const fourth = [value.country].filter(Boolean).map(String).join(', ');
+    return [first, second, third, fourth].filter(Boolean);
   }
   const parts = String(value).split(/\n|,/).map((x) => x.trim()).filter(Boolean);
   if (parts.length <= 2) return parts;
