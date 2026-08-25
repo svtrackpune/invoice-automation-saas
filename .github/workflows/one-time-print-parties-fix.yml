@@ -22,7 +22,7 @@ jobs:
           path = Path('app/next-workspace/documents/DocumentViewer.tsx')
           source = path.read_text(encoding='utf-8')
           old = '@page{size:A4;margin:0}html,body{margin:0;padding:0;background:#fff}.page{padding:0!important;background:#fff!important}.paper{margin:0!important;box-shadow:none!important}'
-          new = '@page{size:A4;margin:0}html,body{margin:0;padding:0;background:#fff}.page{padding:0!important;background:#fff!important}.paper{margin:0!important;box-shadow:none!important}.paper .parties{display:grid!important;grid-template-columns:minmax(0,1fr) minmax(0,1fr)!important;gap:24px!important;break-inside:avoid!important}.paper .parties .from{text-align:left!important}'
+          new = '@page{size:A4;margin:0}html,body{margin:0;padding:0;background:#fff}.page{padding:0!important;background:#fff!important}.paper{margin:0!important;box-shadow:none!important}.paper:not(.receipt-paper) .document-header{display:grid!important;grid-template-columns:minmax(0,1fr) 250px!important;gap:36px!important;align-items:start!important}.paper:not(.receipt-paper) .heading{text-align:right!important}.paper:not(.receipt-paper) .parties{display:grid!important;grid-template-columns:minmax(0,1fr) minmax(0,1fr)!important;gap:24px!important;break-inside:avoid!important}.paper:not(.receipt-paper) .parties .from{text-align:left!important}'
           if source.count(old) != 1:
               raise SystemExit(f'Expected exactly one print CSS target, found {source.count(old)}')
           path.write_text(source.replace(old, new), encoding='utf-8')
@@ -30,7 +30,8 @@ jobs:
       - name: Verify and build
         shell: bash
         run: |
-          grep -n "paper .parties{display:grid!important" app/next-workspace/documents/DocumentViewer.tsx
+          grep -n "paper:not(.receipt-paper) .document-header" app/next-workspace/documents/DocumentViewer.tsx
+          grep -n "paper:not(.receipt-paper) .parties" app/next-workspace/documents/DocumentViewer.tsx
           npm install
           npm run build
 
@@ -42,5 +43,5 @@ jobs:
           rm .github/workflows/one-time-print-parties-fix.yml
           git add app/next-workspace/documents/DocumentViewer.tsx .github/workflows/one-time-print-parties-fix.yml
           git diff --cached --check
-          git commit -m "fix: keep bill-to and from side by side in print"
+          git commit -m "fix: keep invoice header and parties aligned in print"
           git push
