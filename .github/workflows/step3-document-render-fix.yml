@@ -1,0 +1,41 @@
+name: Step 3 document renderer patch
+on:
+  push:
+    branches: [main]
+permissions:
+  contents: write
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]' && contains(github.event.head_commit.message, 'step3:')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Patch renderer
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('app/next-workspace/documents/DocumentViewer.tsx')
+          s=p.read_text()
+          s=s.replace("const ifsc = metadata.ifsc || metadata.ifsc_code || metadata.ifscCode;\n  const branch = metadata.branch || metadata.branch_name;", "const ifsc = metadata.ifsc || metadata.ifsc_code || metadata.ifscCode || bank?.ifsc_code;\n  const branch = metadata.branch || metadata.branch_name || bank?.branch_name;")
+          old="{type === 'invoice' && <PaymentSection paymentMode={paymentMode} paymentLink={paymentLink} paymentSelection={paymentSelection} balance={balance} currency={payload.currency_code} premium={theme.className === 'template-premium'} />}"
+          new="{(type === 'invoice' || paymentSelection?.bank) && <PaymentSection paymentMode={type === 'invoice' ? paymentMode : 'bank'} paymentLink={paymentLink} paymentSelection={paymentSelection} balance={balance} currency={payload.currency_code} premium={theme.className === 'template-premium'} />}"
+          if old not in s: raise SystemExit('invoice payment render anchor not found')
+          s=s.replace(old,new,1)
+          old2="if (type === 'invoice' && businessId && invoiceId) {"
+          new2="if (businessId) {\n        let selectedBank = null;\n        const selectedBankId = payload?.document_context?.selected_bank_account_id || null;\n        if (selectedBankId) {\n          const bankResult = await supabase.from('bank_accounts').select('id,name,institution_name,account_last4,account_holder_name,ifsc_code,branch_name,account_type,currency_code,metadata').eq('id', selectedBankId).eq('business_id', businessId).eq('is_active', true).maybeSingle();\n          selectedBank = bankResult.data || null;\n        }\n        if (selectedBank) setPaymentSelection({ payment_display_mode: 'bank', bank: selectedBank });\n      }\n      if (type === 'invoice' && businessId && invoiceId) {"
+          if old2 not in s: raise SystemExit('invoice load anchor not found')
+          s=s.replace(old2,new2,1)
+          old3="setPaymentSelection({ ...invoiceResult.data, bank });"
+          new3="setPaymentSelection({ ...invoiceResult.data, bank: bank || selectedBank || null });"
+          if old3 not in s: raise SystemExit('payment selection anchor not found')
+          s=s.replace(old3,new3,1)
+          p.write_text(s)
+          PY
+      - name: Commit renderer fix
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add app/next-workspace/documents/DocumentViewer.tsx
+          git diff --cached --quiet && exit 0
+          git commit -m 'fix: complete document bank rendering for all document types'
+          git push
