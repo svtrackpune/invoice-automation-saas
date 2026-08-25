@@ -1,4 +1,4 @@
--- See live migration applied to Moneymatters. This migration standardizes internal bank transfers and posted invoice void/reversal handling.
+-- Standardize internal bank transfers and posted invoice void/reversal handling.
 CREATE OR REPLACE FUNCTION public.match_bank_transaction(p_reconciliation_id uuid, p_bank_transaction_id uuid, p_match_type text, p_matched_record_id uuid DEFAULT NULL::uuid, p_notes text DEFAULT NULL::text)
 RETURNS uuid LANGUAGE plpgsql SECURITY DEFINER SET search_path TO 'public','mm_private' AS $function$
 declare rid uuid; bid uuid; tx public.bank_transactions%rowtype; rec public.bank_reconciliations%rowtype; target_account uuid; source_account uuid; target_bank uuid; je uuid; v_entry_no bigint; existing public.bank_reconciliation_items%rowtype;
@@ -45,7 +45,7 @@ begin
  perform public.assert_accounting_period_open(inv.business_id,current_date); perform pg_advisory_xact_lock(hashtext('journal-entry-number:'||inv.business_id::text));
  select coalesce(max(entry_number),0)+1 into v_entry_no from public.journal_entries where business_id=inv.business_id;
  insert into public.journal_entries(business_id,entry_number,entry_date,description,source_type,source_id,status,posted_at,posted_by,created_by,currency_code,total_debit,total_credit,is_system_generated,reversal_of_id,metadata)
- values(inv.business_id,v_entry_no,current_date,'Void invoice '||inv.invoice_number,'invoice_void',inv.id,'posted',now(),auth.uid(),auth.uid(),inv.currency_code,original.total_credit,original.total_debit,true,original.id,jsonb_build_object('reason',p_reason)) returning id into rev;
+ values(inv.business_id,v_entry_no,current_date,'Void invoice '||inv.invoice_number,'invoice_void',inv.id,'posted',now(),auth.uid(),auth.uid(),inv.currency_code,original.total_credit,original.total_debit,true,original.id,jsonb_build_object('reason',p_reason,'original_journal_entry_id',original.id)) returning id into rev;
  for line in select account_id,description,debit,credit,currency_code,entity_type,entity_id,metadata from public.journal_lines where journal_entry_id=original.id loop insert into public.journal_lines(journal_entry_id,account_id,description,debit,credit,currency_code,entity_type,entity_id,metadata) values(rev,line.account_id,'Reversal: '||coalesce(line.description,''),line.credit,line.debit,line.currency_code,line.entity_type,line.entity_id,line.metadata); end loop;
  perform public.validate_journal_entry_balance(rev);
  for mov in select location_id,product_service_id,quantity,unit_cost,batch_number,serial_number from public.inventory_movements where reference_type='invoice' and reference_id=inv.id and movement_type='sale' loop
@@ -53,5 +53,5 @@ begin
    if not found then insert into public.inventory_balances(business_id,location_id,product_service_id,quantity_on_hand,average_cost,updated_at) values(inv.business_id,mov.location_id,mov.product_service_id,mov.quantity,mov.unit_cost,now()); end if;
    insert into public.inventory_movements(business_id,location_id,product_service_id,movement_type,quantity,unit_cost,reference_type,reference_id,batch_number,serial_number,notes,created_by) values(inv.business_id,mov.location_id,mov.product_service_id,'sale_reversal',mov.quantity,mov.unit_cost,'invoice_void',inv.id,mov.batch_number,mov.serial_number,coalesce(p_reason,'Invoice void reversal'),auth.uid());
  end loop;
- update public.invoices set status='void'::invoice_status,journal_entry_id=rev,updated_at=now(),notes=case when p_reason is null or trim(p_reason)='' then notes else coalesce(notes||E'\n','')||'Void reason: '||p_reason end where id=inv.id; return rev;
+ update public.invoices set status='void'::invoice_status,updated_at=now(),notes=case when p_reason is null or trim(p_reason)='' then notes else coalesce(notes||E'\n','')||'Void reason: '||p_reason end where id=inv.id; return rev;
 end; $function$;
