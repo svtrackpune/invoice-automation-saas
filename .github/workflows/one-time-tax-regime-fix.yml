@@ -1,0 +1,31 @@
+name: One-time tax regime fix
+on:
+  push:
+    branches: [main]
+permissions:
+  contents: write
+jobs:
+  apply:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - shell: python
+        run: |
+          from pathlib import Path
+          p=Path('app/next-workspace/invoices/new/page.tsx')
+          s=p.read_text(encoding='utf-8')
+          old="const profile=(tp.data||{tax_regime:'NONE',gst_registration_type:'NONE'}) as TaxProfile;const eligible=String(profile.tax_regime||'NONE').toUpperCase()==='GST'&&String(profile.gst_registration_type||'NONE').toUpperCase()!=='COMPOSITION';"
+          new="const profile=(tp.data||{tax_regime:'NONE',gst_registration_type:'NONE'}) as TaxProfile;const regime=String(profile.tax_regime||'NONE').toUpperCase();const eligible=regime!=='NONE'&&!(regime==='GST'&&String(profile.gst_registration_type||'NONE').toUpperCase()==='COMPOSITION');"
+          if s.count(old)!=1: raise SystemExit(f'anchor count {s.count(old)}')
+          s=s.replace(old,new,1)
+          p.write_text(s,encoding='utf-8')
+          Path('.github/workflows/one-time-tax-regime-fix.yml').unlink()
+      - shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add app/next-workspace/invoices/new/page.tsx .github/workflows/one-time-tax-regime-fix.yml
+          git diff --cached --check
+          git commit -m "fix: enable invoice tax for all configured regimes"
+          git push
