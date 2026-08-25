@@ -64,36 +64,45 @@
   --document-logo-width: 168px;
   --document-logo-height: 132px;
 }
-.paper.template-modern .logo,
-.paper.template-modern .logo img {
+.paper.template-modern .logo {
   width: var(--document-logo-width) !important;
   height: var(--document-logo-height) !important;
-  max-width: var(--document-logo-width) !important;
-  max-height: var(--document-logo-height) !important;
+}
+.paper.template-modern .logo img {
+  width: 153px !important;
+  height: 117px !important;
+  max-width: 153px !important;
+  max-height: 117px !important;
 }
 
 .paper.template-premium {
   --document-logo-width: 198px;
   --document-logo-height: 147px;
 }
-.paper.template-premium .logo,
-.paper.template-premium .logo img {
+.paper.template-premium .logo {
   width: var(--document-logo-width) !important;
   height: var(--document-logo-height) !important;
-  max-width: var(--document-logo-width) !important;
-  max-height: var(--document-logo-height) !important;
+}
+.paper.template-premium .logo img {
+  width: 198px !important;
+  height: 147px !important;
+  max-width: 198px !important;
+  max-height: 147px !important;
 }
 
 .paper.template-minimal {
   --document-logo-width: 177px;
   --document-logo-height: 132px;
 }
-.paper.template-minimal .logo,
-.paper.template-minimal .logo img {
+.paper.template-minimal .logo {
   width: var(--document-logo-width) !important;
   height: var(--document-logo-height) !important;
-  max-width: var(--document-logo-width) !important;
-  max-height: var(--document-logo-height) !important;
+}
+.paper.template-minimal .logo img {
+  width: 168px !important;
+  height: 123px !important;
+  max-width: 168px !important;
+  max-height: 123px !important;
 }
 
 /* Every information block is constrained to its allocated geometry. Long
