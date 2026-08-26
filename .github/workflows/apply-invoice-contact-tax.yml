@@ -1,0 +1,28 @@
+name: Apply invoice contact tax patch
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: ${{ !contains(github.event.head_commit.message, '[invoice-contact-tax-v2]') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Apply invoice contact and tax patch
+        run: |
+          python3 scripts/patch_invoice_contact_tax_v2.py
+          git diff --check
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add app/next-workspace/documents/DocumentViewer.tsx app/next-workspace/customers/CustomerCreateModal.tsx app/next-workspace/invoices/new/page.tsx app/next-workspace/tax/TaxProfilesManager.tsx app/document-templates.css
+          if git diff --cached --quiet; then
+            echo "Invoice contact/tax patch already present; nothing to commit."
+          else
+            git commit -m "Apply invoice contact and tax rendering [invoice-contact-tax-v2]"
+            git push
+          fi
