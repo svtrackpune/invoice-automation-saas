@@ -127,7 +127,7 @@ export default function DocumentViewer({ type, id }: { type: string; id: string 
         if (invoiceResult.data) {
           let bank = null;
           if (invoiceResult.data.payment_display_mode === 'bank' && invoiceResult.data.payment_bank_account_id) {
-            const bankResult = await supabase.from('bank_accounts').select('id,name,institution_name,account_last4,metadata').eq('id', invoiceResult.data.payment_bank_account_id).eq('business_id', businessId).eq('is_active', true).maybeSingle();
+            const bankResult = await supabase.from('bank_accounts').select('id,name,institution_name,account_last4,account_holder_name,ifsc_code,branch_name,account_type,currency_code,metadata').eq('id', invoiceResult.data.payment_bank_account_id).eq('business_id', businessId).eq('is_active', true).maybeSingle();
             bank = bankResult.data || null;
           }
           setPaymentSelection({ ...invoiceResult.data, bank: bank || selectedBank || null });
