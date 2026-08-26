@@ -25,10 +25,14 @@ jobs:
         run: |
           python3 scripts/patch_invoice_structure.py
           git diff --check
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add app/next-workspace/documents/DocumentViewer.tsx
-          git commit -m "Apply approved invoice structure and payment layout [invoice-structure]"
-          git push
+          if git diff --quiet -- app/next-workspace/documents/DocumentViewer.tsx; then
+            echo "Invoice structure patch already present; nothing to commit."
+          else
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add app/next-workspace/documents/DocumentViewer.tsx
+            git commit -m "Apply approved invoice structure and payment layout [invoice-structure]"
+            git push
+          fi
       - run: npm install --no-audit --no-fund
       - run: npm run build
