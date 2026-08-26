@@ -6,12 +6,13 @@ on:
   pull_request:
     branches: [main]
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
     env:
-      # CI only: the application reads Supabase configuration at module load time.
-      # Plesk/production continues to use the real .env.production values.
       NEXT_PUBLIC_SUPABASE_URL: https://build-placeholder.supabase.co
       NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: build-placeholder-key
     steps:
@@ -19,5 +20,15 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
+      - name: Apply invoice structure patch
+        if: ${{ github.event_name == 'push' && !contains(github.event.head_commit.message, '[invoice-structure]') }}
+        run: |
+          python3 scripts/patch_invoice_structure.py
+          git diff --check
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add app/next-workspace/documents/DocumentViewer.tsx
+          git commit -m "Apply approved invoice structure and payment layout [invoice-structure]"
+          git push
       - run: npm install --no-audit --no-fund
       - run: npm run build
