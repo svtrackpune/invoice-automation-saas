@@ -33,6 +33,13 @@ const addressLines = (value: any) => {
 };
 const taxLabel = (party: any) => /gst/i.test(text(party?.tax_type)) ? 'GSTIN' : 'Tax ID';
 const taxValue = (party: any) => text(party?.tax_id || party?.gstin || party?.gst_number || party?.tax_registration_number || '');
+const isTaxRegistered = (party: any) => {
+  if (!party) return false;
+  if (party.is_tax_registered === false || party.tax_registered === false || party.tax_enabled === false) return false;
+  const mode = text(party.tax_mode || party.tax_registration_status || party.tax_status || '').trim().toLowerCase();
+  if (['non_gst', 'unregistered', 'not_registered', 'not tax registered'].includes(mode)) return false;
+  return !!taxValue(party);
+};
 
 function Logo({ url }: { url: string }) { return <div className="logo">{url ? <img src={url} alt="Business logo" /> : <span>LOGO</span>}</div>; }
 function Tagline({ business, fields, compact = false }: { business: any; fields: any; compact?: boolean }) { const tagline = text(business.tagline || fields.tagline || ''); return <div className={`tagline${compact ? ' tagline-compact' : ''}`} aria-label="Business tagline">{tagline || <span className="tagline-placeholder">Your tagline</span>}</div>; }
@@ -67,7 +74,7 @@ function PaymentSection({ paymentMode, paymentLink, paymentSelection, balance, c
 
 function Paper({ type, payload, business, customer, items, theme, fields, total, balance, received, logoUrl, paymentSelection, paymentQrDataUrl, showBankDetails, showPaymentLink, showPaymentQr }: any) {
   const receipt = type === 'receipt';
-  const title = receipt ? 'Payment Receipt' : type === 'quotation' ? 'Estimate' : Number(payload.tax_total) > 0 || business.tax_registration_number ? 'Tax Invoice' : 'Invoice';
+  const title = receipt ? 'Payment Receipt' : type === 'quotation' ? 'Estimate' : Number(payload.tax_total) > 0 || isTaxRegistered(business) ? 'Tax Invoice' : 'Invoice';
   const customerTax = taxValue(customer);
   const businessTax = text(business.tax_registration_number || business.tax_id || business.gstin || '');
   if (receipt) return <article className={`paper receipt-paper ${theme.dark ? 'theme-dark' : ''}`} style={{ '--accent': theme.accent, '--table': theme.table, '--line': theme.line } as React.CSSProperties}>
@@ -84,7 +91,7 @@ function Paper({ type, payload, business, customer, items, theme, fields, total,
   const templateClass = theme.className;
   return <article className={`paper ${templateClass} ${theme.dark ? 'theme-dark' : ''}`} style={{ '--accent': theme.accent, '--table': theme.table, '--line': theme.line } as React.CSSProperties}>
     <header className="document-header"><BusinessIdentity business={business} logoUrl={logoUrl} fields={fields} /><div className="heading"><div className="title">{text(fields.title || title)}</div><div className="meta"><span>No.</span> <strong>{text(payload.invoice_number || payload.quotation_number || payload.number)}</strong><br /><span>Date</span> <strong>{text(payload.invoice_date || payload.quotation_date || '—')}</strong>{payload.due_date && <><br /><span>Due</span> <strong>{text(payload.due_date)}</strong></>}</div>{type === 'invoice' && <div className="header-due"><span>Amount due</span><strong>{money(balance, payload.currency_code)}</strong></div>}</div></header>
-    <section className="parties"><div className="bill-to"><label>BILL TO</label><strong>{text(customer.display_name || customer.legal_name || 'Customer')}</strong>{addressLines(customer.address || customer.billing_address).map((line, index) => <span key={index}>{line}</span>)}{customer.phone && <span>{text(customer.phone)}</span>}{customer.email && <span>{text(customer.email)}</span>}{customerTax && <span>{taxLabel(customer)}: {customerTax}</span>}</div><div className="from"><label>FROM</label><strong>{text(business.name || business.legal_name || 'Business')}</strong>{addressLines(business.address || business.business_address).map((line, index) => <span key={index}>{line}</span>)}{(business.phone || business.mobile) && <span>{text(business.phone || business.mobile)}</span>}{(business.email || business.business_email) && <span>{text(business.email || business.business_email)}</span>}{businessTax && <span>{/gst/i.test(text(business.tax_type)) || businessTax ? 'GSTIN' : 'Tax ID'}: {businessTax}</span>}</div></section>
+    <section className="parties"><div className="bill-to"><label>BILL TO</label><strong>{text(customer.display_name || customer.legal_name || 'Customer')}</strong>{addressLines(customer.address || customer.billing_address).map((line, index) => <span key={index}>{line}</span>)}{customer.phone && <span>{text(customer.phone)}</span>}{customer.email && <span>{text(customer.email)}</span>}{customerTax && <span>{taxLabel(customer)}: {customerTax}</span>}</div><div className="from"><label>FROM</label><strong>{text(business.name || business.legal_name || 'Business')}</strong>{addressLines(business.address || business.business_address).map((line, index) => <span key={index}>{line}</span>)}{(business.phone || business.mobile) && <span>{text(business.phone || business.mobile)}</span>}{(business.email || business.business_email) && <span>{text(business.email || business.business_email)}</span>}{isTaxRegistered(business) && businessTax && <span>{/gst/i.test(text(business.tax_type || business.tax_mode)) ? 'GSTIN' : 'Tax ID'}: {businessTax}</span>}</div></section>
     <LineItems items={items} payload={payload} receipt={false} />
     <div className="body-grid"><div className="notes-column">{fields.notes && <section className="document-notes"><label>NOTES</label><p>{text(fields.notes)}</p></section>}{fields.terms && <section className="document-notes terms"><label>TERMS & CONDITIONS</label><p>{text(fields.terms)}</p></section>}</div><div className="totalwrap"><InvoiceTotals payload={payload} total={total} balance={balance} /></div></div>
     {(type === 'invoice' || paymentSelection?.bank) && <PaymentSection paymentMode={type === 'invoice' ? paymentMode : 'bank'} paymentLink={paymentLink} paymentSelection={paymentSelection} balance={balance} currency={payload.currency_code} premium={theme.className === 'template-premium'} showBankDetails={showBankDetails} showPaymentLink={showPaymentLink} showPaymentQr={showPaymentQr} qrDataUrl={paymentQrDataUrl} />}
@@ -108,7 +115,7 @@ export default function DocumentViewer({ type, id }: { type: string; id: string 
       const [templateResult, preferenceResult, businessResult] = await Promise.all([
         loaded.data?.template_id ? supabase.from('document_templates').select('template_key,template_name').eq('id', loaded.data.template_id).maybeSingle() : Promise.resolve({ data: null } as any),
         businessId ? supabase.from('business_document_preferences').select('custom_fields,show_payment_qr,show_payment_link').eq('business_id', businessId).eq('document_type', type).maybeSingle() : Promise.resolve({ data: null } as any),
-        businessId ? supabase.from('businesses').select('id,name,legal_name,registration_number,tax_registration_number,currency_code,address,phone,email,website,logo_storage_path,tagline').eq('id', businessId).maybeSingle() : Promise.resolve({ data: null } as any),
+        businessId ? supabase.from('businesses').select('id,name,legal_name,registration_number,tax_registration_number,tax_enabled,tax_mode,tax_type,currency_code,address,phone,email,website,logo_storage_path,tagline').eq('id', businessId).maybeSingle() : Promise.resolve({ data: null } as any),
       ]);
       if (!active) return;
       setJob(loaded.data); setTemplate(templateResult.data); setPreferences(preferenceResult.data); if (businessResult.data) setBusiness(businessResult.data);
