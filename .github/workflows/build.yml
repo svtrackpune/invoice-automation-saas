@@ -20,28 +20,5 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-      - name: Apply invoice structure patch
-        if: ${{ github.event_name == 'push' && !contains(github.event.head_commit.message, '[invoice-structure]') }}
-        run: |
-          python3 scripts/patch_invoice_structure.py
-          python3 - <<'PY'
-          from pathlib import Path
-          p = Path('app/next-workspace/documents/DocumentViewer.tsx')
-          s = p.read_text(encoding='utf-8')
-          old = "supabase.from('bank_accounts').select('id,name,institution_name,account_last4,metadata').eq('id', invoiceResult.data.payment_bank_account_id)"
-          new = "supabase.from('bank_accounts').select('id,name,institution_name,account_last4,account_holder_name,ifsc_code,branch_name,account_type,currency_code,metadata').eq('id', invoiceResult.data.payment_bank_account_id)"
-          s = s.replace(old, new, 1)
-          p.write_text(s, encoding='utf-8')
-          PY
-          git diff --check
-          if git diff --quiet -- app/next-workspace/documents/DocumentViewer.tsx; then
-            echo "Invoice structure patch already present; nothing to commit."
-          else
-            git config user.name "github-actions[bot]"
-            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git add app/next-workspace/documents/DocumentViewer.tsx
-            git commit -m "Apply approved invoice structure and payment layout [invoice-structure]"
-            git push
-          fi
       - run: npm install --no-audit --no-fund
       - run: npm run build
