@@ -4,7 +4,6 @@ on:
 
 jobs:
   patch:
-    if: ${{ !contains(github.event.head_commit.message, '[invoice-patch]') }}
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -37,25 +36,23 @@ jobs:
 }
 
 function Paper'''
-          s2, n = re.subn(payment_pattern, payment_replacement, s, count=1)
+          s, n = re.subn(payment_pattern, payment_replacement, s, count=1)
           if n != 1:
               raise SystemExit(f'PaymentSection replacement count: {n}')
-          s = s2
 
           holder_old = "{upi && <span>UPI: {text(upi)}</span>}"
           holder_new = "{upi && <span>UPI: {text(upi)}</span>}{bank?.account_holder_name && <span>Account holder: {text(bank.account_holder_name)}</span>}"
           if holder_old in s and holder_new not in s:
               s = s.replace(holder_old, holder_new, 1)
 
-          s = s.replace(
-              "function Paper({ type, payload, business, customer, items, theme, fields, total, balance, received, logoUrl, paymentSelection }: any) {",
-              "function Paper({ type, payload, business, customer, items, theme, fields, total, balance, received, logoUrl, paymentSelection, paymentQrDataUrl, showBankDetails, showPaymentLink, showPaymentQr }: any) {",
-              1,
-          )
+          paper_sig = "function Paper({ type, payload, business, customer, items, theme, fields, total, balance, received, logoUrl, paymentSelection }: any) {"
+          paper_sig_new = "function Paper({ type, payload, business, customer, items, theme, fields, total, balance, received, logoUrl, paymentSelection, paymentQrDataUrl, showBankDetails, showPaymentLink, showPaymentQr }: any) {"
+          if paper_sig in s:
+              s = s.replace(paper_sig, paper_sig_new, 1)
 
           state_old = "const [job, setJob] = useState<any>(null), [template, setTemplate] = useState<any>(null), [preferences, setPreferences] = useState<any>(null), [business, setBusiness] = useState<any>(null), [receiptItems, setReceiptItems] = useState<any[]>([]), [paymentSelection, setPaymentSelection] = useState<any>(null), [loading, setLoading] = useState(true), [error, setError] = useState(''), [notice, setNotice] = useState(''), [menu, setMenu] = useState(false);"
           state_new = "const [job, setJob] = useState<any>(null), [template, setTemplate] = useState<any>(null), [preferences, setPreferences] = useState<any>(null), [business, setBusiness] = useState<any>(null), [receiptItems, setReceiptItems] = useState<any[]>([]), [paymentSelection, setPaymentSelection] = useState<any>(null), [paymentQrDataUrl, setPaymentQrDataUrl] = useState(''), [loading, setLoading] = useState(true), [error, setError] = useState(''), [notice, setNotice] = useState(''), [menu, setMenu] = useState(false);"
-          if state_old in s and 'paymentQrDataUrl' not in s:
+          if state_old in s:
               s = s.replace(state_old, state_new, 1)
 
           marker = "  const model = job?.payload || {};"
@@ -71,12 +68,11 @@ function Paper'''
 '''
               s = s.replace(marker, qr_effect + marker, 1)
 
-          paper_pattern = r"<Paper type=\{type\} payload=\{\{ \...model,[\s\S]*?paymentSelection=\{paymentSelection\} />"
-          paper_new = "<Paper type={type} payload={{ ...model, ...(paymentSelection ? { payment_link: paymentSelection.payment_link || model.payment_link, payment_qr_payload: paymentSelection.payment_qr_payload || model.payment_qr_payload } : {}) }} business={mergedBusiness} customer={customer} items={items} theme={theme} fields={fields} total={total} balance={balance} received={received} logoUrl={logoUrl} paymentSelection={paymentSelection} paymentQrDataUrl={paymentQrDataUrl} showBankDetails={preferences?.show_bank_details === true} showPaymentLink={preferences?.show_payment_link !== false} showPaymentQr={preferences?.show_payment_qr !== false} />"
-          s2, n = re.subn(paper_pattern, paper_new, s, count=1)
-          if n != 1:
-              raise SystemExit(f'Paper invocation replacement count: {n}')
-          s = s2
+          old_paper = "<Paper type={type} payload={{ ...model, ...(paymentSelection ? { payment_link: paymentSelection.payment_link || model.payment_link, payment_qr_payload: paymentSelection.payment_qr_payload || model.payment_qr_payload } : {}) }} business={mergedBusiness} customer={customer} items={items} theme={theme} fields={fields} total={total} balance={balance} received={received} logoUrl={logoUrl} paymentSelection={paymentSelection} />"
+          new_paper = "<Paper type={type} payload={{ ...model, ...(paymentSelection ? { payment_link: paymentSelection.payment_link || model.payment_link, payment_qr_payload: paymentSelection.payment_qr_payload || model.payment_qr_payload } : {}) }} business={mergedBusiness} customer={customer} items={items} theme={theme} fields={fields} total={total} balance={balance} received={received} logoUrl={logoUrl} paymentSelection={paymentSelection} paymentQrDataUrl={paymentQrDataUrl} showBankDetails={preferences?.show_bank_details === true} showPaymentLink={preferences?.show_payment_link !== false} showPaymentQr={preferences?.show_payment_qr !== false} />"
+          if old_paper not in s:
+              raise SystemExit('Paper invocation target not found')
+          s = s.replace(old_paper, new_paper, 1)
           p.write_text(s, encoding='utf-8')
 
           css = Path('app/document-templates.css')
@@ -84,134 +80,27 @@ function Paper'''
           marker_css = '/* Moneymatters locked invoice composition v1 */'
           if marker_css not in cs:
               cs += '''\n\n/* Moneymatters locked invoice composition v1 */
-.paper:not(.receipt-paper) .document-header {
-  display: grid !important;
-  grid-template-columns: minmax(0, 1fr) minmax(220px, 280px) !important;
-  gap: 28px !important;
-  align-items: start !important;
-}
-.paper:not(.receipt-paper) .business-identity {
-  display: flex !important;
-  align-items: flex-start !important;
-  min-width: 0 !important;
-}
-.paper:not(.receipt-paper) .logo {
-  width: 120px !important;
-  height: 92px !important;
-  flex: 0 0 120px !important;
-}
-.paper:not(.receipt-paper) .logo img {
-  max-width: 110px !important;
-  max-height: 82px !important;
-  object-fit: contain !important;
-}
-.paper:not(.receipt-paper) .business-brand-copy {
-  min-width: 0 !important;
-}
-.paper:not(.receipt-paper) .tagline {
-  max-width: 260px !important;
-  overflow-wrap: anywhere !important;
-  word-break: break-word !important;
-}
-.paper:not(.receipt-paper) .heading {
-  min-width: 0 !important;
-  text-align: right !important;
-}
-.paper:not(.receipt-paper) .parties {
-  display: grid !important;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) !important;
-  gap: 18px !important;
-}
-.paper:not(.receipt-paper) .parties > div {
-  min-width: 0 !important;
-  overflow: hidden !important;
-}
-.paper:not(.receipt-paper) .parties strong,
-.paper:not(.receipt-paper) .parties span {
-  max-width: 100% !important;
-  overflow-wrap: anywhere !important;
-  word-break: break-word !important;
-}
-.paper:not(.receipt-paper) .items {
-  width: 100% !important;
-  table-layout: fixed !important;
-}
-.paper:not(.receipt-paper) .items th,
-.paper:not(.receipt-paper) .items td {
-  overflow-wrap: anywhere !important;
-  word-break: break-word !important;
-}
-.paper:not(.receipt-paper) .items th:first-child,
-.paper:not(.receipt-paper) .items td:first-child {
-  width: 46% !important;
-}
-.paper:not(.receipt-paper) .body-grid {
-  display: grid !important;
-  grid-template-columns: minmax(0, 1fr) minmax(250px, 300px) !important;
-  gap: 28px !important;
-  align-items: start !important;
-}
-.paper:not(.receipt-paper) .totalwrap {
-  grid-column: 2 !important;
-  width: 100% !important;
-  justify-self: stretch !important;
-}
-.paper:not(.receipt-paper) .totals {
-  width: 100% !important;
-  margin-left: auto !important;
-}
-.paper:not(.receipt-paper) .payment-combined {
-  display: grid !important;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) !important;
-  gap: 20px !important;
-  align-items: stretch !important;
-}
-.paper:not(.receipt-paper) .bank-payment-column {
-  min-width: 0 !important;
-  padding-right: 20px !important;
-  border-right: 1px solid var(--line) !important;
-}
-.paper:not(.receipt-paper) .online-payment-column {
-  min-width: 0 !important;
-}
-.paper:not(.receipt-paper) .payment .qr {
-  width: 92px !important;
-  height: 92px !important;
-  flex: 0 0 92px !important;
-  display: flex !important;
-  flex-direction: column !important;
-  align-items: center !important;
-  justify-content: center !important;
-  background: #fff !important;
-  border: 1px solid var(--line) !important;
-}
-.paper:not(.receipt-paper) .payment .qr img {
-  width: 72px !important;
-  height: 72px !important;
-  object-fit: contain !important;
-}
-.paper:not(.receipt-paper) .payment .qr small {
-  font-size: 9px !important;
-  line-height: 1.1 !important;
-}
-.paper:not(.receipt-paper) footer,
-.paper:not(.receipt-paper) .platform {
-  overflow-wrap: anywhere !important;
-  word-break: break-word !important;
-}
-@media print {
-  .paper:not(.receipt-paper) .document-header,
-  .paper:not(.receipt-paper) .parties,
-  .paper:not(.receipt-paper) .body-grid {
-    grid-template-columns: minmax(0, 1fr) minmax(220px, 280px) !important;
-  }
-  .paper:not(.receipt-paper) .parties {
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) !important;
-  }
-  .paper:not(.receipt-paper) .body-grid {
-    grid-template-columns: minmax(0, 1fr) minmax(250px, 300px) !important;
-  }
-}
+.paper:not(.receipt-paper) .document-header { display:grid !important; grid-template-columns:minmax(0,1fr) minmax(220px,280px) !important; gap:28px !important; align-items:start !important; }
+.paper:not(.receipt-paper) .business-identity { display:flex !important; align-items:flex-start !important; min-width:0 !important; }
+.paper:not(.receipt-paper) .logo { width:120px !important; height:92px !important; flex:0 0 120px !important; }
+.paper:not(.receipt-paper) .logo img { max-width:110px !important; max-height:82px !important; object-fit:contain !important; }
+.paper:not(.receipt-paper) .business-brand-copy,.paper:not(.receipt-paper) .heading { min-width:0 !important; }
+.paper:not(.receipt-paper) .heading { text-align:right !important; }
+.paper:not(.receipt-paper) .tagline,.paper:not(.receipt-paper) .parties strong,.paper:not(.receipt-paper) .parties span,.paper:not(.receipt-paper) footer,.paper:not(.receipt-paper) .platform { overflow-wrap:anywhere !important; word-break:break-word !important; }
+.paper:not(.receipt-paper) .parties { display:grid !important; grid-template-columns:minmax(0,1fr) minmax(0,1fr) !important; gap:18px !important; }
+.paper:not(.receipt-paper) .parties > div { min-width:0 !important; overflow:hidden !important; }
+.paper:not(.receipt-paper) .items { width:100% !important; table-layout:fixed !important; }
+.paper:not(.receipt-paper) .items th,.paper:not(.receipt-paper) .items td { overflow-wrap:anywhere !important; word-break:break-word !important; }
+.paper:not(.receipt-paper) .items th:first-child,.paper:not(.receipt-paper) .items td:first-child { width:46% !important; }
+.paper:not(.receipt-paper) .body-grid { display:grid !important; grid-template-columns:minmax(0,1fr) minmax(250px,300px) !important; gap:28px !important; align-items:start !important; }
+.paper:not(.receipt-paper) .totalwrap { grid-column:2 !important; width:100% !important; justify-self:stretch !important; }
+.paper:not(.receipt-paper) .totals { width:100% !important; margin-left:auto !important; }
+.paper:not(.receipt-paper) .payment-combined { display:grid !important; grid-template-columns:minmax(0,1fr) minmax(0,1fr) !important; gap:20px !important; align-items:stretch !important; }
+.paper:not(.receipt-paper) .bank-payment-column { min-width:0 !important; padding-right:20px !important; border-right:1px solid var(--line) !important; }
+.paper:not(.receipt-paper) .online-payment-column { min-width:0 !important; }
+.paper:not(.receipt-paper) .payment .qr { width:92px !important; height:92px !important; flex:0 0 92px !important; display:flex !important; flex-direction:column !important; align-items:center !important; justify-content:center !important; background:#fff !important; border:1px solid var(--line) !important; }
+.paper:not(.receipt-paper) .payment .qr img { width:72px !important; height:72px !important; object-fit:contain !important; }
+@media print { .paper:not(.receipt-paper) .document-header { grid-template-columns:minmax(0,1fr) minmax(220px,280px) !important; } .paper:not(.receipt-paper) .parties { grid-template-columns:minmax(0,1fr) minmax(0,1fr) !important; } .paper:not(.receipt-paper) .body-grid { grid-template-columns:minmax(0,1fr) minmax(250px,300px) !important; } }
 '''
               css.write_text(cs, encoding='utf-8')
 
@@ -224,9 +113,7 @@ function Paper'''
             git config user.name "github-actions[bot]"
             git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
             git add app/next-workspace/documents/DocumentViewer.tsx app/document-templates.css
-            if git diff --cached --quiet; then
-              exit 0
-            fi
+            if git diff --cached --quiet; then exit 0; fi
             git commit -m "Lock invoice composition and payment panel [invoice-patch]"
             git push
           fi
