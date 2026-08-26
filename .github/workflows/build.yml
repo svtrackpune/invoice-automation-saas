@@ -36,3 +36,4 @@ jobs:
           fi
       - run: npm install --no-audit --no-fund
       - run: npm run build
+      # Final verification build for the approved invoice print structure.
