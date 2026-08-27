@@ -31,7 +31,6 @@ const addressLines = (value: any) => {
   const second = parts.slice(Math.min(3, parts.length - 1)).join(', ');
   return [first, second].filter(Boolean);
 };
-const taxLabel = (party: any) => /gst/i.test(text(party?.tax_type || party?.tax_mode)) ? 'GST' : 'Tax ID';
 const taxValue = (party: any) => text(party?.tax_id || party?.gstin || party?.gst_number || party?.tax_registration_number || '');
 const isTaxRegistered = (party: any) => {
   if (!party) return false;
@@ -46,29 +45,38 @@ function Tagline({ business, fields, compact = false }: { business: any; fields:
 function BusinessIdentity({ business, logoUrl, fields }: { business: any; logoUrl: string; fields: any }) { return <div className="business-identity"><Logo url={logoUrl} /><div className="business-brand-copy"><strong>{text(business.name || business.legal_name || '')}</strong><div className="sub">{text(fields.subtitle || business.business_type || '')}</div></div></div>; }
 
 function LineItems({ items, payload, receipt }: { items: any[]; payload: any; receipt: boolean }) {
-  const taxed = !receipt && Number(payload.tax_total) > 0;
-  return <table className={`items ${receipt ? 'receipt-items' : ''}`}><thead><tr><th>{receipt ? 'Description' : 'Item / Description'}</th>{!receipt && <th>Type</th>}<th>Qty</th><th>Rate</th>{taxed && <th>Tax</th>}<th>Amount</th></tr></thead><tbody>{(items || []).map((it:any, idx:number)=>(<tr key={idx}><td><strong>{text(it.name || it.description)}</strong>{it.description && <div className="muted">{text(it.description)}</div>}</td>{!receipt && <td>{text(it.item_type || it.type || '')}</td>}<td>{text(it.quantity || it.qty || 1)}</td><td>{money(it.unit_price || it.rate || it.price)}</td>{taxed && <td>{it.tax_rate?`${it.tax_rate}%`:'—'}</td>}<td>{money(it.line_total || (Number(it.quantity || 0) * Number(it.unit_price || it.rate || 0)))}</td></tr>))}</tbody></table>;
+  const taxed = !receipt && Number(payload.tax_total || 0) > 0;
+  return <table className={`items ${receipt ? 'receipt-items' : ''}`}><thead><tr><th>{receipt ? 'Description' : 'Item / Description'}</th>{!receipt && <th>Type</th>}<th>Qty</th><th>Rate</th>{taxed && <th>Tax</th>}<th>Amount</th></tr></thead><tbody>{(items || []).map((it:any, idx:number)=>(<tr key={idx}><td><strong>{text(it.name || it.description)}</strong>{it.description && <div className="muted">{text(it.description)}</div>}</td>{!receipt && <td>{text(it.item_type || it.type || '')}</td>}<td>{text(it.quantity || it.qty || 1)}</td><td>{money(it.unit_price || it.rate || it.price)}</td>{taxed && <td>{it.tax_rate?`${it.tax_rate}%`:'—'}</td>}<td>{money(it.line_total || 0)}</td></tr>))}</tbody></table>;
 }
 
-function InvoiceTotals({ payload, total, balance }: { payload: any; total: number; balance: number }) {
-  // Build a typed array of unique tax rates (numbers) to avoid TypeScript inferring unknown from Set
-  const ratesArray: number[] = (payload.items || []).map((x: any) => Number(x.tax_rate || 0)).filter((x: number) => x > 0);
-  const rates: number[] = Array.from(new Set<number>(ratesArray)).sort((a: number, b: number) => a - b);
-
-  // Calculate tax totals per rate without changing existing calculation logic
-  const taxTotals = rates.map((rate) => {
-    const itemsForRate = (payload.items || []).filter((x: any) => Number(x.tax_rate || 0) === rate);
-    const tax = itemsForRate.reduce((sum: number, it: any) => {
-      const lineTotal = Number(it.line_total ?? (Number(it.quantity || 0) * Number(it.unit_price || it.rate || 0)));
-      const itemTax = lineTotal * (Number(it.tax_rate || rate) / 100);
-      return sum + (isFinite(itemTax) ? itemTax : 0);
-    }, 0);
-    return { rate, tax };
-  });
-
-  return <div className="invoice-totals"><div className="tax-lines">{taxTotals.map(t => <div key={t.rate} className="tax-line"><span>{t.rate}%</span><span>{money(t.tax)}</span></div>)}</div><div className="totals"><div><span>Total</span><strong>{money(total)}</strong></div><div><span>Balance</span><strong>{money(balance)}</strong></div></div></div>;
+function DocumentTotals({ payload, currency = 'INR', receipt = false }: { payload: any; currency?: string; receipt?: boolean }) {
+  const subtotal = Number(payload.subtotal ?? 0);
+  const discount = Number(payload.discount_total ?? 0);
+  const tax = Number(payload.tax_total ?? 0);
+  const total = Number(payload.total ?? 0);
+  const balance = Number(payload.balance_due ?? 0);
+  const paid = Number(payload.amount_paid ?? payload.amount_received ?? 0);
+  const cgst = Number(payload.cgst_amount ?? 0);
+  const sgst = Number(payload.sgst_amount ?? 0);
+  const igst = Number(payload.igst_amount ?? 0);
+  return <div className={receipt ? 'receipt-summary' : 'document-summary'}>
+    {!receipt && <>
+      <div><span>Subtotal</span><strong>{money(subtotal, currency)}</strong></div>
+      {discount !== 0 && <div><span>Discount</span><strong>-{money(discount, currency)}</strong></div>}
+      {tax !== 0 && <div><span>GST</span><strong>{money(tax, currency)}</strong></div>}
+      {cgst !== 0 && <div><span>CGST</span><strong>{money(cgst, currency)}</strong></div>}
+      {sgst !== 0 && <div><span>SGST</span><strong>{money(sgst, currency)}</strong></div>}
+      {igst !== 0 && <div><span>IGST</span><strong>{money(igst, currency)}</strong></div>}
+      <div className="summary-total"><span>Total</span><strong>{money(total, currency)}</strong></div>
+      <div><span>Balance Due</span><strong>{money(balance, currency)}</strong></div>
+    </>}
+    {receipt && <>
+      <div><span>Total</span><strong>{money(total, currency)}</strong></div>
+      <div><span>Received</span><strong>{money(paid, currency)}</strong></div>
+      <div><span>Balance</span><strong>{money(balance, currency)}</strong></div>
+    </>}
+  </div>;
 }
-function ReceiptTotals({ payload, total, received, balance }: { payload: any; total: number; received: number; balance: number }) { return <div className="receipt-totals"><div><span>Total</span><strong>{money(total)}</strong></div><div><span>Received</span><strong>{money(received)}</strong></div><div><span>Balance</span><strong>{money(balance)}</strong></div></div>; }
 
 function BankDetails({ bank }: { bank: any }) {
   const metadata = bank?.metadata || {};
@@ -89,18 +97,17 @@ function PaymentSection({ paymentMode, paymentLink, paymentSelection, balance, c
   </section>;
 }
 
-function Paper({ type, payload, business, customer, items, theme, fields, total, balance, received, logoUrl, paymentSelection, paymentQrDataUrl, showBankDetails, showPaymentLink, showPaymentQr }: any) {
+function Paper({ type, payload, business, customer, items, theme, fields, logoUrl, paymentSelection, paymentQrDataUrl, showBankDetails, showPaymentLink, showPaymentQr }: any) {
   const receipt = type === 'receipt';
+  const currency = text(payload.currency_code || business.currency_code || 'INR').trim() || 'INR';
   const resolvedLogoUrl = text(logoUrl || business.logo_url || (business.logo_storage_path ? supabase.storage.from('business-branding-public').getPublicUrl(business.logo_storage_path).data.publicUrl : ''));
-  const title = receipt ? 'Payment Receipt' : type === 'quotation' ? 'Estimate' : Number(payload.tax_total) > 0 || isTaxRegistered(business) ? 'Tax Invoice' : 'Invoice';
-  const customerTax = taxValue(customer);
-  const businessTax = text(business.tax_registration_number || business.tax_id || business.gstin || '');
+  const title = receipt ? 'Payment Receipt' : type === 'quotation' ? 'Estimate' : Number(payload.tax_total || 0) > 0 || isTaxRegistered(business) ? 'Tax Invoice' : 'Invoice';
   if (receipt) return <article className={`paper receipt-paper ${theme.dark ? 'theme-dark' : ''}`} style={{ '--accent': theme.accent, '--table': theme.table, '--line': theme.line } as React.CSSProperties}>
-    <div className="receipt-head"><Logo url={logoUrl} /><Tagline business={business} fields={fields} compact /><strong className="receipt-business">{text(business.name || business.legal_name || 'Business')}</strong>
-    </div>
+    <div className="receipt-head"><Logo url={resolvedLogoUrl} /><Tagline business={business} fields={fields} compact /><strong className="receipt-business">{text(business.name || business.legal_name || 'Business')}</strong></div>
     <div className="receipt-title"><h1>{text(fields.title || title)}</h1><div>Invoice <strong>{text(payload.invoice_number || payload.number || '—')}</strong></div><div>Receipt <strong>{text(payload.receipt_number || payload.number || '—')}</strong></div></div>
     <div className="receipt-customer"><span className="label">RECEIVED FROM</span><strong>{text(customer.display_name || customer.legal_name || 'Customer')}</strong>{addressLines(customer.address || customer.billing_address || customer.address_line1 || customer.address_line)?.map((l,i)=>(<div key={i}>{l}</div>))}</div>
-    <LineItems items={items} payload={payload} receipt /><ReceiptTotals payload={payload} total={total} received={received} balance={balance} />
+    <LineItems items={items} payload={payload} receipt />
+    <DocumentTotals payload={payload} currency={currency} receipt />
     <div className="payment-detail"><span>Payment method</span><strong>{text(payload.payment_method || payload.method || '—')}</strong>{(payload.payment_reference || payload.reference) && <><span>Ref</span><strong>{text(payload.payment_reference || payload.reference)}</strong></>}</div>
     <div className="paid-stamp">PAID</div><div className="receipt-thanks">{text(fields.notes || 'Thank you for your payment.')}</div><footer className="receipt-footer"><span>{text(fields.footer || '')}</span></footer>
   </article>;
@@ -112,8 +119,9 @@ function Paper({ type, payload, business, customer, items, theme, fields, total,
     <header className="document-header"><BusinessIdentity business={business} logoUrl={resolvedLogoUrl} fields={fields} /><div className="heading"><div className="title">{text(fields.title || title)}</div></div></header>
     <section className="parties"><div className="bill-to"><label>BILL TO</label><strong>{text(customer.display_name || customer.legal_name || 'Customer')}</strong>{addressLines(customer.address || customer.billing_address || customer.address_line1 || customer.address_line)?.map((l,i)=>(<div key={i}>{l}</div>))}</div></section>
     <LineItems items={items} payload={payload} receipt={false} />
+    <div className="document-summary-wrap"><DocumentTotals payload={payload} currency={currency} /></div>
     <div className="body-grid"><div className="notes-column">{fields.notes && <section className="document-notes"><label>NOTES</label><p>{text(fields.notes)}</p></section>}{fields.terms && <section className="document-terms"><label>TERMS</label><p>{text(fields.terms)}</p></section>}</div></div>
-    {(type === 'invoice' || paymentSelection?.bank) && <PaymentSection paymentMode={type === 'invoice' ? paymentMode : 'bank'} paymentLink={paymentLink} paymentSelection={paymentSelection} balance={balance} currency={business.currency_code || 'INR'} premium={false} showBankDetails={showBankDetails} showPaymentLink={showPaymentLink} showPaymentQr={showPaymentQr} qrDataUrl={paymentQrDataUrl} />}
+    {(type === 'invoice' || paymentSelection?.bank) && <PaymentSection paymentMode={type === 'invoice' ? paymentMode : 'bank'} paymentLink={paymentLink} paymentSelection={paymentSelection} balance={Number(payload.balance_due ?? 0)} currency={currency} premium={false} showBankDetails={showBankDetails} showPaymentLink={showPaymentLink} showPaymentQr={showPaymentQr} qrDataUrl={paymentQrDataUrl} />}
     <footer><span>{text(business.name || business.legal_name || 'Business')}</span><span>{text(fields.footer || 'This is a computer generated document.')}</span></footer><div className="platform">Generated by Invoice Automation</div>
   </article>;
 }
@@ -182,9 +190,6 @@ export default function DocumentViewer({ type, id }: { type: string; id: string 
   const items = type === 'receipt' ? (receiptItems.length ? receiptItems : model.items || []) : model.items || [];
   const theme = THEMES[template?.template_key] || THEMES.modern;
   const fields = preferences?.custom_fields || {};
-  const total = Number(model.amount ?? model.total ?? model.invoice_total ?? 0);
-  const received = Number(model.amount_received ?? (type === 'receipt' ? model.amount : 0) ?? 0);
-  const balance = Number(model.balance_due ?? Math.max(total - received, 0));
   const number = model.invoice_number || model.quotation_number || model.receipt_number || model.number || '';
   const title = type === 'receipt' ? 'Payment Receipt' : type === 'quotation' ? 'Estimate' : 'Invoice';
   const link = typeof window !== 'undefined' ? window.location.href : '';
@@ -222,7 +227,7 @@ export default function DocumentViewer({ type, id }: { type: string; id: string 
   if (loading) return <div className="center">Preparing document…</div>;
   if (error) return <div className="center error">{error}</div>;
   return <main className="page"><div className="toolbar"><div><small>DOCUMENT CENTER</small><h1>{title} {number}</h1><p>{template?.template_name || theme.label} · Print-ready</p></div><div className="actions"><button onClick={back}>Back</button><button onClick={copyLink}>Copy link</button><button onClick={share}>Share</button><button onClick={print}>Print / Save</button></div></div>
-    <Paper type={type} payload={model} business={mergedBusiness} customer={customer} items={items} theme={theme} fields={fields} total={total} balance={balance} received={received} logoUrl={logoUrl} paymentSelection={paymentSelection} paymentQrDataUrl={paymentQrDataUrl} showBankDetails={Boolean(preferences?.show_payment_qr)} showPaymentLink={Boolean(preferences?.show_payment_link)} showPaymentQr={Boolean(preferences?.show_payment_qr)} />
-    <style jsx global>{`*{box-sizing:border-box}.page{min-height:100vh;background:#eef1f6;padding:28px 18px}.toolbar{max-width:794px;margin:0 auto 18px;display:flex;justify-content:space-between;align-items:center}.actions{display:flex;gap:8px}.paper{width:794px;min-height:1123px;margin:0 auto;background:#fff;padding:42px 48px 34px;box-shadow:0 14px 45px rgba(15,23,42,.12);font:14px/1.45 Arial,sans-serif;color:#172033;--accent:#6d28d9;--table:#6d28d9;--line:#ddd6fe}.template-classic{--accent:#7f1d1d!important;--table:#7f1d1d!important;--line:#d6d3d1!important;padding:44px 50px 36px}.template-minimal{--accent:#111827!important;--table:#f1f5f9!important;--line:#cbd5e1!important;padding:46px 54px 40px}.template-modern{--accent:#6d28d9!important;--table:#6d28d9!important;--line:#ddd6fe!important}.template-premium{--accent:#4c1d95!important;--table:#312e81!important;--line:#d8b4fe!important;padding:38px 48px 40px;position:relative;overflow:hidden;background:linear-gradient(180deg,#ffffff 0%,#f7f1ff 100%)}.template-professional{--accent:#0f3b66!important;--table:#123f6b!important;--line:#cbd5e1!important;padding:40px 46px 34px}.receipt-paper{width:640px;min-height:auto;padding:0 0 18px}.receipt-head{text-align:center;padding:28px 46px 18px;border-bottom:1px solid var(--line)}@media(max-width:860px){.toolbar{align-items:flex-start;flex-direction:column}.actions{width:100%;justify-content:flex-start}.paper,.receipt-paper{width:100%;min-height:auto}}@media print{.page{padding:0!important;background:#fff!important}.toolbar,.notice{display:none!important}.paper{margin:0!important;box-shadow:none!important}}`}</style>
+    <Paper type={type} payload={model} business={mergedBusiness} customer={customer} items={items} theme={theme} fields={fields} logoUrl={logoUrl} paymentSelection={paymentSelection} paymentQrDataUrl={paymentQrDataUrl} showBankDetails={Boolean(preferences?.show_payment_qr)} showPaymentLink={Boolean(preferences?.show_payment_link)} showPaymentQr={Boolean(preferences?.show_payment_qr)} />
+    <style jsx global>{`*{box-sizing:border-box}.page{min-height:100vh;background:#eef1f6;padding:28px 18px}.toolbar{max-width:794px;margin:0 auto 18px;display:flex;justify-content:space-between;align-items:center}.actions{display:flex;gap:8px}.paper{width:794px;min-height:1123px;margin:0 auto;background:#fff;padding:42px 48px 34px;box-shadow:0 14px 45px rgba(15,23,42,.12);font:14px/1.45 Arial,sans-serif;color:#172033;--accent:#6d28d9;--table:#6d28d9;--line:#ddd6fe}.template-classic{--accent:#7f1d1d!important;--table:#7f1d1d!important;--line:#d6d3d1!important;padding:44px 50px 36px}.template-minimal{--accent:#111827!important;--table:#f1f5f9!important;--line:#cbd5e1!important;padding:46px 54px 40px}.template-modern{--accent:#6d28d9!important;--table:#6d28d9!important;--line:#ddd6fe!important}.template-premium{--accent:#4c1d95!important;--table:#312e81!important;--line:#d8b4fe!important;padding:38px 48px 40px;position:relative;overflow:hidden;background:linear-gradient(180deg,#ffffff 0%,#f7f1ff 100%)}.template-professional{--accent:#0f3b66!important;--table:#123f6b!important;--line:#cbd5e1!important;padding:40px 46px 34px}.receipt-paper{width:640px;min-height:auto;padding:0 0 18px}.receipt-head{text-align:center;padding:28px 46px 18px;border-bottom:1px solid var(--line)}.document-summary-wrap{display:flex;justify-content:flex-end;margin-top:18px}.document-summary,.receipt-summary{width:320px;margin-left:auto;border-top:1px solid var(--line);padding-top:10px;font-size:13px}.document-summary>div,.receipt-summary>div{display:flex;justify-content:space-between;gap:20px;padding:3px 0}.document-summary .summary-total{margin-top:6px;padding-top:8px;border-top:2px solid var(--line);font-size:16px}.receipt-summary{width:auto;margin:18px 46px 0;padding-top:10px}.receipt-summary>div{font-size:13px}.document-summary strong,.receipt-summary strong{font-weight:700}@media(max-width:860px){.toolbar{align-items:flex-start;flex-direction:column}.actions{width:100%;justify-content:flex-start}.paper,.receipt-paper{width:100%;min-height:auto}}@media print{.page{padding:0!important;background:#fff!important}.toolbar,.notice{display:none!important}.paper{margin:0!important;box-shadow:none!important}}`}</style>
   </main>;
 }
