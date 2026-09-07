@@ -28,6 +28,7 @@ const invoiceStatus = (invoice: Invoice) => {
 };
 
 export default function Invoices() {
+  const [ctx, setCtx] = useState<BusinessContext | null>(null);
   const [rows, setRows] = useState<Invoice[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [q, setQ] = useState('');
