@@ -14,7 +14,9 @@ export type SellingModel = 'products' | 'services' | 'both';
 export type BusinessAdaptationInput = {
   businessId: string;
   categoryId?: string | null;
+  categoryName?: string | null;
   subcategoryId?: string | null;
+  subcategoryName?: string | null;
   sellingModel?: SellingModel | null;
   inventoryEnabled?: boolean | null;
   taxEnabled?: boolean | null;
@@ -131,6 +133,10 @@ export function deriveWorkspaceConfiguration(
   const hasTax = Boolean(input.taxEnabled);
   const hasRecurring = Boolean(input.recurringBilling) || hasServices;
   const channels = new Set(input.salesChannels ?? []);
+  const industry = `${input.categoryName ?? ''} ${input.subcategoryName ?? ''}`.toLowerCase();
+  const operational = /(retail|wholesale|distribution|manufactur|trading|restaurant|food|hotel|hospitality|e-commerce|agriculture)/.test(industry);
+  const projectBased = /(construction|contractor|real estate|repair|maintenance)/.test(industry);
+  const peopleBased = /(professional service|consult|healthcare|education|training|beauty|personal care|media|creative|it|software|financial)/.test(industry);
 
   const primary: WorkspaceModule[] = [];
   core.forEach((module) => addUnique(primary, module));
@@ -139,6 +145,18 @@ export function deriveWorkspaceConfiguration(
   if (hasProducts) {
     addUnique(primary, 'purchases');
     addUnique(primary, 'vendors');
+  }
+  if (operational) {
+    addUnique(primary, 'purchases');
+    if (hasProducts) addUnique(primary, 'inventory');
+  }
+  if (projectBased) {
+    addUnique(primary, 'expenses');
+    addUnique(primary, 'estimates');
+  }
+  if (peopleBased && hasServices) {
+    addUnique(primary, 'customers');
+    addUnique(primary, 'recurring');
   }
   if (hasInventory) addUnique(primary, 'inventory');
   if (hasServices && hasRecurring) addUnique(primary, 'recurring');
@@ -229,6 +247,8 @@ export function deriveWorkspaceConfiguration(
     recommendations.push('Start by adding your services and pricing.');
   }
   if (hasInventory) recommendations.push('Keep stock levels current so sales and inventory stay aligned.');
+  if (projectBased) recommendations.push('Estimates and expense tracking are prioritized for project-based work.');
+  if (operational) recommendations.push('Purchases and operational stock workflows are prioritized for your industry.');
   if (hasTax) recommendations.push('Your tax profile is enabled; tax fields and reports are available where relevant.');
   if (hasRecurring) recommendations.push('Recurring billing is available for repeat customer work.');
 
@@ -252,7 +272,7 @@ export function buildBusinessDNA(input: BusinessAdaptationInput): BusinessDNA {
   return {
     ...input,
     confidence:
-      input.sellingModel || input.categoryId || input.subcategoryId
+      input.sellingModel || input.categoryId || input.subcategoryId || input.categoryName || input.subcategoryName
         ? 'configured'
         : 'defaults',
   };
