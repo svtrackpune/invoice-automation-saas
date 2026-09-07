@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { supabase, type BusinessContext } from '@/lib/supabase';
-import { Alert, Button, Card, DateInput, EmptyState, Field, FormSection, Input, MoneyInput, PageHeader, Select, Textarea } from '@/components/moneymatters';
+import { Alert, Button, Card, DateInput, Field, FormSection, Input, MoneyInput, PageHeader, Select, Textarea } from '@/components/moneymatters';
 
 type Customer={id:string;display_name:string;payment_terms_days:number};
 type Product={id:string;name:string;sales_price:number;default_tax_rate_id:string|null;discount_enabled:boolean;max_discount_type:string;max_discount_value:number};
