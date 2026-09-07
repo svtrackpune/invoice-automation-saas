@@ -8,7 +8,8 @@ export function useBusinessDNA() {
   const [configuration, setConfiguration] = useState<WorkspaceConfiguration | null>(null);
   useEffect(() => {
     let cancelled = false;
-    (async () => {
+    const load = async () => {
+      setConfiguration(null);
       const { data: context } = await supabase.rpc('get_my_business_context');
       const rows = (context || []) as Array<{ business_id: string }>;
       const savedId = typeof window !== 'undefined' ? localStorage.getItem('moneymatters.activeBusinessId') : null;
@@ -30,8 +31,14 @@ export function useBusinessDNA() {
         salesChannels: data.sales_channels,
         teamSize: data.team_size,
       }));
-    })();
-    return () => { cancelled = true; };
+    };
+    load();
+    const onBusinessChanged = () => { load(); };
+    window.addEventListener('moneymatters:business-changed', onBusinessChanged);
+    return () => {
+      cancelled = true;
+      window.removeEventListener('moneymatters:business-changed', onBusinessChanged);
+    };
   }, []);
   return configuration;
 }
