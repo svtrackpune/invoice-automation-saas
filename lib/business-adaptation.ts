@@ -98,10 +98,8 @@ const core: WorkspaceModule[] = [
   'dashboard',
   'sales',
   'invoices',
-  'estimates',
   'customers',
   'payments',
-  'expenses',
   'reports',
 ];
 
@@ -140,6 +138,8 @@ export function deriveWorkspaceConfiguration(
 
   const primary: WorkspaceModule[] = [];
   core.forEach((module) => addUnique(primary, module));
+  // Estimates are relevant to every selling model, but are not universal core.
+  addUnique(primary, 'estimates');
 
   if (hasProducts || hasServices) addUnique(primary, 'products_services');
   if (hasProducts) {
