@@ -2,8 +2,8 @@
 
 import { useState } from 'react';
 import { supabase } from '@/lib/supabase';
-import { getActiveBusinessId } from '@/lib/active-business';
 
+const getActiveBusinessId=async()=>{const ctx=await supabase.rpc('get_my_business_context');if(ctx.error)return null;const rows=(ctx.data||[]) as Array<{business_id:string}>;const saved=typeof window!=='undefined'?localStorage.getItem('moneymatters.activeBusinessId'):null;return rows.find(row=>row.business_id===saved)?.business_id||rows[0]?.business_id||null;};
 const types=['customers','vendors','products_services','accounts','invoices','bills','payments','bank_transactions','opening_balances'];
 
 function parseCsv(text:string){const rows:string[][]=[];let row:string[]=[];let cell='';let quoted=false;for(let i=0;i<text.length;i++){const c=text[i],n=text[i+1];if(c==='"'){if(quoted&&n==='"'){cell+='"';i++;}else quoted=!quoted;}else if(c===','&&!quoted){row.push(cell.trim());cell='';}else if((c==='\n'||c==='\r')&&!quoted){if(c==='\r'&&n==='\n')i++;row.push(cell.trim());cell='';if(row.some(Boolean))rows.push(row);row=[];}else cell+=c;}if(cell||row.length){row.push(cell.trim());rows.push(row);}if(!rows.length)return [];const headers=rows[0];return rows.slice(1).map(r=>Object.fromEntries(headers.map((h,i)=>[h,r[i]??''])));}
