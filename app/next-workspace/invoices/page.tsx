@@ -47,6 +47,7 @@ export default function Invoices() {
     const context = await supabase.rpc('get_my_business_context');
     const business = context.data?.[0] as BusinessContext | undefined;
     if (!business) { location.href = '/'; return; }
+    setCtx(business);
     const [invoiceResult, customerResult] = await Promise.all([
       supabase.from('invoices').select('id,invoice_number,invoice_date,due_date,status,total,amount_paid,balance_due,customer_id').eq('business_id', business.business_id).order('due_date', { ascending: true }),
       supabase.from('customers').select('id,display_name,email,phone').eq('business_id', business.business_id).eq('is_active', true).order('display_name'),
