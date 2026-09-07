@@ -242,3 +242,22 @@ export function deriveWorkspaceConfiguration(
     recommendations,
   };
 }
+
+export type BusinessDNA = BusinessAdaptationInput & {
+  confidence: 'configured' | 'defaults';
+};
+
+/** Canonical adapter: keep product rules independent from persistence/UI. */
+export function buildBusinessDNA(input: BusinessAdaptationInput): BusinessDNA {
+  return {
+    ...input,
+    confidence:
+      input.sellingModel || input.categoryId || input.subcategoryId
+        ? 'configured'
+        : 'defaults',
+  };
+}
+
+export function getAdaptiveModuleConfig(input: BusinessAdaptationInput): WorkspaceConfiguration {
+  return deriveWorkspaceConfiguration(buildBusinessDNA(input));
+}
