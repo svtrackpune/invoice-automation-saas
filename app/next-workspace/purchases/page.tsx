@@ -8,6 +8,7 @@ type Bill={id:string;bill_number:string;bill_date:string;due_date:string;status:
 type Vendor={id:string;display_name:string};
 const money=(n:number)=>new Intl.NumberFormat('en-IN',{style:'currency',currency:'INR',maximumFractionDigits:2}).format(Number(n||0));
 export default function Purchases(){
+ const dna=useBusinessDNA();
  const[bills,setBills]=useState<Bill[]>([]),[vendors,setVendors]=useState<Vendor[]>([]),[q,setQ]=useState(''),[status,setStatus]=useState('all'),[loading,setLoading]=useState(true);
  useEffect(()=>{(async()=>{const c=await supabase.rpc('get_my_business_context');const b=c.data?.[0] as BusinessContext|undefined;if(!b){location.href='/';return}const [bi,ve]=await Promise.all([supabase.from('bills').select('id,bill_number,bill_date,due_date,status,total,amount_paid,balance_due,vendor_id').eq('business_id',b.business_id).order('bill_date',{ascending:false}).limit(200),supabase.from('vendors').select('id,display_name').eq('business_id',b.business_id).eq('is_active',true).order('display_name')]);setBills((bi.data||[]) as Bill[]);setVendors((ve.data||[]) as Vendor[]);setLoading(false)})()},[]);
  const name=(id:string)=>vendors.find(v=>v.id===id)?.display_name||'Vendor';
