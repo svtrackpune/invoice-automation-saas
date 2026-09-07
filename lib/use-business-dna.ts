@@ -10,7 +10,9 @@ export function useBusinessDNA() {
     let cancelled = false;
     (async () => {
       const { data: context } = await supabase.rpc('get_my_business_context');
-      const business = context?.[0] as { business_id: string } | undefined;
+      const rows = (context || []) as Array<{ business_id: string }>;
+      const savedId = typeof window !== 'undefined' ? localStorage.getItem('moneymatters.activeBusinessId') : null;
+      const business = rows.find((row) => row.business_id === savedId) || rows[0];
       if (!business) return;
       const { data } = await supabase.from('businesses')
         .select('category_id,subcategory_id,selling_model,inventory_enabled,tax_enabled,sales_channels,team_size,business_categories(name),business_subcategories(name)')
