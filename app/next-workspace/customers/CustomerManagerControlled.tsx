@@ -1,5 +1,6 @@
 'use client';
 import {useEffect,useMemo,useState} from 'react';
+import { useBusinessDNA } from '@/lib/use-business-dna';
 import {supabase,type BusinessContext} from '@/lib/supabase';
 import {Button,Card,EmptyState,Field,FormSection,Input,Modal,PageHeader,SearchInput,Select,StatusBadge,Textarea} from '@/components/moneymatters';
 type Customer={id:string;display_name:string;legal_name:string|null;email:string|null;phone:string|null;tax_id:string|null;tax_type:string|null;billing_address:any;shipping_address:any;credit_limit:number|null;payment_terms_days:number;notes:string|null;payment_reminders_enabled:boolean;reminder_days_before_due:number;default_discount_type:string;default_discount_value:number;relationship_type:'product'|'service'|'both';product_reminder_after_days:number;service_recurring:boolean;service_recurring_interval:string;service_auto_invoice_days_before:number;service_reminder_after_days:number;notify_customer:boolean;notify_owner:boolean;is_active:boolean};
