@@ -308,3 +308,24 @@ GRANT EXECUTE ON FUNCTION public.get_public_quotation(text) TO anon;
 
 REVOKE EXECUTE ON FUNCTION public.convert_quotation_to_invoice(uuid,date,date,text) FROM public,anon;
 GRANT EXECUTE ON FUNCTION public.convert_quotation_to_invoice(uuid,date,date,text) TO service_role,authenticated;
+
+
+-- Preserve the existing 3-argument application API while routing it through
+-- the enhanced implementation.
+DROP FUNCTION IF EXISTS public.convert_quotation_to_invoice(uuid,date,date);
+
+CREATE OR REPLACE FUNCTION public.convert_quotation_to_invoice(
+  p_quotation_id uuid,
+  p_invoice_date date DEFAULT current_date,
+  p_due_date date DEFAULT NULL
+)
+RETURNS uuid
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path='public','mm_private'
+AS $$
+  SELECT public.convert_quotation_to_invoice(p_quotation_id,p_invoice_date,p_due_date,NULL);
+$$;
+
+REVOKE EXECUTE ON FUNCTION public.convert_quotation_to_invoice(uuid,date,date) FROM public,anon;
+GRANT EXECUTE ON FUNCTION public.convert_quotation_to_invoice(uuid,date,date) TO authenticated;
