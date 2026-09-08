@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { use, useEffect, useMemo, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 
 type Quote = {
@@ -22,8 +22,9 @@ type Quote = {
 
 const money=(n:number)=>new Intl.NumberFormat('en-IN',{style:'currency',currency:'INR',maximumFractionDigits:2}).format(Number(n||0));
 
-export default function PublicQuotation({params}:{params:{token:string}}){
-  const token=decodeURIComponent(params.token);
+export default function PublicQuotation({params}:{params:Promise<{token:string}>}){
+  const {token:rawToken}=use(params);
+  const token=decodeURIComponent(rawToken);
   const [quote,setQuote]=useState<Quote|null>(null);
   const [loading,setLoading]=useState(true);
   const [error,setError]=useState('');
