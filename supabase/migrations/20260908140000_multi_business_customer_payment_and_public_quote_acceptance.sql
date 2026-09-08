@@ -261,6 +261,7 @@ BEGIN
     'discount_total',q.discount_total,
     'tax_total',q.tax_total,
     'customer',jsonb_build_object(
+      'id',c.id,
       'display_name',c.display_name,
       'legal_name',c.legal_name,
       'email',c.email,
