@@ -22,9 +22,9 @@ export function useBusinessDNA() {
       setConfiguration(getAdaptiveModuleConfig({
         businessId: business.business_id,
         categoryId: data.category_id,
-        categoryName: data.business_categories?.name ?? null,
+        categoryName: data.business_categories?.[0]?.name ?? null,
         subcategoryId: data.subcategory_id,
-        subcategoryName: data.business_subcategories?.name ?? null,
+        subcategoryName: data.business_subcategories?.[0]?.name ?? null,
         sellingModel: data.selling_model,
         inventoryEnabled: data.inventory_enabled,
         taxEnabled: data.tax_enabled,
