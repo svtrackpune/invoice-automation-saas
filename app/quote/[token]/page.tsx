@@ -48,7 +48,7 @@ export default function PublicQuotation({params}:{params:Promise<{token:string}>
     if(!quote?.business.email)return;
     const subject=encodeURIComponent(`Quotation acceptance — ${quote.quotation_number}`);
     const body=encodeURIComponent(
-      `Dear ${quote.business.name},\\n\\nI confirm that I accept quotation ${quote.quotation_number} dated ${quote.quotation_date}.\\n\\nCustomer: ${quote.customer.display_name}\\n\\nPlease proceed with the invoice as per the accepted quotation.\\n\\nRegards,\\n${quote.customer.display_name}`
+      `Dear ${quote.business.name},\n\nI confirm that I accept quotation ${quote.quotation_number} dated ${quote.quotation_date}.\n\nCustomer: ${quote.customer.display_name}\n\nPlease proceed with the invoice as per the accepted quotation.\n\nRegards,\n${quote.customer.display_name}`
     );
     window.location.href=`mailto:${quote.business.email}?subject=${subject}&body=${body}`;
   };
