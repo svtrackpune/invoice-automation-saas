@@ -66,6 +66,9 @@ BEGIN
     SELECT bs.default_bank_account_id
     INTO v_bank_id
     FROM public.business_settings bs
+    JOIN public.bank_accounts ba ON ba.id=bs.default_bank_account_id
+      AND ba.business_id=q.business_id
+      AND ba.is_active=true
     WHERE bs.business_id=q.business_id;
 
     IF v_bank_id IS NULL THEN
