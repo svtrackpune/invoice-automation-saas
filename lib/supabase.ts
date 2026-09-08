@@ -28,6 +28,7 @@ export type BusinessContext = {
   country_code: string;
   timezone: string;
   tax_enabled: boolean;
+  selling_model: 'product' | 'services' | 'both' | null;
   is_active: boolean;
   onboarding_complete: boolean;
   onboarding_step: string | null;
