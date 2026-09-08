@@ -151,7 +151,7 @@ export default function DocumentViewer({ type, id }: { type: string; id: string 
       if (businessId) {
         const selectedBankId = payload?.document_context?.selected_bank_account_id || null;
         if (selectedBankId) {
-          const bankResult = await supabase.from('bank_accounts').select('id,name,institution_name,account_last4,account_holder_name,ifsc_code,branch_name,account_type,currency_code,metadata').eq('id', selectedBankId).maybeSingle();
+          const bankResult = await supabase.from('bank_accounts').select('id,name,institution_name,account_last4,account_holder_name,ifsc_code,branch_name,account_type,currency_code,metadata').eq('id', selectedBankId).eq('business_id', businessId).maybeSingle();
           selectedBank = bankResult.data || null;
         }
         if (selectedBank) setPaymentSelection({ payment_display_mode: 'bank', bank: selectedBank });
@@ -161,7 +161,7 @@ export default function DocumentViewer({ type, id }: { type: string; id: string 
         if (invoiceResult.data) {
           let bank = null;
           if (invoiceResult.data.payment_display_mode === 'bank' && invoiceResult.data.payment_bank_account_id) {
-            const bankResult = await supabase.from('bank_accounts').select('id,name,institution_name,account_last4,account_holder_name,ifsc_code,branch_name,account_type,currency_code,metadata').eq('id', invoiceResult.data.payment_bank_account_id).maybeSingle();
+            const bankResult = await supabase.from('bank_accounts').select('id,name,institution_name,account_last4,account_holder_name,ifsc_code,branch_name,account_type,currency_code,metadata').eq('id', invoiceResult.data.payment_bank_account_id).eq('business_id', businessId).maybeSingle();
             bank = bankResult.data || null;
           }
           setPaymentSelection({ ...invoiceResult.data, bank: bank || selectedBank || null });
