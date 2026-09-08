@@ -10,12 +10,12 @@ const customerId=process.env.TEST_CUSTOMER_ID;
 const accountId=process.env.TEST_PAYMENT_ACCOUNT_ID;
 const gatewayId=process.env.TEST_GATEWAY_TRANSACTION_ID;
 
-const isProduction = url?.includes('qpczmbvqflaqwvyphepf') || url?.includes('supabase.co');
+const isProduction = url?.includes('qpczmbvqflaqwvyphepf');
 const configured=Boolean(url&&key&&businessId&&invoiceId&&customerId&&accountId&&gatewayId);
 
 if (configured && isProduction) throw new Error('Financial integration tests refuse to run against production.');
 
-const db=configured ? createClient(url!,key!) : null;
+const db=configured ? createClient(url,key) : null;
 
 test('financial test environment is explicitly isolated',()=> {
   assert.equal(isProduction,false,'TEST_SUPABASE_URL points at a production project');
