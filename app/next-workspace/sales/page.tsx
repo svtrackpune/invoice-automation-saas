@@ -1,6 +1,7 @@
 'use client';
 
 import { Button, Card, PageHeader } from '@/components/moneymatters';
+import { useBusinessDNA } from '@/lib/use-business-dna';
 
 const actions = [
   { title: 'Create invoice', description: 'Use the canonical invoice editor, review the document, then finalize and post.', href: '/next-workspace/invoices/new', label: 'Create invoice' },
@@ -11,17 +12,27 @@ const actions = [
 ];
 
 export default function SalesPage() {
+  const dna = useBusinessDNA();
+  const salesDescription = dna?.sellingModel === 'services'
+    ? 'Service-first order-to-cash workflow: customer, quotation, invoice, payment and recurring billing.'
+    : dna?.sellingModel === 'both'
+      ? 'Unified order-to-cash workflow for products and services, using the same customer, invoice, payment and accounting engine.'
+      : 'Product-first order-to-cash workflow using the same customer, invoice, payment and accounting engine.';
+  const orderedActions = [...actions].sort((a, b) => {
+    const rank = (href: string) => href.includes('/invoices/new') ? 0 : href.includes('/customers') ? 1 : href.includes('/quotation') ? 1 : href.includes('/payments') ? 1 : 2;
+    return rank(a.href) - rank(b.href);
+  });
   return (
     <main className="min-h-screen bg-[#fbfaff] p-4 sm:p-6 lg:p-8">
       <div className="mx-auto max-w-6xl">
         <PageHeader
           eyebrow="Order to cash"
           title="Sales"
-          description="One connected sales workflow. Each entry point uses the same customer, document, payment and accounting processes."
+          description={salesDescription}
           actions={<Button variant="secondary" onClick={() => { location.href = '/next-workspace'; }}>Dashboard</Button>}
         />
         <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-          {actions.map((action) => (
+          {orderedActions.map((action) => (
             <Card key={action.title} className="flex flex-col p-5">
               <h2 className="text-lg font-semibold">{action.title}</h2>
               <p className="mt-2 flex-1 text-sm leading-6 text-slate-500">{action.description}</p>

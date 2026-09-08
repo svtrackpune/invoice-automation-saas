@@ -28,6 +28,7 @@ const invoiceStatus = (invoice: Invoice) => {
 };
 
 export default function Invoices() {
+  const [ctx, setCtx] = useState<BusinessContext | null>(null);
   const [rows, setRows] = useState<Invoice[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [q, setQ] = useState('');
@@ -47,6 +48,7 @@ export default function Invoices() {
     const context = await supabase.rpc('get_my_business_context');
     const business = context.data?.[0] as BusinessContext | undefined;
     if (!business) { location.href = '/'; return; }
+    setCtx(business);
     const [invoiceResult, customerResult] = await Promise.all([
       supabase.from('invoices').select('id,invoice_number,invoice_date,due_date,status,total,amount_paid,balance_due,customer_id').eq('business_id', business.business_id).order('due_date', { ascending: true }),
       supabase.from('customers').select('id,display_name,email,phone').eq('business_id', business.business_id).eq('is_active', true).order('display_name'),
@@ -108,7 +110,7 @@ export default function Invoices() {
     <main className="min-h-[calc(100vh-100px)] bg-[#fbfaff] p-4 sm:p-6 lg:p-8" onClick={() => { setMenu(null); setCustomerOpen(false); }}>
       <div className="mx-auto max-w-[1450px]">
         <header className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-          <div><p className="text-[10px] font-bold uppercase tracking-[.18em] text-violet-600">Sales & payments</p><h1 className="mt-1 text-3xl font-semibold">Invoices</h1><p className="mt-1 text-sm text-slate-500">Create, review, collect and manage every invoice.</p></div>
+          <div><p className="text-[10px] font-bold uppercase tracking-[.18em] text-violet-600">Sales & payments</p><h1 className="mt-1 text-3xl font-semibold">Invoices</h1><p className="mt-1 text-sm text-slate-500">{ctx?.selling_model==='both' ? 'Create, review and collect invoices for products and services in one workflow.' : ctx?.selling_model==='services' ? 'Create, review and collect invoices for your services.' : 'Create, review and collect invoices for your products and services.'}</p></div>
           <button type="button" onClick={() => location.href = '/next-workspace/invoices/new'} className="rounded-xl bg-violet-600 px-4 py-2.5 text-sm font-semibold text-white">＋ Create an Invoice</button>
         </header>
         {error && <div className="mb-4 rounded-xl bg-rose-50 p-3 text-sm text-rose-700">{error}</div>}

@@ -2,12 +2,15 @@
   "name": "invoice-automation-saas",
   "version": "0.2.0",
   "private": true,
-  "engines": { "node": ">=18.18.0" },
+  "engines": {
+    "node": ">=18.18.0"
+  },
   "scripts": {
     "dev": "next dev",
     "build": "node scripts/build.js",
     "start": "node server.js",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test:financial": "node --test tests/financial-invariants.test.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.55.0",

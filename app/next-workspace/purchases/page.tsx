@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import { useBusinessDNA } from '@/lib/business-dna';
 import { supabase, type BusinessContext } from '@/lib/supabase';
 import { Button, Card, EmptyState, PageHeader, SearchInput, Select, StatusBadge } from '@/components/moneymatters';
 
@@ -8,6 +9,7 @@ type Bill={id:string;bill_number:string;bill_date:string;due_date:string;status:
 type Vendor={id:string;display_name:string};
 const money=(n:number)=>new Intl.NumberFormat('en-IN',{style:'currency',currency:'INR',maximumFractionDigits:2}).format(Number(n||0));
 export default function Purchases(){
+ const dna=useBusinessDNA();
  const[bills,setBills]=useState<Bill[]>([]),[vendors,setVendors]=useState<Vendor[]>([]),[q,setQ]=useState(''),[status,setStatus]=useState('all'),[loading,setLoading]=useState(true);
  useEffect(()=>{(async()=>{const c=await supabase.rpc('get_my_business_context');const b=c.data?.[0] as BusinessContext|undefined;if(!b){location.href='/';return}const [bi,ve]=await Promise.all([supabase.from('bills').select('id,bill_number,bill_date,due_date,status,total,amount_paid,balance_due,vendor_id').eq('business_id',b.business_id).order('bill_date',{ascending:false}).limit(200),supabase.from('vendors').select('id,display_name').eq('business_id',b.business_id).eq('is_active',true).order('display_name')]);setBills((bi.data||[]) as Bill[]);setVendors((ve.data||[]) as Vendor[]);setLoading(false)})()},[]);
  const name=(id:string)=>vendors.find(v=>v.id===id)?.display_name||'Vendor';
@@ -15,7 +17,7 @@ export default function Purchases(){
  const payable=bills.reduce((a,x)=>a+Number(x.balance_due||0),0),overdue=bills.filter(x=>x.status==='overdue').length;
  if(loading)return <div className="grid min-h-[70vh] place-items-center text-sm text-slate-500">Loading purchases…</div>;
  return <main className="min-h-screen bg-[#fbfaff] p-4 sm:p-6 lg:p-8"><div className="mx-auto max-w-[1320px]">
-  <PageHeader eyebrow="Money out" title="Purchases & Bills" description="Track purchases, stock/expense posting, payables and vendor payments in one controlled workspace." actions={<><Button onClick={()=>location.href='/next-workspace/purchases/new'}>＋ New purchase bill</Button><Button variant="secondary" onClick={()=>location.href='/next-workspace/vendors'}>Vendors</Button><Button variant="secondary" onClick={()=>location.href='/next-workspace/inventory'}>Products & stock</Button></>}/>
+  <PageHeader eyebrow="Money out" title="Purchases & Bills" description={dna?.inventory_enabled?"Track purchases, stock/expense posting, payables and vendor payments in one controlled workspace.":"Track purchase bills, expenses, payables and vendor payments; inventory stays available when your business needs it."} actions={<><Button onClick={()=>location.href='/next-workspace/purchases/new'}>＋ New purchase bill</Button><Button variant="secondary" onClick={()=>location.href='/next-workspace/vendors'}>Vendors</Button><Button variant="secondary" onClick={()=>location.href='/next-workspace/inventory'}>Products & stock</Button></>}/>
   <div className="grid gap-4 sm:grid-cols-3"><Card className="p-5"><span className="text-xs font-semibold text-slate-500">Bills</span><b className="mt-3 block text-2xl">{bills.length}</b><span className="text-xs text-slate-400">Recorded purchases</span></Card><Card className="p-5"><span className="text-xs font-semibold text-slate-500">To pay</span><b className="mt-3 block text-2xl">{money(payable)}</b><span className="text-xs text-slate-400">Outstanding payable</span></Card><Card className="p-5"><span className="text-xs font-semibold text-slate-500">Overdue</span><b className="mt-3 block text-2xl text-rose-700">{overdue}</b><span className="text-xs text-slate-400">Needs attention</span></Card></div>
   <Card className="mt-6 overflow-hidden"><div className="flex flex-col gap-3 border-b border-slate-100 p-4 sm:flex-row sm:items-center"><SearchInput value={q} onChange={e=>setQ(e.target.value)} placeholder="Search bills or vendors…"/><Select value={status} onChange={e=>setStatus(e.target.value)} className="sm:w-48"><option value="all">All statuses</option><option value="draft">Draft</option><option value="received">Received</option><option value="partially_paid">Partially paid</option><option value="paid">Paid</option><option value="overdue">Overdue</option><option value="void">Void</option></Select></div>
    <div className="hidden grid-cols-[120px_1fr_120px_140px_150px] gap-3 border-b border-slate-100 px-5 py-3 text-[10px] font-bold uppercase tracking-wider text-slate-400 sm:grid"><span>Bill</span><span>Vendor</span><span>Date</span><span>Status</span><span className="text-right">Balance</span></div>
