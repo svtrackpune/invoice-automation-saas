@@ -145,6 +145,3 @@ $$;
 
 REVOKE EXECUTE ON FUNCTION public.get_public_quotation(text) FROM public,authenticated;
 GRANT EXECUTE ON FUNCTION public.get_public_quotation(text) TO anon;
-
-REVOKE EXECUTE ON FUNCTION public.convert_quotation_to_invoice(uuid,date,date,text) FROM public,anon;
-GRANT EXECUTE ON FUNCTION public.convert_quotation_to_invoice(uuid,date,date,text) TO service_role,authenticated;
