@@ -46,7 +46,8 @@ def invoice(s):
     s = s.replace("type Customer = { id:string; display_name:string; legal_name:string|null; email:string|null; phone:string|null; payment_terms_days:number;", "type Customer = { id:string; display_name:string; legal_name:string|null; email:string|null; phone:string|null; website:string|null; payment_terms_days:number;")
     s = s.replace("select('id,display_name,legal_name,email,phone,payment_terms_days", "select('id,display_name,legal_name,email,phone,website,payment_terms_days")
     s = s.replace("<p className=\"mt-1 text-sm text-slate-500\">{ruleLabel}</p></div>", "<p className=\"mt-1 text-sm text-slate-500\">{ruleLabel}</p><div className=\"mt-3 flex flex-wrap items-center gap-2 text-[11px] font-semibold text-slate-500\"><span className=\"rounded-full bg-violet-50 px-3 py-1 text-violet-700\">1 Customer</span><span>→</span><span className=\"rounded-full bg-violet-50 px-3 py-1 text-violet-700\">2 Items & tax</span><span>→</span><span className=\"rounded-full bg-violet-50 px-3 py-1 text-violet-700\">3 Review</span><span>→</span><span className=\"rounded-full bg-violet-50 px-3 py-1 text-violet-700\">4 Post</span></div></div>")
-    s = s.replace("{customer.phone&&<div>{customer.phone}</div>}", "{customer.phone&&<div>{customer.phone}</div>}{customer.email&&<div>{customer.email}</div>}{customer.website&&<div>{customer.website}</div>}")
+    if "{customer.email&&<div>{customer.email}</div>}" not in s:
+        s = s.replace("{customer.phone&&<div>{customer.phone}</div>}", "{customer.phone&&<div>{customer.phone}</div>}{customer.email&&<div>{customer.email}</div>}{customer.website&&<div>{customer.website}</div>}")
     s = s.replace("{busy?'Saving…':editId?'Save draft':'Save invoice'}", "{busy?'Saving…':editId?'Save draft & review':'Save draft & review'}")
     return s
 edit('app/next-workspace/invoices/new/page.tsx', invoice)
