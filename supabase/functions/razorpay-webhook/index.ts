@@ -50,7 +50,7 @@ Deno.serve(async(req) => {
 
     if(eventType==="payment_link.paid"||eventType==="payment_link.partially_paid") {
       const {data:inv}=await admin.from("invoices").select("customer_id").eq("id",link.invoice_id).eq("business_id",link.business_id).single();
-      const {data:acct}=await admin.from("accounts").select("id").eq("business_id",link.business_id).eq("code","1000").eq("is_active",true).maybeSingle();
+      const {data:acct}=await admin.from("accounts").select("id").eq("business_id",link.business_id).eq("code","1010").eq("is_active",true).maybeSingle();
       if(!inv||!acct) throw new Error("Invoice/customer or payment account not found");
       const amount=Number(payment?.amount||pl?.amount_paid||0)/100;
       if(amount<=0) throw new Error("Webhook payment amount is invalid");
