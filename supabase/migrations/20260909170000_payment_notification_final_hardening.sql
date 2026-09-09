@@ -167,7 +167,7 @@ BEGIN
   INSERT INTO public.payment_allocations(business_id,payment_id,invoice_id,amount)
   VALUES(v_link.business_id,v_payment,v_inv.id,p_amount);
 
-  PERFORM pg_advisory_xact_lock('journal-entry-number:'::text || v_link.business_id::text);
+  PERFORM pg_advisory_xact_lock(hashtext('journal-entry-number:'||v_link.business_id::text));
 
   INSERT INTO public.journal_entries(
     business_id,entry_number,entry_date,description,source_type,source_id,status,
