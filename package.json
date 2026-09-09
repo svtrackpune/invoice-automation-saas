@@ -13,7 +13,6 @@
     "test:financial": "node --test tests/financial-invariants.test.mjs"
   },
   "dependencies": {
-    "@supabase/ssr": "0.12.7",
     "@supabase/supabase-js": "^2.55.0",
     "next": "15.5.18",
     "qrcode": "^1.5.4",
