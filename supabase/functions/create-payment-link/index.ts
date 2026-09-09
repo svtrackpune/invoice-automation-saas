@@ -5,16 +5,11 @@ const cors = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
-
 const json = (body: unknown, status = 200) =>
-  new Response(JSON.stringify(body), {
-    status,
-    headers: { ...cors, "Content-Type": "application/json" },
-  });
+  new Response(JSON.stringify(body), { status, headers: { ...cors, "Content-Type": "application/json" } });
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
-
   try {
     const auth = req.headers.get("Authorization");
     if (!auth) return json({ error: "Authorization required" }, 401);
@@ -32,9 +27,7 @@ Deno.serve(async (req) => {
     if (!invoiceId) return json({ error: "invoice_id is required" }, 400);
 
     const { data: ctx, error: contextError } = await userClient.rpc("get_my_business_context");
-    if (contextError || !ctx?.[0]) {
-      return json({ error: contextError?.message || "Business context not found" }, 403);
-    }
+    if (contextError || !ctx?.[0]) return json({ error: contextError?.message || "Business context not found" }, 403);
     const businessId = ctx[0].business_id;
 
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
@@ -50,7 +43,9 @@ Deno.serve(async (req) => {
 
     if (invoiceError || !invoice) return json({ error: "Invoice not found" }, 404);
     if (Number(invoice.balance_due) <= 0) return json({ error: "Invoice has no outstanding balance" }, 400);
-    if (invoice.status === "void") return json({ error: "Cannot create a payment link for a void invoice" }, 400);
+    if (!["sent", "posted", "partially_paid", "overdue"].includes(String(invoice.status))) {
+      return json({ error: "Payment links require a posted or billable invoice" }, 409);
+    }
 
     const { data: existing } = await admin
       .from("payment_links")
@@ -63,11 +58,10 @@ Deno.serve(async (req) => {
       .maybeSingle();
 
     if (existing?.short_url) {
-      await admin
-        .from("invoices")
-        .update({ payment_link: existing.short_url, payment_qr_payload: existing.short_url })
-        .eq("id", invoice.id)
-        .eq("business_id", businessId);
+      await admin.from("invoices").update({
+        payment_link: existing.short_url,
+        payment_qr_payload: existing.short_url,
+      }).eq("id", invoice.id).eq("business_id", businessId);
       return json({ payment_link: existing });
     }
 
@@ -105,13 +99,9 @@ Deno.serve(async (req) => {
     const token = btoa(`${key}:${secret}`);
     const razorpayResponse = await fetch("https://api.razorpay.com/v1/payment_links", {
       method: "POST",
-      headers: {
-        Authorization: `Basic ${token}`,
-        "Content-Type": "application/json",
-      },
+      headers: { Authorization: `Basic ${token}`, "Content-Type": "application/json" },
       body: JSON.stringify(payload),
     });
-
     const razorpayJson = await razorpayResponse.json();
     if (!razorpayResponse.ok) {
       return json({ error: razorpayJson?.error?.description || "Razorpay payment link creation failed" }, 502);
@@ -137,11 +127,10 @@ Deno.serve(async (req) => {
 
     if (linkError) return json({ error: linkError.message }, 500);
 
-    await admin
-      .from("invoices")
-      .update({ payment_link: razorpayJson.short_url, payment_qr_payload: razorpayJson.short_url })
-      .eq("id", invoice.id)
-      .eq("business_id", businessId);
+    await admin.from("invoices").update({
+      payment_link: razorpayJson.short_url,
+      payment_qr_payload: razorpayJson.short_url,
+    }).eq("id", invoice.id).eq("business_id", businessId);
 
     await admin.rpc("enqueue_payment_link_notification", {
       p_business_id: businessId,
