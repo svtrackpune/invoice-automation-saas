@@ -168,8 +168,9 @@ export default function DocumentViewer({ type, id }: { type: string; id: string 
         }
       }
       if (type === 'receipt' && invoiceId) {
-        const lineItems = await supabase.from('invoice_line_items').select('name,description,quantity,unit_price,line_total,product_service_id').eq('invoice_id', invoiceId).order('created_at');
+        const lineItems = await supabase.from('invoice_items').select('description,quantity,unit_price,line_total,product_service_id').eq('invoice_id', invoiceId).order('sort_order');
         if (!lineItems.error) setReceiptItems(lineItems.data || []);
+        else if (active) setError(lineItems.error.message);
       }
       setLoading(false);
     })();
