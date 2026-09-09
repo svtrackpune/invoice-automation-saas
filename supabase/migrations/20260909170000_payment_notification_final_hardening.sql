@@ -247,6 +247,7 @@ AS $function$
 DECLARE
   pl record;
   n integer:=0;
+  v_rows integer:=0;
   msg text;
 BEGIN
   IF NOT mm_private.has_business_permission(p_business_id,'payments.receive') THEN
@@ -275,7 +276,8 @@ BEGIN
       'Payment link · '||pl.invoice_number,msg,pl.short_url,
       jsonb_build_object('payment_link_id',pl.id,'idempotency_key','payment_link:'||pl.id||':email')
     ) ON CONFLICT DO NOTHING;
-    n:=n+1;
+    GET DIAGNOSTICS v_rows = ROW_COUNT;
+    n:=n+v_rows;
   END IF;
 
   IF pl.phone IS NOT NULL THEN
@@ -287,7 +289,8 @@ BEGIN
       'payment_link',pl.phone,NULL,msg,pl.short_url,
       jsonb_build_object('payment_link_id',pl.id,'idempotency_key','payment_link:'||pl.id||':whatsapp')
     ) ON CONFLICT DO NOTHING;
-    n:=n+1;
+    GET DIAGNOSTICS v_rows = ROW_COUNT;
+    n:=n+v_rows;
   END IF;
 
   RETURN n;
@@ -305,6 +308,7 @@ SET search_path=public,mm_private
 AS $function$
 DECLARE
   n integer:=0;
+  v_rows integer:=0;
   inv record;
   due_days integer;
   target timestamptz;
@@ -352,7 +356,8 @@ BEGIN
             'idempotency_key','invoice:'||inv.id||':'||kind||':'||inv.due_date||':email'
           )
         ) ON CONFLICT DO NOTHING;
-        n:=n+1;
+        GET DIAGNOSTICS v_rows = ROW_COUNT;
+        n:=n+v_rows;
       END IF;
 
       IF inv.phone IS NOT NULL THEN
@@ -367,7 +372,8 @@ BEGIN
             'idempotency_key','invoice:'||inv.id||':'||kind||':'||inv.due_date||':whatsapp'
           )
         ) ON CONFLICT DO NOTHING;
-        n:=n+1;
+        GET DIAGNOSTICS v_rows = ROW_COUNT;
+        n:=n+v_rows;
       END IF;
     END IF;
   END LOOP;
