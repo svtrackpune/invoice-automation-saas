@@ -1,13 +1,11 @@
 'use client';
 
-import { useSearchParams } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, use } from 'react';
 import BusinessDetailsModal from './BusinessDetailsModal';
 import { supabase } from '@/lib/supabase';
 
-export default function BusinessDetailsSetupPage() {
-  const searchParams = useSearchParams();
-  const requestedId = searchParams.get('business');
+export default function BusinessDetailsSetupPage({ searchParams }: { searchParams: Promise<{ business?: string }> }) {
+  const requestedId = use(searchParams).business || null;
   const [businessId, setBusinessId] = useState(requestedId || '');
   const [loading, setLoading] = useState(!requestedId);
 
