@@ -46,7 +46,7 @@ export default function CreateBusiness() {
   const [error, setError] = useState('');
   const [categories, setCategories] = useState<Category[]>([]);
   const [subcategories, setSubcategories] = useState<Subcategory[]>([]);
-  const [featureConfig, setFeatureConfig] = useState<BusinessFeatureConfig>(applyIndustryPreset());
+  const [featureConfig, setFeatureConfig] = useState<BusinessFeatureConfig>({ ...applyIndustryPreset(), is_tax_registered: true });
 
   useEffect(() => {
     (async () => {
@@ -77,6 +77,7 @@ export default function CreateBusiness() {
   const create = async () => {
     if (taxMode === 'gst' && !taxState.trim()) return setError('Tax state is required for GST businesses.');
     setBusy(true); setError('');
+    setFeatureConfig((value) => ({ ...value, has_physical_inventory: value.has_physical_inventory || inventoryEnabled, is_tax_registered: taxMode === 'gst' }));
     const stateCode: Record<string, string> = { Maharashtra: 'MH', Karnataka: 'KA', Telangana: 'TS', Gujarat: 'GJ', Delhi: 'DL', 'Tamil Nadu': 'TN', 'Uttar Pradesh': 'UP', Other: 'OT' };
     const r = await supabase.rpc('create_business_for_current_user', {
       p_business_name: name.trim(), p_business_type: type, p_country_code: 'IN', p_currency_code: 'INR',
