@@ -9,7 +9,7 @@ import CustomerCreateModal from '../../customers/CustomerCreateModal';
 import type { CreatedCustomer } from '../../customers/CustomerCreateModal';
 
 type Customer = { id:string; display_name:string; legal_name:string|null; email:string|null; phone:string|null; website:string|null; payment_terms_days:number; payment_reminders_enabled:boolean; reminder_days_before_due:number; default_discount_type:string; default_discount_value:number; default_payment_display_mode:string; billing_address:Record<string, unknown>; shipping_address:Record<string, unknown> };
-type Product = { id:string; name:string; sku:string|null; description:string|null; item_type:string; unit:string|null; hsn_sac?:string|null; sales_price:number; default_tax_rate_id:string|null; discount_enabled:boolean; max_discount_type:string; max_discount_value:number; inventory_tracked:boolean; track_batches:boolean; track_serials:boolean };
+type Product = { id:string; name:string; sku:string|null; description:string|null; item_type:string; unit:string|null; hsn_sac?:string|null; sales_price:number; default_tax_rate_id:string|null; discount_enabled:boolean; max_discount_type:string; max_discount_value:number; inventory_tracked?:boolean; track_batches?:boolean; track_serials?:boolean };
 type Tax = { id:string; name:string; rate:number };
 type Template = { id:string; template_name:string };
 type Bank = { id:string; name:string; institution_name:string|null; account_last4:string|null };
