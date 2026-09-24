@@ -104,7 +104,7 @@ function BankDetails({ bank }: { bank: any }) {
 
 function PaymentSection({ paymentMode, paymentLink, paymentSelection, balance, currency, premium = false, showBankDetails = false, showPaymentLink = true, showPaymentQr = true, qrDataUrl = '' }: any) {
   const hasBank = showBankDetails && !!paymentSelection?.bank;
-  const hasOnline = paymentMode === 'online' && (showPaymentLink || (showPaymentQr && !!qrDataUrl));
+  const hasOnline = paymentMode === 'online' && ((showPaymentLink && !!paymentLink) || (showPaymentQr && !!qrDataUrl));
   if (!hasBank && !hasOnline) return null;
   return <section className={`payment ${hasBank && hasOnline ? 'payment-combined' : hasBank ? 'bank-payment' : 'online-payment'} ${premium ? 'payment-premium' : ''}`}>
     {hasBank && <div className="bank-payment-column"><BankDetails bank={paymentSelection.bank} /></div>}
