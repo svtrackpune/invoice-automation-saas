@@ -29,8 +29,23 @@ const BusinessConfigShape = z.object({
   industry_preset: z.string().trim().min(1).max(80).default('custom'),
 }).strict();
 
-export interface BusinessFeatureConfig extends z.infer<typeof BusinessConfigShape> {}
-export const BusinessConfigSchema = BusinessConfigShape;
+export interface BusinessFeatureConfig {
+  version: 1;
+  has_physical_inventory: boolean;
+  track_batch_serial: boolean;
+  has_manufacturing: boolean;
+  has_services_projects: boolean;
+  has_recurring_subscriptions: boolean;
+  is_b2b: boolean;
+  is_b2c_retail: boolean;
+  requires_approval_workflows: boolean;
+  is_tax_registered: boolean;
+  multi_currency: boolean;
+  has_credit_terms: boolean;
+  has_multi_location: boolean;
+  industry_preset: string;
+}
+export const BusinessConfigSchema = BusinessConfigShape as z.ZodType<BusinessFeatureConfig>;
 
 export const DEFAULT_BUSINESS_CONFIG: BusinessFeatureConfig = BusinessConfigSchema.parse({
   version: 1,
