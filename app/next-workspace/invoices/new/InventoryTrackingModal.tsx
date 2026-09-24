@@ -2,8 +2,8 @@
 
 type Product = {
   name: string;
-  track_batches: boolean;
-  track_serials: boolean;
+  track_batches?: boolean;
+  track_serials?: boolean;
 };
 
 type Line = {
