@@ -36,8 +36,14 @@ export default function BusinessCapabilitiesChecklist({
   );
 
   const setFlag = (key: BusinessFeatureKey, checked: boolean) => {
-    const next = normalizeBusinessConfig({ ...value, [key]: checked }, categoryName, subcategoryName);
-    onChange(next);
+    const nextValue = { ...value, [key]: checked };
+    if (key === 'track_batch_serial' && checked) {
+      nextValue.has_physical_inventory = true;
+    }
+    if (key === 'has_physical_inventory' && !checked) {
+      nextValue.track_batch_serial = false;
+    }
+    onChange(normalizeBusinessConfig(nextValue, categoryName, subcategoryName));
   };
 
   const applyPreset = () => onChange(normalizeBusinessConfig({ ...preset }, categoryName, subcategoryName));
@@ -81,7 +87,7 @@ export default function BusinessCapabilitiesChecklist({
                   <input
                     type="checkbox"
                     checked={enabled}
-                    disabled={Boolean(dependency && !dependencyEnabled)}
+disabled={false}
                     onChange={(event) => setFlag(feature.key, event.target.checked)}
                     className="mt-1 h-4 w-4 accent-violet-600"
                   />
@@ -89,7 +95,7 @@ export default function BusinessCapabilitiesChecklist({
                     <span className="block text-sm font-semibold text-slate-900">{feature.label}</span>
                     <span className="mt-1 block text-xs leading-5 text-slate-500">{feature.description}</span>
                     {dependency && !dependencyEnabled && (
-                      <span className="mt-1.5 block text-[11px] font-semibold text-amber-600">Requires physical inventory.</span>
+                      <span className="mt-1.5 block text-[11px] font-semibold text-amber-600">Selecting this will automatically enable physical inventory.</span>
                     )}
                   </span>
                 </label>
