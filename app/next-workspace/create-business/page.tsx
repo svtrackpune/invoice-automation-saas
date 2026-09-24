@@ -93,6 +93,7 @@ export default function CreateBusiness() {
         if (inventory.error) { setError(`Business created, but inventory setup could not be completed: ${inventory.error.message}`); setBusy(false); return; }
       }
     }
+    if (created) { window.location.href = `/next-workspace/business-details?business=${encodeURIComponent(created.business_id)}`; return; }
     window.location.href = '/next-workspace';
   };
 
