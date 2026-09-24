@@ -4,7 +4,7 @@ import * as z from 'zod';
  * Canonical capability contract for an individual Moneymatters business.
  * All UI, navigation and workflow decisions should consume this normalized shape.
  */
-export const BusinessConfigSchema = z.object({
+const BusinessConfigShape = z.object({
   version: z.literal(1).default(1),
 
   // Offering & Operational Model
@@ -27,9 +27,10 @@ export const BusinessConfigSchema = z.object({
 
   // Preset is informational; the effective booleans are the source of truth.
   industry_preset: z.string().trim().min(1).max(80).default('custom'),
-});
+}).strict();
 
-export type BusinessFeatureConfig = z.infer<typeof BusinessConfigSchema>;
+export interface BusinessFeatureConfig extends z.infer<typeof BusinessConfigShape> {}
+export const BusinessConfigSchema = BusinessConfigShape;
 
 export const DEFAULT_BUSINESS_CONFIG: BusinessFeatureConfig = BusinessConfigSchema.parse({
   version: 1,
