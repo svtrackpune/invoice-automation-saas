@@ -42,40 +42,55 @@ const isTaxRegistered = (party: any) => {
 
 function Logo({ url }: { url: string }) { return <div className="logo">{url ? <img src={url} alt="Business logo" /> : <span>LOGO</span>}</div>; }
 function Tagline({ business, fields, compact = false }: { business: any; fields: any; compact?: boolean }) { const tagline = text(business.tagline || fields.tagline || ''); return <div className={`tagline ${compact ? 'compact' : ''}`}>{tagline}</div>; }
-function BusinessIdentity({ business, logoUrl, fields }: { business: any; logoUrl: string; fields: any }) { return <div className="business-identity"><Logo url={logoUrl} /><div className="business-brand-copy"><strong>{text(business.name || business.legal_name || '')}</strong><div className="sub">{text(fields.subtitle || business.business_type || '')}</div></div></div>; }
-
-function LineItems({ items, payload, receipt }: { items: any[]; payload: any; receipt: boolean }) {
-  const taxed = !receipt && Number(payload.tax_total || 0) > 0;
-  return <table className={`items ${receipt ? 'receipt-items' : ''}`}><thead><tr><th>{receipt ? 'Description' : 'Item / Description'}</th>{!receipt && <th>Type</th>}<th>Qty</th><th>Rate</th>{taxed && <th>Tax</th>}<th>Amount</th></tr></thead><tbody>{(items || []).map((it:any, idx:number)=>(<tr key={idx}><td><strong>{text(it.name || it.description)}</strong>{it.description && <div className="muted">{text(it.description)}</div>}</td>{!receipt && <td>{text(it.item_type || it.type || '')}</td>}<td>{text(it.quantity || it.qty || 1)}</td><td>{money(it.unit_price || it.rate || it.price)}</td>{taxed && <td>{it.tax_rate?`${it.tax_rate}%`:'—'}</td>}<td>{money(it.line_total || 0)}</td></tr>))}</tbody></table>;
+function BusinessIdentity({ business, logoUrl, fields, showLogo = true, showAddress = true }: { business: any; logoUrl: string; fields: any; showLogo?: boolean; showAddress?: boolean }) {
+  const address = addressLines(business.address);
+  return <div className='business-identity'><div className='identity-main'>
+    {showLogo && <Logo url={logoUrl} />}
+    <div className='business-brand-copy'><strong>{text(business.name || business.legal_name || 'Business')}</strong>
+      {business.legal_name && business.legal_name !== business.name && <div className='legal-name'>{text(business.legal_name)}</div>}
+      {fields.subtitle && <div className='sub'>{text(fields.subtitle)}</div>}
+    </div></div>
+    {showAddress && address.length > 0 && <div className='business-address'>{address.map((line: string, index: number) => <span key={index}>{line}</span>)}</div>}
+    {(business.phone || business.email || business.website) && <div className='business-contact'>{business.phone && <span>{text(business.phone)}</span>}{business.email && <span>{text(business.email)}</span>}{business.website && <span>{text(business.website)}</span>}</div>}
+    {taxValue(business) && <div className='business-gstin'>GSTIN / Tax ID: {taxValue(business)}</div>}
+  </div>;
 }
 
-function DocumentTotals({ payload, currency = 'INR', receipt = false }: { payload: any; currency?: string; receipt?: boolean }) {
-  const subtotal = Number(payload.subtotal ?? 0);
-  const discount = Number(payload.discount_total ?? 0);
-  const tax = Number(payload.tax_total ?? 0);
-  const total = Number(payload.total ?? 0);
-  const balance = Number(payload.balance_due ?? 0);
-  const paid = Number(payload.amount_paid ?? payload.amount_received ?? 0);
-  const cgst = Number(payload.cgst_amount ?? 0);
-  const sgst = Number(payload.sgst_amount ?? 0);
-  const igst = Number(payload.igst_amount ?? 0);
-  return <div className={receipt ? 'receipt-summary' : 'document-summary'}>
-    {!receipt && <>
-      <div><span>Subtotal</span><strong>{money(subtotal, currency)}</strong></div>
-      {discount !== 0 && <div><span>Discount</span><strong>-{money(discount, currency)}</strong></div>}
-      {tax !== 0 && <div><span>GST</span><strong>{money(tax, currency)}</strong></div>}
-      {cgst !== 0 && <div><span>CGST</span><strong>{money(cgst, currency)}</strong></div>}
-      {sgst !== 0 && <div><span>SGST</span><strong>{money(sgst, currency)}</strong></div>}
-      {igst !== 0 && <div><span>IGST</span><strong>{money(igst, currency)}</strong></div>}
-      <div className="summary-total"><span>Total</span><strong>{money(total, currency)}</strong></div>
-      <div><span>Balance Due</span><strong>{money(balance, currency)}</strong></div>
-    </>}
-    {receipt && <>
-      <div><span>Total</span><strong>{money(total, currency)}</strong></div>
-      <div><span>Received</span><strong>{money(paid, currency)}</strong></div>
-      <div><span>Balance</span><strong>{money(balance, currency)}</strong></div>
-    </>}
-  </div>;
+function LineItems({ items, payload, receipt, showTaxDetails = true }: { items: any[]; payload: any; receipt: boolean; showTaxDetails?: boolean }) {
+  const currency = text(payload.currency_code || 'INR');
+  const taxed = !receipt && showTaxDetails && Number(payload.tax_total || 0) > 0;
+  const hasHsn = taxed && (items || []).some((it: any) => text(it.hsn_sac).trim());
+  return <table className={`items ${receipt ? 'receipt-items' : ''} ${taxed ? 'tax-aware-items' : ''}`}><thead><tr>
+    {!receipt && <th className='col-no'>#</th>}<th>{receipt ? 'Description' : 'Item / Description'}</th>
+    {!receipt && taxed && hasHsn && <th>HSN / SAC</th>}{!receipt && <th className='col-type'>Type</th>}
+    <th className='col-qty'>Qty</th><th className='col-rate'>Rate</th>{taxed && <th className='col-taxable'>Taxable</th>}{taxed && <th className='col-tax'>GST</th>}<th className='col-amount'>Amount</th>
+  </tr></thead><tbody>{(items || []).map((it:any, idx:number) => {const quantity=Number(it.quantity ?? it.qty ?? 1);const rate=Number(it.unit_price ?? it.rate ?? it.price ?? 0);const taxAmount=Number(it.tax_amount||0);const lineTotal=Number(it.line_total||0);const taxable=Math.max(0,lineTotal-taxAmount);const name=text(it.name||'').trim()||text(it.description||'Item');const description=text(it.name&&it.description&&it.name!==it.description?it.description:'').trim();const taxLabel=it.tax_rate?`${text(it.tax_rate)}%`:(taxAmount?'Tax':'—');return <tr key={idx}>
+    {!receipt && <td className='col-no'>{idx+1}</td>}<td><strong>{name}</strong>{description&&<div className='muted'>{description}</div>}{it.sku&&<div className='item-meta'>SKU: {text(it.sku)}</div>}</td>
+    {!receipt && taxed && hasHsn && <td>{text(it.hsn_sac)||'—'}</td>}{!receipt && <td className='col-type'>{text(it.item_type||it.type||'')}</td>}
+    <td className='col-qty'>{quantity}</td><td className='col-rate'>{money(rate,currency)}</td>{taxed&&<td className='col-taxable'>{money(taxable,currency)}</td>}{taxed&&<td className='col-tax'><span>{taxLabel}</span>{taxAmount>0&&<small>{money(taxAmount,currency)}</small>}</td>}<td className='col-amount'>{money(lineTotal,currency)}</td>
+  </tr>;})}</tbody></table>;
+}
+
+const numberToWords = (value: number) => {
+  const ones=['','One','Two','Three','Four','Five','Six','Seven','Eight','Nine','Ten','Eleven','Twelve','Thirteen','Fourteen','Fifteen','Sixteen','Seventeen','Eighteen','Nineteen'];
+  const tens=['','','Twenty','Thirty','Forty','Fifty','Sixty','Seventy','Eighty','Ninety'];
+  const below100=(n:number)=>n<20?ones[n]:`${tens[Math.floor(n/10)]}${n%10?` ${ones[n%10]}`:''}`;
+  const below1000=(n:number)=>n<100?below100(n):`${ones[Math.floor(n/100)]} Hundred${n%100?` ${below100(n%100)}`:''}`;
+  const integer=Math.floor(Math.max(0,value)); if(integer===0)return 'Zero';
+  const crore=Math.floor(integer/10000000), lakh=Math.floor((integer%10000000)/100000), thousand=Math.floor((integer%100000)/1000), hundred=integer%1000;
+  return [crore?`${below100(crore)} Crore`:'',lakh?`${below100(lakh)} Lakh`:'',thousand?`${below100(thousand)} Thousand`:'',hundred?below1000(hundred):''].filter(Boolean).join(' ');
+}
+const formatDate=(value:any)=>{const raw=text(value);const match=raw.match(/^(\\d{4})-(\\d{2})-(\\d{2})/);return match?`${match[3]}/${match[2]}/${match[1]}`:(raw||'—');};
+function DocumentTotals({ payload, currency='INR', receipt=false, showTaxDetails=true }: { payload:any; currency?:string; receipt?:boolean; showTaxDetails?:boolean }) {
+  const subtotal=Number(payload.subtotal??0),discount=Number(payload.discount_total??0),tax=Number(payload.tax_total??0),total=Number(payload.total??0),balance=Number(payload.balance_due??0),paid=Number(payload.amount_paid??payload.amount_received??0),cgst=Number(payload.cgst_amount??0),sgst=Number(payload.sgst_amount??0),igst=Number(payload.igst_amount??0);
+  const showComponents=showTaxDetails&&(cgst!==0||sgst!==0||igst!==0),whole=numberToWords(total),paise=Math.round((Math.max(0,total)-Math.floor(Math.max(0,total)))*100);
+  return <div className={receipt?'receipt-summary':'document-summary'}>{!receipt&&<>
+    <div><span>Subtotal</span><strong>{money(subtotal,currency)}</strong></div>{discount!==0&&<div><span>Discount</span><strong>-{money(discount,currency)}</strong></div>
+    {showTaxDetails&&tax!==0&&!showComponents&&<div><span>GST</span><strong>{money(tax,currency)}</strong></div>}{showComponents&&cgst!==0&&<div><span>CGST</span><strong>{money(cgst,currency)}</strong></div>}{showComponents&&sgst!==0&&<div><span>SGST</span><strong>{money(sgst,currency)}</strong></div>}{showComponents&&igst!==0&&<div><span>IGST</span><strong>{money(igst,currency)}</strong></div>}
+    <div className='summary-total'><span>Total</span><strong>{money(total,currency)}</strong></div>{paid>0&&<div><span>Amount Paid</span><strong>{money(paid,currency)}</strong></div>}
+    <div className={balance>0?'balance-due':'balance-paid'}><span>{balance>0?'Balance Due':'Paid in Full'}</span><strong>{money(balance,currency)}</strong></div>
+    <div className='amount-words'><span>Amount in words</span><strong>{whole}{currency==='INR'?` Rupees${paise?` and ${String(paise).padStart(2,'0')} Paise`:''}`:''} Only</strong></div>
+  </>}{receipt&&<><div><span>Total</span><strong>{money(total,currency)}</strong></div><div><span>Received</span><strong>{money(paid,currency)}</strong></div><div><span>Balance</span><strong>{money(balance,currency)}</strong></div></>}</div>;
 }
 
 function BankDetails({ bank }: { bank: any }) {
@@ -97,32 +112,33 @@ function PaymentSection({ paymentMode, paymentLink, paymentSelection, balance, c
   </section>;
 }
 
-function Paper({ type, payload, business, customer, items, theme, fields, logoUrl, paymentSelection, paymentQrDataUrl, showBankDetails, showPaymentLink, showPaymentQr }: any) {
-  const receipt = type === 'receipt';
-  const currency = text(payload.currency_code || business.currency_code || 'INR').trim() || 'INR';
-  const resolvedLogoUrl = text(logoUrl || business.logo_url || (business.logo_storage_path ? supabase.storage.from('business-branding-public').getPublicUrl(business.logo_storage_path).data.publicUrl : ''));
-  const title = receipt ? 'Payment Receipt' : type === 'quotation' ? 'Estimate' : Number(payload.tax_total || 0) > 0 || isTaxRegistered(business) ? 'Tax Invoice' : 'Invoice';
-  if (receipt) return <article className={`paper receipt-paper ${theme.dark ? 'theme-dark' : ''}`} style={{ '--accent': theme.accent, '--table': theme.table, '--line': theme.line } as React.CSSProperties}>
-    <div className="receipt-head"><Logo url={resolvedLogoUrl} /><Tagline business={business} fields={fields} compact /><strong className="receipt-business">{text(business.name || business.legal_name || 'Business')}</strong></div>
-    <div className="receipt-title"><h1>{text(fields.title || title)}</h1><div>Invoice <strong>{text(payload.invoice_number || payload.number || '—')}</strong></div><div>Receipt <strong>{text(payload.receipt_number || payload.number || '—')}</strong></div></div>
-    <div className="receipt-customer"><span className="label">RECEIVED FROM</span><strong>{text(customer.display_name || customer.legal_name || 'Customer')}</strong>{addressLines(customer.address || customer.billing_address || customer.address_line1 || customer.address_line)?.map((l,i)=>(<div key={i}>{l}</div>))}</div>
-    <LineItems items={items} payload={payload} receipt />
-    <DocumentTotals payload={payload} currency={currency} receipt />
-    <div className="payment-detail"><span>Payment method</span><strong>{text(payload.payment_method || payload.method || '—')}</strong>{(payload.payment_reference || payload.reference) && <><span>Ref</span><strong>{text(payload.payment_reference || payload.reference)}</strong></>}</div>
-    <div className="paid-stamp">PAID</div><div className="receipt-thanks">{text(fields.notes || 'Thank you for your payment.')}</div><footer className="receipt-footer"><span>{text(fields.footer || '')}</span></footer>
+function Paper({ type, payload, business, customer, items, theme, fields, logoUrl, paymentSelection, paymentQrDataUrl, showLogo=true, showBusinessAddress=true, showTaxDetails=true, showBankDetails=false, showPaymentLink=false, showPaymentQr=false, showSignature=false, showTerms=true }: any) {
+  const receipt=type==='receipt', currency=text(payload.currency_code||business.currency_code||'INR').trim()||'INR';
+  const resolvedLogoUrl=text(logoUrl||business.logo_url||(business.logo_storage_path?supabase.storage.from('business-branding-public').getPublicUrl(business.logo_storage_path).data.publicUrl:''));
+  const taxRegistered=isTaxRegistered(business), title=receipt?'Payment Receipt':type==='quotation'?'Estimate':(Number(payload.tax_total||0)>0||taxRegistered)?'Tax Invoice':'Invoice';
+  const notes=text(payload.notes||fields.notes||''),terms=text(payload.terms||fields.terms||''),paymentMode=paymentSelection?.payment_display_mode||'none',paymentLink=text(payload.payment_link||paymentSelection?.payment_link||''),isGstDocument=type==='invoice'&&(taxRegistered||Number(payload.tax_total||0)>0||text(business.tax_registration_number).trim()),buyerTaxId=taxValue(customer);
+  const meta:any[]=[['Invoice No.',payload.invoice_number||payload.number],['Invoice Date',formatDate(payload.invoice_date)],['Due Date',formatDate(payload.due_date)]];
+  if(isGstDocument&&payload.place_of_supply_state_code)meta.push(['Place of Supply',payload.place_of_supply_state_code]);
+  if(isGstDocument&&payload.supply_type)meta.push(['Supply Type',payload.supply_type]); if(isGstDocument&&payload.reverse_charge)meta.push(['Reverse Charge','Yes']);
+  if(receipt)return <article className={`paper receipt-paper ${theme.dark?'theme-dark':''}`} style={{'--accent':theme.accent,'--table':theme.table,'--line':theme.line} as React.CSSProperties}>
+    <div className='receipt-head'>{showLogo&&<Logo url={resolvedLogoUrl}/>}<Tagline business={business} fields={fields} compact/><strong className='receipt-business'>{text(business.name||business.legal_name||'Business')}</strong>{showBusinessAddress&&<div className='receipt-contact'>{addressLines(business.address).map((l:string,i:number)=><span key={i}>{l}</span>)}</div>}</div>
+    <div className='receipt-title'><h1>{text(fields.title||title)}</h1><div>Invoice <strong>{text(payload.invoice_number||payload.number||'—')}</strong></div><div>Receipt <strong>{text(payload.receipt_number||payload.number||'—')}</strong></div><div>{formatDate(payload.created_at||payload.payment_date)}</div></div>
+    <div className='receipt-customer'><span className='label'>RECEIVED FROM</span><strong>{text(customer.display_name||customer.legal_name||'Customer')}</strong>{buyerTaxId&&<div>Tax ID: {buyerTaxId}</div>}{addressLines(customer.address||customer.billing_address||customer.address_line1||customer.address_line).map((l:string,i:number)=><div key={i}>{l}</div>)}</div>
+    <LineItems items={items} payload={payload} receipt/><DocumentTotals payload={payload} currency={currency} receipt showTaxDetails={showTaxDetails}/>
+    <div className='payment-detail'><span>Payment method</span><strong>{text(payload.payment_method||payload.method||'—')}</strong>{(payload.payment_reference||payload.reference)&&<><span>Ref</span><strong>{text(payload.payment_reference||payload.reference)}</strong></>}</div>
+    <div className='paid-stamp'>PAID</div><div className='receipt-thanks'>{text(fields.notes||'Thank you for your payment.')}</div><footer className='receipt-footer'><span>{text(fields.footer||'')}</span></footer>
   </article>;
-
-  const paymentMode = paymentSelection?.payment_display_mode || 'none';
-  const paymentLink = text(payload.payment_link || paymentSelection?.payment_link || '');
-  const templateClass = theme.className;
-  return <article className={`paper ${templateClass} ${theme.dark ? 'theme-dark' : ''}`} style={{ '--accent': theme.accent, '--table': theme.table, '--line': theme.line } as React.CSSProperties}>
-    <header className="document-header"><BusinessIdentity business={business} logoUrl={resolvedLogoUrl} fields={fields} /><div className="heading"><div className="title">{text(fields.title || title)}</div></div></header>
-    <section className="parties"><div className="bill-to"><label>BILL TO</label><strong>{text(customer.display_name || customer.legal_name || 'Customer')}</strong>{addressLines(customer.address || customer.billing_address || customer.address_line1 || customer.address_line)?.map((l,i)=>(<div key={i}>{l}</div>))}</div></section>
-    <LineItems items={items} payload={payload} receipt={false} />
-    <div className="document-summary-wrap"><DocumentTotals payload={payload} currency={currency} /></div>
-    <div className="body-grid"><div className="notes-column">{fields.notes && <section className="document-notes"><label>NOTES</label><p>{text(fields.notes)}</p></section>}{fields.terms && <section className="document-terms"><label>TERMS</label><p>{text(fields.terms)}</p></section>}</div></div>
-    {(type === 'invoice' || paymentSelection?.bank) && <PaymentSection paymentMode={type === 'invoice' ? paymentMode : 'bank'} paymentLink={paymentLink} paymentSelection={paymentSelection} balance={Number(payload.balance_due ?? 0)} currency={currency} premium={false} showBankDetails={showBankDetails} showPaymentLink={showPaymentLink} showPaymentQr={showPaymentQr} qrDataUrl={paymentQrDataUrl} />}
-    <footer><span>{text(business.name || business.legal_name || 'Business')}</span><span>{text(fields.footer || 'This is a computer generated document.')}</span></footer><div className="platform">Generated by Invoice Automation</div>
+  return <article className={`paper ${theme.className} ${theme.dark?'theme-dark':''}`} style={{'--accent':theme.accent,'--table':theme.table,'--line':theme.line} as React.CSSProperties}>
+    <header className='document-header'><div className='identity-column'><BusinessIdentity business={business} logoUrl={resolvedLogoUrl} fields={fields} showLogo={showLogo} showAddress={showBusinessAddress}/></div><div className='invoice-heading'><div className='document-title'>{text(fields.title||title)}</div><div className='document-meta'>{meta.map(([label,value]:any)=><div className='meta-row' key={label}><span>{label}</span><strong>{text(value)||'—'}</strong></div>)}</div></div></header>
+    <section className='parties-grid'><div className='party-card'><label>BILL TO</label><strong>{text(customer.display_name||customer.legal_name||'Customer')}</strong>{customer.legal_name&&customer.legal_name!==customer.display_name&&<div>{text(customer.legal_name)}</div>}{buyerTaxId&&<div className='party-highlight'>GSTIN / Tax ID: {buyerTaxId}</div>}{customer.phone&&<div>{text(customer.phone)}</div>}{customer.email&&<div>{text(customer.email)}</div>}{addressLines(customer.billing_address||customer.address||customer.address_line1||customer.address_line).map((l:string,i:number)=><div key={i}>{l}</div>)}</div>
+      {customer.shipping_address&&<div className='party-card'><label>SHIP TO</label>{addressLines(customer.shipping_address).map((l:string,i:number)=><div key={i}>{l}</div>)}</div>}
+      {isGstDocument&&<div className='tax-context'><div><span>Document</span><strong>{text(fields.title||title)}</strong></div>{business.tax_registration_number&&<div><span>GSTIN / Tax ID</span><strong>{text(business.tax_registration_number)}</strong></div>}{payload.tax_inclusive!==undefined&&<div><span>Tax</span><strong>{payload.tax_inclusive?'Inclusive':'Exclusive'}</strong></div>}</div>}
+    </section>
+    <LineItems items={items} payload={payload} receipt={false} showTaxDetails={showTaxDetails}/>
+    <div className='post-table-grid'><div className='invoice-notes-area'>{notes&&<section className='document-notes'><label>NOTES</label><p>{notes}</p></section>}{showTerms&&terms&&<section className='document-terms'><label>TERMS & CONDITIONS</label><p>{terms}</p></section>}{isGstDocument&&<div className='compliance-note'><span>{payload.reverse_charge?'Reverse charge applicable.':'Tax calculated based on the selected tax profile and invoice items.'}</span></div>}</div><DocumentTotals payload={payload} currency={currency} showTaxDetails={showTaxDetails}/></div>
+    {(type==='invoice'||paymentSelection?.bank)&&<PaymentSection paymentMode={type==='invoice'?paymentMode:'bank'} paymentLink={paymentLink} paymentSelection={paymentSelection} balance={Number(payload.balance_due??0)} currency={currency} premium={false} showBankDetails={showBankDetails} showPaymentLink={showPaymentLink} showPaymentQr={showPaymentQr} qrDataUrl={paymentQrDataUrl}/>} 
+    {showSignature&&<div className='signature-row'><div/><div className='signature-box'><span>Authorized Signatory</span>{fields.signature_label&&<em>{text(fields.signature_label)}</em>}</div></div>}
+    <footer><span>{text(business.name||business.legal_name||'Business')}</span><span>{text(fields.footer||'This is a computer generated document.')}</span></footer><div className='platform'>Generated by Moneymatters</div>
   </article>;
 }
 
@@ -139,9 +155,11 @@ export default function DocumentViewer({ type, id }: { type: string; id: string 
       const payload = loaded.data?.payload || {}, businessId = payload.business?.id || payload.business_id;
       const taxIds = Array.from(new Set((payload.items || []).map((x:any) => x.tax_rate_id).filter(Boolean)));
       if (taxIds.length) { const taxRows = await supabase.from('tax_rates').select('id,name,rate,metadata').in('id', taxIds); if (!taxRows.error) payload.items = (payload.items || []).map((x:any)=>{ const tr = (taxRows.data||[]).find((t:any)=>t.id===x.tax_rate_id); return tr?{...x,tax_rate:tr.rate}:x }); }
+      const productIds = Array.from(new Set((payload.items || []).map((x:any) => x.product_service_id).filter(Boolean)));
+      if (productIds.length) { const productRows = await supabase.from('products_services').select('id,name,sku,item_type,unit,hsn_sac').in('id', productIds).eq('business_id', businessId); if (!productRows.error) payload.items = (payload.items || []).map((x:any)=>{ const p=(productRows.data||[]).find((row:any)=>row.id===x.product_service_id); return p?{...x,name:p.name,sku:p.sku,item_type:p.item_type,unit:p.unit,hsn_sac:p.hsn_sac}:x; }); }
       const [templateResult, preferenceResult, businessResult] = await Promise.all([
         loaded.data?.template_id ? supabase.from('document_templates').select('template_key,template_name').eq('id', loaded.data.template_id).maybeSingle() : Promise.resolve({ data: null } as any),
-        businessId ? supabase.from('business_document_preferences').select('custom_fields,show_bank_details,show_payment_qr,show_payment_link').eq('business_id', businessId).eq('document_type', type).maybeSingle() : Promise.resolve({ data: null } as any),
+        businessId ? supabase.from('business_document_preferences').select('custom_fields,show_logo,show_business_address,show_tax_details,show_payment_qr,show_payment_link,show_signature,show_terms,show_bank_details').eq('business_id', businessId).eq('document_type', type).maybeSingle() : Promise.resolve({ data: null } as any),
         businessId ? supabase.from('businesses').select('id,name,legal_name,registration_number,tax_registration_number,tax_enabled,tax_mode,tax_type,currency_code,address,phone,email,website,logo_storage_path,logo_url').eq('id', businessId).maybeSingle() : Promise.resolve({ data: null } as any),
       ]);
       if (!active) return;
@@ -194,7 +212,7 @@ export default function DocumentViewer({ type, id }: { type: string; id: string 
   const number = model.invoice_number || model.quotation_number || model.receipt_number || model.number || '';
   const title = type === 'receipt' ? 'Payment Receipt' : type === 'quotation' ? 'Estimate' : 'Invoice';
   const link = typeof window !== 'undefined' ? window.location.href : '';
-  const logoUrl = business?.logo_storage_path ? supabase.storage.from('business-branding-public').getPublicUrl(business.logo_storage_path).data.publicUrl : '';
+  const logoUrl = mergedBusiness?.logo_storage_path ? supabase.storage.from('business-branding-public').getPublicUrl(mergedBusiness.logo_storage_path).data.publicUrl : '';
   const back = () => { if (type === 'invoice' && model.status === 'draft') { location.href = `/next-workspace/invoices/new?edit=${id}`; return; } history.back(); };
   const copyLink = async () => { try { await navigator.clipboard.writeText(link); setNotice('Link copied.'); } catch { setNotice('Unable to copy link.'); } };
   const share = async () => { try { if (navigator.share) await navigator.share({ title: `${title} ${number}`, text: `${mergedBusiness.name || 'Business'} · ${number}`, url: link }); else await copyLink(); } catch { await copyLink(); } };
@@ -227,8 +245,13 @@ export default function DocumentViewer({ type, id }: { type: string; id: string 
   };
   if (loading) return <div className="center">Preparing document…</div>;
   if (error) return <div className="center error">{error}</div>;
-  return <main className="page"><div className="toolbar"><div><small>DOCUMENT CENTER</small><h1>{title} {number}</h1><p>{template?.template_name || theme.label} · Print-ready</p></div><div className="actions"><button onClick={back}>Back</button><button onClick={copyLink}>Copy link</button><button onClick={share}>Share</button><button onClick={print}>Print / Save</button></div></div>
-    <Paper type={type} payload={model} business={mergedBusiness} customer={customer} items={items} theme={theme} fields={fields} logoUrl={logoUrl} paymentSelection={paymentSelection} paymentQrDataUrl={paymentQrDataUrl} showBankDetails={Boolean(preferences?.show_bank_details)} showPaymentLink={Boolean(preferences?.show_payment_link)} showPaymentQr={Boolean(preferences?.show_payment_qr)} />
+  return <main className="page"><div className="toolbar"><div><small>DOCUMENT CENTER</small><h1>{title} {number}</h1><p>{template?.template_name || theme.label} · Print-ready</p></div><div className="actions"><button onClick={back}>Back</button><button onClick={copyLink}>Copy link</button><button onClick={share}>Share Invoice</button><button onClick={print}>Print / Save PDF</button></div></div>
+    <Paper type={type} payload={model} business={mergedBusiness} customer={customer} items={items} theme={theme} fields={fields} logoUrl={logoUrl} paymentSelection={paymentSelection} paymentQrDataUrl={paymentQrDataUrl}
+      showLogo={preferences?.show_logo !== false} showBusinessAddress={preferences?.show_business_address !== false} showTaxDetails={preferences?.show_tax_details !== false}
+      showBankDetails={paymentSelection?.payment_display_mode === 'bank' || preferences?.show_bank_details === true}
+      showPaymentLink={paymentSelection?.payment_display_mode === 'online' && preferences?.show_payment_link !== false}
+      showPaymentQr={paymentSelection?.payment_display_mode === 'online' && preferences?.show_payment_qr !== false}
+      showSignature={preferences?.show_signature === true} showTerms={preferences?.show_terms !== false} />
     <style jsx global>{`*{box-sizing:border-box}.page{min-height:100vh;background:#eef1f6;padding:28px 18px}.toolbar{max-width:794px;margin:0 auto 18px;display:flex;justify-content:space-between;align-items:center}.actions{display:flex;gap:8px}.paper{width:794px;min-height:1123px;margin:0 auto;background:#fff;padding:42px 48px 34px;box-shadow:0 14px 45px rgba(15,23,42,.12);font:14px/1.45 Arial,sans-serif;color:#172033;--accent:#6d28d9;--table:#6d28d9;--line:#ddd6fe}.template-classic{--accent:#7f1d1d!important;--table:#7f1d1d!important;--line:#d6d3d1!important;padding:44px 50px 36px}.template-minimal{--accent:#111827!important;--table:#f1f5f9!important;--line:#cbd5e1!important;padding:46px 54px 40px}.template-modern{--accent:#6d28d9!important;--table:#6d28d9!important;--line:#ddd6fe!important}.template-premium{--accent:#4c1d95!important;--table:#312e81!important;--line:#d8b4fe!important;padding:38px 48px 40px;position:relative;overflow:hidden;background:linear-gradient(180deg,#ffffff 0%,#f7f1ff 100%)}.template-professional{--accent:#0f3b66!important;--table:#123f6b!important;--line:#cbd5e1!important;padding:40px 46px 34px}.receipt-paper{width:640px;min-height:auto;padding:0 0 18px}.receipt-head{text-align:center;padding:28px 46px 18px;border-bottom:1px solid var(--line)}.document-summary-wrap{display:flex;justify-content:flex-end;margin-top:18px}.document-summary,.receipt-summary{width:320px;margin-left:auto;border-top:1px solid var(--line);padding-top:10px;font-size:13px}.document-summary>div,.receipt-summary>div{display:flex;justify-content:space-between;gap:20px;padding:3px 0}.document-summary .summary-total{margin-top:6px;padding-top:8px;border-top:2px solid var(--line);font-size:16px}.receipt-summary{width:auto;margin:18px 46px 0;padding-top:10px}.receipt-summary>div{font-size:13px}.document-summary strong,.receipt-summary strong{font-weight:700}@media(max-width:860px){.toolbar{align-items:flex-start;flex-direction:column}.actions{width:100%;justify-content:flex-start}.paper,.receipt-paper{width:100%;min-height:auto}}@media print{.page{padding:0!important;background:#fff!important}.toolbar,.notice{display:none!important}.paper{margin:0!important;box-shadow:none!important}}`}</style>
   </main>;
 }
