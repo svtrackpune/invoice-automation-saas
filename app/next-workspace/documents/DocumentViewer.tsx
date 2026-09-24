@@ -82,15 +82,45 @@ const numberToWords = (value: number) => {
 }
 const formatDate=(value:any)=>{const raw=text(value);const match=raw.match(/^(\d{4})-(\d{2})-(\d{2})/);return match?`${match[3]}/${match[2]}/${match[1]}`:(raw||'—');};
 function DocumentTotals({ payload, currency='INR', receipt=false, showTaxDetails=true }: { payload:any; currency?:string; receipt?:boolean; showTaxDetails?:boolean }) {
-  const subtotal=Number(payload.subtotal??0),discount=Number(payload.discount_total??0),tax=Number(payload.tax_total??0),total=Number(payload.total??0),balance=Number(payload.balance_due??0),paid=Number(payload.amount_paid??payload.amount_received??0),cgst=Number(payload.cgst_amount??0),sgst=Number(payload.sgst_amount??0),igst=Number(payload.igst_amount??0);
-  const showComponents=showTaxDetails&&(cgst!==0||sgst!==0||igst!==0),whole=numberToWords(total),paise=Math.round((Math.max(0,total)-Math.floor(Math.max(0,total)))*100);
-  return <div className={receipt?'receipt-summary':'document-summary'}>{!receipt&&<>
-    <div><span>Subtotal</span><strong>{money(subtotal,currency)}</strong></div>{discount!==0&&<div><span>Discount</span><strong>-{money(discount,currency)}</strong></div>
-    {showTaxDetails&&tax!==0&&!showComponents&&<div><span>GST</span><strong>{money(tax,currency)}</strong></div>}{showComponents&&cgst!==0&&<div><span>CGST</span><strong>{money(cgst,currency)}</strong></div>}{showComponents&&sgst!==0&&<div><span>SGST</span><strong>{money(sgst,currency)}</strong></div>}{showComponents&&igst!==0&&<div><span>IGST</span><strong>{money(igst,currency)}</strong></div>}
-    <div className='summary-total'><span>Total</span><strong>{money(total,currency)}</strong></div>{paid>0&&<div><span>Amount Paid</span><strong>{money(paid,currency)}</strong></div>}
-    <div className={balance>0?'balance-due':'balance-paid'}><span>{balance>0?'Balance Due':'Paid in Full'}</span><strong>{money(balance,currency)}</strong></div>
-    <div className='amount-words'><span>Amount in words</span><strong>{whole}{currency==='INR'?` Rupees${paise?` and ${String(paise).padStart(2,'0')} Paise`:''}`:''} Only</strong></div>
-  </>}{receipt&&<><div><span>Total</span><strong>{money(total,currency)}</strong></div><div><span>Received</span><strong>{money(paid,currency)}</strong></div><div><span>Balance</span><strong>{money(balance,currency)}</strong></div></>}</div>;
+  const subtotal = Number(payload.subtotal ?? 0);
+  const discount = Number(payload.discount_total ?? 0);
+  const tax = Number(payload.tax_total ?? 0);
+  const total = Number(payload.total ?? 0);
+  const balance = Number(payload.balance_due ?? 0);
+  const paid = Number(payload.amount_paid ?? payload.amount_received ?? 0);
+  const cgst = Number(payload.cgst_amount ?? 0);
+  const sgst = Number(payload.sgst_amount ?? 0);
+  const igst = Number(payload.igst_amount ?? 0);
+  const showComponents = showTaxDetails && (cgst !== 0 || sgst !== 0 || igst !== 0);
+  const whole = numberToWords(total);
+  const paise = Math.round((Math.max(0,total) - Math.floor(Math.max(0,total))) * 100);
+
+  if (receipt) {
+    return <div className="receipt-summary">
+      <div><span>Total</span><strong>{money(total,currency)}</strong></div>
+      <div><span>Received</span><strong>{money(paid,currency)}</strong></div>
+      <div><span>Balance</span><strong>{money(balance,currency)}</strong></div>
+    </div>;
+  }
+
+  return <div className="document-summary">
+    <div><span>Subtotal</span><strong>{money(subtotal,currency)}</strong></div>
+    {discount !== 0 && <div><span>Discount</span><strong>-{money(discount,currency)}</strong></div>}
+    {showTaxDetails && tax !== 0 && !showComponents && <div><span>GST</span><strong>{money(tax,currency)}</strong></div>}
+    {showComponents && cgst !== 0 && <div><span>CGST</span><strong>{money(cgst,currency)}</strong></div>}
+    {showComponents && sgst !== 0 && <div><span>SGST</span><strong>{money(sgst,currency)}</strong></div>}
+    {showComponents && igst !== 0 && <div><span>IGST</span><strong>{money(igst,currency)}</strong></div>}
+    <div className="summary-total"><span>Total</span><strong>{money(total,currency)}</strong></div>
+    {paid > 0 && <div><span>Amount Paid</span><strong>{money(paid,currency)}</strong></div>}
+    <div className={balance > 0 ? 'balance-due' : 'balance-paid'}>
+      <span>{balance > 0 ? 'Balance Due' : 'Paid in Full'}</span>
+      <strong>{money(balance,currency)}</strong>
+    </div>
+    <div className="amount-words">
+      <span>Amount in words</span>
+      <strong>{whole}{currency === 'INR' ? ` Rupees${paise ? ` and ${String(paise).padStart(2,'0')} Paise` : ''}` : ''} Only</strong>
+    </div>
+  </div>;
 }
 
 function BankDetails({ bank }: { bank: any }) {
