@@ -9,7 +9,7 @@ import CustomerCreateModal from '../../customers/CustomerCreateModal';
 import type { CreatedCustomer } from '../../customers/CustomerCreateModal';
 
 type Customer = { id:string; display_name:string; legal_name:string|null; email:string|null; phone:string|null; website:string|null; payment_terms_days:number; payment_reminders_enabled:boolean; reminder_days_before_due:number; default_discount_type:string; default_discount_value:number; default_payment_display_mode:string; billing_address:Record<string, unknown>; shipping_address:Record<string, unknown> };
-type Product = { id:string; name:string; sku:string|null; description:string|null; item_type:string; unit:string|null; hsn_sac?:string|null; sales_price:number; default_tax_rate_id:string|null; discount_enabled:boolean; max_discount_type:string; max_discount_value:number };
+type Product = { id:string; name:string; sku:string|null; description:string|null; item_type:string; unit:string|null; hsn_sac?:string|null; sales_price:number; default_tax_rate_id:string|null; discount_enabled:boolean; max_discount_type:string; max_discount_value:number; inventory_tracked:boolean; track_batches:boolean; track_serials:boolean };
 type Tax = { id:string; name:string; rate:number };
 type Template = { id:string; template_name:string };
 type Bank = { id:string; name:string; institution_name:string|null; account_last4:string|null };
@@ -42,7 +42,7 @@ export default function NewInvoice(){
   const contextResult=await supabase.rpc('get_my_business_context');const business=contextResult.data?.[0] as BusinessContext|undefined;if(!business){location.href='/';return}if(!mounted)return;setCtx(business);
   const [cs,ps,ts,tp,ds,dp,tm,ba]=await Promise.all([
    supabase.from('customers').select('id,display_name,legal_name,email,phone,website,payment_terms_days,payment_reminders_enabled,reminder_days_before_due,default_discount_type,default_discount_value,default_payment_display_mode,billing_address,shipping_address').eq('business_id',business.business_id).eq('is_active',true).order('display_name'),
-   supabase.from('products_services').select('id,name,sku,description,item_type,unit,hsn_sac,sales_price,default_tax_rate_id,discount_enabled,max_discount_type,max_discount_value').eq('business_id',business.business_id).eq('is_active',true).eq('sell_enabled',true).order('name'),
+   supabase.from('products_services').select('id,name,sku,description,item_type,unit,hsn_sac,sales_price,default_tax_rate_id,discount_enabled,max_discount_type,max_discount_value,inventory_tracked,track_batches,track_serials').eq('business_id',business.business_id).eq('is_active',true).eq('sell_enabled',true).order('name'),
    supabase.from('tax_rates').select('id,name,rate').eq('business_id',business.business_id).eq('is_active',true).order('rate'),
    supabase.from('business_tax_profiles').select('tax_regime,gst_registration_type').eq('business_id',business.business_id).maybeSingle(),
    supabase.from('business_settings').select('invoice_due_days,invoice_notes,default_payment_terms,default_bank_account_id').eq('business_id',business.business_id).maybeSingle(),
