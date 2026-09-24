@@ -2,6 +2,8 @@
 
 import { useEffect, useState, type ReactNode } from 'react';
 import { supabase } from '@/lib/supabase';
+import BusinessCapabilitiesChecklist from './BusinessCapabilitiesChecklist';
+import { DEFAULT_BUSINESS_CONFIG, normalizeBusinessConfig, type BusinessFeatureConfig } from '@/lib/business-config';
 
 type Address = {
   line1?: string;
@@ -25,6 +27,7 @@ type BusinessProfile = {
   website: string | null;
   google_location_link: string | null;
   address: Address | null;
+  feature_flags: BusinessFeatureConfig;
 };
 
 type Props = {
@@ -49,25 +52,38 @@ export default function BusinessDetailsModal({ businessId, onSaved, onSkip }: Pr
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [categoryName, setCategoryName] = useState<string | null>(null);
+  const [subcategoryName, setSubcategoryName] = useState<string | null>(null);
 
   useEffect(() => {
     let active = true;
     (async () => {
       const { data, error: loadError } = await supabase
         .from('businesses')
-        .select('id,name,legal_name,phone,alternate_phone,contact_person_name,contact_person_designation,email,alternate_email,website,google_location_link,address')
+        .select('id,name,legal_name,phone,alternate_phone,contact_person_name,contact_person_designation,email,alternate_email,website,google_location_link,address,feature_flags,category_id,subcategory_id')
         .eq('id', businessId)
         .maybeSingle();
       if (!active) return;
       if (loadError) setError(loadError.message);
       else if (!data) setError('Business details could not be loaded.');
-      else setBusiness({ ...(data as BusinessProfile), address: { ...emptyAddress, ...((data as BusinessProfile).address || {}) } });
+      else {
+        const row = data as BusinessProfile & { category_id?: string | null; subcategory_id?: string | null; feature_flags?: unknown };
+        setBusiness({ ...row, feature_flags: normalizeBusinessConfig(row.feature_flags), address: { ...emptyAddress, ...(row.address || {}) } });
+        const [{ data: category }, { data: subcategory }] = await Promise.all([
+          row.category_id ? supabase.from('business_categories').select('name').eq('id', row.category_id).maybeSingle() : Promise.resolve({ data: null } as any),
+          row.subcategory_id ? supabase.from('business_subcategories').select('name').eq('id', row.subcategory_id).maybeSingle() : Promise.resolve({ data: null } as any),
+        ]);
+        if (!active) return;
+        setCategoryName(category?.name || null);
+        setSubcategoryName(subcategory?.name || null);
+      }
       setLoading(false);
     })();
     return () => { active = false; };
   }, [businessId]);
 
   const patch = (key: keyof BusinessProfile, value: string) => setBusiness((x) => x ? { ...x, [key]: value } : x);
+  const patchFeatures = (feature_flags: BusinessFeatureConfig) => setBusiness((x) => x ? { ...x, feature_flags } : x);
   const patchAddress = (key: keyof Address, value: string) => setBusiness((x) => x ? { ...x, address: { ...(x.address || emptyAddress), [key]: value } } : x);
 
   const save = async () => {
@@ -104,6 +120,7 @@ export default function BusinessDetailsModal({ businessId, onSaved, onSkip }: Pr
       website: website || null,
       google_location_link: googleLocation || null,
       address: business.address || emptyAddress,
+      feature_flags: business.feature_flags,
       onboarding_complete: true,
       onboarding_step: 'business_details_complete',
     }).eq('id', business.id);
@@ -174,6 +191,17 @@ export default function BusinessDetailsModal({ businessId, onSaved, onSkip }: Pr
                 </div>
               </section>
             </>
+          )}
+
+          {business && (
+            <section className="border-t border-slate-100 pt-6">
+              <BusinessCapabilitiesChecklist
+                value={business.feature_flags || DEFAULT_BUSINESS_CONFIG}
+                onChange={patchFeatures}
+                categoryName={categoryName}
+                subcategoryName={subcategoryName}
+              />
+            </section>
           )}
 
           <div className="flex flex-col-reverse gap-3 border-t border-slate-100 pt-5 sm:flex-row sm:items-center sm:justify-end">
