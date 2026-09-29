@@ -1,0 +1,86 @@
+'use client';
+
+import { useState } from 'react';
+import * as XLSX from 'xlsx';
+import { supabase } from '@/lib/supabase';
+
+const DIRECT_BUSINESS_TABLES = [
+  'businesses','customers','vendors','products_services','accounts','tax_rates','invoices','bills','payments','expenses',
+  'bank_accounts','bank_transactions','quotations','receipts','documents','employees','payroll_runs','payroll_items',
+  'recurring_invoices','recurring_invoice_items','payment_allocations','accounting_periods','credit_notes','debit_notes',
+  'customer_credit_ledger','customer_refunds','write_offs','vendor_credits','vendor_credit_ledger','inventory_locations',
+  'inventory_balances','inventory_movements','inventory_transfers','inventory_transfer_items','customer_item_pricing',
+  'business_document_preferences','business_document_bank_accounts','document_payment_settings','business_brand_assets',
+  'brand_color_presets','recurring_expense_templates','automation_rules','automation_runs','integration_connections',
+  'business_tax_profiles','tax_filing_profiles','tax_adjustments','tds_rules','tds_transactions','tcs_rules','tcs_transactions',
+  'tax_transaction_lines','report_snapshots','ca_exports','notification_jobs','notification_delivery_evidence',
+  'business_whatsapp_connections','whatsapp_templates','whatsapp_notification_queue','vendor_purchase_items',
+  'ai_agent_preferences','ai_insight_events','ai_action_requests','document_render_jobs','recurring_invoice_runs','fx_rates',
+  'bank_reconciliations','bank_reconciliation_items','reconciliations','reconciliation_items','year_end_closings'
+];
+
+const CHILD_TABLES = ['invoice_items','quotation_items','bill_items','credit_note_items','debit_note_items','journal_lines','vendor_credit_items','payroll_items','recurring_invoice_items','inventory_transfer_items'];
+
+function safeSheetName(name: string) { return name.replace(/[\\/?*:[\]]/g, '_').slice(0, 31); }
+
+export default function DataExportPage() {
+  const [running, setRunning] = useState(false);
+  const [message, setMessage] = useState('');
+  const [failed, setFailed] = useState<string[]>([]);
+
+  async function exportData() {
+    setRunning(true); setMessage('Preparing your business export…'); setFailed([]);
+    try {
+      const { data: context, error: contextError } = await supabase.rpc('get_my_business_context');
+      if (contextError) throw contextError;
+      const activeId = localStorage.getItem('moneymatters.activeBusinessId');
+      const businessId = (context || []).find((row: any) => row.business_id === activeId)?.business_id || context?.[0]?.business_id;
+      if (!businessId) throw new Error('No active business was found.');
+
+      const workbook = XLSX.utils.book_new();
+      const failures: string[] = [];
+      const exported = new Set<string>();
+
+      for (const table of DIRECT_BUSINESS_TABLES) {
+        const { data, error } = await supabase.from(table).select('*').eq('business_id', businessId);
+        if (error) { failures.push(table); continue; }
+        if (!data?.length) continue;
+        XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(data), safeSheetName(table));
+        exported.add(table);
+      }
+
+      const relationMap: Record<string, { parent: string; childKey: string; parentKey: string }> = {
+        invoice_items: { parent: 'invoices', childKey: 'invoice_id', parentKey: 'id' },
+        quotation_items: { parent: 'quotations', childKey: 'quotation_id', parentKey: 'id' },
+        bill_items: { parent: 'bills', childKey: 'bill_id', parentKey: 'id' },
+        credit_note_items: { parent: 'credit_notes', childKey: 'credit_note_id', parentKey: 'id' },
+        debit_note_items: { parent: 'debit_notes', childKey: 'debit_note_id', parentKey: 'id' },
+        journal_lines: { parent: 'journal_entries', childKey: 'journal_entry_id', parentKey: 'id' },
+        vendor_credit_items: { parent: 'vendor_credits', childKey: 'vendor_credit_id', parentKey: 'id' },
+        recurring_invoice_items: { parent: 'recurring_invoices', childKey: 'recurring_invoice_id', parentKey: 'id' },
+        inventory_transfer_items: { parent: 'inventory_transfers', childKey: 'transfer_id', parentKey: 'id' },
+      };
+
+      for (const table of CHILD_TABLES) {
+        const relation = relationMap[table];
+        if (!relation || !exported.has(relation.parent)) continue;
+        const { data: parents } = await supabase.from(relation.parent).select(relation.parentKey).eq('business_id', businessId);
+        const ids = (parents || []).map((row: any) => row[relation.parentKey]).filter(Boolean);
+        if (!ids.length) continue;
+        const { data, error } = await supabase.from(table).select('*').in(relation.childKey, ids);
+        if (error) { failures.push(table); continue; }
+        if (data?.length) XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(data), safeSheetName(table));
+      }
+
+      if (!workbook.SheetNames.length) throw new Error('No exportable business data was found.');
+      const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+      XLSX.writeFile(workbook, `moneymatters-business-export-${stamp}.xlsx`);
+      setFailed(failures);
+      setMessage(`Export complete: ${workbook.SheetNames.length} sheets downloaded.`);
+    } catch (error: any) {
+      setMessage(error?.message || 'Export failed.');
+    } finally { setRunning(false); }
+  }
+
+  return <main className="min-h-[calc(100vh-100px)] bg-[#fbfaff] p-4 sm:p-7"><div className="mx-auto max-w-5xl"><header className="mb-6"><p className="text-[10px] font-bold uppercase tracking-[.18em] text-violet-600">Data & export</p><h1 className="mt-1 text-3xl font-semibold tracking-tight text-slate-950">Your business data</h1><p className="mt-2 max-w-3xl text-sm leading-6 text-slate-500">Export your business records to Excel for reporting, analysis or migration. The export is restricted to the active business and never includes authentication secrets.</p></header><section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm"><div className="grid gap-4 md:grid-cols-3"><div className="rounded-xl bg-violet-50 p-4"><b className="block text-sm text-violet-900">Excel workbook</b><span className="mt-1 block text-xs leading-5 text-violet-700">Separate sheets for customers, products, invoices, payments, expenses, accounting and operational data.</span></div><div className="rounded-xl bg-emerald-50 p-4"><b className="block text-sm text-emerald-900">Business scoped</b><span className="mt-1 block text-xs leading-5 text-emerald-700">Only records belonging to your active business are requested.</span></div><div className="rounded-xl bg-amber-50 p-4"><b className="block text-sm text-amber-900">Portable data</b><span className="mt-1 block text-xs leading-5 text-amber-700">Use the workbook for analysis, accountant handoff or future migration.</span></div></div><div className="mt-6 flex flex-wrap items-center gap-3"><button type="button" disabled={running} onClick={exportData} className="rounded-xl bg-violet-600 px-5 py-3 text-sm font-semibold text-white shadow-sm hover:bg-violet-700 disabled:cursor-wait disabled:opacity-60">{running?'Preparing export…':'Export all business data to Excel'}</button>{message&&<span className="text-sm text-slate-600">{message}</span>}</div>{failed.length>0&&<div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-4 text-xs text-amber-800"><b>Some optional datasets could not be exported:</b> {failed.join(', ')}. This does not affect the sheets that were successfully exported.</div>}</section></div></main>;
+}
