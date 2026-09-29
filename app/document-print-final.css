@@ -21,32 +21,15 @@
     page-break-after: auto !important;
   }
 
-  .paper:not(.receipt-paper) > * {
-    max-width: 100% !important;
-    box-sizing: border-box !important;
-  }
-  .paper:not(.receipt-paper) .document-header {
-    grid-template-columns: minmax(0, 1fr) minmax(190px, 32%) !important;
-    gap: 16px !important;
-  }
-  .paper:not(.receipt-paper) .parties-grid {
-    grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr) minmax(0, .8fr) !important;
-  }
+  .paper:not(.receipt-paper) > * { max-width: 100% !important; box-sizing: border-box !important; }
+  .paper:not(.receipt-paper) .document-header { grid-template-columns: minmax(0, 1fr) minmax(190px, 32%) !important; gap: 16px !important; }
+  .paper:not(.receipt-paper) .parties-grid { grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr) minmax(0, .8fr) !important; }
   .paper:not(.receipt-paper) .body-grid,
-  .paper:not(.receipt-paper) .post-table-grid {
-    grid-template-columns: minmax(0, 1fr) minmax(0, 32%) !important;
-    gap: 16px !important;
-  }
+  .paper:not(.receipt-paper) .post-table-grid { grid-template-columns: minmax(0, 1fr) minmax(0, 32%) !important; gap: 16px !important; }
   .paper:not(.receipt-paper) .totalwrap,
-  .paper:not(.receipt-paper) .document-summary {
-    min-width: 0 !important;
-    max-width: 100% !important;
-    width: 100% !important;
-  }
+  .paper:not(.receipt-paper) .document-summary { min-width: 0 !important; max-width: 100% !important; width: 100% !important; }
 
-  .paper:not(.receipt-paper) .business-identity {
-    padding-bottom: 8px !important;
-  }
+  .paper:not(.receipt-paper) .business-identity { padding-bottom: 8px !important; }
   .paper:not(.receipt-paper) .document-header,
   .paper:not(.receipt-paper) .parties-grid,
   .paper:not(.receipt-paper) .party-card,
@@ -57,49 +40,21 @@
   .paper:not(.receipt-paper) .post-table-grid,
   .paper:not(.receipt-paper) .payment,
   .paper:not(.receipt-paper) .bank-details,
-  .paper:not(.receipt-paper) footer {
-    break-inside: avoid;
-    page-break-inside: avoid;
-  }
+  .paper:not(.receipt-paper) footer { break-inside: avoid; page-break-inside: avoid; }
 
-  .paper:not(.receipt-paper) .parties-grid {
-    gap: 7px !important;
-    margin-top: 8px !important;
-  }
+  .paper:not(.receipt-paper) .parties-grid { gap: 7px !important; margin-top: 8px !important; }
   .paper:not(.receipt-paper) .party-card,
-  .paper:not(.receipt-paper) .tax-context {
-    min-height: 0 !important;
-    padding: 8px !important;
-  }
-  .paper:not(.receipt-paper) .items {
-    margin-top: 8px !important;
-    width: 100% !important;
-  }
+  .paper:not(.receipt-paper) .tax-context { min-height: 0 !important; padding: 8px !important; }
+  .paper:not(.receipt-paper) .items { margin-top: 8px !important; width: 100% !important; }
   .paper:not(.receipt-paper) .items th,
-  .paper:not(.receipt-paper) .items td {
-    padding: 5px !important;
-    font-size: 9.5px !important;
-    line-height: 1.2 !important;
-  }
-  .paper:not(.receipt-paper) .document-summary {
-    margin-top: 7px !important;
-  }
-  .paper:not(.receipt-paper) .document-summary > div {
-    padding: 2px 0 !important;
-  }
-  .paper:not(.receipt-paper) .document-summary .summary-total {
-    padding: 5px 0 !important;
-  }
-  .paper:not(.receipt-paper) .amount-words {
-    margin-top: 5px !important;
-    padding: 6px !important;
-  }
-  .paper:not(.receipt-paper) .post-table-grid {
-    margin-top: 7px !important;
-  }
+  .paper:not(.receipt-paper) .items td { padding: 5px !important; font-size: 9.5px !important; line-height: 1.2 !important; }
+  .paper:not(.receipt-paper) .document-summary { margin-top: 7px !important; }
+  .paper:not(.receipt-paper) .document-summary > div { padding: 2px 0 !important; }
+  .paper:not(.receipt-paper) .document-summary .summary-total { padding: 5px 0 !important; }
+  .paper:not(.receipt-paper) .amount-words { margin-top: 5px !important; padding: 6px !important; }
+  .paper:not(.receipt-paper) .post-table-grid { margin-top: 7px !important; }
 
-  /* One defined payment box. The selected payment method lives inside this
-     box; it must never expand into the rest of the invoice page. */
+  /* One defined payment box. The selected payment method lives inside this box. */
   .paper:not(.receipt-paper) .payment {
     width: 330px !important;
     max-width: 100% !important;
@@ -112,50 +67,23 @@
     background: #fff !important;
     display: block !important;
   }
-  .paper:not(.receipt-paper) .payment-combined {
-    display: block !important;
-  }
-  .paper:not(.receipt-paper) .payment-combined .bank-payment-column {
-    padding-right: 0 !important;
-    border-right: 0 !important;
-  }
+  .paper:not(.receipt-paper) .payment-combined { display: block !important; }
+  .paper:not(.receipt-paper) .payment-combined .bank-payment-column { display: none !important; }
+  .paper:not(.receipt-paper) .payment-combined .online-payment-column { display: block !important; }
+  .paper:not(.receipt-paper) .payment-combined .bank-payment-column { padding-right: 0 !important; border-right: 0 !important; }
   .paper:not(.receipt-paper) .bank-payment-column,
-  .paper:not(.receipt-paper) .online-payment-column {
-    width: 100% !important;
-    min-width: 0 !important;
-    box-sizing: border-box !important;
-  }
+  .paper:not(.receipt-paper) .online-payment-column { width: 100% !important; min-width: 0 !important; box-sizing: border-box !important; }
   .paper:not(.receipt-paper) .bank-details,
-  .paper:not(.receipt-paper) .online-payment-column > div {
-    width: 100% !important;
-    max-width: 100% !important;
-    min-width: 0 !important;
-    box-sizing: border-box !important;
-  }
+  .paper:not(.receipt-paper) .online-payment-column > div { width: 100% !important; max-width: 100% !important; min-width: 0 !important; box-sizing: border-box !important; }
   .paper:not(.receipt-paper) .bank-details label,
-  .paper:not(.receipt-paper) .online-payment-column label {
-    display: block !important;
-    margin-bottom: 4px !important;
-    font-size: 7.5px !important;
-    line-height: 1.1 !important;
-  }
+  .paper:not(.receipt-paper) .online-payment-column label { display: block !important; margin-bottom: 4px !important; font-size: 7.5px !important; line-height: 1.1 !important; }
   .paper:not(.receipt-paper) .bank-details strong,
-  .paper:not(.receipt-paper) .online-payment-column strong {
-    display: block !important;
-    font-size: 9.5px !important;
-    line-height: 1.25 !important;
-  }
+  .paper:not(.receipt-paper) .online-payment-column strong { display: block !important; font-size: 9.5px !important; line-height: 1.25 !important; }
   .paper:not(.receipt-paper) .bank-details span,
   .paper:not(.receipt-paper) .bank-details div,
-  .paper:not(.receipt-paper) .online-payment-column span {
-    font-size: 8px !important;
-    line-height: 1.25 !important;
-    margin-top: 1px !important;
-    overflow-wrap: anywhere !important;
-  }
+  .paper:not(.receipt-paper) .online-payment-column span { font-size: 8px !important; line-height: 1.25 !important; margin-top: 1px !important; overflow-wrap: anywhere !important; }
 
-  /* Online payment is intentionally vertical: Pay Now first, QR immediately below.
-     The extra specificity also wins over the isolated print iframe's inline print CSS. */
+  /* Online payment: Pay Now first, QR immediately below. */
   .paper:not(.receipt-paper).paper .online-payment-column > div {
     display: flex !important;
     flex-direction: column !important;
@@ -164,10 +92,7 @@
     gap: 4px !important;
     grid-template-columns: 1fr !important;
   }
-  .paper:not(.receipt-paper).paper .online-payment-column > div > div:has(a) {
-    display: block !important;
-    width: auto !important;
-  }
+  .paper:not(.receipt-paper).paper .online-payment-column > div > div:has(a) { display: block !important; width: auto !important; }
   .paper:not(.receipt-paper) .online-payment-column a {
     display: inline-block !important;
     margin-top: 3px !important;
@@ -176,6 +101,7 @@
     font-size: 8px !important;
     line-height: 1.2 !important;
     text-decoration: none !important;
+    text-transform: capitalize !important;
   }
   .paper:not(.receipt-paper) .qr {
     width: 72px !important;
@@ -187,28 +113,13 @@
     justify-content: center !important;
     flex-direction: column !important;
   }
-  .paper:not(.receipt-paper) .qr img {
-    width: 62px !important;
-    height: 62px !important;
-    object-fit: contain !important;
-  }
+  .paper:not(.receipt-paper) .qr img { width: 62px !important; height: 62px !important; object-fit: contain !important; }
 
   .paper:not(.receipt-paper) .document-notes,
-  .paper:not(.receipt-paper) .document-terms {
-    margin-top: 5px !important;
-  }
-  .paper:not(.receipt-paper) footer {
-    margin-top: 6px !important;
-    padding-top: 5px !important;
-  }
-
+  .paper:not(.receipt-paper) .document-terms { margin-top: 5px !important; }
+  .paper:not(.receipt-paper) footer { margin-top: 6px !important; padding-top: 5px !important; }
   .paper:not(.receipt-paper) .post-table-grid,
   .paper:not(.receipt-paper) .payment,
   .paper:not(.receipt-paper) .bank-details,
-  .paper:not(.receipt-paper) footer {
-    break-before: auto !important;
-    page-break-before: auto !important;
-    break-after: auto !important;
-    page-break-after: auto !important;
-  }
+  .paper:not(.receipt-paper) footer { break-before: auto !important; page-break-before: auto !important; break-after: auto !important; page-break-after: auto !important; }
 }
