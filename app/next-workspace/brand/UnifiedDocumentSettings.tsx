@@ -38,12 +38,26 @@ function InvoicePreview({ type, templateKey, brand, pref }: { type: 'invoice' | 
 }
 
 function ReceiptPreview({ templateKey, brand, pref }: { templateKey: TemplateKey; brand: Brand; pref: Pref }) {
-  const primary = pref.primary_color || brand.brand_primary_color || '#111827'; const accent = pref.accent_color || brand.brand_accent_color || '#7c3aed'; const dark = templateKey === 'bold' || templateKey === 'compact'; const compact = templateKey === 'compact'; const minimal = templateKey === 'minimal'; const modern = templateKey === 'modern';
-  return <div className={`mx-auto w-full max-w-[820px] bg-white p-8 text-slate-800 shadow-xl ${minimal ? 'border border-slate-200' : ''}`} style={{ fontFamily: pref.font_family }}>
-    <header className={`rounded-2xl p-6 ${dark ? 'text-white' : modern ? 'bg-violet-50' : 'border border-slate-200'}`} style={dark ? { backgroundColor: primary } : undefined}><div className="flex items-start justify-between gap-6"><div className="flex items-start gap-3">{pref.show_logo && <Logo brand={brand} compact />}<div><div className={`text-lg font-black ${dark ? 'text-white' : ''}`} style={!dark ? { color: primary } : undefined}>{brand.name || 'Your Business Name'}</div>{pref.show_business_address && <div className={`mt-2 text-[10px] leading-4 ${dark ? 'text-white/70' : 'text-slate-500'}`}>123 Business Street · Nilanga, Maharashtra 413521<br />+91 98765 43210 · business@example.com</div>}</div></div><div className="text-right"><div className={`text-2xl font-black ${dark ? 'text-white' : ''}`} style={!dark ? { color: accent } : undefined}>PAYMENT RECEIPT</div><div className={`mt-2 text-xs ${dark ? 'text-white/70' : 'text-slate-500'}`}>RCT-000004 · 22 Aug 2026</div></div></div></header>
-    <section className={`mx-auto mt-8 max-w-xl rounded-3xl p-8 text-center ${compact ? 'rounded-xl' : ''} ${modern ? 'bg-violet-50' : 'border border-slate-200 bg-slate-50'}`}><p className="text-[10px] font-bold uppercase tracking-[.18em] text-slate-400">Amount received</p><div className="mt-2 text-5xl font-black" style={{ color: accent }}>₹5,900</div><div className="mt-2 text-sm font-semibold text-emerald-600">Payment received</div></section>
-    <section className="mx-auto mt-8 max-w-xl rounded-2xl border border-slate-200 p-6"><div className="grid grid-cols-2 gap-5"><div><p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Received from</p><b className="mt-1 block">Rahul Sharma</b><span className="text-xs text-slate-500">customer@example.com · +91 98765 43210</span></div><div className="text-right"><p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Business</p><b className="mt-1 block">{brand.name || 'Your Business Name'}</b></div></div><div className="mt-6 grid gap-3 border-t border-slate-200 pt-5 text-sm"><div className="flex justify-between"><span>Against invoice</span><b>INV-000009</b></div><div className="flex justify-between"><span>Payment method</span><b>UPI</b></div><div className="flex justify-between"><span>Reference</span><b>UPI123456789</b></div></div></section>
-    {pref.show_terms && <p className="mx-auto mt-8 max-w-xl text-center text-xs text-slate-500">Thank you for your payment.</p>}<footer className="mt-12 border-t border-slate-200 pt-4 text-center text-[10px] text-slate-400">This receipt confirms payment received.</footer>
+  const primary = pref.primary_color || brand.brand_primary_color || '#111827';
+  const accent = pref.accent_color || brand.brand_accent_color || '#7c3aed';
+  const dark = templateKey === 'bold' || templateKey === 'compact';
+  const minimal = templateKey === 'minimal';
+  const modern = templateKey === 'modern';
+  const shell = dark ? 'text-white' : modern ? 'bg-violet-50/40' : minimal ? 'border border-slate-200' : 'border border-slate-200';
+  return <div className="mx-auto w-full max-w-[360px] bg-white px-5 py-6 text-slate-800 shadow-xl" style={{ fontFamily: pref.font_family }}>
+    <div className={`text-center rounded-2xl p-4 ${shell}`} style={dark ? { backgroundColor: primary } : undefined}>
+      {pref.show_logo && <div className="mx-auto grid h-14 w-20 place-items-center rounded-lg border border-dashed border-slate-300 bg-white text-[8px] font-bold text-slate-400">LOGO</div>}
+      <div className={`mt-2 text-xs ${dark ? 'text-white/70' : 'text-slate-500'}`}>22 Aug 2026</div>
+    </div>
+    <div className="mt-3 space-y-2">
+      <div className="rounded-lg border px-3 py-2 text-center text-xs font-black uppercase tracking-wider" style={{ color: accent, borderColor: accent }}>PAID</div>
+      <div className="flex items-center justify-between border-b border-dashed border-slate-200 pb-2 text-xs"><span className="text-slate-500">Balance</span><b>₹0.00</b></div>
+    </div>
+    <div className="mt-4 border-b border-slate-200 pb-3"><p className="text-[9px] font-bold uppercase tracking-[.16em]" style={{ color: accent }}>Customer</p><b className="mt-1 block text-sm">Rahul Sharma</b><span className="text-[10px] text-slate-500">+91 98765 43210</span></div>
+    <table className="mt-3 w-full border-collapse text-xs"><thead><tr className="border-b border-slate-300 text-[9px] uppercase tracking-wider text-slate-500"><th className="py-2 text-left">Item</th><th className="w-10 py-2 text-center">Qty</th><th className="w-20 py-2 text-right">Amount</th></tr></thead><tbody><tr className="border-b border-dashed border-slate-200"><td className="py-2">Professional service</td><td className="py-2 text-center">2</td><td className="py-2 text-right font-semibold">₹5,000</td></tr><tr className="border-b border-dashed border-slate-200"><td className="py-2">Additional service</td><td className="py-2 text-center">1</td><td className="py-2 text-right font-semibold">₹1,000</td></tr></tbody></table>
+    <div className="mt-3 flex justify-between border-y-2 py-2 text-sm font-bold" style={{ borderColor: primary }}><span>Total Amount</span><b style={{ color: accent }}>₹6,000</b></div>
+    <div className="mt-5 text-center text-xs font-semibold text-slate-600">Thanks for visit</div>
+    <div className="mt-4 border-t pt-3 text-center text-[9px] text-slate-400">Powered by <b style={{ color: accent }}>Moneymatters</b></div>
   </div>;
 }
 function Preview({ type, templateKey, brand, pref }: { type: DocType; templateKey: TemplateKey; brand: Brand; pref: Pref }) { return type === 'receipt' ? <ReceiptPreview templateKey={templateKey} brand={brand} pref={pref} /> : <InvoicePreview type={type} templateKey={templateKey} brand={brand} pref={pref} />; }
