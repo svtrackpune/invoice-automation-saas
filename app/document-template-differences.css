@@ -1,0 +1,124 @@
+/* Moneymatters — deliberate visual separation between production templates.
+   Presentation-only: no accounting values, tax rules, payment logic or document data are changed. */
+
+/* CLASSIC — traditional business stationery: centered authority, ruled sections, serif hierarchy. */
+.paper.template-classic {
+  font-family: Georgia, 'Times New Roman', serif;
+  border: 1px solid #d6d3d1;
+  border-top: 7px solid #7f1d1d;
+  background: #fffdf9;
+}
+.paper.template-classic .document-header {
+  padding: 18px 0 16px;
+  border-bottom: 3px double #b8b1aa;
+}
+.paper.template-classic .business-identity { border-right: 1px solid #ddd6d0; padding-right: 22px; }
+.paper.template-classic .title { font-family: Georgia, serif; letter-spacing: .04em; text-transform: uppercase; }
+.paper.template-classic .parties > div { border: 1px solid #d9d3cd; background: #faf7f2; padding: 13px 15px; }
+.paper.template-classic .items { border: 1px solid #cfc7c0; }
+.paper.template-classic .items th { background: #7f1d1d; color: #fff; font-family: Georgia, serif; letter-spacing: .05em; }
+.paper.template-classic .items td { border-bottom: 1px solid #e3ddd7; }
+.paper.template-classic .totals { border: 1px solid #cfc7c0; background: #faf7f2; }
+.paper.template-classic .totals .grand { background: #7f1d1d; color: #fff; }
+.paper.template-classic .payment { border: 1px solid #cfc7c0; background: #faf7f2; }
+.paper.template-classic footer { border-top: 3px double #b8b1aa; text-align: center; font-family: Georgia, serif; }
+
+/* MODERN — product/tech feel: strong purple accent, cards, rounded surfaces, large title. */
+.paper.template-modern .document-header { border-bottom: 2px solid #ddd6fe; }
+.paper.template-modern .title { font-weight: 900; }
+.paper.template-modern .items th { letter-spacing: .08em; }
+.paper.template-modern .items tbody tr:nth-child(even) { background: #faf8ff; }
+.paper.template-modern .totals .grand { border-radius: 8px; }
+.paper.template-modern .payment { box-shadow: 0 8px 22px rgba(91,33,182,.08); }
+.paper.template-modern footer { color: #6d6680; }
+
+/* PREMIUM — luxury stationery: framed paper, layered accent bands, generous spacing and strong total. */
+.paper.template-premium {
+  position: relative;
+  border: 1px solid #d8c7f0;
+  background: linear-gradient(#fff, #fdfaff);
+  box-shadow: inset 0 0 0 5px #fff, inset 0 0 0 6px #e8ddf6;
+}
+.paper.template-premium::after {
+  content: '';
+  position: absolute;
+  top: 17px;
+  right: 17px;
+  bottom: 17px;
+  width: 3px;
+  background: linear-gradient(#5b21b6, #c4b5fd, transparent);
+  pointer-events: none;
+}
+.paper.template-premium .document-header { padding-bottom: 28px; border-bottom: 1px solid #c4b5fd; }
+.paper.template-premium .title { font-size: 36px; font-weight: 900; letter-spacing: -.03em; }
+.paper.template-premium .parties > div { padding: 17px; border: 1px solid #e5d9f4; border-radius: 14px; background: rgba(250,247,255,.8); }
+.paper.template-premium .items { border: 1px solid #d8c7f0; border-radius: 14px; }
+.paper.template-premium .items th { background: #5b21b6; padding-top: 12px; padding-bottom: 12px; }
+.paper.template-premium .items td { padding-top: 14px; padding-bottom: 14px; }
+.paper.template-premium .totals { border: 1px solid #d8c7f0; border-radius: 14px; padding: 14px 16px; background: #fff; }
+.paper.template-premium .totals .grand { background: linear-gradient(90deg,#5b21b6,#7c3aed); border-radius: 9px; }
+.paper.template-premium .payment { border: 1px solid #d8c7f0; border-radius: 14px; background: #faf7ff; }
+.paper.template-premium footer { letter-spacing: .03em; }
+
+/* PROFESSIONAL — corporate/accounting feel: navy, compact geometry, square edges, dense information hierarchy. */
+.paper.template-professional {
+  font-family: Arial, Helvetica, sans-serif;
+  border: 1px solid #cbd5e1;
+  border-top: 9px solid #0f3b66;
+  background: #fff;
+}
+.paper.template-professional .document-header { padding: 14px 0; border-bottom: 2px solid #0f3b66; }
+.paper.template-professional .title { font-size: 30px; font-weight: 800; letter-spacing: .01em; color: #0f3b66; }
+.paper.template-professional .meta { line-height: 1.55; }
+.paper.template-professional .parties { gap: 10px; padding-top: 14px; padding-bottom: 14px; }
+.paper.template-professional .parties > div { padding: 10px 12px; border-left: 4px solid #0f3b66; background: #f8fafc; }
+.paper.template-professional .items { border: 1px solid #cbd5e1; border-radius: 0; }
+.paper.template-professional .items th { background: #123f6b; color: #fff; padding: 8px; font-size: 10px; letter-spacing: .07em; }
+.paper.template-professional .items td { padding: 8px; font-size: 11px; border-bottom: 1px solid #e2e8f0; }
+.paper.template-professional .items tbody tr:nth-child(even) { background: #f8fafc; }
+.paper.template-professional .totals { border-top: 2px solid #0f3b66; border-radius: 0; background: #f8fafc; }
+.paper.template-professional .totals .grand { background: #0f3b66; color: #fff; }
+.paper.template-professional .payment { border: 1px solid #cbd5e1; border-left: 4px solid #0f3b66; border-radius: 0; background: #f8fafc; }
+.paper.template-professional footer { border-top: 1px solid #cbd5e1; }
+
+/* MINIMAL — deliberately stripped down: no boxes, no fills, typography and whitespace do the work. */
+.paper.template-minimal .document-header { border-bottom: 1px solid #111827; }
+.paper.template-minimal .parties > div { min-height: auto; }
+.paper.template-minimal .items tbody tr:nth-child(even) { background: transparent; }
+.paper.template-minimal .totals .grand { border-top: 2px solid #111827; }
+.paper.template-minimal .payment { border-top: 1px solid #111827; border-bottom: 1px solid #dbe1e8; border-left: 0; border-right: 0; border-radius: 0; background: transparent; }
+.paper.template-minimal footer { border-top: 1px solid #dbe1e8; text-align: center; letter-spacing: .08em; text-transform: uppercase; }
+
+/* RECEIPTS: preserve the requested compact 2.5-inch format while giving each template a recognizable identity. */
+.receipt-paper.template-classic .receipt-head { border-bottom: 3px double #7f1d1d; font-family: Georgia, serif; }
+.receipt-paper.template-classic .receipt-title { color: #7f1d1d; font-family: Georgia, serif; letter-spacing: .08em; }
+.receipt-paper.template-classic .receipt-items th { background: #7f1d1d; color: #fff; }
+.receipt-paper.template-modern .receipt-head { border-bottom: 3px solid #6d28d9; }
+.receipt-paper.template-modern .receipt-title { color: #6d28d9; font-weight: 900; }
+.receipt-paper.template-modern .receipt-items { border-radius: 8px; overflow: hidden; }
+.receipt-paper.template-modern .receipt-items th { background: #6d28d9; color: #fff; }
+.receipt-paper.template-premium .receipt-head { border-bottom: 1px solid #c4b5fd; box-shadow: inset 0 3px 0 #5b21b6; }
+.receipt-paper.template-premium .receipt-title { color: #5b21b6; letter-spacing: .06em; }
+.receipt-paper.template-premium .receipt-items { border: 1px solid #d8c7f0; border-radius: 8px; }
+.receipt-paper.template-professional .receipt-head { border-bottom: 3px solid #0f3b66; }
+.receipt-paper.template-professional .receipt-title { color: #0f3b66; font-family: Arial, Helvetica, sans-serif; font-weight: 800; }
+.receipt-paper.template-professional .receipt-items th { background: #123f6b; color: #fff; }
+.receipt-paper.template-minimal .receipt-head { border-bottom: 1px solid #111827; }
+.receipt-paper.template-minimal .receipt-title { color: #111827; font-weight: 800; letter-spacing: .12em; }
+.receipt-paper.template-minimal .receipt-items { border: 0; }
+.receipt-paper.template-minimal .receipt-items th { background: #fff; color: #111827; border-top: 1px solid #111827; border-bottom: 1px solid #111827; }
+
+/* Print safety: never introduce decorative overflow or force color-dependent accounting content. */
+@media print {
+  .paper.template-premium::after { display: none; }
+  .paper.template-modern,
+  .paper.template-premium,
+  .paper.template-professional,
+  .paper.template-classic,
+  .paper.template-minimal { box-shadow: none !important; }
+  .paper.template-modern::before { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+  .paper.template-premium .totals .grand,
+  .paper.template-professional .totals .grand,
+  .paper.template-modern .totals .grand,
+  .paper.template-classic .totals .grand { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+}
