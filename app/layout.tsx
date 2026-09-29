@@ -20,6 +20,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
     <html lang="en" className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}>
       <head>
         <style dangerouslySetInnerHTML={{ __html: `
+          /* Screen document canvas: A4 for invoices/estimates, thermal for receipts. */
           .paper:not(.receipt-paper) { width:210mm!important; min-height:297mm!important; box-sizing:border-box!important; }
           .receipt-paper { width:2.5in!important; max-width:2.5in!important; min-height:0!important; box-sizing:border-box!important; }
           .receipt-paper .receipt-head,.receipt-paper .receipt-title,.receipt-paper .receipt-customer,.receipt-paper .receipt-items,.receipt-paper .receipt-totals,.receipt-paper .payment-detail,.receipt-paper .receipt-thanks,.receipt-paper .receipt-footer { max-width:100%!important; box-sizing:border-box!important; margin-left:0!important; margin-right:0!important; }
@@ -27,14 +28,36 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
           .receipt-paper .receipt-customer { margin-left:8px!important; margin-right:8px!important; }
           .receipt-paper .receipt-items { width:calc(100% - 16px)!important; margin-left:8px!important; }
           .receipt-paper .receipt-totals,.receipt-paper .payment-detail,.receipt-paper .receipt-thanks,.receipt-paper .receipt-footer { margin-left:8px!important; margin-right:8px!important; }
-          @page receipt { size:2.5in auto; margin:0; }
+
+          /* Explicit physical page contracts. Browsers use these when opening the print dialog/PDF flow. */
+          @page a4-document { size: A4 portrait; margin: 0; }
+          @page receipt { size: 2.5in auto; margin: 0; }
+
           @media print {
-            html,body { margin:0!important; padding:0!important; background:#fff!important; }
-            .paper:not(.receipt-paper) { page:a4-document; width:210mm!important; min-height:297mm!important; margin:0!important; box-shadow:none!important; }
-            .receipt-paper { page:receipt; width:2.5in!important; max-width:2.5in!important; min-height:0!important; margin:0!important; box-shadow:none!important; overflow:visible!important; }
-            .receipt-paper * { max-width:100%!important; }
+            html, body { margin:0!important; padding:0!important; background:#fff!important; }
+            .paper:not(.receipt-paper) {
+              page: a4-document;
+              width:210mm!important;
+              min-width:210mm!important;
+              max-width:210mm!important;
+              min-height:0!important;
+              height:auto!important;
+              margin:0!important;
+              box-sizing:border-box!important;
+              box-shadow:none!important;
+              overflow:visible!important;
+            }
+            .receipt-paper {
+              page:receipt;
+              width:2.5in!important;
+              max-width:2.5in!important;
+              min-height:0!important;
+              margin:0!important;
+              box-shadow:none!important;
+              overflow:visible!important;
+            }
+            .receipt-paper * { max-width:100%!important; box-sizing:border-box!important; }
           }
-          @page a4-document { size:A4; margin:0; }
         ` }} />
       </head>
       <body className="min-h-full flex flex-col">
