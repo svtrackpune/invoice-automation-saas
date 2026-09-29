@@ -1,0 +1,22 @@
+.page{min-height:100vh;background:#f6f7fb}
+.page :global(main){padding:14px 12px!important}
+.page :global(main>div){max-width:780px!important}
+.page :global(main>div>header){margin-bottom:12px!important;align-items:center!important}
+.page :global(main>div>header h1){font-size:1.35rem!important;line-height:1.25!important}
+.page :global(main>div>header p){margin-top:.25rem!important}
+.page :global(main>div>.grid){display:grid!important;grid-template-columns:minmax(0,1fr)!important;gap:12px!important}
+.page :global(main>div>.grid>div:first-child){display:contents}
+.page :global(main>div>.grid>section){position:static!important;top:auto!important;max-width:none!important}
+.page :global(main section.rounded-3xl){border-radius:14px!important;box-shadow:0 1px 2px rgb(15 23 42 / .04)!important}
+.page :global(main section.p-5){padding:14px!important}
+.page :global(main section.p-5.sm\:p-6){padding:14px!important}
+.page :global(main section>div:first-child h2){font-size:.95rem!important}
+.page :global(main input),.page :global(main select){min-height:38px!important;border-radius:9px!important}
+.page :global(main button){border-radius:9px!important}
+.page :global(main table){min-width:760px!important}
+.page :global(main .overflow-x-auto){border-radius:0 0 12px 12px}
+.page :global(main .lg\:sticky){position:static!important;top:auto!important}
+.page :global(main .text-3xl){font-size:1.65rem!important}
+@media (min-width:768px){.page :global(main){padding:20px 18px!important}.page :global(main>div){max-width:820px!important}.page :global(main>div>header h1){font-size:1.5rem!important}}
+@media (max-width:640px){.page :global(main){padding:8px!important}.page :global(main section){border-radius:12px!important}.page :global(main .min-w-\[900px\]){min-width:680px!important}.page :global(main>div>header .flex){width:100%}.page :global(main>div>header button){flex:1}.page :global(main .grid-cols-2){grid-template-columns:1fr!important}}
+@media print{.page :global(main){background:#fff!important;padding:0!important}.page :global(main>div){max-width:none!important}.page :global(main>div>header){display:none!important}.page :global(main section){box-shadow:none!important}}
