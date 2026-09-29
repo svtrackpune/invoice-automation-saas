@@ -14,14 +14,14 @@ export type AdaptiveNavGroup = {
 };
 
 // Navigation is intentionally ordered by daily workflow: home -> sales -> money out -> catalog -> finance -> reporting -> settings.
-// Keep this order stable so the same information hierarchy is used by the desktop sidebar and the mobile drawer.
+// Estimates opens the estimate library; creation is available from the library so users always land on the list/report first.
 const NAVIGATION: AdaptiveNavGroup[] = [
   { name: 'Workspace', items: [{ label: 'Dashboard', href: '/next-workspace', always: true }] },
   {
     name: 'Sales',
     items: [
       { label: 'Invoices', href: '/next-workspace/invoices', always: true },
-      { label: 'Estimates', href: '/next-workspace/quotation', always: true },
+      { label: 'Estimates', href: '/next-workspace/documents/library?type=quotation', always: true },
       { label: 'Sales & Payments', href: '/next-workspace/sales', always: true },
       { label: 'Customers', href: '/next-workspace/customers', always: true },
       { label: 'Recurring', href: '/next-workspace/recurring', requiredAny: ['has_recurring_subscriptions'] },
@@ -91,7 +91,7 @@ export function buildAdaptiveNavigation(config: BusinessFeatureConfig, cashBillE
 
 export const CREATE_ROUTES: AdaptiveNavItem[] = [
   { label: 'Invoice', href: '/next-workspace/invoices/new', always: true },
-  { label: 'Estimate', href: '/next-workspace/quotation', always: true },
+  { label: 'Estimate', href: '/next-workspace/documents/library?type=quotation&create=1', always: true },
   { label: 'Payment', href: '/next-workspace/payments', always: true },
   { label: 'Expense', href: '/next-workspace/expenses', always: true },
   { label: 'Customer', href: '/next-workspace/customers', always: true },
