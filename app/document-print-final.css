@@ -153,28 +153,44 @@
     margin-top: 1px !important;
     overflow-wrap: anywhere !important;
   }
-  .paper:not(.receipt-paper) .online-payment-column > div {
-    display: grid !important;
-    grid-template-columns: minmax(0, 1fr) 66px !important;
-    align-items: center !important;
-    gap: 8px !important;
+
+  /* Online payment is intentionally vertical: Pay Now first, QR immediately below.
+     The extra specificity also wins over the isolated print iframe's inline print CSS. */
+  .paper:not(.receipt-paper).paper .online-payment-column > div {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    justify-content: flex-start !important;
+    gap: 4px !important;
+    grid-template-columns: 1fr !important;
+  }
+  .paper:not(.receipt-paper).paper .online-payment-column > div > div:has(a) {
+    display: block !important;
+    width: auto !important;
   }
   .paper:not(.receipt-paper) .online-payment-column a {
     display: inline-block !important;
-    margin-top: 5px !important;
-    padding: 5px 8px !important;
+    margin-top: 3px !important;
+    padding: 5px 10px !important;
     border-radius: 6px !important;
     font-size: 8px !important;
+    line-height: 1.2 !important;
+    text-decoration: none !important;
   }
   .paper:not(.receipt-paper) .qr {
-    width: 64px !important;
-    height: 64px !important;
+    width: 72px !important;
+    height: 72px !important;
     border-radius: 7px !important;
-    margin: 0 !important;
+    margin: 1px 0 0 0 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    flex-direction: column !important;
   }
   .paper:not(.receipt-paper) .qr img {
-    width: 54px !important;
-    height: 54px !important;
+    width: 62px !important;
+    height: 62px !important;
+    object-fit: contain !important;
   }
 
   .paper:not(.receipt-paper) .document-notes,
