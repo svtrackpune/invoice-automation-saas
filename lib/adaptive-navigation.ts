@@ -60,6 +60,7 @@ const NAVIGATION: AdaptiveNavGroup[] = [
       { label: 'Document Settings', href: '/next-workspace/brand', always: true },
       { label: 'Business Settings', href: '/next-workspace/business-settings', always: true },
       { label: 'Preferences', href: '/next-workspace/preferences', always: true },
+      { label: 'Data & Export', href: '/next-workspace/data-export', always: true },
       { label: 'Data & Migration', href: '/next-workspace/data-migration', always: true },
       { label: 'My Profile', href: '/next-workspace/profile', always: true },
     ],
