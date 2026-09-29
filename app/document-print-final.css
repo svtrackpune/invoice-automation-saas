@@ -1,17 +1,15 @@
 /* Production print contract for invoices and estimates.
-   Invoices/estimates are authored as a physical A4 document. Receipts use a separate thermal page. */
+   A4 is the default document size, but the document content must remain
+   structurally valid if a browser/printer changes the paper preset. */
 @media print {
-  /* Keep an unqualified @page rule as the browser-safe default. The named rule
-     is retained for engines that support named pages. The physical dimensions
-     are explicit so A4 is not dependent on a printer's default paper preset. */
-  @page { size: 210mm 297mm; margin: 0; }
-  @page a4-document { size: 210mm 297mm; margin: 0; }
+  @page { size: A4 portrait; margin: 0; }
+  @page a4-document { size: A4 portrait; margin: 0; }
 
   .paper:not(.receipt-paper) {
     page: a4-document !important;
-    width: 210mm !important;
-    min-width: 210mm !important;
-    max-width: 210mm !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
     min-height: 0 !important;
     height: auto !important;
     margin: 0 !important;
@@ -23,8 +21,32 @@
     page-break-after: auto !important;
   }
 
-  /* Keep normal invoices comfortably inside one A4 page. Long invoices are
-     still allowed to flow to additional pages naturally. */
+  /* Keep the complete document inside whichever paper size the browser is
+     actually printing. A4 is the default; Letter/Legal/Tabloid remain usable
+     if a user or printer driver changes the paper preset. */
+  .paper:not(.receipt-paper) > * {
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+  }
+  .paper:not(.receipt-paper) .document-header {
+    grid-template-columns: minmax(0, 1fr) minmax(190px, 32%) !important;
+    gap: 16px !important;
+  }
+  .paper:not(.receipt-paper) .parties-grid {
+    grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr) minmax(0, .8fr) !important;
+  }
+  .paper:not(.receipt-paper) .body-grid,
+  .paper:not(.receipt-paper) .post-table-grid {
+    grid-template-columns: minmax(0, 1fr) minmax(210px, 32%) !important;
+    gap: 16px !important;
+  }
+  .paper:not(.receipt-paper) .totalwrap,
+  .paper:not(.receipt-paper) .document-summary {
+    min-width: 0 !important;
+    max-width: 100% !important;
+    width: 100% !important;
+  }
+
   .paper:not(.receipt-paper) .business-identity {
     padding-bottom: 8px !important;
   }
@@ -58,7 +80,7 @@
   }
   .paper:not(.receipt-paper) .items th,
   .paper:not(.receipt-paper) .items td {
-    padding: 5px 5px !important;
+    padding: 5px !important;
     font-size: 9.5px !important;
     line-height: 1.2 !important;
   }
@@ -76,9 +98,7 @@
     padding: 6px !important;
   }
   .paper:not(.receipt-paper) .post-table-grid {
-    gap: 8px !important;
     margin-top: 7px !important;
-    grid-template-columns: minmax(0, 1fr) minmax(260px, 34%) !important;
   }
   .paper:not(.receipt-paper) .payment {
     margin-top: 6px !important;
