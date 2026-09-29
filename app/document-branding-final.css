@@ -96,9 +96,24 @@
   .paper:not(.receipt-paper) .parties > div > span,
   .paper:not(.receipt-paper) .parties > div > strong,
   .paper:not(.receipt-paper) footer span { overflow-wrap: anywhere; word-break: normal; }
-}
 
-/* Keep totals in the right-hand block when an older template shell is still present. */
-.paper:not(.receipt-paper) .body-grid { grid-template-columns: minmax(0, 1fr) minmax(280px, 34%) !important; gap: 25px !important; align-items: start !important; }
-.paper:not(.receipt-paper) .totalwrap { grid-column: 2 !important; width: 100% !important; min-width: 0 !important; justify-self: stretch !important; }
-@media print { .paper:not(.receipt-paper) .body-grid { grid-template-columns: minmax(0, 1fr) minmax(280px, 34%) !important; } .paper:not(.receipt-paper) .totalwrap { grid-column: 2 !important; } }
+  /* Adaptive right-hand financial column. It must never force the totals past
+     the physical paper edge when Letter/Legal/Tabloid is selected manually. */
+  .paper:not(.receipt-paper) .body-grid,
+  .paper:not(.receipt-paper) .post-table-grid {
+    grid-template-columns: minmax(0, 1fr) minmax(210px, 32%) !important;
+    gap: 16px !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+  }
+  .paper:not(.receipt-paper) .totalwrap,
+  .paper:not(.receipt-paper) .document-summary {
+    grid-column: 2 !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+    justify-self: stretch !important;
+  }
+}
