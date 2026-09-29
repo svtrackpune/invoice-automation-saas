@@ -1,7 +1,11 @@
 /* Production print contract for invoices and estimates.
-   The browser print/PDF flow is explicitly A4 portrait; receipts use their own named page. */
+   Invoices/estimates are authored as a physical A4 document. Receipts use a separate thermal page. */
 @media print {
-  @page a4-document { size: A4 portrait; margin: 0; }
+  /* Keep an unqualified @page rule as the browser-safe default. The named rule
+     is retained for engines that support named pages. The physical dimensions
+     are explicit so A4 is not dependent on a printer's default paper preset. */
+  @page { size: 210mm 297mm; margin: 0; }
+  @page a4-document { size: 210mm 297mm; margin: 0; }
 
   .paper:not(.receipt-paper) {
     page: a4-document !important;
@@ -11,7 +15,7 @@
     min-height: 0 !important;
     height: auto !important;
     margin: 0 !important;
-    padding: 8mm !important;
+    padding: 5mm !important;
     box-sizing: border-box !important;
     box-shadow: none !important;
     overflow: visible !important;
@@ -19,10 +23,10 @@
     page-break-after: auto !important;
   }
 
-  /* Keep the professional document hierarchy compact enough for normal one-page
-     invoices, while allowing genuinely long invoices to flow naturally. */
+  /* Keep normal invoices comfortably inside one A4 page. Long invoices are
+     still allowed to flow to additional pages naturally. */
   .paper:not(.receipt-paper) .business-identity {
-    padding-bottom: 12px !important;
+    padding-bottom: 8px !important;
   }
   .paper:not(.receipt-paper) .document-header,
   .paper:not(.receipt-paper) .parties-grid,
@@ -40,53 +44,53 @@
   }
 
   .paper:not(.receipt-paper) .parties-grid {
-    gap: 10px !important;
-    margin-top: 12px !important;
+    gap: 7px !important;
+    margin-top: 8px !important;
   }
   .paper:not(.receipt-paper) .party-card,
   .paper:not(.receipt-paper) .tax-context {
     min-height: 0 !important;
-    padding: 10px !important;
+    padding: 8px !important;
   }
   .paper:not(.receipt-paper) .items {
-    margin-top: 12px !important;
+    margin-top: 8px !important;
     width: 100% !important;
   }
   .paper:not(.receipt-paper) .items th,
   .paper:not(.receipt-paper) .items td {
-    padding: 6px 5px !important;
+    padding: 5px 5px !important;
     font-size: 9.5px !important;
-    line-height: 1.25 !important;
+    line-height: 1.2 !important;
   }
   .paper:not(.receipt-paper) .document-summary {
-    margin-top: 10px !important;
+    margin-top: 7px !important;
   }
   .paper:not(.receipt-paper) .document-summary > div {
-    padding: 3px 0 !important;
+    padding: 2px 0 !important;
   }
   .paper:not(.receipt-paper) .document-summary .summary-total {
-    padding: 6px 0 !important;
+    padding: 5px 0 !important;
   }
   .paper:not(.receipt-paper) .amount-words {
-    margin-top: 7px !important;
-    padding: 7px !important;
+    margin-top: 5px !important;
+    padding: 6px !important;
   }
   .paper:not(.receipt-paper) .post-table-grid {
-    gap: 12px !important;
-    margin-top: 10px !important;
+    gap: 8px !important;
+    margin-top: 7px !important;
     grid-template-columns: minmax(0, 1fr) minmax(260px, 34%) !important;
   }
   .paper:not(.receipt-paper) .payment {
-    margin-top: 8px !important;
-    padding: 8px !important;
+    margin-top: 6px !important;
+    padding: 7px !important;
   }
   .paper:not(.receipt-paper) .document-notes,
   .paper:not(.receipt-paper) .document-terms {
-    margin-top: 7px !important;
+    margin-top: 5px !important;
   }
   .paper:not(.receipt-paper) footer {
-    margin-top: 10px !important;
-    padding-top: 7px !important;
+    margin-top: 6px !important;
+    padding-top: 5px !important;
   }
 
   /* Never manufacture a second page just for footer/payment blocks. */
