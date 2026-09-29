@@ -46,7 +46,7 @@ export default function PublicInvoice({params}:{params:Promise<{token:string}>})
           </div>
           <div className="text-sm text-slate-500 sm:text-right"><div>Invoice date: {date(invoice.invoice_date)}</div><div>Due date: {date(invoice.due_date)}</div><div className="mt-2 inline-flex rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-slate-700">{invoice.status.replace('_',' ')}</div></div>
         </div>
-        <div className="mt-4 grid gap-1 text-xs text-slate-500">{address(invoice.business.address).map((x,i)=><span key={i}>{x}</span>)}{invoice.business.phone&&<span>{invoice.business.phone}</span>}{invoice.business.email&&<span>{invoice.business.email}</span>}{invoice.business.tax_registration_number&&<span>GSTIN / Tax ID: {invoice.business.tax_registration_number}</span>}</div>
+        <div className="mt-4 grid gap-1 text-xs text-slate-500">{address(invoice.business.address).map((x,i)=><span key={i}>{x}</span>)}{invoice.business.phone&&<span>{invoice.business.phone}</span>}{invoice.business.email&&<span>{invoice.business.email}</span>}{invoice.business.website&&<span>{invoice.business.website}</span>}{invoice.business.tax_registration_number&&<span>GSTIN / Tax ID: {invoice.business.tax_registration_number}</span>}</div>
       </header>
 
       <section className="grid gap-6 border-b border-slate-200 p-6 sm:grid-cols-2 sm:p-8">
@@ -66,7 +66,7 @@ export default function PublicInvoice({params}:{params:Promise<{token:string}>})
         {invoice.payment_display_mode==='online'&&<div className="text-center"><h3 className="font-bold uppercase tracking-wider">Payment</h3>{invoice.payment_link&&<a href={invoice.payment_link} target="_blank" rel="noreferrer" className="mt-3 inline-flex rounded-lg bg-violet-600 px-5 py-2.5 text-sm font-bold text-white">Pay Now</a>}{qr&&<div className="mt-3"><img src={qr} alt="Payment QR" className="mx-auto h-36 w-36"/><p className="mt-1 text-[11px] text-slate-500">Scan to pay the invoice amount.</p></div>}</div>}
       </section>}
 
-      <footer className="border-t border-slate-200 bg-slate-50 p-6 text-center text-xs text-slate-400">This is a customer-facing invoice shared by {invoice.business.name}.</footer>
+      <footer className="border-t border-slate-200 bg-slate-50 p-6 text-center text-xs text-slate-400"><div>This is a customer-facing invoice shared by {invoice.business.name}.</div><div className="mt-3 flex items-center justify-center gap-2 border-t border-slate-200 pt-3"><span className="inline-grid h-4 w-4 place-items-center rounded bg-violet-600 text-[9px] font-black text-white">M</span><span>Powered by <strong className="text-violet-600">Moneymatters</strong></span></div></footer>
     </article>
   </main>;
 }
