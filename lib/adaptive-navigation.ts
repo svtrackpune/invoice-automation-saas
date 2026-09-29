@@ -13,14 +13,16 @@ export type AdaptiveNavGroup = {
   items: AdaptiveNavItem[];
 };
 
+// Navigation is intentionally ordered by daily workflow: home -> sales -> money out -> catalog -> finance -> reporting -> settings.
+// Keep this order stable so the same information hierarchy is used by the desktop sidebar and the mobile drawer.
 const NAVIGATION: AdaptiveNavGroup[] = [
   { name: 'Workspace', items: [{ label: 'Dashboard', href: '/next-workspace', always: true }] },
   {
     name: 'Sales',
     items: [
       { label: 'Invoices', href: '/next-workspace/invoices', always: true },
-      { label: 'Sales & Payments', href: '/next-workspace/sales', always: true },
       { label: 'Estimates', href: '/next-workspace/quotation', always: true },
+      { label: 'Sales & Payments', href: '/next-workspace/sales', always: true },
       { label: 'Customers', href: '/next-workspace/customers', always: true },
       { label: 'Recurring', href: '/next-workspace/recurring', requiredAny: ['has_recurring_subscriptions'] },
       { label: 'Cash Bill', href: '/next-workspace/cash-bill', requiredAny: ['is_b2c_retail'] },
@@ -44,9 +46,9 @@ const NAVIGATION: AdaptiveNavGroup[] = [
   {
     name: 'Money & Accounting',
     items: [
-      { label: 'Banking', href: '/next-workspace/banking', always: true },
       { label: 'Payments', href: '/next-workspace/payments', always: true },
       { label: 'Receipts', href: '/next-workspace/receipts', always: true },
+      { label: 'Banking', href: '/next-workspace/banking', always: true },
       { label: 'Accounting', href: '/next-workspace/accounting', always: true },
       { label: 'Tax & ITR', href: '/next-workspace/tax', requiredAny: ['is_tax_registered'] },
       { label: 'Reports', href: '/next-workspace/reports', always: true },
@@ -55,12 +57,12 @@ const NAVIGATION: AdaptiveNavGroup[] = [
   {
     name: 'Settings & Automation',
     items: [
-      { label: 'WhatsApp', href: '/next-workspace/whatsapp', always: true },
       { label: 'Documents', href: '/next-workspace/documents/library', always: true },
       { label: 'Document Settings', href: '/next-workspace/brand', always: true },
+      { label: 'WhatsApp', href: '/next-workspace/whatsapp', always: true },
+      { label: 'Data & Export', href: '/next-workspace/data-export', always: true },
       { label: 'Business Settings', href: '/next-workspace/business-settings', always: true },
       { label: 'Preferences', href: '/next-workspace/preferences', always: true },
-      { label: 'Data & Export', href: '/next-workspace/data-export', always: true },
       { label: 'Data & Migration', href: '/next-workspace/data-migration', always: true },
       { label: 'My Profile', href: '/next-workspace/profile', always: true },
     ],
