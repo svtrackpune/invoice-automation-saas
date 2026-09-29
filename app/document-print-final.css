@@ -34,7 +34,7 @@
   }
   .paper:not(.receipt-paper) .body-grid,
   .paper:not(.receipt-paper) .post-table-grid {
-    grid-template-columns: minmax(0, 1fr) minmax(210px, 32%) !important;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 32%) !important;
     gap: 16px !important;
   }
   .paper:not(.receipt-paper) .totalwrap,
@@ -98,34 +98,50 @@
     margin-top: 7px !important;
   }
 
-  /* Payment/bank information is a compact document block, not a full-width
-     placeholder. Keep both bank and online payment details visually balanced. */
+  /* One defined payment box. The selected payment method lives inside this
+     box; it must never expand into the rest of the invoice page. */
   .paper:not(.receipt-paper) .payment {
-    width: min(100%, 520px) !important;
-    margin: 6px 0 0 auto !important;
+    width: 330px !important;
+    max-width: 100% !important;
+    min-height: 76px !important;
+    margin: 6px 0 0 0 !important;
     padding: 8px 10px !important;
-    border-radius: 8px !important;
-    background: #fafaff !important;
+    box-sizing: border-box !important;
+    border: 1px solid #111827 !important;
+    border-radius: 5px !important;
+    background: #fff !important;
+    display: block !important;
   }
   .paper:not(.receipt-paper) .payment-combined {
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) !important;
-    gap: 10px !important;
+    display: block !important;
   }
   .paper:not(.receipt-paper) .payment-combined .bank-payment-column {
-    padding-right: 10px !important;
-    border-right: 1px solid var(--line) !important;
+    padding-right: 0 !important;
+    border-right: 0 !important;
   }
   .paper:not(.receipt-paper) .bank-payment-column,
   .paper:not(.receipt-paper) .online-payment-column {
+    width: 100% !important;
     min-width: 0 !important;
+    box-sizing: border-box !important;
+  }
+  .paper:not(.receipt-paper) .bank-details,
+  .paper:not(.receipt-paper) .online-payment-column > div {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    box-sizing: border-box !important;
   }
   .paper:not(.receipt-paper) .bank-details label,
   .paper:not(.receipt-paper) .online-payment-column label {
+    display: block !important;
     margin-bottom: 4px !important;
     font-size: 7.5px !important;
+    line-height: 1.1 !important;
   }
   .paper:not(.receipt-paper) .bank-details strong,
   .paper:not(.receipt-paper) .online-payment-column strong {
+    display: block !important;
     font-size: 9.5px !important;
     line-height: 1.25 !important;
   }
@@ -138,10 +154,13 @@
     overflow-wrap: anywhere !important;
   }
   .paper:not(.receipt-paper) .online-payment-column > div {
+    display: grid !important;
     grid-template-columns: minmax(0, 1fr) 66px !important;
+    align-items: center !important;
     gap: 8px !important;
   }
   .paper:not(.receipt-paper) .online-payment-column a {
+    display: inline-block !important;
     margin-top: 5px !important;
     padding: 5px 8px !important;
     border-radius: 6px !important;
@@ -151,6 +170,7 @@
     width: 64px !important;
     height: 64px !important;
     border-radius: 7px !important;
+    margin: 0 !important;
   }
   .paper:not(.receipt-paper) .qr img {
     width: 54px !important;
