@@ -61,14 +61,15 @@ function LineItems({ items, payload, receipt, showTaxDetails = true }: { items: 
   const currency = text(payload.currency_code || 'INR');
   const taxed = !receipt && showTaxDetails && Number(payload.tax_total || 0) > 0;
   const hasHsn = taxed && (items || []).some((it: any) => text(it.hsn_sac).trim());
-  return <table className={`items ${receipt ? 'receipt-items' : ''} ${taxed ? 'tax-aware-items' : ''}`}><thead><tr>
-    {!receipt && <th className='col-no'>#</th>}<th>{receipt ? 'Description' : 'Item / Description'}</th>
+  const receiptClass = receipt ? 'receipt-items' : '';
+  return <table className={`items ${receiptClass} ${taxed ? 'tax-aware-items' : ''}`}><thead><tr>
+    {!receipt && <th className='col-no'>#</th>}<th>{receipt ? 'Item' : 'Item / Description'}</th>
     {!receipt && taxed && hasHsn && <th>HSN / SAC</th>}{!receipt && <th className='col-type'>Type</th>}
-    <th className='col-qty'>Qty</th><th className='col-rate'>Rate</th>{taxed && <th className='col-taxable'>Taxable</th>}{taxed && <th className='col-tax'>GST</th>}<th className='col-amount'>Amount</th>
-  </tr></thead><tbody>{(items || []).map((it:any, idx:number) => {const quantity=Number(it.quantity ?? it.qty ?? 1);const rate=Number(it.unit_price ?? it.rate ?? it.price ?? 0);const taxAmount=Number(it.tax_amount||0);const lineTotal=Number(it.line_total||0);const taxable=Math.max(0,lineTotal-taxAmount);const name=text(it.name||'').trim()||text(it.description||'Item');const description=text(it.name&&it.description&&it.name!==it.description?it.description:'').trim();const taxLabel=it.tax_rate?`${text(it.tax_rate)}%`:(taxAmount?'Tax':'—');return <tr key={idx}>
+    <th className='col-qty'>Qty</th>{!receipt && <th className='col-rate'>Rate</th>}{taxed && <th className='col-taxable'>Taxable</th>}{taxed && <th className='col-tax'>GST</th>}<th className='col-amount'>Amount</th>
+  </tr></thead><tbody>{(items || []).map((it:any, idx:number) => {const quantity=Number(it.quantity ?? it.qty ?? 1);const rate=Number(it.unit_price ?? it.rate ?? it.price ?? 0);const taxAmount=Number(it.tax_amount||0);const lineTotal=Number(it.line_total ?? it.amount ?? (quantity*rate) || 0);const taxable=Math.max(0,lineTotal-taxAmount);const name=text(it.name||'').trim()||text(it.description||'Item');const description=text(it.name&&it.description&&it.name!==it.description?it.description:'').trim();const taxLabel=it.tax_rate?`${text(it.tax_rate)}%`:(taxAmount?'Tax':'—');return <tr key={idx}>
     {!receipt && <td className='col-no'>{idx+1}</td>}<td><strong>{name}</strong>{description&&<div className='muted'>{description}</div>}{it.sku&&<div className='item-meta'>SKU: {text(it.sku)}</div>}</td>
     {!receipt && taxed && hasHsn && <td>{text(it.hsn_sac)||'—'}</td>}{!receipt && <td className='col-type'>{text(it.item_type||it.type||'')}</td>}
-    <td className='col-qty'><span>{quantity}</span>{it.unit&&<small className='qty-unit'>{text(it.unit)}</small>}</td><td className='col-rate'>{money(rate,currency)}{Number(it.discount||0)>0&&<small className='line-discount'>Disc. −{money(it.discount,currency)}</small>}</td>{taxed&&<td className='col-taxable'>{money(taxable,currency)}</td>}{taxed&&<td className='col-tax'><span>{taxLabel}</span>{taxAmount>0&&<small>{money(taxAmount,currency)}</small>}</td>}<td className='col-amount'>{money(lineTotal,currency)}</td>
+    <td className='col-qty'><span>{quantity}</span>{it.unit&&<small className='qty-unit'>{text(it.unit)}</small>}</td>{!receipt&&<td className='col-rate'>{money(rate,currency)}{Number(it.discount||0)>0&&<small className='line-discount'>Disc. −{money(it.discount,currency)}</small>}</td>}{taxed&&<td className='col-taxable'>{money(taxable,currency)}</td>}{taxed&&<td className='col-tax'><span>{taxLabel}</span>{taxAmount>0&&<small>{money(taxAmount,currency)}</small>}</td>}<td className='col-amount'>{money(lineTotal,currency)}</td>
   </tr>;})}</tbody></table>;
 }
 
@@ -151,14 +152,36 @@ function Paper({ type, payload, business, customer, items, theme, fields, logoUr
   const meta:any[]=[['Invoice No.',payload.invoice_number||payload.number],['Invoice Date',formatDate(payload.invoice_date)],['Due Date',formatDate(payload.due_date)]];
   if(isGstDocument&&payload.place_of_supply_state_code)meta.push(['Place of Supply',payload.place_of_supply_state_code]);
   if(isGstDocument&&payload.supply_type)meta.push(['Supply Type',payload.supply_type]); if(isGstDocument&&payload.reverse_charge)meta.push(['Reverse Charge','Yes']);
-  if(receipt)return <article className={`paper receipt-paper ${theme.dark?'theme-dark':''}`} style={{'--accent':theme.accent,'--table':theme.table,'--line':theme.line} as React.CSSProperties}>
-    <div className='receipt-head'>{showLogo&&<Logo url={resolvedLogoUrl}/>}<Tagline business={business} fields={fields} compact/><strong className='receipt-business'>{text(business.name||business.legal_name||'Business')}</strong>{showBusinessAddress&&<div className='receipt-contact'>{addressLines(business.address).map((l:string,i:number)=><span key={i}>{l}</span>)}</div>}</div>
-    <div className='receipt-title'><h1>{text(fields.title||title)}</h1><div>Invoice <strong>{text(payload.invoice_number||payload.number||'—')}</strong></div><div>Receipt <strong>{text(payload.receipt_number||payload.number||'—')}</strong></div><div>{formatDate(payload.created_at||payload.payment_date)}</div></div>
-    <div className='receipt-customer'><span className='label'>RECEIVED FROM</span><strong>{text(customer.display_name||customer.legal_name||'Customer')}</strong>{buyerTaxId&&<div>Tax ID: {buyerTaxId}</div>}{addressLines(customer.address||customer.billing_address||customer.address_line1||customer.address_line).map((l:string,i:number)=><div key={i}>{l}</div>)}</div>
-    <LineItems items={items} payload={payload} receipt/><DocumentTotals payload={payload} currency={currency} receipt showTaxDetails={showTaxDetails}/>
-    <div className='payment-detail'><span>Payment method</span><strong>{text(payload.payment_method||payload.method||'—')}</strong>{(payload.payment_reference||payload.reference)&&<><span>Ref</span><strong>{text(payload.payment_reference||payload.reference)}</strong></>}</div>
-    <div className='paid-stamp'>PAID</div><div className='receipt-thanks'>{text(fields.notes||'Thank you for your payment.')}</div><footer className='receipt-footer'><span>{text(fields.footer||'')}</span></footer>
-  </article>;
+  if(receipt){
+    const invoiceTotal=Number(payload.invoice_total ?? 0);
+    const receiptAmount=Number(payload.amount ?? payload.amount_received ?? payload.amount_paid ?? 0);
+    const balance=Math.max(0,Number(payload.balance_due ?? (invoiceTotal > 0 ? invoiceTotal-receiptAmount : 0)));
+    const referenceTotal=invoiceTotal>0?invoiceTotal:receiptAmount;
+    const status=balance<=0?'Paid':receiptAmount>0?'Partially Paid':'Unpaid';
+    const customerName=text(customer.display_name||customer.legal_name||'Cash Customer').trim()||'Cash Customer';
+    const phone=text(customer.phone||customer.mobile||'').trim();
+    return <article className={`paper receipt-paper receipt-template-${theme.className.replace('template-','')} ${theme.dark?'theme-dark':''}`} style={{'--accent':theme.accent,'--table':theme.table,'--line':theme.line} as React.CSSProperties}>
+      <header className='receipt-head'>
+        {showLogo&&<Logo url={resolvedLogoUrl}/>}
+        <div className='receipt-date'>{formatDate(payload.receipt_date||payload.created_at||payload.payment_date)}</div>
+      </header>
+      <section className='receipt-status'>
+        <div className={`receipt-status-badge ${status.toLowerCase().replace(' ','-')}`}>{status}</div>
+        <div className='receipt-balance'><span>Balance</span><strong>{money(balance,currency)}</strong></div>
+      </section>
+      <section className='receipt-customer'>
+        <span className='label'>CUSTOMER</span>
+        <strong>{customerName}</strong>
+        {phone&&<div>{phone}</div>}
+      </section>
+      <section className='receipt-items-section'>
+        <LineItems items={items} payload={{...payload,total:referenceTotal}} receipt/>
+      </section>
+      <div className='receipt-total'><span>Total Amount</span><strong>{money(referenceTotal,currency)}</strong></div>
+      <div className='receipt-thanks'>Thanks for visit</div>
+      <footer className='receipt-footer'><span>Powered by <strong>Moneymatters</strong></span></footer>
+    </article>;
+  }
   return <article className={`paper ${theme.className} ${theme.dark?'theme-dark':''}`} style={{'--accent':theme.accent,'--table':theme.table,'--line':theme.line} as React.CSSProperties}>
     <header className='document-header'><div className='identity-column'><BusinessIdentity business={business} logoUrl={resolvedLogoUrl} fields={fields} showLogo={showLogo} showAddress={showBusinessAddress}/></div><div className='invoice-heading'><div className='document-title'>{text(fields.title||title)}</div><div className='document-meta'>{meta.map(([label,value]:any)=><div className='meta-row' key={label}><span>{label}</span><strong>{text(value)||'—'}</strong></div>)}</div></div></header>
     <section className='parties-grid'><div className='party-card'><label>BILL TO</label><strong>{text(customer.display_name||customer.legal_name||'Customer')}</strong>{customer.legal_name&&customer.legal_name!==customer.display_name&&<div>{text(customer.legal_name)}</div>}{buyerTaxId&&<div className='party-highlight'>GSTIN / Tax ID: {buyerTaxId}</div>}{customer.phone&&<div>{text(customer.phone)}</div>}{customer.email&&<div>{text(customer.email)}</div>}{addressLines(customer.billing_address||customer.address||customer.address_line1||customer.address_line).map((l:string,i:number)=><div key={i}>{l}</div>)}</div>
@@ -258,7 +281,9 @@ export default function DocumentViewer({ type, id }: { type: string; id: string 
     if (!doc) { frame.remove(); return; }
     doc.open();
     const styles = Array.from(document.head.querySelectorAll('style')).map((style) => style.textContent || '').join('');
-    doc.write(`<!doctype html><html><head><meta charset="utf-8"><style>${styles}
+    const links = Array.from(document.head.querySelectorAll<HTMLLinkElement>('link[rel="stylesheet"]'))
+      .map((link) => `<link rel="stylesheet" href="${link.href}">`).join('');
+    doc.write(`<!doctype html><html><head><meta charset="utf-8">${links}<style>${styles}
       @page { size: ${receipt ? '3.1in auto' : '210mm 297mm'}; margin:0; }
       html,body { margin:0!important; padding:0!important; background:#fff!important; }
       .page { padding:0!important; background:#fff!important; }
@@ -272,7 +297,15 @@ export default function DocumentViewer({ type, id }: { type: string; id: string 
       .paper:not(.receipt-paper) .qr img{width:68px!important;height:68px!important;object-fit:contain!important;}
     </style></head><body>${paper.outerHTML}</body></html>`);
     doc.close();
-    setTimeout(() => { frame.contentWindow?.focus(); frame.contentWindow?.print(); setTimeout(() => frame.remove(), 1000); }, 250);
+    const printWhenReady = async () => {
+      try { if (doc.fonts?.ready) await doc.fonts.ready; } catch {}
+      const images = Array.from(doc.images);
+      await Promise.all(images.map((img) => img.complete ? Promise.resolve() : new Promise<void>((resolve) => { img.addEventListener('load', () => resolve(), { once: true }); img.addEventListener('error', () => resolve(), { once: true }); })));
+      frame.contentWindow?.focus();
+      frame.contentWindow?.print();
+      setTimeout(() => frame.remove(), 1000);
+    };
+    setTimeout(() => { void printWhenReady(); }, 350);
   };
   if (loading) return <div className="center">Preparing document…</div>;
   if (error) return <div className="center error">{error}</div>;
