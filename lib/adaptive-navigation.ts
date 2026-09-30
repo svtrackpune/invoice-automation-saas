@@ -13,16 +13,17 @@ export type AdaptiveNavGroup = {
   items: AdaptiveNavItem[];
 };
 
-// Navigation is intentionally ordered by daily workflow: home -> sales -> money out -> catalog -> finance -> reporting -> settings.
-// Estimates opens the estimate library; creation is available from the library so users always land on the list/report first.
+// Navigation is ordered by the user's daily business workflow.
+// Dashboard is a direct destination, while Sales contains the complete money-in workflow.
 const NAVIGATION: AdaptiveNavGroup[] = [
-  { name: 'Workspace', items: [{ label: 'Dashboard', href: '/next-workspace', always: true }] },
+  { name: 'Dashboard', items: [{ label: 'Dashboard', href: '/next-workspace', always: true }] },
   {
     name: 'Sales',
     items: [
       { label: 'Invoices', href: '/next-workspace/invoices', always: true },
       { label: 'Estimates', href: '/next-workspace/documents/library?type=quotation', always: true },
-      { label: 'Sales & Payments', href: '/next-workspace/sales', always: true },
+      { label: 'Payments', href: '/next-workspace/payments', always: true },
+      { label: 'Receipts', href: '/next-workspace/receipts', always: true },
       { label: 'Customers', href: '/next-workspace/customers', always: true },
       { label: 'Recurring', href: '/next-workspace/recurring', requiredAny: ['has_recurring_subscriptions'] },
       { label: 'Cash Bill', href: '/next-workspace/cash-bill', requiredAny: ['is_b2c_retail'] },
@@ -46,8 +47,6 @@ const NAVIGATION: AdaptiveNavGroup[] = [
   {
     name: 'Money & Accounting',
     items: [
-      { label: 'Payments', href: '/next-workspace/payments', always: true },
-      { label: 'Receipts', href: '/next-workspace/receipts', always: true },
       { label: 'Banking', href: '/next-workspace/banking', always: true },
       { label: 'Accounting', href: '/next-workspace/accounting', always: true },
       { label: 'Tax & ITR', href: '/next-workspace/tax', requiredAny: ['is_tax_registered'] },

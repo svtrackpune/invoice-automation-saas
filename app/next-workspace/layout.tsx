@@ -8,286 +8,46 @@ import GlobalSearch from './GlobalSearch';
 import { BusinessConfigProvider, useBusinessConfig } from '@/lib/BusinessConfigContext';
 import { buildAdaptiveNavigation, buildAdaptiveCreateRoutes } from '@/lib/adaptive-navigation';
 
-type NavProps = {
-  pathname: string;
-  go: (href: string) => void;
-  openGroup: string;
-  setOpenGroup: (name: string) => void;
-  cashBillEnabled: boolean;
+type NavProps = { pathname:string; go:(href:string)=>void; openGroup:string; setOpenGroup:(name:string)=>void; cashBillEnabled:boolean; collapsed?:boolean };
+
+const titles:Record<string,string>={
+ '/next-workspace':'Dashboard','/next-workspace/invoices':'Invoices','/next-workspace/sales':'Sales & Payments','/next-workspace/quotation':'Estimates','/next-workspace/customers':'Customers','/next-workspace/vendors':'Vendors','/next-workspace/items':'Products & Services','/next-workspace/inventory':'Inventory','/next-workspace/purchases':'Purchases & Bills','/next-workspace/expenses':'Expenses','/next-workspace/recurring':'Recurring','/next-workspace/banking':'Banking','/next-workspace/payments':'Payments','/next-workspace/receipts':'Receipts','/next-workspace/accounting':'Accounting','/next-workspace/tax':'Tax & ITR','/next-workspace/reports':'Reports','/next-workspace/business-settings':'Business Settings','/next-workspace/brand':'Document Settings','/next-workspace/documents':'Documents','/next-workspace/documents/library':'Documents','/next-workspace/whatsapp':'WhatsApp','/next-workspace/preferences':'Preferences','/next-workspace/data-migration':'Data & Migration','/next-workspace/profile':'My Profile','/next-workspace/create-business':'New Business','/next-workspace/cash-bill':'Cash Bill',
 };
 
-const titles: Record<string, string> = {
-  '/next-workspace': 'Dashboard',
-  '/next-workspace/invoices': 'Invoices',
-  '/next-workspace/sales': 'Sales & Payments',
-  '/next-workspace/quotation': 'Estimates',
-  '/next-workspace/customers': 'Customers',
-  '/next-workspace/vendors': 'Vendors',
-  '/next-workspace/items': 'Products & Services',
-  '/next-workspace/inventory': 'Inventory',
-  '/next-workspace/purchases': 'Purchases & Bills',
-  '/next-workspace/expenses': 'Expenses',
-  '/next-workspace/recurring': 'Recurring',
-  '/next-workspace/banking': 'Banking',
-  '/next-workspace/payments': 'Payments',
-  '/next-workspace/receipts': 'Receipts',
-  '/next-workspace/accounting': 'Accounting',
-  '/next-workspace/tax': 'Tax & ITR',
-  '/next-workspace/reports': 'Reports',
-  '/next-workspace/business-settings': 'Business Settings',
-  '/next-workspace/brand': 'Document Settings',
-  '/next-workspace/documents': 'Documents',
-  '/next-workspace/documents/library': 'Documents',
-  '/next-workspace/whatsapp': 'WhatsApp',
-  '/next-workspace/preferences': 'Preferences',
-  '/next-workspace/data-migration': 'Data & Migration',
-  '/next-workspace/profile': 'My Profile',
-  '/next-workspace/create-business': 'New Business',
-  '/next-workspace/cash-bill': 'Cash Bill',
-};
-
-function Nav({ pathname, go, openGroup, setOpenGroup, cashBillEnabled }: NavProps) {
-  const { config } = useBusinessConfig();
-  const groups = buildAdaptiveNavigation(config, cashBillEnabled);
-
-  return (
-    <nav aria-label="Workspace navigation">
-      {groups.map((group) => (
-        <section key={group.name} className="mb-3">
-          <button
-            type="button"
-            onClick={() => setOpenGroup(openGroup === group.name ? '' : group.name)}
-            aria-expanded={openGroup === group.name}
-            className="flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-left text-[11px] font-bold uppercase tracking-[.16em] text-slate-400 hover:bg-violet-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-200"
-          >
-            <span>{group.name}</span>
-            <span aria-hidden="true" className="text-sm text-violet-500">{openGroup === group.name ? '⌄' : '›'}</span>
-          </button>
-          <div className={`overflow-hidden transition-all duration-200 ${openGroup === group.name ? 'max-h-[600px] opacity-100' : 'max-h-0 opacity-0'}`}>
-            <div className="pt-1">
-              {group.items.map((item) => (
-                <button
-                  type="button"
-                  aria-current={pathname === item.href ? 'page' : undefined}
-                  key={item.href}
-                  onClick={() => go(item.href)}
-                  className={`mb-1 flex w-full items-center rounded-xl px-3 py-2.5 text-left text-sm font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-200 ${pathname === item.href ? 'bg-violet-50 text-violet-800 ring-1 ring-violet-100' : 'text-slate-600 hover:bg-violet-50 hover:text-violet-800'}`}
-                >
-                  <span aria-hidden="true" className="mr-3 h-1.5 w-1.5 shrink-0 rounded-full bg-current opacity-50" />
-                  {item.label}
-                </button>
-              ))}
-            </div>
-          </div>
-        </section>
-      ))}
-    </nav>
-  );
+function Nav({pathname,go,openGroup,setOpenGroup,cashBillEnabled,collapsed=false}:NavProps){
+ const {config}=useBusinessConfig(); const groups=buildAdaptiveNavigation(config,cashBillEnabled);
+ const itemClass=(active:boolean)=>`mb-1 flex w-full items-center rounded-xl text-left text-sm font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-200 ${collapsed?'justify-center px-2 py-3':'px-3 py-2.5'} ${active?'bg-violet-600 text-white shadow-sm shadow-violet-200':'text-slate-600 hover:bg-violet-50 hover:text-violet-800'}`;
+ return <nav aria-label="Workspace navigation" className="space-y-1">{groups.map(group=>{
+  if(group.items.length===1){const item=group.items[0];return <section key={group.name} className="mb-3"><button type="button" title={collapsed?item.label:undefined} aria-current={pathname===item.href?'page':undefined} onClick={()=>go(item.href)} className={itemClass(pathname===item.href)}><span aria-hidden="true" className={`shrink-0 rounded-full bg-current opacity-60 ${collapsed?'h-2 w-2':'mr-3 h-1.5 w-1.5'}`}/>{!collapsed&&item.label}</button></section>}
+  return <section key={group.name} className="mb-3"><button type="button" title={collapsed?group.name:undefined} onClick={()=>!collapsed&&setOpenGroup(openGroup===group.name?'':group.name)} aria-expanded={!collapsed&&openGroup===group.name} className={`flex w-full items-center rounded-xl text-left text-[11px] font-bold uppercase tracking-[.16em] text-slate-400 hover:bg-violet-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-200 ${collapsed?'justify-center px-2 py-2.5':'justify-between px-3 py-2.5'}`}><span className={collapsed?'h-1.5 w-1.5 rounded-full bg-violet-400':'truncate'}>{collapsed?'':group.name}</span>{!collapsed&&<span aria-hidden="true" className="text-sm text-violet-500">{openGroup===group.name?'⌄':'›'}</span>}</button><div className={`overflow-hidden transition-all duration-200 ${collapsed?'max-h-0 opacity-0':openGroup===group.name?'max-h-[600px] opacity-100':'max-h-0 opacity-0'}`}><div className="pt-1">{group.items.map(item=><button type="button" aria-current={pathname===item.href?'page':undefined} key={item.href} onClick={()=>go(item.href)} className={itemClass(pathname===item.href)}><span aria-hidden="true" className="mr-3 h-1.5 w-1.5 shrink-0 rounded-full bg-current opacity-50"/>{item.label}</button>)}</div></div></section>;
+ })}</nav>;
 }
 
-function WorkspaceChrome({
-  children,
-  businesses,
-  activeBusinessId,
-  setActiveBusinessId,
-  userName,
-  cashBillEnabled,
-}: {
-  children: React.ReactNode;
-  businesses: BusinessContext[];
-  activeBusinessId: string;
-  setActiveBusinessId: (id: string) => void;
-  userName: string;
-  cashBillEnabled: boolean;
-}) {
-  const pathname = usePathname();
-  const [mobile, setMobile] = useState(false);
-  const [create, setCreate] = useState(false);
-  const [account, setAccount] = useState(false);
-  const [openGroup, setOpenGroup] = useState('');
-  const createRef = useRef<HTMLDivElement>(null);
-  const accountRef = useRef<HTMLDivElement>(null);
-
-  const { config, loading: configLoading, error: configError } = useBusinessConfig();
-  const go = (href: string) => {
-    setMobile(false);
-    setCreate(false);
-    setAccount(false);
-    window.location.href = href;
-  };
-
-  const adaptiveCreateItems = buildAdaptiveCreateRoutes(config);
-  const active = businesses.find((business) => business.business_id === activeBusinessId) || businesses[0];
-
-  const switchBusiness = (id: string) => {
-    if (!businesses.some((business) => business.business_id === id)) return;
-    localStorage.setItem('moneymatters.activeBusinessId', id);
-    setActiveBusinessId(id);
-    window.dispatchEvent(new Event('moneymatters:business-changed'));
-    window.location.reload();
-  };
-
-  useEffect(() => {
-    const group = buildAdaptiveNavigation(config, cashBillEnabled).find((item) =>
-      item.items.some((navItem) => navItem.href === pathname),
-    );
-    if (group) setOpenGroup(group.name);
-  }, [pathname, config, cashBillEnabled]);
-
-  useEffect(() => {
-    const onPointerDown = (event: PointerEvent) => {
-      const target = event.target as Node;
-      if (create && createRef.current && !createRef.current.contains(target)) setCreate(false);
-      if (account && accountRef.current && !accountRef.current.contains(target)) setAccount(false);
-    };
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        setCreate(false);
-        setAccount(false);
-        setMobile(false);
-      }
-    };
-    document.addEventListener('pointerdown', onPointerDown);
-    document.addEventListener('keydown', onKey);
-    return () => {
-      document.removeEventListener('pointerdown', onPointerDown);
-      document.removeEventListener('keydown', onKey);
-    };
-  }, [create, account]);
-
-  return (
-    <div className="min-h-screen bg-[#fbfaff] text-[#24213a]">
-      <a href="#main-content" className="sr-only z-[200] rounded-lg bg-white px-4 py-2 text-sm font-semibold text-slate-900 focus:not-sr-only focus:fixed focus:left-3 focus:top-3 focus:shadow-xl">Skip to main content</a>
-      <header className="sticky top-0 z-50 h-16 border-b border-violet-100 bg-white/95 backdrop-blur">
-        <div className="mx-auto flex h-full max-w-[1520px] items-center gap-3 px-3 sm:px-5 lg:px-6">
-          <Button variant="secondary" size="sm" onClick={() => setMobile(true)} aria-label="Open navigation menu" aria-expanded={mobile} className="h-10 w-10 px-0 lg:hidden">☰</Button>
-          <button type="button" onClick={() => go('/next-workspace')} aria-label="Open dashboard" className="flex items-center gap-2.5 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-200">
-            <span className="grid h-9 w-9 place-items-center rounded-xl bg-violet-600 text-sm font-black text-white">M</span>
-            <span className="hidden sm:block"><b className="block text-sm">Moneymatters</b><small className="text-[10px] text-slate-500">Business workspace</small></span>
-          </button>
-          <div className="hidden min-w-0 flex-1 md:block"><div className="mx-auto max-w-xl"><GlobalSearch /></div></div>
-
-          <div ref={createRef} className="relative ml-auto">
-            <Button onClick={() => setCreate((value) => !value)} aria-expanded={create} aria-haspopup="menu">＋ Create</Button>
-            {create && (
-              <div role="menu" aria-label="Create menu" className="absolute right-0 mt-2 w-72 rounded-2xl border border-slate-200 bg-white p-2 shadow-xl">
-                {adaptiveCreateItems.map((item) => (
-                  <button type="button" role="menuitem" key={item.href} onClick={() => go(item.href)} className="flex w-full items-center rounded-xl px-3 py-2.5 text-left text-sm hover:bg-violet-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-200">
-                    ＋<span className="ml-3">{item.label}</span>
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-
-          <div ref={accountRef} className="relative">
-            <button type="button" onClick={() => setAccount((value) => !value)} aria-expanded={account} aria-haspopup="menu" className="flex max-w-[300px] items-center gap-2 rounded-xl px-2 py-1.5 hover:bg-violet-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-200">
-              <span className="hidden min-w-0 text-right sm:block">
-                <b className="block max-w-[180px] truncate text-xs font-semibold">{active?.business_name || userName}</b>
-                <small className="block text-[10px] text-slate-400">{userName} · Account</small>
-              </span>
-              <span aria-hidden="true" className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-violet-100 text-xs font-bold text-violet-700">{(active?.business_name || userName).slice(0, 2).toUpperCase()}</span>
-              <span aria-hidden="true" className="text-xs text-slate-400">⌄</span>
-            </button>
-            {account && (
-              <div role="menu" aria-label="Account menu" className="absolute right-0 z-50 mt-2 w-80 rounded-2xl border border-slate-200 bg-white p-2 shadow-xl">
-                <div className="border-b border-slate-100 px-3 py-3"><b className="block text-sm">{active?.business_name || 'Business'}</b><span className="text-xs text-slate-400">Current business · {userName}</span></div>
-                <div className="border-b border-slate-100 py-2">
-                  <div className="px-3 pb-1.5 pt-1 text-[10px] font-bold uppercase tracking-[.16em] text-slate-400">Switch business</div>
-                  {businesses.map((business) => (
-                    <button type="button" role="menuitem" key={business.business_id} onClick={() => switchBusiness(business.business_id)} className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-200 ${business.business_id === activeBusinessId ? 'bg-violet-50 text-violet-800' : 'text-slate-700 hover:bg-violet-50'}`}>
-                      <span aria-hidden="true" className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-slate-100 text-xs font-bold">{business.business_name.slice(0, 2).toUpperCase()}</span>
-                      <span className="min-w-0 flex-1"><b className="block truncate">{business.business_name}</b><small className="text-[10px] text-slate-400">{business.role}</small></span>
-                      {business.business_id === activeBusinessId && <span className="text-[10px] font-bold text-violet-600">✓ Current</span>}
-                    </button>
-                  ))}
-                </div>
-                <button type="button" role="menuitem" onClick={() => go('/next-workspace/profile')} className="mt-1 flex w-full rounded-xl px-3 py-2.5 text-left text-sm hover:bg-violet-50">My Profile</button>
-                <button type="button" role="menuitem" onClick={() => go('/next-workspace/business-settings')} className="flex w-full rounded-xl px-3 py-2.5 text-left text-sm hover:bg-violet-50">Business Settings</button>
-                <button type="button" role="menuitem" onClick={() => go('/next-workspace/create-business')} className="flex w-full rounded-xl px-3 py-2.5 text-left text-sm hover:bg-violet-50">＋ Create another business</button>
-                <button type="button" role="menuitem" onClick={async () => { await supabase.auth.signOut(); window.location.href = '/'; }} className="mt-1 w-full rounded-xl px-3 py-2.5 text-left text-sm text-rose-600 hover:bg-rose-50">Sign out</button>
-              </div>
-            )}
-          </div>
-        </div>
-      </header>
-
-      {configError && (
-        <div className="border-b border-amber-200 bg-amber-50 px-4 py-2 text-center text-xs text-amber-800">
-          Business capability configuration could not be loaded; safe defaults are being used.
-        </div>
-      )}
-
-      <div className="mx-auto grid max-w-[1520px] lg:grid-cols-[240px_minmax(0,1fr)]">
-        <aside className="hidden min-h-[calc(100vh-64px)] border-r border-violet-100 bg-white px-3 py-5 lg:block">
-          <Nav pathname={pathname} go={go} openGroup={openGroup} setOpenGroup={setOpenGroup} cashBillEnabled={cashBillEnabled} />
-        </aside>
-        {mobile && (
-          <>
-            <button type="button" aria-label="Close menu" onClick={() => setMobile(false)} className="fixed inset-0 z-[60] bg-violet-950/20 lg:hidden" />
-            <aside className="fixed inset-y-0 left-0 z-[70] w-[300px] overflow-y-auto border-r border-violet-100 bg-white px-4 py-5 shadow-2xl lg:hidden">
-              <div className="mb-5 flex items-center justify-between"><b>Moneymatters</b><Button variant="secondary" size="sm" onClick={() => setMobile(false)} aria-label="Close navigation menu" className="h-9 w-9 px-0">×</Button></div>
-              <Nav pathname={pathname} go={go} openGroup={openGroup} setOpenGroup={setOpenGroup} cashBillEnabled={cashBillEnabled} />
-            </aside>
-          </>
-        )}
-        <main id="main-content" tabIndex={-1} className="min-w-0 outline-none">
-          <div className="border-b border-violet-100 bg-white px-4 py-3 sm:px-6"><div className="mx-auto flex max-w-[1250px] items-center gap-2"><span className="text-xs font-semibold text-slate-400">Moneymatters</span><span aria-hidden="true" className="text-slate-300">/</span><span className="text-sm font-semibold">{titles[pathname] || 'Workspace'}</span></div></div>
-          {configLoading ? <div className="px-6 py-2 text-center text-[11px] text-slate-400">Loading business configuration…</div> : children}
-        </main>
-      </div>
-    </div>
-  );
+function WorkspaceChrome({children,businesses,activeBusinessId,setActiveBusinessId,userName,cashBillEnabled}:{children:React.ReactNode;businesses:BusinessContext[];activeBusinessId:string;setActiveBusinessId:(id:string)=>void;userName:string;cashBillEnabled:boolean}){
+ const pathname=usePathname(); const [mobile,setMobile]=useState(false); const [collapsed,setCollapsed]=useState(false); const [create,setCreate]=useState(false); const [account,setAccount]=useState(false); const [openGroup,setOpenGroup]=useState(''); const createRef=useRef<HTMLDivElement>(null); const accountRef=useRef<HTMLDivElement>(null);
+ const {config,loading:configLoading,error:configError}=useBusinessConfig();
+ useEffect(()=>{setCollapsed(localStorage.getItem('moneymatters.sidebarCollapsed')==='1')},[]);
+ const toggleSidebar=()=>setCollapsed(v=>{const next=!v;localStorage.setItem('moneymatters.sidebarCollapsed',next?'1':'0');return next});
+ const go=(href:string)=>{setMobile(false);setCreate(false);setAccount(false);window.location.href=href};
+ const adaptiveCreateItems=buildAdaptiveCreateRoutes(config); const active=businesses.find(b=>b.business_id===activeBusinessId)||businesses[0];
+ const switchBusiness=(id:string)=>{if(!businesses.some(b=>b.business_id===id))return;localStorage.setItem('moneymatters.activeBusinessId',id);setActiveBusinessId(id);window.dispatchEvent(new Event('moneymatters:business-changed'));window.location.reload()};
+ useEffect(()=>{const group=buildAdaptiveNavigation(config,cashBillEnabled).find(item=>item.items.some(navItem=>navItem.href===pathname));setOpenGroup(group&&group.items.length>1?group.name:'')},[pathname,config,cashBillEnabled]);
+ useEffect(()=>{const onPointerDown=(event:PointerEvent)=>{const target=event.target as Node;if(create&&createRef.current&&!createRef.current.contains(target))setCreate(false);if(account&&accountRef.current&&!accountRef.current.contains(target))setAccount(false)};const onKey=(event:KeyboardEvent)=>{if(event.key==='Escape'){setCreate(false);setAccount(false);setMobile(false)}};document.addEventListener('pointerdown',onPointerDown);document.addEventListener('keydown',onKey);return()=>{document.removeEventListener('pointerdown',onPointerDown);document.removeEventListener('keydown',onKey)}},[create,account]);
+ return <div className="min-h-screen bg-[#f7f7fb] text-[#24213a]"><a href="#main-content" className="sr-only z-[200] rounded-lg bg-white px-4 py-2 text-sm font-semibold text-slate-900 focus:not-sr-only focus:fixed focus:left-3 focus:top-3 focus:shadow-xl">Skip to main content</a>
+  <header className="sticky top-0 z-50 h-16 border-b border-violet-100 bg-white/95 backdrop-blur"><div className="mx-auto flex h-full max-w-[1600px] items-center gap-3 px-3 sm:px-5 lg:px-6">
+   <Button variant="secondary" size="sm" onClick={()=>setMobile(true)} aria-label="Open navigation menu" aria-expanded={mobile} className="h-10 w-10 px-0 lg:hidden">☰</Button>
+   <button type="button" onClick={()=>go('/next-workspace')} aria-label="Open dashboard" className="flex shrink-0 items-center gap-2.5 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-200"><span className="grid h-9 w-9 place-items-center rounded-xl bg-violet-600 text-sm font-black text-white">M</span><span className="hidden sm:block"><b className="block text-sm">Moneymatters</b><small className="text-[10px] text-slate-500">Business workspace</small></span></button>
+   <div className="hidden min-w-0 flex-1 md:block"><div className="mx-auto max-w-2xl"><GlobalSearch/></div></div>
+   <div ref={createRef} className="relative ml-auto"><Button onClick={()=>setCreate(v=>!v)} aria-expanded={create} aria-haspopup="menu">＋ Create</Button>{create&&<div role="menu" aria-label="Create menu" className="absolute right-0 mt-2 w-72 rounded-2xl border border-slate-200 bg-white p-2 shadow-xl">{adaptiveCreateItems.map(item=><button type="button" role="menuitem" key={item.href} onClick={()=>go(item.href)} className="flex w-full items-center rounded-xl px-3 py-2.5 text-left text-sm hover:bg-violet-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-200">＋<span className="ml-3">{item.label}</span></button>)}</div>}</div>
+   <div ref={accountRef} className="relative"><button type="button" onClick={()=>setAccount(v=>!v)} aria-expanded={account} aria-haspopup="menu" className="flex max-w-[300px] items-center gap-2 rounded-xl px-2 py-1.5 hover:bg-violet-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-200"><span className="hidden min-w-0 text-right sm:block"><b className="block max-w-[180px] truncate text-xs font-semibold">{active?.business_name||userName}</b><small className="block text-[10px] text-slate-400">{userName} · Account</small></span><span aria-hidden="true" className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-violet-100 text-xs font-bold text-violet-700">{(active?.business_name||userName).slice(0,2).toUpperCase()}</span><span aria-hidden="true" className="text-xs text-slate-400">⌄</span></button>{account&&<div role="menu" aria-label="Account menu" className="absolute right-0 z-50 mt-2 w-80 rounded-2xl border border-slate-200 bg-white p-2 shadow-xl"><div className="border-b border-slate-100 px-3 py-3"><b className="block text-sm">{active?.business_name||'Business'}</b><span className="text-xs text-slate-400">Current business · {userName}</span></div><div className="border-b border-slate-100 py-2"><div className="px-3 pb-1.5 pt-1 text-[10px] font-bold uppercase tracking-[.16em] text-slate-400">Switch business</div>{businesses.map(b=><button type="button" role="menuitem" key={b.business_id} onClick={()=>switchBusiness(b.business_id)} className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm ${b.business_id===activeBusinessId?'bg-violet-50 text-violet-800':'text-slate-700 hover:bg-violet-50'}`}><span aria-hidden="true" className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-slate-100 text-xs font-bold">{b.business_name.slice(0,2).toUpperCase()}</span><span className="min-w-0 flex-1"><b className="block truncate">{b.business_name}</b><small className="text-[10px] text-slate-400">{b.role}</small></span>{b.business_id===activeBusinessId&&<span className="text-[10px] font-bold text-violet-600">✓ Current</span>}</button>)}</div><button type="button" role="menuitem" onClick={()=>go('/next-workspace/profile')} className="mt-1 flex w-full rounded-xl px-3 py-2.5 text-left text-sm hover:bg-violet-50">My Profile</button><button type="button" role="menuitem" onClick={()=>go('/next-workspace/business-settings')} className="flex w-full rounded-xl px-3 py-2.5 text-left text-sm hover:bg-violet-50">Business Settings</button><button type="button" role="menuitem" onClick={()=>go('/next-workspace/create-business')} className="flex w-full rounded-xl px-3 py-2.5 text-left text-sm hover:bg-violet-50">＋ Create another business</button><button type="button" role="menuitem" onClick={async()=>{await supabase.auth.signOut();window.location.href='/'}} className="mt-1 w-full rounded-xl px-3 py-2.5 text-left text-sm text-rose-600 hover:bg-rose-50">Sign out</button></div>}</div>
+  </div></header>
+  {configError&&<div className="border-b border-amber-200 bg-amber-50 px-4 py-2 text-center text-xs text-amber-800">Business capability configuration could not be loaded; safe defaults are being used.</div>}
+  <div className="mx-auto grid max-w-[1600px] lg:grid-cols-[auto_minmax(0,1fr)]">
+   <aside className={`sticky top-16 hidden h-[calc(100vh-64px)] shrink-0 border-r border-violet-100 bg-white py-5 transition-[width] duration-300 ease-out lg:block ${collapsed?'w-[76px] px-2':'w-[248px] px-3'}`}><div className={`mb-4 flex ${collapsed?'justify-center':'items-center justify-between'}`}><button type="button" onClick={toggleSidebar} aria-label={collapsed?'Expand sidebar':'Collapse sidebar'} title={collapsed?'Expand sidebar':'Collapse sidebar'} className="grid h-9 w-9 place-items-center rounded-xl border border-slate-200 bg-white text-slate-600 shadow-sm transition hover:border-violet-200 hover:bg-violet-50 hover:text-violet-700">{collapsed?'›':'‹'}</button>{!collapsed&&<span className="text-[10px] font-bold uppercase tracking-[.16em] text-slate-400">Navigation</span>}</div><Nav pathname={pathname} go={go} openGroup={openGroup} setOpenGroup={setOpenGroup} cashBillEnabled={cashBillEnabled} collapsed={collapsed}/></aside>
+   {mobile&&<><button type="button" aria-label="Close menu" onClick={()=>setMobile(false)} className="fixed inset-0 z-[60] bg-violet-950/20 lg:hidden"/><aside className="fixed inset-y-0 left-0 z-[70] w-[300px] overflow-y-auto border-r border-violet-100 bg-white px-4 py-5 shadow-2xl lg:hidden"><div className="mb-5 flex items-center justify-between"><b>Moneymatters</b><Button variant="secondary" size="sm" onClick={()=>setMobile(false)} aria-label="Close navigation menu" className="h-9 w-9 px-0">×</Button></div><Nav pathname={pathname} go={go} openGroup={openGroup} setOpenGroup={setOpenGroup} cashBillEnabled={cashBillEnabled}/></aside></>}
+   <main id="main-content" tabIndex={-1} className="min-w-0 outline-none"><div className="border-b border-violet-100 bg-white px-4 py-3 sm:px-6"><div className="mx-auto flex max-w-[1500px] items-center gap-2"><span className="text-xs font-semibold text-slate-400">Moneymatters</span><span aria-hidden="true" className="text-slate-300">/</span><span className="text-sm font-semibold">{titles[pathname]||'Workspace'}</span></div></div>{configLoading?<div className="px-6 py-2 text-center text-[11px] text-slate-400">Loading business configuration…</div>:children}</main>
+  </div>
+ </div>;
 }
 
-export default function WorkspaceLayout({ children }: { children: React.ReactNode }) {
-  const [userName, setUserName] = useState('Account');
-  const [businesses, setBusinesses] = useState<BusinessContext[]>([]);
-  const [activeBusinessId, setActiveBusinessId] = useState('');
-  const [cashBillEnabled, setCashBillEnabled] = useState(false);
-
-  useEffect(() => {
-    (async () => {
-      const [{ data: user }, context] = await Promise.all([
-        supabase.auth.getUser(),
-        supabase.rpc('get_my_business_context'),
-      ]);
-
-      setUserName(user.user?.user_metadata?.display_name || user.user?.email?.split('@')[0] || 'Account');
-
-      const rows = (context.data || []) as BusinessContext[];
-      setBusinesses(rows);
-      if (!rows.length) return;
-
-      const saved = localStorage.getItem('moneymatters.activeBusinessId');
-      const active = rows.find((row) => row.business_id === saved) || rows[0];
-      setActiveBusinessId(active.business_id);
-      localStorage.setItem('moneymatters.activeBusinessId', active.business_id);
-
-      const pref = await supabase
-        .from('business_settings')
-        .select('cash_bill_enabled')
-        .eq('business_id', active.business_id)
-        .maybeSingle();
-      setCashBillEnabled(Boolean(pref.data?.cash_bill_enabled));
-    })();
-  }, []);
-
-  if (!activeBusinessId) {
-    return <div className="grid min-h-screen place-items-center bg-[#fbfaff] text-sm text-slate-500">Loading workspace…</div>;
-  }
-
-  return (
-    <BusinessConfigProvider businessId={activeBusinessId}>
-      <WorkspaceChrome
-        businesses={businesses}
-        activeBusinessId={activeBusinessId}
-        setActiveBusinessId={setActiveBusinessId}
-        userName={userName}
-        cashBillEnabled={cashBillEnabled}
-      >
-        {children}
-      </WorkspaceChrome>
-    </BusinessConfigProvider>
-  );
-}
+export default function WorkspaceLayout({children}:{children:React.ReactNode}){const[userName,setUserName]=useState('Account'),[businesses,setBusinesses]=useState<BusinessContext[]>([]),[activeBusinessId,setActiveBusinessId]=useState(''),[cashBillEnabled,setCashBillEnabled]=useState(false);useEffect(()=>{(async()=>{const[{data:user},context]=await Promise.all([supabase.auth.getUser(),supabase.rpc('get_my_business_context')]);setUserName(user.user?.user_metadata?.display_name||user.user?.email?.split('@')[0]||'Account');const rows=(context.data||[]) as BusinessContext[];setBusinesses(rows);if(!rows.length)return;const saved=localStorage.getItem('moneymatters.activeBusinessId');const active=rows.find(row=>row.business_id===saved)||rows[0];setActiveBusinessId(active.business_id);localStorage.setItem('moneymatters.activeBusinessId',active.business_id);const pref=await supabase.from('business_settings').select('cash_bill_enabled').eq('business_id',active.business_id).maybeSingle();setCashBillEnabled(Boolean(pref.data?.cash_bill_enabled))})()},[]);if(!activeBusinessId)return <div className="grid min-h-screen place-items-center bg-[#f7f7fb] text-sm text-slate-500">Loading workspace…</div>;return <BusinessConfigProvider businessId={activeBusinessId}><WorkspaceChrome businesses={businesses} activeBusinessId={activeBusinessId} setActiveBusinessId={setActiveBusinessId} userName={userName} cashBillEnabled={cashBillEnabled}>{children}</WorkspaceChrome></BusinessConfigProvider>}
