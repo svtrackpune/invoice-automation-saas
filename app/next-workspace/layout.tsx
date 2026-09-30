@@ -50,37 +50,58 @@ function Nav({ pathname, go, openGroup, setOpenGroup, cashBillEnabled }: NavProp
   const { config } = useBusinessConfig();
   const groups = buildAdaptiveNavigation(config, cashBillEnabled);
 
+  const itemClass = (active: boolean) => `mb-1 flex w-full items-center rounded-xl px-3 py-2.5 text-left text-sm font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-200 ${active ? 'bg-violet-50 text-violet-800 ring-1 ring-violet-100' : 'text-slate-600 hover:bg-violet-50 hover:text-violet-800'}`;
+
   return (
     <nav aria-label="Workspace navigation">
-      {groups.map((group) => (
-        <section key={group.name} className="mb-3">
-          <button
-            type="button"
-            onClick={() => setOpenGroup(openGroup === group.name ? '' : group.name)}
-            aria-expanded={openGroup === group.name}
-            className="flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-left text-[11px] font-bold uppercase tracking-[.16em] text-slate-400 hover:bg-violet-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-200"
-          >
-            <span>{group.name}</span>
-            <span aria-hidden="true" className="text-sm text-violet-500">{openGroup === group.name ? '⌄' : '›'}</span>
-          </button>
-          <div className={`overflow-hidden transition-all duration-200 ${openGroup === group.name ? 'max-h-[600px] opacity-100' : 'max-h-0 opacity-0'}`}>
-            <div className="pt-1">
-              {group.items.map((item) => (
-                <button
-                  type="button"
-                  aria-current={pathname === item.href ? 'page' : undefined}
-                  key={item.href}
-                  onClick={() => go(item.href)}
-                  className={`mb-1 flex w-full items-center rounded-xl px-3 py-2.5 text-left text-sm font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-200 ${pathname === item.href ? 'bg-violet-50 text-violet-800 ring-1 ring-violet-100' : 'text-slate-600 hover:bg-violet-50 hover:text-violet-800'}`}
-                >
-                  <span aria-hidden="true" className="mr-3 h-1.5 w-1.5 shrink-0 rounded-full bg-current opacity-50" />
-                  {item.label}
-                </button>
-              ))}
+      {groups.map((group) => {
+        if (group.items.length === 1) {
+          const item = group.items[0];
+          return (
+            <section key={group.name} className="mb-3">
+              <button
+                type="button"
+                aria-current={pathname === item.href ? 'page' : undefined}
+                onClick={() => go(item.href)}
+                className={itemClass(pathname === item.href)}
+              >
+                <span aria-hidden="true" className="mr-3 h-1.5 w-1.5 shrink-0 rounded-full bg-current opacity-60" />
+                {item.label}
+              </button>
+            </section>
+          );
+        }
+
+        return (
+          <section key={group.name} className="mb-3">
+            <button
+              type="button"
+              onClick={() => setOpenGroup(openGroup === group.name ? '' : group.name)}
+              aria-expanded={openGroup === group.name}
+              className="flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-left text-[11px] font-bold uppercase tracking-[.16em] text-slate-400 hover:bg-violet-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-200"
+            >
+              <span>{group.name}</span>
+              <span aria-hidden="true" className="text-sm text-violet-500">{openGroup === group.name ? '⌄' : '›'}</span>
+            </button>
+            <div className={`overflow-hidden transition-all duration-200 ${openGroup === group.name ? 'max-h-[600px] opacity-100' : 'max-h-0 opacity-0'}`}>
+              <div className="pt-1">
+                {group.items.map((item) => (
+                  <button
+                    type="button"
+                    aria-current={pathname === item.href ? 'page' : undefined}
+                    key={item.href}
+                    onClick={() => go(item.href)}
+                    className={itemClass(pathname === item.href)}
+                  >
+                    <span aria-hidden="true" className="mr-3 h-1.5 w-1.5 shrink-0 rounded-full bg-current opacity-50" />
+                    {item.label}
+                  </button>
+                ))}
+              </div>
             </div>
-          </div>
-        </section>
-      ))}
+          </section>
+        );
+      })}
     </nav>
   );
 }
@@ -131,7 +152,8 @@ function WorkspaceChrome({
     const group = buildAdaptiveNavigation(config, cashBillEnabled).find((item) =>
       item.items.some((navItem) => navItem.href === pathname),
     );
-    if (group) setOpenGroup(group.name);
+    if (group && group.items.length > 1) setOpenGroup(group.name);
+    else setOpenGroup('');
   }, [pathname, config, cashBillEnabled]);
 
   useEffect(() => {
