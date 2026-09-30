@@ -17,6 +17,9 @@ type Invoice = {
 };
 type Customer = { id: string; display_name: string; email: string | null; phone: string | null };
 type MenuPosition = { id: string; top: number; left: number } | null;
+type SortKey = 'invoice' | 'customer' | 'date' | 'due' | 'total' | 'balance' | 'status';
+type SortDirection = 'asc' | 'desc';
+type WorkspaceTaxProfile = { tax_regime: string | null; gst_registration_type: string | null };
 
 const money = (n: number) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 2 }).format(Number(n || 0));
 const days = (date: string) => Math.ceil((new Date(`${date}T23:59:59`).getTime() - Date.now()) / 86400000);
@@ -26,9 +29,11 @@ const invoiceStatus = (invoice: Invoice) => {
   if (new Date(`${invoice.due_date}T23:59:59`) < new Date()) return 'Overdue';
   return 'Unpaid';
 };
+const statusRank: Record<string, number> = { Draft: 0, Unpaid: 1, Overdue: 2, Paid: 3 };
 
 export default function Invoices() {
   const [ctx, setCtx] = useState<BusinessContext | null>(null);
+  const [workspaceTax, setWorkspaceTax] = useState<WorkspaceTaxProfile | null>(null);
   const [rows, setRows] = useState<Invoice[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [q, setQ] = useState('');
@@ -40,6 +45,8 @@ export default function Invoices() {
   const [to, setTo] = useState('');
   const [pageSize, setPageSize] = useState('20');
   const [page, setPage] = useState(1);
+  const [sortBy, setSortBy] = useState<SortKey>('date');
+  const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [menu, setMenu] = useState<MenuPosition>(null);
@@ -49,20 +56,23 @@ export default function Invoices() {
     const business = context.data?.[0] as BusinessContext | undefined;
     if (!business) { location.href = '/'; return; }
     setCtx(business);
-    const [invoiceResult, customerResult] = await Promise.all([
+    const [invoiceResult, customerResult, taxResult] = await Promise.all([
       supabase.from('invoices').select('id,invoice_number,invoice_date,due_date,status,total,amount_paid,balance_due,customer_id').eq('business_id', business.business_id).order('due_date', { ascending: true }),
       supabase.from('customers').select('id,display_name,email,phone').eq('business_id', business.business_id).eq('is_active', true).order('display_name'),
+      supabase.from('business_tax_profiles').select('tax_regime,gst_registration_type').eq('business_id', business.business_id).maybeSingle(),
     ]);
     if (invoiceResult.error) setError(invoiceResult.error.message);
+    if (taxResult.error) setError(taxResult.error.message);
     const customerRows = (customerResult.data || []) as Customer[];
     setCustomers(customerRows);
+    setWorkspaceTax((taxResult.data || null) as WorkspaceTaxProfile | null);
     const customerMap = new Map(customerRows.map((customer) => [customer.id, customer]));
     setRows((invoiceResult.data || []).map((invoice) => ({ ...invoice, customer: customerMap.get(invoice.customer_id) })) as Invoice[]);
     setLoading(false);
   }
 
   useEffect(() => { load(); }, []);
-  useEffect(() => { setPage(1); }, [customerId, state, from, to, q, pageSize]);
+  useEffect(() => { setPage(1); }, [customerId, state, from, to, q, pageSize, sortBy, sortDirection]);
   useEffect(() => {
     const close = () => setMenu(null);
     window.addEventListener('scroll', close, true);
@@ -81,18 +91,60 @@ export default function Invoices() {
     return result;
   }, [rows, customerId, state, from, to, q]);
 
+  const sorted = useMemo(() => {
+    const result = [...filtered];
+    const direction = sortDirection === 'asc' ? 1 : -1;
+    result.sort((a, b) => {
+      let comparison = 0;
+      switch (sortBy) {
+        case 'invoice':
+          comparison = a.invoice_number.localeCompare(b.invoice_number, undefined, { numeric: true, sensitivity: 'base' });
+          break;
+        case 'customer':
+          comparison = (a.customer?.display_name || 'Unknown customer').localeCompare(b.customer?.display_name || 'Unknown customer', undefined, { sensitivity: 'base' });
+          break;
+        case 'date':
+          comparison = a.invoice_date.localeCompare(b.invoice_date);
+          break;
+        case 'due':
+          comparison = a.due_date.localeCompare(b.due_date);
+          break;
+        case 'total':
+          comparison = Number(a.total || 0) - Number(b.total || 0);
+          break;
+        case 'balance':
+          comparison = Number(a.balance_due || 0) - Number(b.balance_due || 0);
+          break;
+        case 'status':
+          comparison = (statusRank[invoiceStatus(a)] ?? 99) - (statusRank[invoiceStatus(b)] ?? 99);
+          if (comparison === 0) comparison = invoiceStatus(a).localeCompare(invoiceStatus(b));
+          break;
+      }
+      if (comparison === 0) comparison = a.id.localeCompare(b.id);
+      return comparison * direction;
+    });
+    return result;
+  }, [filtered, sortBy, sortDirection]);
+
   const unpaid = rows.filter((invoice) => Number(invoice.balance_due) > 0 && invoiceStatus(invoice) !== 'Draft');
   const overdue = unpaid.filter((invoice) => invoiceStatus(invoice) === 'Overdue');
   const due30 = unpaid.filter((invoice) => invoiceStatus(invoice) !== 'Overdue' && days(invoice.due_date) <= 30);
   const draftCount = rows.filter((invoice) => invoiceStatus(invoice) === 'Draft').length;
-  const pageCount = pageSize === 'all' ? 1 : Math.max(1, Math.ceil(filtered.length / Number(pageSize)));
-  const visibleRows = pageSize === 'all' ? filtered : filtered.slice((page - 1) * Number(pageSize), page * Number(pageSize));
+  const pageCount = pageSize === 'all' ? 1 : Math.max(1, Math.ceil(sorted.length / Number(pageSize)));
+  const visibleRows = pageSize === 'all' ? sorted : sorted.slice((page - 1) * Number(pageSize), page * Number(pageSize));
   const selectedCustomer = customers.find((customer) => customer.id === customerId);
   const customerOptions = useMemo(() => {
     const search = customerSearch.trim().toLowerCase();
     if (!search) return customers.slice(0, 100);
     return customers.filter((customer) => `${customer.display_name} ${customer.email || ''} ${customer.phone || ''}`.toLowerCase().includes(search)).slice(0, 100);
   }, [customers, customerSearch]);
+  const isGstWorkspace = String(workspaceTax?.tax_regime || '').toUpperCase() === 'GST';
+  const workspaceModeLabel = workspaceTax ? (isGstWorkspace ? 'GST workspace · GST applicable' : 'Non-GST workspace · GST not applicable') : 'Workspace tax mode';
+
+  function toggleSort(key: SortKey) {
+    if (sortBy === key) setSortDirection((direction) => direction === 'asc' ? 'desc' : 'asc');
+    else { setSortBy(key); setSortDirection('asc'); }
+  }
 
   function toggleMenu(id: string, button: HTMLButtonElement) {
     if (menu?.id === id) { setMenu(null); return; }
@@ -110,7 +162,7 @@ export default function Invoices() {
     <main className="min-h-[calc(100vh-100px)] bg-[#fbfaff] p-4 sm:p-6 lg:p-8" onClick={() => { setMenu(null); setCustomerOpen(false); }}>
       <div className="mx-auto max-w-[1450px]">
         <header className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-          <div><p className="text-[10px] font-bold uppercase tracking-[.18em] text-violet-600">Sales & payments</p><h1 className="mt-1 text-3xl font-semibold">Invoices</h1><p className="mt-1 text-sm text-slate-500">{ctx?.selling_model==='both' ? 'Create, review and collect invoices for products and services in one workflow.' : ctx?.selling_model==='services' ? 'Create, review and collect invoices for your services.' : 'Create, review and collect invoices for your products and services.'}</p></div>
+          <div><div className="flex flex-wrap items-center gap-2"><p className="text-[10px] font-bold uppercase tracking-[.18em] text-violet-600">Sales & payments</p><span className={`rounded-full px-2.5 py-1 text-[10px] font-bold ${isGstWorkspace ? 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200' : 'bg-slate-100 text-slate-600 ring-1 ring-slate-200'}`}>{workspaceModeLabel}</span></div><h1 className="mt-1 text-3xl font-semibold">Invoices</h1><p className="mt-1 text-sm text-slate-500">{ctx?.selling_model==='both' ? 'Create, review and collect invoices for products and services in one workflow.' : ctx?.selling_model==='services' ? 'Create, review and collect invoices for your services.' : 'Create, review and collect invoices for your products and services.'}</p></div>
           <button type="button" onClick={() => location.href = '/next-workspace/invoices/new'} className="rounded-xl bg-violet-600 px-4 py-2.5 text-sm font-semibold text-white">＋ Create an Invoice</button>
         </header>
         {error && <div className="mb-4 rounded-xl bg-rose-50 p-3 text-sm text-rose-700">{error}</div>}
@@ -131,16 +183,30 @@ export default function Invoices() {
         <div className="mb-4 inline-flex overflow-hidden rounded-xl border border-slate-200 bg-white text-sm"><Tab active={state === 'unpaid'} onClick={() => setState('unpaid')}>Unpaid <b>{unpaid.length}</b></Tab><Tab active={state === 'drafts'} onClick={() => setState('drafts')}>Drafts <b>{draftCount}</b></Tab><Tab active={state === 'all'} onClick={() => setState('all')}>All invoices <b>{rows.length}</b></Tab></div>
 
         <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-          <div className="overflow-x-auto"><table className="w-full min-w-[1050px] text-left text-sm"><thead className="border-b border-slate-100 text-[10px] font-bold uppercase tracking-wider text-slate-400"><tr><th className="px-4 py-3">Status</th><th className="px-4 py-3">Due</th><th className="px-4 py-3">Date</th><th className="px-4 py-3">Number</th><th className="px-4 py-3">Customer</th><th className="px-4 py-3">Amount due</th><th className="px-4 py-3 text-right">Actions</th></tr></thead><tbody>
+          <div className="overflow-x-auto"><table className="w-full min-w-[1120px] text-left text-sm"><thead className="border-b border-slate-100 bg-slate-50/70 text-[10px] font-bold uppercase tracking-wider text-slate-500"><tr>
+            <SortHeader label="Invoice" sortKey="invoice" activeKey={sortBy} direction={sortDirection} onSort={toggleSort} />
+            <SortHeader label="Customer" sortKey="customer" activeKey={sortBy} direction={sortDirection} onSort={toggleSort} />
+            <SortHeader label="Date" sortKey="date" activeKey={sortBy} direction={sortDirection} onSort={toggleSort} />
+            <SortHeader label="Due" sortKey="due" activeKey={sortBy} direction={sortDirection} onSort={toggleSort} />
+            <SortHeader label="Total" sortKey="total" activeKey={sortBy} direction={sortDirection} onSort={toggleSort} align="right" />
+            <SortHeader label="Balance" sortKey="balance" activeKey={sortBy} direction={sortDirection} onSort={toggleSort} align="right" />
+            <SortHeader label="Status" sortKey="status" activeKey={sortBy} direction={sortDirection} onSort={toggleSort} />
+            <th className="px-4 py-3 text-right">Actions</th>
+          </tr></thead><tbody>
             {visibleRows.map((invoice) => <InvoiceRow key={invoice.id} invoice={invoice} onAction={(button) => toggleMenu(invoice.id, button)} />)}
-            {!visibleRows.length && <tr><td colSpan={7} className="p-12 text-center text-sm text-slate-500">No invoices match these filters.</td></tr>}
+            {!visibleRows.length && <tr><td colSpan={8} className="p-12 text-center text-sm text-slate-500">No invoices match these filters.</td></tr>}
           </tbody></table></div>
-          <Pagination total={filtered.length} page={page} pageCount={pageCount} pageSize={pageSize} onPage={setPage} onPageSize={(value) => setPageSize(value)} />
+          <Pagination total={sorted.length} page={page} pageCount={pageCount} pageSize={pageSize} onPage={setPage} onPageSize={(value) => setPageSize(value)} />
         </section>
       </div>
       {menu && <FixedActionMenu position={menu} invoice={rows.find((invoice) => invoice.id === menu.id)} onClose={() => setMenu(null)} />}
     </main>
   );
+}
+
+function SortHeader({ label, sortKey, activeKey, direction, onSort, align = 'left' }: { label: string; sortKey: SortKey; activeKey: SortKey; direction: SortDirection; onSort: (key: SortKey) => void; align?: 'left' | 'right' }) {
+  const active = activeKey === sortKey;
+  return <th className={`px-4 py-2.5 ${align === 'right' ? 'text-right' : 'text-left'}`} aria-sort={active ? direction === 'asc' ? 'ascending' : 'descending' : 'none'}><button type="button" onClick={(event) => { event.stopPropagation(); onSort(sortKey); }} className={`inline-flex items-center gap-1.5 rounded-md py-1 font-bold uppercase tracking-wider transition-colors ${active ? 'text-violet-700' : 'text-slate-500 hover:text-slate-800'}`} title={`Sort by ${label} ${active && direction === 'asc' ? 'descending' : 'ascending'}`}>{label}<span className={`text-[11px] ${active ? 'text-violet-600' : 'text-slate-300'}`} aria-hidden="true">{active ? (direction === 'asc' ? '↑' : '↓') : '↕'}</span></button></th>;
 }
 
 function CustomerPicker({ selected, open, search, options, onOpen, onSearch, onSelect, onClear }: { selected?: Customer; open: boolean; search: string; options: Customer[]; onOpen: () => void; onSearch: (value: string) => void; onSelect: (id: string) => void; onClear: () => void }) {
@@ -158,7 +224,7 @@ function InvoiceRow({ invoice, onAction }: { invoice: Invoice; onAction: (button
   const currentStatus = invoiceStatus(invoice);
   const dueText = currentStatus === 'Paid' || currentStatus === 'Draft' ? '—' : `${Math.abs(days(invoice.due_date))} ${days(invoice.due_date) < 0 ? 'days ago' : 'days'}`;
   const openDocument = () => { location.href = `/next-workspace/documents?type=invoice&id=${invoice.id}`; };
-  return <tr onClick={openDocument} className="cursor-pointer border-b border-slate-100 hover:bg-violet-50/40"><td className="px-4 py-3"><span className={`rounded-md px-2 py-1 text-[10px] font-bold ${currentStatus === 'Overdue' ? 'bg-rose-100 text-rose-700' : currentStatus === 'Paid' ? 'bg-emerald-100 text-emerald-700' : currentStatus === 'Draft' ? 'bg-slate-100 text-slate-600' : 'bg-amber-100 text-amber-700'}`}>{currentStatus}</span></td><td className="px-4 py-3 text-xs">{dueText}</td><td className="px-4 py-3 text-xs">{invoice.invoice_date}</td><td className="px-4 py-3 font-medium">{invoice.invoice_number}</td><td className="max-w-[220px] truncate px-4 py-3">{invoice.customer?.display_name || 'Unknown customer'}</td><td className="px-4 py-3 font-semibold">{money(invoice.balance_due)}</td><td className="px-4 py-3 text-right" onClick={(event) => event.stopPropagation()}><button type="button" onClick={(event) => onAction(event.currentTarget)} className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold">Actions</button></td></tr>;
+  return <tr onClick={openDocument} className="cursor-pointer border-b border-slate-100 transition-colors hover:bg-violet-50/40"><td className="px-4 py-3 font-medium">{invoice.invoice_number}</td><td className="max-w-[220px] truncate px-4 py-3">{invoice.customer?.display_name || 'Unknown customer'}</td><td className="px-4 py-3 text-xs text-slate-600">{invoice.invoice_date}</td><td className="px-4 py-3 text-xs text-slate-600"><span>{invoice.due_date}</span>{dueText !== '—' && <span className="ml-1.5 text-[10px] text-slate-400">({dueText})</span>}</td><td className="px-4 py-3 text-right font-semibold">{money(invoice.total)}</td><td className="px-4 py-3 text-right font-semibold">{money(invoice.balance_due)}</td><td className="px-4 py-3"><span className={`rounded-md px-2 py-1 text-[10px] font-bold ${currentStatus === 'Overdue' ? 'bg-rose-100 text-rose-700' : currentStatus === 'Paid' ? 'bg-emerald-100 text-emerald-700' : currentStatus === 'Draft' ? 'bg-slate-100 text-slate-600' : 'bg-amber-100 text-amber-700'}`}>{currentStatus}</span></td><td className="px-4 py-3 text-right" onClick={(event) => event.stopPropagation()}><button type="button" onClick={(event) => onAction(event.currentTarget)} className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold hover:bg-slate-50">Actions</button></td></tr>;
 }
 
 function FixedActionMenu({ position, invoice, onClose }: { position: { top: number; left: number }; invoice?: Invoice; onClose: () => void }) {
