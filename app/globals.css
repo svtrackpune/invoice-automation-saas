@@ -7,6 +7,10 @@
   --violet-dark: #6254c7;
   --violet-soft: #f1efff;
   --violet-line: #e7e2ff;
+  --surface: #ffffff;
+  --surface-muted: #f8f7fc;
+  --border: #e8e5f1;
+  --text-muted: #706b82;
 }
 
 @theme inline {
@@ -44,7 +48,7 @@ button {
   color: #24213a;
 }
 
-/* Explicit application components only. Do not override Tailwind utilities globally. */
+/* Shared application controls. Keep document/PDF classes below isolated. */
 .input {
   width: 100%;
   border: 1px solid #e7e2f5;
@@ -64,6 +68,59 @@ button {
   font-size: 0.75rem;
   font-weight: 600;
   color: #77718d;
+}
+
+/* Workspace-wide density: the selector only targets pages rendered inside the
+   authenticated workspace shell. It does not affect public documents or print templates. */
+#main-content > main > div.mx-auto {
+  width: 100%;
+}
+
+@media (min-width: 1280px) {
+  #main-content > main > div.mx-auto {
+    max-width: 1400px;
+  }
+}
+
+@media (min-width: 1024px) {
+  #main-content > main {
+    padding-top: 1.25rem;
+    padding-bottom: 1.25rem;
+  }
+}
+
+/* Keep shared page cards visually consistent without touching document markup. */
+.workspace-card {
+  border: 1px solid var(--border);
+  border-radius: 1rem;
+  background: var(--surface);
+  box-shadow: 0 4px 18px rgba(15, 23, 42, 0.04);
+}
+
+.workspace-kpi {
+  min-height: 92px;
+  border: 1px solid var(--border);
+  border-radius: 1rem;
+  padding: 0.875rem 1rem;
+  background: var(--surface);
+}
+
+.workspace-kpi[data-tone="brand"] { background: linear-gradient(135deg, #f4f1ff, #fff); border-color: #e6e0ff; }
+.workspace-kpi[data-tone="success"] { background: linear-gradient(135deg, #ecfdf5, #fff); border-color: #ccefe0; }
+.workspace-kpi[data-tone="warning"] { background: linear-gradient(135deg, #fffbeb, #fff); border-color: #f7e7b1; }
+.workspace-kpi[data-tone="danger"] { background: linear-gradient(135deg, #fff1f2, #fff); border-color: #f6d4d8; }
+.workspace-kpi[data-tone="info"] { background: linear-gradient(135deg, #eff6ff, #fff); border-color: #d6e7ff; }
+.workspace-kpi[data-tone="neutral"] { background: linear-gradient(135deg, #f8fafc, #fff); border-color: #e2e8f0; }
+
+@media (max-width: 767px) {
+  #main-content > main {
+    padding-top: 1rem;
+    padding-bottom: 1rem;
+  }
+
+  .workspace-kpi {
+    min-height: 80px;
+  }
 }
 
 .document-preview {
