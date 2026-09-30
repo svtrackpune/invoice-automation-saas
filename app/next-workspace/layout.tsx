@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { usePathname } from 'next/navigation';
 import { supabase, type BusinessContext } from '@/lib/supabase';
 import { Button } from '@/components/moneymatters';
@@ -105,6 +105,8 @@ function WorkspaceChrome({
   const [create, setCreate] = useState(false);
   const [account, setAccount] = useState(false);
   const [openGroup, setOpenGroup] = useState('');
+  const createRef = useRef<HTMLDivElement>(null);
+  const accountRef = useRef<HTMLDivElement>(null);
 
   const { config, loading: configLoading, error: configError } = useBusinessConfig();
   const go = (href: string) => {
@@ -133,6 +135,11 @@ function WorkspaceChrome({
   }, [pathname, config, cashBillEnabled]);
 
   useEffect(() => {
+    const onPointerDown = (event: PointerEvent) => {
+      const target = event.target as Node;
+      if (create && createRef.current && !createRef.current.contains(target)) setCreate(false);
+      if (account && accountRef.current && !accountRef.current.contains(target)) setAccount(false);
+    };
     const onKey = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
         setCreate(false);
@@ -140,9 +147,13 @@ function WorkspaceChrome({
         setMobile(false);
       }
     };
+    document.addEventListener('pointerdown', onPointerDown);
     document.addEventListener('keydown', onKey);
-    return () => document.removeEventListener('keydown', onKey);
-  }, []);
+    return () => {
+      document.removeEventListener('pointerdown', onPointerDown);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [create, account]);
 
   return (
     <div className="min-h-screen bg-[#fbfaff] text-[#24213a]">
@@ -156,7 +167,7 @@ function WorkspaceChrome({
           </button>
           <div className="hidden min-w-0 flex-1 md:block"><div className="mx-auto max-w-xl"><GlobalSearch /></div></div>
 
-          <div className="relative ml-auto">
+          <div ref={createRef} className="relative ml-auto">
             <Button onClick={() => setCreate((value) => !value)} aria-expanded={create} aria-haspopup="menu">＋ Create</Button>
             {create && (
               <div role="menu" aria-label="Create menu" className="absolute right-0 mt-2 w-72 rounded-2xl border border-slate-200 bg-white p-2 shadow-xl">
@@ -169,7 +180,7 @@ function WorkspaceChrome({
             )}
           </div>
 
-          <div className="relative">
+          <div ref={accountRef} className="relative">
             <button type="button" onClick={() => setAccount((value) => !value)} aria-expanded={account} aria-haspopup="menu" className="flex max-w-[300px] items-center gap-2 rounded-xl px-2 py-1.5 hover:bg-violet-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-200">
               <span className="hidden min-w-0 text-right sm:block">
                 <b className="block max-w-[180px] truncate text-xs font-semibold">{active?.business_name || userName}</b>
@@ -179,26 +190,23 @@ function WorkspaceChrome({
               <span aria-hidden="true" className="text-xs text-slate-400">⌄</span>
             </button>
             {account && (
-              <>
-                <button type="button" aria-label="Close account menu" onClick={() => setAccount(false)} className="fixed inset-0 z-40 h-full w-full cursor-default bg-transparent" />
-                <div role="menu" aria-label="Account menu" className="absolute right-0 z-50 mt-2 w-80 rounded-2xl border border-slate-200 bg-white p-2 shadow-xl">
-                  <div className="border-b border-slate-100 px-3 py-3"><b className="block text-sm">{active?.business_name || 'Business'}</b><span className="text-xs text-slate-400">Current business · {userName}</span></div>
-                  <div className="border-b border-slate-100 py-2">
-                    <div className="px-3 pb-1.5 pt-1 text-[10px] font-bold uppercase tracking-[.16em] text-slate-400">Switch business</div>
-                    {businesses.map((business) => (
-                      <button type="button" role="menuitem" key={business.business_id} onClick={() => switchBusiness(business.business_id)} className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-200 ${business.business_id === activeBusinessId ? 'bg-violet-50 text-violet-800' : 'text-slate-700 hover:bg-violet-50'}`}>
-                        <span aria-hidden="true" className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-slate-100 text-xs font-bold">{business.business_name.slice(0, 2).toUpperCase()}</span>
-                        <span className="min-w-0 flex-1"><b className="block truncate">{business.business_name}</b><small className="text-[10px] text-slate-400">{business.role}</small></span>
-                        {business.business_id === activeBusinessId && <span className="text-[10px] font-bold text-violet-600">✓ Current</span>}
-                      </button>
-                    ))}
-                  </div>
-                  <button type="button" role="menuitem" onClick={() => go('/next-workspace/profile')} className="mt-1 flex w-full rounded-xl px-3 py-2.5 text-left text-sm hover:bg-violet-50">My Profile</button>
-                  <button type="button" role="menuitem" onClick={() => go('/next-workspace/business-settings')} className="flex w-full rounded-xl px-3 py-2.5 text-left text-sm hover:bg-violet-50">Business Settings</button>
-                  <button type="button" role="menuitem" onClick={() => go('/next-workspace/create-business')} className="flex w-full rounded-xl px-3 py-2.5 text-left text-sm hover:bg-violet-50">＋ Create another business</button>
-                  <button type="button" role="menuitem" onClick={async () => { await supabase.auth.signOut(); window.location.href = '/'; }} className="mt-1 w-full rounded-xl px-3 py-2.5 text-left text-sm text-rose-600 hover:bg-rose-50">Sign out</button>
+              <div role="menu" aria-label="Account menu" className="absolute right-0 z-50 mt-2 w-80 rounded-2xl border border-slate-200 bg-white p-2 shadow-xl">
+                <div className="border-b border-slate-100 px-3 py-3"><b className="block text-sm">{active?.business_name || 'Business'}</b><span className="text-xs text-slate-400">Current business · {userName}</span></div>
+                <div className="border-b border-slate-100 py-2">
+                  <div className="px-3 pb-1.5 pt-1 text-[10px] font-bold uppercase tracking-[.16em] text-slate-400">Switch business</div>
+                  {businesses.map((business) => (
+                    <button type="button" role="menuitem" key={business.business_id} onClick={() => switchBusiness(business.business_id)} className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-200 ${business.business_id === activeBusinessId ? 'bg-violet-50 text-violet-800' : 'text-slate-700 hover:bg-violet-50'}`}>
+                      <span aria-hidden="true" className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-slate-100 text-xs font-bold">{business.business_name.slice(0, 2).toUpperCase()}</span>
+                      <span className="min-w-0 flex-1"><b className="block truncate">{business.business_name}</b><small className="text-[10px] text-slate-400">{business.role}</small></span>
+                      {business.business_id === activeBusinessId && <span className="text-[10px] font-bold text-violet-600">✓ Current</span>}
+                    </button>
+                  ))}
                 </div>
-              </>
+                <button type="button" role="menuitem" onClick={() => go('/next-workspace/profile')} className="mt-1 flex w-full rounded-xl px-3 py-2.5 text-left text-sm hover:bg-violet-50">My Profile</button>
+                <button type="button" role="menuitem" onClick={() => go('/next-workspace/business-settings')} className="flex w-full rounded-xl px-3 py-2.5 text-left text-sm hover:bg-violet-50">Business Settings</button>
+                <button type="button" role="menuitem" onClick={() => go('/next-workspace/create-business')} className="flex w-full rounded-xl px-3 py-2.5 text-left text-sm hover:bg-violet-50">＋ Create another business</button>
+                <button type="button" role="menuitem" onClick={async () => { await supabase.auth.signOut(); window.location.href = '/'; }} className="mt-1 w-full rounded-xl px-3 py-2.5 text-left text-sm text-rose-600 hover:bg-rose-50">Sign out</button>
+              </div>
             )}
           </div>
         </div>
