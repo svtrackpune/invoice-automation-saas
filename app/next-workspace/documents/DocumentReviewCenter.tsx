@@ -44,6 +44,7 @@ export default function DocumentReviewCenter({ type, id }: { type: string; id: s
       setPaymentMode((result.data?.payment_display_mode || 'none') as 'none'|'bank'|'online');
       setInvoiceNumber(String(result.data?.invoice_number || ''));
       setInvoiceNotes(String(result.data?.notes || ''));
+      if (new URLSearchParams(window.location.search).get('edit') === '1' && result.data?.status !== 'void') setEditOpen(true);
     })();
     return () => { active = false; };
   }, [id, type]);
