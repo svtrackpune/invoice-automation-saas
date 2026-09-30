@@ -13,24 +13,25 @@ export type AdaptiveNavGroup = {
   items: AdaptiveNavItem[];
 };
 
-// Navigation is ordered by the user's daily business workflow.
-// Dashboard is a direct destination, while Sales contains the complete money-in workflow.
+// Navigation follows a simple small-business workflow inspired by Wave's current
+// information architecture: Dashboard first, then Sales & Payments, Purchases,
+// Products & Services, Accounting, and Settings. Dashboard is a direct destination.
 const NAVIGATION: AdaptiveNavGroup[] = [
   { name: 'Dashboard', items: [{ label: 'Dashboard', href: '/next-workspace', always: true }] },
   {
-    name: 'Sales',
+    name: 'Sales & Payments',
     items: [
       { label: 'Invoices', href: '/next-workspace/invoices', always: true },
       { label: 'Estimates', href: '/next-workspace/documents/library?type=quotation', always: true },
+      { label: 'Recurring', href: '/next-workspace/recurring', always: true },
       { label: 'Payments', href: '/next-workspace/payments', always: true },
       { label: 'Receipts', href: '/next-workspace/receipts', always: true },
       { label: 'Customers', href: '/next-workspace/customers', always: true },
-      { label: 'Recurring', href: '/next-workspace/recurring', requiredAny: ['has_recurring_subscriptions'] },
       { label: 'Cash Bill', href: '/next-workspace/cash-bill', requiredAny: ['is_b2c_retail'] },
     ],
   },
   {
-    name: 'Money out',
+    name: 'Purchases',
     items: [
       { label: 'Purchases & Bills', href: '/next-workspace/purchases', requiredAny: ['has_physical_inventory', 'has_manufacturing', 'is_b2b'] },
       { label: 'Expenses', href: '/next-workspace/expenses', always: true },
@@ -38,14 +39,14 @@ const NAVIGATION: AdaptiveNavGroup[] = [
     ],
   },
   {
-    name: 'Products',
+    name: 'Products & Services',
     items: [
       { label: 'Products & Services', href: '/next-workspace/items', always: true },
       { label: 'Inventory', href: '/next-workspace/inventory', requiredAny: ['has_physical_inventory'] },
     ],
   },
   {
-    name: 'Money & Accounting',
+    name: 'Accounting',
     items: [
       { label: 'Banking', href: '/next-workspace/banking', always: true },
       { label: 'Accounting', href: '/next-workspace/accounting', always: true },
@@ -54,7 +55,7 @@ const NAVIGATION: AdaptiveNavGroup[] = [
     ],
   },
   {
-    name: 'Settings & Automation',
+    name: 'Settings',
     items: [
       { label: 'Documents', href: '/next-workspace/documents/library', always: true },
       { label: 'Document Settings', href: '/next-workspace/brand', always: true },
