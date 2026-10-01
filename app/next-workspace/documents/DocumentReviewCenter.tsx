@@ -12,7 +12,7 @@ export default function DocumentReviewCenter({ type, id }: { type: string; id: s
   const [paymentMode, setPaymentMode] = useState<'none'|'bank'|'online'>('none');
   const [quotationToken, setQuotationToken] = useState('');
   const [invoiceNumber, setInvoiceNumber] = useState('');
-  const [invoiceNotes, setInvoiceNotes] = useState('');
+  const [documentKind, setDocumentKind] = useState<'invoice' | 'cash_bill'>('invoice');
   const [busy, setBusy] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [error, setError] = useState('');
@@ -36,14 +36,14 @@ export default function DocumentReviewCenter({ type, id }: { type: string; id: s
         setQuotationToken(result.data?.public_accept_token || '');
         return;
       }
-      const result = await supabase.from('invoices').select('invoice_number,notes,status,amount_paid,payment_display_mode,payment_link,payment_qr_payload').eq('id', id).eq('business_id', businessId).maybeSingle();
+      const result = await supabase.from('invoices').select('invoice_number,document_kind,status,amount_paid,payment_display_mode,payment_link,payment_qr_payload').eq('id', id).eq('business_id', businessId).maybeSingle();
       if (!active) return;
       if (result.error) { setError(result.error.message); setStatus('error'); return; }
       setStatus(result.data?.status || 'missing');
       setAmountPaid(Number(result.data?.amount_paid || 0));
       setPaymentMode((result.data?.payment_display_mode || 'none') as 'none'|'bank'|'online');
       setInvoiceNumber(String(result.data?.invoice_number || ''));
-      setInvoiceNotes(String(result.data?.notes || ''));
+      setDocumentKind(result.data?.document_kind === 'cash_bill' ? 'cash_bill' : 'invoice');
       if (new URLSearchParams(window.location.search).get('edit') === '1' && result.data?.status !== 'void') setEditOpen(true);
     })();
     return () => { active = false; };
@@ -112,7 +112,6 @@ export default function DocumentReviewCenter({ type, id }: { type: string; id: s
 
   const draft = type === 'invoice' && status === 'draft';
   const editable = type === 'invoice' && status !== 'void' && status !== 'missing' && status !== 'error';
-  const isCashBill = /cash\s*&\s*carry/i.test(invoiceNotes);
   const voidable = type === 'invoice' && !draft && !['void','paid'].includes(status) && amountPaid <= 0;
   const openEdit = () => { if (editable && id) { setError(''); setNotice(''); setEditOpen(true); } };
   const closeEdit = () => { setEditOpen(false); window.location.reload(); };
@@ -151,7 +150,7 @@ export default function DocumentReviewCenter({ type, id }: { type: string; id: s
 
   return <div className="relative min-h-screen">
     <DocumentViewer type={type} id={id} />
-    {type === 'invoice' && <div className="fixed inset-x-0 bottom-0 z-[80] border-t border-slate-200 bg-white/95 px-4 py-3 shadow-[0_-10px_40px_rgba(15,23,42,.12)] backdrop-blur sm:px-6"><div className="mx-auto flex max-w-6xl flex-col gap-2 sm:flex-row sm:items-center sm:justify-between"><div className="min-w-0"><div className="text-sm font-semibold text-slate-900">{draft ? 'Review invoice before posting' : status === 'void' ? 'Invoice voided' : 'Invoice correction'}</div><div className="text-xs text-slate-500">{draft ? 'Check customer, items, quantities, GST, totals, payment details and the final layout. Nothing affects the ledger until you finalize the invoice.' : status === 'void' ? 'This invoice is permanently void in the accounting history.' : 'Correct any manual mistake from the existing document. The invoice number stays unchanged and the accounting history is amended with a controlled reversal and repost.'}</div>{error&&<div className="mt-1 text-xs font-medium text-red-600">{error}</div>}{notice&&<div className="mt-1 text-xs font-medium text-emerald-600">{notice}</div>}</div><div className="flex shrink-0 gap-2"><button type="button" onClick={back} className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50">Back</button>{editable&&<button type="button" onClick={openEdit} disabled={busy} className="rounded-xl border border-violet-200 bg-violet-50 px-4 py-2.5 text-sm font-semibold text-violet-700 hover:bg-violet-100 disabled:opacity-50">Edit Invoice</button>}{draft&&<button type="button" onClick={finalize} disabled={busy} className="rounded-xl bg-violet-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-violet-700 disabled:cursor-not-allowed disabled:opacity-50">{busy?'Posting…':'Finalize & Post'}</button>}{!draft&&paymentMode==='online'&&status!=='void'&&<button type="button" onClick={generatePaymentLink} disabled={busy} className="rounded-xl border border-violet-200 bg-violet-50 px-4 py-2.5 text-sm font-semibold text-violet-700 hover:bg-violet-100 disabled:opacity-50">{busy?'Generating…':'Generate Payment Link'}</button>}{voidable&&<button type="button" onClick={voidInvoice} disabled={busy} className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-2.5 text-sm font-semibold text-rose-700 hover:bg-rose-100 disabled:opacity-50">{busy?'Voiding…':'Void Invoice'}</button>}</div></div></div>}
-    {editOpen && <InvoiceEditModal invoiceId={id} invoiceNumber={invoiceNumber} isCashBill={isCashBill} amountPaid={amountPaid} onClose={closeEdit} />}
+    {type === 'invoice' && <div className="fixed inset-x-0 bottom-0 z-[80] border-t border-slate-200 bg-white/95 px-4 py-3 shadow-[0_-10px_40px_rgba(15,23,42,.12)] backdrop-blur sm:px-6"><div className="mx-auto flex max-w-6xl flex-col gap-2 sm:flex-row sm:items-center sm:justify-between"><div className="min-w-0"><div className="text-sm font-semibold text-slate-900">{draft ? 'Review invoice before posting' : status === 'void' ? 'Invoice voided' : documentKind === 'cash_bill' ? 'Cash Bill correction' : 'Invoice correction'}</div><div className="text-xs text-slate-500">{draft ? 'Check customer, items, quantities, GST, totals, payment details and the final layout. Nothing affects the ledger until you finalize the invoice.' : status === 'void' ? 'This invoice is permanently void in the accounting history.' : documentKind === 'cash_bill' ? 'Correct the existing counter sale. The bill number stays unchanged and its settlement payment and receipt are synchronized with the corrected total.' : 'Correct any manual mistake from the existing document. The invoice number stays unchanged and the accounting history is amended with a controlled reversal and repost.'}</div>{error&&<div className="mt-1 text-xs font-medium text-red-600">{error}</div>}{notice&&<div className="mt-1 text-xs font-medium text-emerald-600">{notice}</div>}</div><div className="flex shrink-0 gap-2"><button type="button" onClick={back} className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50">Back</button>{editable&&<button type="button" onClick={openEdit} disabled={busy} className="rounded-xl border border-violet-200 bg-violet-50 px-4 py-2.5 text-sm font-semibold text-violet-700 hover:bg-violet-100 disabled:opacity-50">{documentKind === 'cash_bill' ? 'Edit Cash Bill' : 'Edit Invoice'}</button>}{draft&&<button type="button" onClick={finalize} disabled={busy} className="rounded-xl bg-violet-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-violet-700 disabled:cursor-not-allowed disabled:opacity-50">{busy?'Posting…':'Finalize & Post'}</button>}{!draft&&paymentMode==='online'&&status!=='void'&&<button type="button" onClick={generatePaymentLink} disabled={busy} className="rounded-xl border border-violet-200 bg-violet-50 px-4 py-2.5 text-sm font-semibold text-violet-700 hover:bg-violet-100 disabled:opacity-50">{busy?'Generating…':'Generate Payment Link'}</button>}{voidable&&<button type="button" onClick={voidInvoice} disabled={busy} className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-2.5 text-sm font-semibold text-rose-700 hover:bg-rose-100 disabled:opacity-50">{busy?'Voiding…':'Void Invoice'}</button>}</div></div></div>}
+    {editOpen && <InvoiceEditModal invoiceId={id} invoiceNumber={invoiceNumber} documentKind={documentKind} amountPaid={amountPaid} onClose={closeEdit} />}
   </div>;
 }
