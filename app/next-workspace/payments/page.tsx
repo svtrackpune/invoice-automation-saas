@@ -4,6 +4,7 @@ import { supabase, type BusinessContext } from '@/lib/supabase';
 import { Alert, Button, Card, EmptyState, Field, FormSection, Input, Modal, MoneyInput, PageHeader, SearchInput, Select } from '@/components/moneymatters';
 import Transaction360Panel from '../documents/Transaction360Panel';
 import VendorPaymentAllocationModal from './VendorPaymentAllocationModal';
+import { dispatchPendingNotifications } from '@/lib/receipt-delivery';
 
 type Payment={id:string;payment_date:string;amount:number;method:string;reference:string|null;direction:string;invoice_id:string|null;bill_id:string|null;customer_id:string|null;vendor_id:string|null;account_id:string|null;notes:string|null;currency_code:string};
 type Customer={id:string;display_name:string}; type Vendor={id:string;display_name:string}; type Invoice={id:string;invoice_number:string;balance_due:number;customer_id:string;document_kind:string}; type BillLink={id:string;bill_number:string;vendor_id:string}; type Account={id:string;name:string;code:string;account_subtype:string|null};
