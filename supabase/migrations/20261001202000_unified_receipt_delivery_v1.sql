@@ -88,7 +88,7 @@ AS $function$
 DECLARE
   r public.receipts%rowtype;
   c public.customers%rowtype;
-  i public.invoices%rowtype;
+  invoice_row public.invoices%rowtype;
   channel_name text := lower(trim(p_channel));
   recipient_value text;
   token_value text;
@@ -144,7 +144,7 @@ BEGIN
     RAISE EXCEPTION 'Customer does not have a destination for %.', channel_name;
   END IF;
 
-  SELECT i.* INTO i
+  SELECT i.* INTO invoice_row
   FROM public.invoices i
   JOIN public.payments p ON p.invoice_id = i.id AND p.id = r.payment_id AND p.business_id = r.business_id
   WHERE i.business_id = r.business_id
@@ -187,7 +187,7 @@ BEGIN
   VALUES(
     r.business_id,
     r.customer_id,
-    i.id,
+    invoice_row.id,
     channel_name,
     'receipt',
     recipient_value,
