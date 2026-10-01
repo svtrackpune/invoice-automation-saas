@@ -373,11 +373,6 @@ BEGIN
         THEN coalesce(public.notification_delivery_evidence.delivered_at, now())
       ELSE public.notification_delivery_evidence.delivered_at
     END,
-    failed_at = CASE
-      WHEN EXCLUDED.status IN ('failed','error')
-        THEN coalesce(public.notification_delivery_evidence.failed_at, now())
-      ELSE public.notification_delivery_evidence.failed_at
-    END,
     metadata = EXCLUDED.metadata;
   RETURN NEW;
 END;
