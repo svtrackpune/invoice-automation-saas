@@ -333,13 +333,11 @@ SET search_path = public
 AS $function$
 BEGIN
   INSERT INTO public.notification_delivery_evidence (
-    business_id, customer_id, vendor_id, notification_job_id, channel,
+    business_id, notification_job_id, channel,
     recipient, subject, message, content_hash, provider_message_id, status,
     queued_at, sent_at, metadata, created_at
   ) VALUES (
     NEW.business_id,
-    NEW.customer_id,
-    NEW.vendor_id,
     NEW.id,
     NEW.channel,
     NEW.recipient,
@@ -361,8 +359,6 @@ BEGIN
   )
   ON CONFLICT (notification_job_id) WHERE notification_job_id IS NOT NULL
   DO UPDATE SET
-    customer_id = EXCLUDED.customer_id,
-    vendor_id = EXCLUDED.vendor_id,
     channel = EXCLUDED.channel,
     recipient = EXCLUDED.recipient,
     subject = EXCLUDED.subject,
