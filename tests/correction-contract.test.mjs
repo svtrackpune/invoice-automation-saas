@@ -195,7 +195,10 @@ test('Core posted ledger tables are read-only to clients', async () => {
   assert.match(sql, /REVOKE ALL ON TABLE public\.%I FROM anon, authenticated/);
   assert.match(sql, /GRANT SELECT ON TABLE public\.%I TO authenticated/);
   assert.match(sql, /FOR SELECT TO authenticated/);
-  assert.doesNotMatch(sql, /member_all ON public\.(bank_transactions|inventory_balances|inventory_movements|write_offs)/);
+  assert.match(sql, /DROP POLICY IF EXISTS bank_transactions_member_all/);
+  assert.match(sql, /DROP POLICY IF EXISTS inventory_balances_member_all/);
+  assert.match(sql, /DROP POLICY IF EXISTS inventory_movements_member_all/);
+  assert.match(sql, /DROP POLICY IF EXISTS write_offs_member/);
 });
 
 
