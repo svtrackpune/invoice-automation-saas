@@ -128,6 +128,25 @@ test('customer 360 surfaces existing credit and refund ledgers', async () => {
   assert.match(customer360, /tab==='credits'/);
 });
 
+test('sales credit note lifecycle is server-controlled', async () => {
+  const sql = await read('supabase/migrations/20261001170000_sales_credit_note_boundary_v1.sql');
+  const atomic = await read('supabase/migrations/20261001171000_sales_credit_note_atomic_v1.sql');
+  const modal = await read('app/next-workspace/documents/CreditNoteModal.tsx');
+  const review = await read('app/next-workspace/documents/DocumentReviewCenter.tsx');
+  assert.match(sql, /create_credit_note\(/);
+  assert.match(sql, /post_credit_note\(/);
+  assert.match(sql, /invoice item does not belong to the source invoice/);
+  assert.match(sql, /uncredited source quantity/);
+  assert.match(sql, /assert_accounting_period_open/);
+  assert.match(sql, /DROP POLICY IF EXISTS credit_notes_member_all/);
+  assert.match(sql, /REVOKE ALL ON FUNCTION public.recalculate_credit_note_totals/);
+  assert.match(atomic, /create_and_post_credit_note/);
+  assert.match(modal, /create_and_post_credit_note/);
+  assert.match(review, /CreditNoteModal/);
+  assert.match(review, /canCreateCreditNote/);
+  assert.match(review, /businessId/);
+});
+
 test('global transaction surfaces expose the new document/payment model', async () => {
   const invoices = await read('app/next-workspace/invoices/page.tsx');
   const search = await read('app/next-workspace/GlobalSearch.tsx');
