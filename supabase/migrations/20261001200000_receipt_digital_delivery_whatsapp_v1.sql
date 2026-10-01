@@ -1,62 +1,87 @@
 BEGIN;
 
-CREATE EXTENSION IF NOT EXISTS pgcrypto;
+-- Receipt delivery is a notification concern, not an accounting concern.
+-- A receipt insert may enqueue delivery jobs, but delivery failure must never
+-- roll back the payment/receipt transaction.
 
-CREATE TABLE IF NOT EXISTS public.receipt_access_tokens (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  business_id uuid NOT NULL REFERENCES public.businesses(id) ON DELETE CASCADE,
-  receipt_id uuid NOT NULL REFERENCES public.receipts(id) ON DELETE CASCADE,
-  purpose text NOT NULL CHECK (purpose IN ('customer_download','whatsapp_delivery')),
-  token_hash text NOT NULL UNIQUE,
-  expires_at timestamptz,
-  revoked_at timestamptz,
-  created_at timestamptz NOT NULL DEFAULT now()
-);
+ALTER TABLE public.notification_jobs
+  DROP CONSTRAINT IF EXISTS notification_jobs_channel_check;
 
-CREATE INDEX IF NOT EXISTS idx_receipt_access_tokens_receipt
-  ON public.receipt_access_tokens(receipt_id, purpose, created_at DESC);
+ALTER TABLE public.notification_jobs
+  ADD CONSTRAINT notification_jobs_channel_check
+  CHECK (channel IN ('email','whatsapp','sms','telegram'));
 
-CREATE INDEX IF NOT EXISTS idx_receipt_access_tokens_hash
-  ON public.receipt_access_tokens(token_hash);
+ALTER TABLE public.notification_delivery_evidence
+  DROP CONSTRAINT IF EXISTS notification_delivery_evidence_channel_check;
 
-ALTER TABLE public.receipt_access_tokens ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.notification_delivery_evidence
+  ADD CONSTRAINT notification_delivery_evidence_channel_check
+  CHECK (channel IN ('email','whatsapp','sms','telegram','push'));
 
-DROP POLICY IF EXISTS receipt_access_tokens_select_none ON public.receipt_access_tokens;
-DROP POLICY IF EXISTS receipt_access_tokens_insert_none ON public.receipt_access_tokens;
-DROP POLICY IF EXISTS receipt_access_tokens_update_none ON public.receipt_access_tokens;
-DROP POLICY IF EXISTS receipt_access_tokens_delete_none ON public.receipt_access_tokens;
+ALTER TABLE public.business_preferences
+  ADD COLUMN IF NOT EXISTS notification_telegram_enabled boolean NOT NULL DEFAULT false;
 
-CREATE TABLE IF NOT EXISTS public.receipt_delivery_attempts (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  business_id uuid NOT NULL REFERENCES public.businesses(id) ON DELETE CASCADE,
-  receipt_id uuid NOT NULL REFERENCES public.receipts(id) ON DELETE CASCADE,
-  channel text NOT NULL CHECK (channel = 'whatsapp'),
-  status text NOT NULL DEFAULT 'queued'
-    CHECK (status IN ('queued','submitted','delivered','failed')),
-  recipient_last4 text,
-  provider_message_id text,
-  error_message text,
-  attempt_count integer NOT NULL DEFAULT 0 CHECK (attempt_count >= 0),
-  created_by uuid REFERENCES auth.users(id),
-  created_at timestamptz NOT NULL DEFAULT now(),
-  updated_at timestamptz NOT NULL DEFAULT now(),
-  submitted_at timestamptz,
-  delivered_at timestamptz
-);
+ALTER TABLE public.customers
+  ADD COLUMN IF NOT EXISTS telegram_chat_id text;
 
-CREATE INDEX IF NOT EXISTS idx_receipt_delivery_attempts_receipt
-  ON public.receipt_delivery_attempts(receipt_id, channel, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_customers_business_telegram_chat
+  ON public.customers(business_id, telegram_chat_id)
+  WHERE telegram_chat_id IS NOT NULL;
 
-CREATE INDEX IF NOT EXISTS idx_receipt_delivery_attempts_provider_message
-  ON public.receipt_delivery_attempts(provider_message_id)
-  WHERE provider_message_id IS NOT NULL;
+CREATE OR REPLACE FUNCTION public._issue_receipt_access_token(
+  p_receipt_id uuid,
+  p_purpose text DEFAULT 'customer_download'
+)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, mm_private
+AS $function$
+DECLARE
+  r public.receipts%rowtype;
+  token_value text;
+  token_hash text;
+  access_id uuid;
+  expires_value timestamptz;
+BEGIN
+  IF p_purpose NOT IN ('customer_download','whatsapp_delivery') THEN
+    RAISE EXCEPTION 'Unsupported receipt access purpose.';
+  END IF;
 
-ALTER TABLE public.receipt_delivery_attempts ENABLE ROW LEVEL SECURITY;
+  SELECT *
+  INTO r
+  FROM public.receipts
+  WHERE id = p_receipt_id
+  FOR UPDATE;
 
-DROP POLICY IF EXISTS receipt_delivery_attempts_select_none ON public.receipt_delivery_attempts;
-DROP POLICY IF EXISTS receipt_delivery_attempts_insert_none ON public.receipt_delivery_attempts;
-DROP POLICY IF EXISTS receipt_delivery_attempts_update_none ON public.receipt_delivery_attempts;
-DROP POLICY IF EXISTS receipt_delivery_attempts_delete_none ON public.receipt_delivery_attempts;
+  IF r.id IS NULL THEN
+    RAISE EXCEPTION 'Receipt not found';
+  END IF;
+
+  token_value := encode(gen_random_bytes(32), 'hex');
+  token_hash := encode(digest(token_value, 'sha256'), 'hex');
+  expires_value := CASE
+    WHEN p_purpose = 'whatsapp_delivery' THEN now() + interval '30 minutes'
+    ELSE now() + interval '5 years'
+  END;
+
+  INSERT INTO public.receipt_access_tokens(
+    business_id, receipt_id, purpose, token_hash, expires_at
+  )
+  VALUES(
+    r.business_id, r.id, p_purpose, token_hash, expires_value
+  )
+  RETURNING id INTO access_id;
+
+  RETURN jsonb_build_object(
+    'access_id', access_id,
+    'receipt_id', r.id,
+    'receipt_number', r.receipt_number,
+    'token', token_value,
+    'expires_at', expires_value
+  );
+END;
+$function$;
 
 CREATE OR REPLACE FUNCTION public.create_receipt_access_token(
   p_receipt_id uuid
@@ -67,161 +92,230 @@ SECURITY DEFINER
 SET search_path = public, mm_private
 AS $function$
 DECLARE
-  receipt_row public.receipts%rowtype;
-  token_value text;
-  token_hash text;
-  access_id uuid;
-  expires_value timestamptz := now() + interval '5 years';
+  r public.receipts%rowtype;
 BEGIN
-  SELECT r.*
-  INTO receipt_row
-  FROM public.receipts r
-  WHERE r.id = p_receipt_id
-  FOR UPDATE;
+  SELECT *
+  INTO r
+  FROM public.receipts
+  WHERE id = p_receipt_id;
 
-  IF receipt_row.id IS NULL THEN
+  IF r.id IS NULL THEN
     RAISE EXCEPTION 'Receipt not found';
   END IF;
 
   IF NOT (
-    mm_private.has_business_permission(receipt_row.business_id, 'sales.view')
-    OR mm_private.has_business_permission(receipt_row.business_id, 'payments.receive')
-    OR mm_private.has_business_permission(receipt_row.business_id, 'sales.create')
+    mm_private.has_business_permission(r.business_id, 'sales.view')
+    OR mm_private.has_business_permission(r.business_id, 'payments.receive')
+    OR mm_private.has_business_permission(r.business_id, 'sales.create')
   ) THEN
     RAISE EXCEPTION 'Access denied';
   END IF;
 
-  token_value := encode(gen_random_bytes(32), 'hex');
-  token_hash := encode(digest(token_value, 'sha256'), 'hex');
-
-  INSERT INTO public.receipt_access_tokens(
-    business_id, receipt_id, purpose, token_hash, expires_at
-  )
-  VALUES(
-    receipt_row.business_id, receipt_row.id, 'customer_download', token_hash, expires_value
-  )
-  RETURNING id INTO access_id;
-
-  RETURN jsonb_build_object(
-    'access_id', access_id,
-    'receipt_id', receipt_row.id,
-    'receipt_number', receipt_row.receipt_number,
-    'token', token_value,
-    'expires_at', expires_value
-  );
+  RETURN public._issue_receipt_access_token(p_receipt_id, 'customer_download');
 END;
 $function$;
 
-CREATE OR REPLACE FUNCTION public.prepare_receipt_whatsapp_delivery(
+CREATE OR REPLACE FUNCTION public.enqueue_receipt_delivery_notifications(
   p_receipt_id uuid
 )
-RETURNS jsonb
+RETURNS integer
 LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = public, mm_private
 AS $function$
 DECLARE
-  receipt_row public.receipts%rowtype;
-  customer_row public.customers%rowtype;
-  token_value text;
-  token_hash text;
-  token_id uuid;
-  delivery_id uuid;
-  expires_value timestamptz := now() + interval '30 minutes';
-  clean_phone text;
+  r public.receipts%rowtype;
+  c public.customers%rowtype;
+  b public.business_preferences%rowtype;
+  biz public.businesses%rowtype;
+  access jsonb;
+  token text;
+  action_url text;
+  body text;
+  queued integer := 0;
+  v_rows integer := 0;
 BEGIN
-  SELECT r.*
-  INTO receipt_row
-  FROM public.receipts r
-  WHERE r.id = p_receipt_id
+  SELECT * INTO r
+  FROM public.receipts
+  WHERE id = p_receipt_id
   FOR UPDATE;
 
-  IF receipt_row.id IS NULL THEN
+  IF r.id IS NULL THEN
     RAISE EXCEPTION 'Receipt not found';
   END IF;
 
-  IF NOT (
-    mm_private.has_business_permission(receipt_row.business_id, 'sales.view')
-    OR mm_private.has_business_permission(receipt_row.business_id, 'payments.receive')
-    OR mm_private.has_business_permission(receipt_row.business_id, 'sales.create')
-  ) THEN
-    RAISE EXCEPTION 'Access denied';
+  IF r.customer_id IS NULL THEN
+    RETURN 0;
   END IF;
 
-  IF receipt_row.customer_id IS NULL THEN
-    RETURN jsonb_build_object(
-      'enabled', false,
-      'reason', 'no_customer',
-      'receipt_id', receipt_row.id,
-      'receipt_number', receipt_row.receipt_number
-    );
+  SELECT * INTO c
+  FROM public.customers
+  WHERE id = r.customer_id
+    AND business_id = r.business_id
+    AND is_active;
+
+  IF c.id IS NULL OR NOT coalesce(c.notify_customer, true) THEN
+    RETURN 0;
   END IF;
 
-  SELECT *
-  INTO customer_row
-  FROM public.customers c
-  WHERE c.id = receipt_row.customer_id
-    AND c.business_id = receipt_row.business_id;
+  SELECT * INTO biz
+  FROM public.businesses
+  WHERE id = r.business_id;
 
-  IF customer_row.id IS NULL THEN
-    RAISE EXCEPTION 'Receipt customer could not be resolved for the same business.';
+  SELECT * INTO b
+  FROM public.business_preferences
+  WHERE business_id = r.business_id;
+
+  access := public._issue_receipt_access_token(r.id, 'customer_download');
+  token := access->>'token';
+  action_url := '/api/receipts/pdf?token=' || token;
+  body := 'Your payment receipt ' || r.receipt_number || ' from ' ||
+          coalesce(biz.name, 'Business') || ' is ready.';
+
+  IF coalesce(b.notification_email_enabled, true)
+     AND nullif(trim(coalesce(c.email,'')), '') IS NOT NULL THEN
+    INSERT INTO public.notification_jobs(
+      business_id, customer_id, invoice_id, channel, notification_type,
+      recipient, subject, message, action_url, scheduled_for, metadata
+    )
+    VALUES(
+      r.business_id, r.customer_id,
+      (SELECT invoice_id FROM public.payments WHERE id = r.payment_id),
+      'email', 'receipt',
+      trim(c.email),
+      'Payment receipt · ' || r.receipt_number,
+      body,
+      action_url,
+      now(),
+      jsonb_build_object(
+        'receipt_id', r.id,
+        'receipt_number', r.receipt_number,
+        'attachment_type', 'receipt_pdf',
+        'attachment_filename', 'receipt-' || r.receipt_number || '.pdf',
+        'idempotency_key', 'receipt:' || r.id || ':email:v1'
+      )
+    )
+    ON CONFLICT DO NOTHING;
+    GET DIAGNOSTICS v_rows = ROW_COUNT;
+    queued := queued + v_rows;
   END IF;
 
-  clean_phone := nullif(trim(coalesce(customer_row.phone, '')), '');
-
-  IF clean_phone IS NULL THEN
-    RETURN jsonb_build_object(
-      'enabled', false,
-      'reason', 'no_mobile',
-      'receipt_id', receipt_row.id,
-      'receipt_number', receipt_row.receipt_number,
-      'customer_name', customer_row.display_name
-    );
+  IF coalesce(b.notification_whatsapp_enabled, true)
+     AND nullif(trim(coalesce(c.phone,'')), '') IS NOT NULL THEN
+    INSERT INTO public.notification_jobs(
+      business_id, customer_id, invoice_id, channel, notification_type,
+      recipient, subject, message, action_url, scheduled_for, metadata
+    )
+    VALUES(
+      r.business_id, r.customer_id,
+      (SELECT invoice_id FROM public.payments WHERE id = r.payment_id),
+      'whatsapp', 'receipt',
+      trim(c.phone),
+      NULL,
+      body,
+      action_url,
+      now(),
+      jsonb_build_object(
+        'receipt_id', r.id,
+        'receipt_number', r.receipt_number,
+        'attachment_type', 'receipt_pdf',
+        'attachment_filename', 'receipt-' || r.receipt_number || '.pdf',
+        'idempotency_key', 'receipt:' || r.id || ':whatsapp:v1'
+      )
+    )
+    ON CONFLICT DO NOTHING;
+    GET DIAGNOSTICS v_rows = ROW_COUNT;
+    queued := queued + v_rows;
   END IF;
 
-  token_value := encode(gen_random_bytes(32), 'hex');
-  token_hash := encode(digest(token_value, 'sha256'), 'hex');
+  IF coalesce(b.notification_sms_enabled, false)
+     AND nullif(trim(coalesce(c.phone,'')), '') IS NOT NULL THEN
+    INSERT INTO public.notification_jobs(
+      business_id, customer_id, invoice_id, channel, notification_type,
+      recipient, subject, message, action_url, scheduled_for, metadata
+    )
+    VALUES(
+      r.business_id, r.customer_id,
+      (SELECT invoice_id FROM public.payments WHERE id = r.payment_id),
+      'sms', 'receipt',
+      trim(c.phone),
+      NULL,
+      body,
+      action_url,
+      now(),
+      jsonb_build_object(
+        'receipt_id', r.id,
+        'receipt_number', r.receipt_number,
+        'delivery_format', 'link',
+        'idempotency_key', 'receipt:' || r.id || ':sms:v1'
+      )
+    )
+    ON CONFLICT DO NOTHING;
+    GET DIAGNOSTICS v_rows = ROW_COUNT;
+    queued := queued + v_rows;
+  END IF;
 
-  INSERT INTO public.receipt_access_tokens(
-    business_id, receipt_id, purpose, token_hash, expires_at
-  )
-  VALUES(
-    receipt_row.business_id, receipt_row.id, 'whatsapp_delivery', token_hash, expires_value
-  )
-  RETURNING id INTO token_id;
+  IF coalesce(b.notification_telegram_enabled, false)
+     AND nullif(trim(coalesce(c.telegram_chat_id,'')), '') IS NOT NULL THEN
+    INSERT INTO public.notification_jobs(
+      business_id, customer_id, invoice_id, channel, notification_type,
+      recipient, subject, message, action_url, scheduled_for, metadata
+    )
+    VALUES(
+      r.business_id, r.customer_id,
+      (SELECT invoice_id FROM public.payments WHERE id = r.payment_id),
+      'telegram', 'receipt',
+      trim(c.telegram_chat_id),
+      'Payment receipt · ' || r.receipt_number,
+      body,
+      action_url,
+      now(),
+      jsonb_build_object(
+        'receipt_id', r.id,
+        'receipt_number', r.receipt_number,
+        'attachment_type', 'receipt_pdf',
+        'attachment_filename', 'receipt-' || r.receipt_number || '.pdf',
+        'idempotency_key', 'receipt:' || r.id || ':telegram:v1'
+      )
+    )
+    ON CONFLICT DO NOTHING;
+    GET DIAGNOSTICS v_rows = ROW_COUNT;
+    queued := queued + v_rows;
+  END IF;
 
-  INSERT INTO public.receipt_delivery_attempts(
-    business_id, receipt_id, channel, status, recipient_last4, attempt_count, created_by
-  )
-  VALUES(
-    receipt_row.business_id,
-    receipt_row.id,
-    'whatsapp',
-    'queued',
-    right(regexp_replace(clean_phone, '\\D', '', 'g'), 4),
-    0,
-    auth.uid()
-  )
-  RETURNING id INTO delivery_id;
-
-  RETURN jsonb_build_object(
-    'enabled', true,
-    'delivery_id', delivery_id,
-    'token_id', token_id,
-    'receipt_id', receipt_row.id,
-    'receipt_number', receipt_row.receipt_number,
-    'customer_name', customer_row.display_name,
-    'customer_phone', clean_phone,
-    'token', token_value,
-    'expires_at', expires_value
-  );
+  RETURN queued;
 END;
 $function$;
 
-REVOKE ALL ON FUNCTION public.create_receipt_access_token(uuid) FROM public, anon;
+CREATE OR REPLACE FUNCTION public.trg_enqueue_receipt_delivery_notifications()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, mm_private
+AS $function$
+BEGIN
+  BEGIN
+    PERFORM public.enqueue_receipt_delivery_notifications(NEW.id);
+  EXCEPTION WHEN OTHERS THEN
+    -- Never block the financial transaction because a notification queue
+    -- operation failed. The payment/receipt remains the accounting source.
+    RAISE LOG 'Moneymatters receipt delivery enqueue failed for receipt %: %', NEW.id, SQLERRM;
+  END;
+  RETURN NEW;
+END;
+$function$;
+
+DROP TRIGGER IF EXISTS trg_enqueue_receipt_delivery_notifications ON public.receipts;
+CREATE TRIGGER trg_enqueue_receipt_delivery_notifications
+AFTER INSERT ON public.receipts
+FOR EACH ROW
+EXECUTE FUNCTION public.trg_enqueue_receipt_delivery_notifications();
+
+REVOKE ALL ON FUNCTION public._issue_receipt_access_token(uuid,text) FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.create_receipt_access_token(uuid) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.create_receipt_access_token(uuid) TO authenticated;
 
-REVOKE ALL ON FUNCTION public.prepare_receipt_whatsapp_delivery(uuid) FROM public, anon;
-GRANT EXECUTE ON FUNCTION public.prepare_receipt_whatsapp_delivery(uuid) TO authenticated;
+REVOKE ALL ON FUNCTION public.enqueue_receipt_delivery_notifications(uuid) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.enqueue_receipt_delivery_notifications(uuid) TO authenticated;
 
 COMMIT;
