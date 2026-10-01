@@ -76,6 +76,7 @@ DECLARE
   v_new_alloc numeric := 0;
   v_new_excess numeric := 0;
   v_entry_number bigint;
+  v_invoice_paid numeric := 0;
   v_allocation_count integer;
 BEGIN
   IF p_amount <= 0 THEN
@@ -343,17 +344,17 @@ BEGIN
   END IF;
 
   SELECT coalesce(sum(pa.amount), 0)
-  INTO v_entry_number
+  INTO v_invoice_paid
   FROM public.payment_allocations pa
   WHERE pa.invoice_id = inv.id;
 
   UPDATE public.invoices
-  SET amount_paid = v_entry_number,
-      balance_due = greatest(total - v_entry_number, 0),
+  SET amount_paid = v_invoice_paid,
+      balance_due = greatest(total - v_invoice_paid, 0),
       status = CASE
-        WHEN v_entry_number >= total THEN 'paid'::invoice_status
-        WHEN v_entry_number > 0 AND due_date < current_date THEN 'overdue'::invoice_status
-        WHEN v_entry_number > 0 THEN 'partially_paid'::invoice_status
+        WHEN v_invoice_paid >= total THEN 'paid'::invoice_status
+        WHEN v_invoice_paid > 0 AND due_date < current_date THEN 'overdue'::invoice_status
+        WHEN v_invoice_paid > 0 THEN 'partially_paid'::invoice_status
         WHEN due_date < current_date THEN 'overdue'::invoice_status
         ELSE 'sent'::invoice_status
       END,
