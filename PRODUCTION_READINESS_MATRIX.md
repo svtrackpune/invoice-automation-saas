@@ -84,7 +84,7 @@ These items are not marked complete until code and tests demonstrate the accepta
 
 ### Security and tenancy
 - Systematic cross-business negative tests for all new and high-value RPCs.
-- Review of all existing exposed SECURITY DEFINER functions; reduce grants where public execution is not intentional. The internal business-seeding functions are now locked; the broader inventory remains.
+- Review of all existing exposed SECURITY DEFINER functions; reduce grants where public execution is not intentional. Internal business-seeding and core financial helper functions are now locked; the broader inventory remains.
 - RLS policy coverage and automated member/non-member tests for critical business tables.
 - Audit trail coverage for every correction, void, payment change and master-data change.
 
