@@ -20,7 +20,7 @@ export default function Transaction360Panel({entityType,entityId}:Props){
   const bank=(data?.bank_transactions||[]) as any[];
   const supplierCredits=(data?.supplier_credits||[]) as any[];
   const supplierCreditLedger=(data?.supplier_credit_ledger||[]) as any[];
-  const availableSupplierCredit=supplierCreditLedger.filter(x=>x.entry_type==='credit_note'||x.entry_type==='overpayment'||x.entry_type==='adjustment').reduce((s,x)=>s+Number(x.amount||0),0)+supplierCreditLedger.filter(x=>x.entry_type==='application'||x.entry_type==='refund').reduce((s,x)=>s+Number(x.amount||0),0);
+  const availableSupplierCredit=supplierCreditLedger.reduce((s,x)=>s+Number(x.amount||0),0);
   return <section className="mx-auto mt-5 max-w-6xl rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
     <div className="flex flex-wrap items-end justify-between gap-3"><div><p className="text-[10px] font-bold uppercase tracking-[.16em] text-violet-600">Transaction 360</p><h2 className="mt-1 text-lg font-semibold text-slate-900">Linked records & accounting trail</h2></div><div className="text-xs text-slate-400">Server-side relationship view.</div></div>
     <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
