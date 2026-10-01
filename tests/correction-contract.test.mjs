@@ -190,11 +190,14 @@ test('payment center exposes Payment 360 context', async () => {
 test('Core posted ledger tables are read-only to clients', async () => {
   const sql = await read('supabase/migrations/20261001187000_financial_ledger_table_readonly_boundary_v1.sql');
   for (const table of ['inventory_balances','inventory_movements','bank_transactions','credit_notes','credit_note_items','customer_credit_ledger','customer_refunds','vendor_credits','vendor_credit_items','vendor_credit_ledger','write_offs']) {
-    assert.match(sql, new RegExp('REVOKE ALL ON TABLE public\\\\.' + table));
+    assert.match(sql, new RegExp(`'\\${table}'`));
   }
+  assert.match(sql, /REVOKE ALL ON TABLE public\.%I FROM anon, authenticated/);
+  assert.match(sql, /GRANT SELECT ON TABLE public\.%I TO authenticated/);
   assert.match(sql, /FOR SELECT TO authenticated/);
   assert.doesNotMatch(sql, /member_all ON public\.(bank_transactions|inventory_balances|inventory_movements|write_offs)/);
 });
+
 
 test('Direct financial table writes are draft-only where legacy UI requires them', async () => {
   const sql = await read('supabase/migrations/20261001186000_draft_financial_write_state_boundary_v1.sql');
