@@ -32,7 +32,8 @@ Base: `main` at `55ef7cc3b363e7f7513ff04364bbc8e86880c14a`
 | Customer credit/refund security | Implemented | Customer credit/refund ledgers are read-only to clients; refund RPC enforces customer ownership, accounting period and Cash/Bank account |
 | Invoice 360 credit trail | Implemented | Invoice 360 now includes credit notes, customer-credit ledger entries and customer refunds |
 | Payment search | Implemented | Global search searches payment method/reference/amount |
-| Payment 360 | Implemented | Payments and Receipts centers open the canonical Payment 360 relationship view |
+| Payment 360 | Implemented | Payments and Receipts centers open the canonical Payment 360 relationship view; supplier payments expose bill allocations and unapplied advance state |
+| Supplier payment allocation | Implemented | Posted supplier payments can be left unapplied or split/reallocated across multiple posted purchase bills through `allocate_vendor_payment`; payment and affected bill settlement state are synchronized atomically |
 | Internal business seeding boundary | Implemented | Business default-seeding and feature-flag trigger functions are no longer directly executable by authenticated/anonymous clients |
 | CI financial gate | Implemented | Production readiness now runs `test:financial` |
 | CI correction contract gate | Implemented | Production readiness runs `tests/correction-contract.test.mjs` |
@@ -54,9 +55,9 @@ These items are not marked complete until code and tests demonstrate the accepta
 - Bidirectional transaction graph is materially surfaced for invoice/Cash Bill/quotation and supplier-side flows; remaining modules still need the same relationship depth.
 
 ### Purchasing and expenses
-- Multi-bill/unapplied supplier payment allocation and reallocation remains on the controlled roadmap; supplier-credit application to another posted bill is implemented.
+- Multi-bill/unapplied supplier payment allocation and reallocation is implemented through the controlled supplier-payment allocation RPC and Payments/Supplier 360 UI.
 - Purchase inventory correction replay across downstream inventory activity remains restricted when current stock cannot absorb the original movement reversal.
-- Supplier payment correction for multi-bill/unapplied payments remains on the controlled credit/reallocation roadmap; vendor-credit application is handled separately.
+- Supplier payment correction now remains deliberately scoped: payment amount/method/account/date correction is supported for single-bill payments; multi-bill allocation/reallocation is handled by the dedicated allocation RPC to preserve payment identity and affected-bill settlement state.
 - Purchase bill popup correction experience is implemented.
 
 ### Quotations
