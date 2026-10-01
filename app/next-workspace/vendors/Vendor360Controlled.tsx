@@ -3,11 +3,13 @@
 import { useEffect, useMemo, useState } from 'react';
 import { supabase, type BusinessContext } from '@/lib/supabase';
 import VendorCreditApplyModal from './VendorCreditApplyModal';
+import VendorPaymentAllocationModal from '../payments/VendorPaymentAllocationModal';
 
 type Vendor={id:string;display_name:string;legal_name:string|null;contact_person_name:string|null;phone:string|null;email:string|null;tax_id:string|null;tax_type:string|null;payment_terms_days:number;notes:string|null};
 type Balance={billed:number;paid:number;balance_due:number};
 type Bill={id:string;bill_number:string;bill_date:string;due_date:string;status:string;total:number;balance_due:number};
-type Payment={id:string;payment_date:string;amount:number;method:string;reference:string|null};
+type Payment={id:string;payment_date:string;amount:number;method:string;reference:string|null;vendor_id:string|null;bill_id:string|null;currency_code:string};
+type Allocation={payment_id:string;bill_id:string;amount:number};
 type Statement={bill_date:string;bill_number:string;text:string;total:number;numeric:number;id:string};
 type VendorCredit={id:string;credit_number:string;credit_date:string;reason:string;total:number;status:string;bill_id:string|null;available:number};
 
@@ -20,9 +22,11 @@ export default function Vendor360Controlled({params}:{params:Promise<{id:string}
  const [balance,setBalance]=useState<Balance>({billed:0,paid:0,balance_due:0});
  const [bills,setBills]=useState<Bill[]>([]);
  const [payments,setPayments]=useState<Payment[]>([]);
+ const [allocations,setAllocations]=useState<Allocation[]>([]);
  const [statement,setStatement]=useState<Statement[]>([]);
  const [credits,setCredits]=useState<VendorCredit[]>([]);
  const [applyCredit,setApplyCredit]=useState<VendorCredit|null>(null);
+ const [allocationPayment,setAllocationPayment]=useState<Payment|null>(null);
  const [loading,setLoading]=useState(true);
  const [error,setError]=useState('');
 
@@ -36,11 +40,12 @@ export default function Vendor360Controlled({params}:{params:Promise<{id:string}
    if(!b){setError('Business context unavailable.');setLoading(false);return}
    setBusinessId(b.business_id);
 
-   const [v,bal,bs,ps,st,vc,vl]=await Promise.all([
+   const [v,bal,bs,ps,pa,st,vc,vl]=await Promise.all([
      supabase.from('vendors').select('id,display_name,legal_name,contact_person_name,phone,email,tax_id,tax_type,payment_terms_days,notes').eq('id',id).eq('business_id',b.business_id).maybeSingle(),
      supabase.from('vendor_balances').select('billed,paid,balance_due').eq('vendor_id',id).eq('business_id',b.business_id).maybeSingle(),
      supabase.from('bills').select('id,bill_number,bill_date,due_date,status,total,balance_due').eq('vendor_id',id).eq('business_id',b.business_id).order('bill_date',{ascending:false}),
-     supabase.from('payments').select('id,payment_date,amount,method,reference').eq('vendor_id',id).eq('business_id',b.business_id).eq('direction','outbound').order('payment_date',{ascending:false}),
+     supabase.from('payments').select('id,payment_date,amount,method,reference,vendor_id,bill_id,currency_code').eq('vendor_id',id).eq('business_id',b.business_id).eq('direction','outbound').order('payment_date',{ascending:false}),
+     supabase.from('vendor_payment_allocations').select('payment_id,bill_id,amount').eq('vendor_id',id).eq('business_id',b.business_id),
      supabase.from('vendor_statement_lines').select('bill_date,bill_number,text,total,numeric,id').eq('vendor_id',id).eq('business_id',b.business_id).order('bill_date'),
      supabase.from('vendor_credits').select('id,credit_number,credit_date,reason,total,status,bill_id').eq('vendor_id',id).eq('business_id',b.business_id).order('credit_date',{ascending:false}),
      supabase.from('vendor_credit_ledger').select('vendor_credit_id,amount').eq('vendor_id',id).eq('business_id',b.business_id)
@@ -51,6 +56,7 @@ export default function Vendor360Controlled({params}:{params:Promise<{id:string}
    setBalance((bal.data||{billed:0,paid:0,balance_due:0}) as Balance);
    setBills((bs.data||[]) as Bill[]);
    setPayments((ps.data||[]) as Payment[]);
+   setAllocations((pa.data||[]) as Allocation[]);
    setStatement((st.data||[]) as Statement[]);
 
    const availableById:Record<string,number>={};
@@ -65,6 +71,12 @@ export default function Vendor360Controlled({params}:{params:Promise<{id:string}
 
  const overdue=useMemo(()=>bills.filter(x=>Number(x.balance_due)>0&&x.due_date<new Date().toISOString().slice(0,10)).reduce((a,x)=>a+Number(x.balance_due||0),0),[bills]);
  const availableCredit=useMemo(()=>credits.filter(x=>x.status==='posted').reduce((a,x)=>a+Math.max(x.available,0),0),[credits]);
+ const allocationsByPayment=useMemo(()=>{
+   const map:Record<string,number>={};
+   allocations.forEach(x=>{map[x.payment_id]=(map[x.payment_id]||0)+Number(x.amount||0)});
+   return map;
+ },[allocations]);
+ const unappliedPayments=useMemo(()=>payments.filter(p=>Number(p.amount)-Number(allocationsByPayment[p.id]||0)>0.005),[payments,allocationsByPayment]);
 
  if(loading)return <main className="p-6 text-sm text-slate-500">Loading Supplier 360…</main>;
  if(error||!vendor)return <main className="p-6 text-sm text-rose-700">{error||'Vendor not found.'}</main>;
@@ -87,7 +99,14 @@ export default function Vendor360Controlled({params}:{params:Promise<{id:string}
      <Card title="Supplier profile"><p className="text-sm">{vendor.legal_name||'Legal name not set'}</p><p className="mt-2 text-sm text-slate-500">{vendor.tax_type||'N/A'}{vendor.tax_id?' · '+vendor.tax_id:''}</p><p className="mt-2 text-sm text-slate-500">{vendor.payment_terms_days?'Net '+vendor.payment_terms_days:'Due on receipt'}</p>{vendor.notes&&<p className="mt-3 rounded-xl bg-slate-50 p-3 text-sm text-slate-600">{vendor.notes}</p>}</Card>
 
      <Card title="Purchase bills"><Table headers={['Bill','Date','Due','Status','Total','Balance']} rows={bills.map(x=>[x.bill_number,x.bill_date,x.due_date,x.status.replaceAll('_',' '),money(x.total),money(x.balance_due)])}/></Card>
-     <Card title="Supplier payments"><Table headers={['Date','Amount','Method','Reference']} rows={payments.map(x=>[x.payment_date,money(x.amount),x.method.replaceAll('_',' '),x.reference||'—'])}/></Card>
+
+     <Card title="Supplier payments">
+       {payments.length?<div className="overflow-x-auto"><table className="w-full min-w-[820px] text-left text-sm"><thead className="bg-slate-50 text-xs text-slate-500"><tr>{['Date','Amount','Method','Reference','Allocated','Unapplied','Action'].map(h=><th key={h} className="px-4 py-3">{h}</th>)}</tr></thead><tbody>{payments.map(p=>{const allocated=Number(allocationsByPayment[p.id]||0);const unapplied=Math.max(Number(p.amount)-allocated,0);return <tr key={p.id} className="border-t border-slate-100"><td className="px-4 py-3">{p.payment_date}</td><td className="px-4 py-3 font-semibold">{money(p.amount)}</td><td className="px-4 py-3">{p.method.replaceAll('_',' ')}</td><td className="px-4 py-3">{p.reference||'—'}</td><td className="px-4 py-3">{money(allocated)}</td><td className="px-4 py-3">{money(unapplied)}</td><td className="px-4 py-3"><button type="button" onClick={()=>setAllocationPayment(p)} className="rounded-lg border border-violet-200 bg-violet-50 px-3 py-1.5 text-xs font-semibold text-violet-700 hover:bg-violet-100">Allocate</button></td></tr>})}</tbody></table></div>:<p className="text-sm text-slate-500">No supplier payments recorded yet.</p>}
+     </Card>
+
+     {unappliedPayments.length>0&&<Card title="Unapplied supplier advances">
+       <div className="space-y-2">{unappliedPayments.map(p=>{const unapplied=Math.max(Number(p.amount)-Number(allocationsByPayment[p.id]||0),0);return <div key={p.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-100 bg-amber-50/40 p-4"><div><b className="block text-sm">{money(unapplied)} available from {p.payment_date}</b><span className="text-xs text-slate-500">{p.reference||'No reference'} · {p.method.replaceAll('_',' ')}</span></div><button type="button" onClick={()=>setAllocationPayment(p)} className="rounded-lg border border-amber-200 bg-white px-3 py-1.5 text-xs font-semibold text-amber-800 hover:bg-amber-50">Allocate to bills</button></div>})}</div>
+     </Card>}
 
      <Card title="Supplier credits">
        {credits.filter(x=>x.status==='posted').length?<div className="overflow-x-auto"><table className="w-full min-w-[720px] text-left text-sm"><thead className="bg-slate-50 text-xs text-slate-500"><tr>{['Credit','Date','Reason','Total','Available','Action'].map(h=><th key={h} className="px-4 py-3">{h}</th>)}</tr></thead><tbody>{credits.filter(x=>x.status==='posted').map(x=><tr key={x.id} className="border-t border-slate-100"><td className="px-4 py-3 font-semibold">{x.credit_number}</td><td className="px-4 py-3">{x.credit_date}</td><td className="px-4 py-3">{x.reason}</td><td className="px-4 py-3">{money(x.total)}</td><td className="px-4 py-3">{money(Math.max(x.available,0))}</td><td className="px-4 py-3">{x.available>0.005?<button type="button" onClick={()=>setApplyCredit(x)} className="rounded-lg border border-violet-200 bg-violet-50 px-3 py-1.5 text-xs font-semibold text-violet-700 hover:bg-violet-100">Apply</button>:<span className="text-xs text-slate-400">Settled</span>}</td></tr>)}</tbody></table></div>:<p className="text-sm text-slate-500">No posted supplier credits.</p>}
@@ -96,6 +115,7 @@ export default function Vendor360Controlled({params}:{params:Promise<{id:string}
      <Card title="Supplier statement"><Table headers={['Date','Document','Text','Total']} rows={statement.map(x=>[x.bill_date,x.bill_number,x.text,money(x.total)])}/></Card>
 
      {applyCredit&&<VendorCreditApplyModal open={!!applyCredit} businessId={businessId} creditId={applyCredit.id} creditNumber={applyCredit.credit_number} available={Math.max(applyCredit.available,0)} bills={bills} onClose={()=>setApplyCredit(null)} onSaved={load}/>}
+     {allocationPayment&&<VendorPaymentAllocationModal open={!!allocationPayment} businessId={businessId} payment={allocationPayment} onClose={()=>setAllocationPayment(null)} onSaved={load}/>}
    </div>
  </main>;
 }
