@@ -10,6 +10,7 @@ import Transaction360Panel from './Transaction360Panel';
 
 export default function DocumentReviewCenter({ type, id }: { type: string; id: string }) {
   const [status, setStatus] = useState<string>('loading');
+  const [businessId, setBusinessId] = useState('');
   const [amountPaid, setAmountPaid] = useState(0);
   const [paymentMode, setPaymentMode] = useState<'none'|'bank'|'online'>('none');
   const [quotationToken, setQuotationToken] = useState('');
@@ -31,9 +32,10 @@ export default function DocumentReviewCenter({ type, id }: { type: string; id: s
         if (active) { setError(context.error?.message || 'Business context not found.'); setStatus('error'); }
         return;
       }
-      const businessId = context.data[0].business_id;
+      const currentBusinessId = context.data[0].business_id;
+      setBusinessId(currentBusinessId);
       if (type === 'quotation') {
-        const result = await supabase.from('quotations').select('status,quotation_number,public_accept_token').eq('id', id).eq('business_id', businessId).maybeSingle();
+        const result = await supabase.from('quotations').select('status,quotation_number,public_accept_token').eq('id', id).eq('business_id', currentBusinessId).maybeSingle();
         if (!active) return;
         if (result.error) { setError(result.error.message); setStatus('error'); return; }
         setStatus(result.data?.status || 'missing');
