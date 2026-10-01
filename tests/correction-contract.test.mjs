@@ -13,6 +13,9 @@ test('financial correction migration contains required safety primitives', async
     'invoices_document_kind_check',
     'guard_invoice_void_with_payments',
     'update_customer_payment(',
+    'update_bill_any_state(',
+    'update_vendor_payment(',
+    'update_expense_any_state(',
     'create_cash_bill(',
     'update_cash_bill_any_state(',
     'v_other_alloc',
@@ -49,6 +52,23 @@ test('payment correction keeps cash bills inside their transaction workflow', as
   assert.match(s, /rpc\('update_customer_payment'/);
   assert.match(s, /Edit via Cash Bill/);
   assert.match(s, /account_id/);
+});
+
+test('purchase and expense correction surfaces use the server correction contract', async () => {
+  const purchaseEditor = await read('app/next-workspace/purchases/new/page.tsx');
+  const purchaseModal = await read('app/next-workspace/purchases/PurchaseEditModal.tsx');
+  const purchaseDetail = await read('app/next-workspace/purchases/[id]/page.tsx');
+  const expenses = await read('app/next-workspace/expenses/ExpenseWorkspaceControlled.tsx');
+  const sql = await read('supabase/migrations/20261001120000_purchase_expense_correction_v1.sql');
+  assert.match(purchaseEditor, /update_bill_any_state/);
+  assert.match(purchaseEditor, /embedded/);
+  assert.match(purchaseModal, /moneymatters:transaction-updated/);
+  assert.match(purchaseDetail, /PurchaseEditModal/);
+  assert.match(purchaseDetail, /update_vendor_payment/);
+  assert.match(expenses, /update_expense_any_state/);
+  assert.match(expenses, /Correct expense/);
+  assert.match(sql, /guard_bill_void_with_payments/);
+  assert.match(sql, /reverse_journal_entry/);
 });
 
 test('global transaction surfaces expose the new document/payment model', async () => {
