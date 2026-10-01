@@ -226,10 +226,10 @@ test('supplier payment allocation lifecycle is atomic and multi-bill aware', asy
 test('internal financial helper RPCs are not client-callable', async () => {
   const sql = await read('supabase/migrations/20261001181000_internal_financial_helper_security_boundary_v1.sql');
   const cashBillPage = await read('app/next-workspace/cash-bill/page.tsx');
-  assert.match(sql, /REVOKE ALL ON FUNCTION public\\.reverse_journal_entry/);
-  assert.match(sql, /REVOKE ALL ON FUNCTION public\\.post_journal_entry/);
-  assert.match(sql, /REVOKE ALL ON FUNCTION public\\.generate_receipt_for_payment/);
-  assert.match(sql, /REVOKE ALL ON FUNCTION public\\.get_or_create_cash_customer/);
+  assert.match(sql, /REVOKE ALL ON FUNCTION public\.reverse_journal_entry/);
+  assert.match(sql, /REVOKE ALL ON FUNCTION public\.post_journal_entry/);
+  assert.match(sql, /REVOKE ALL ON FUNCTION public\.generate_receipt_for_payment/);
+  assert.match(sql, /REVOKE ALL ON FUNCTION public\.get_or_create_cash_customer/);
   assert.match(cashBillPage, /rpc\('ensure_bank_account_ledger'/);
 });
 
