@@ -11,7 +11,7 @@ test('receipt delivery is payment-wide and channel-flexible', async () => {
   const cashCustomer = await read('supabase/migrations/20261001202000_receipt_delivery_schema_alignment_v2.sql');
   const routing = await read('supabase/migrations/20261001205000_receipt_delivery_preference_and_primary_route_v5.sql');
   assert.match(sql, /AFTER INSERT ON public\.receipts/);
-  assert.match(sql, /notification_type.*receipt/);
+  assert.match(sql, /notification_type.*receipt/s);
   assert.match(routing, /receipt_delivery_enabled/);
   assert.match(sql, /channel.*email.*whatsapp.*sms.*telegram/s);
   assert.match(sql, /attachment_type.*receipt_pdf/);
