@@ -125,7 +125,7 @@ test('customer 360 surfaces existing credit and refund ledgers', async () => {
   assert.match(customer360, /customer_credit_ledger/);
   assert.match(customer360, /customer_refunds/);
   assert.match(customer360, /Available credit/);
-  assert.match(customer360, /tab==='credits'/);
+  assert.match(customer360, /tab\s*===\s*['"]credits['"]/);
 });
 
 test('sales credit note lifecycle is server-controlled', async () => {
