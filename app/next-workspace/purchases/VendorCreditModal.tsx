@@ -5,20 +5,18 @@ import { Button, DateInput, Field, Input, Modal, Textarea } from '@/components/m
 
 type Bill={id:string;bill_number:string;bill_date:string;total:number;currency_code:string};
 type Item={id:string;description:string;quantity:number;unit_price:number;product_service_id:string|null;tax_rate_id:string|null};
-type TaxRate={id:string;rate:number};
 type Row={item:Item;quantity:number};
 
 const money=(n:number)=>new Intl.NumberFormat('en-IN',{style:'currency',currency:'INR',maximumFractionDigits:2}).format(Number(n||0));
 
 export default function VendorCreditModal({
-  open,bill,businessId,vendorId,items,taxRates,creditedQtyByItem,onClose,onSaved
+  open,bill,businessId,vendorId,items,creditedQtyByItem,onClose,onSaved
 }:{
   open:boolean;
   bill:Bill;
   businessId:string;
   vendorId:string;
   items:Item[];
-  taxRates:TaxRate[];
   creditedQtyByItem:Record<string,number>;
   onClose:()=>void;
   onSaved:()=>void|Promise<void>;
@@ -40,10 +38,7 @@ export default function VendorCreditModal({
   },[open,items]);
 
   const selected=useMemo(()=>rows.filter(r=>r.quantity>0),[rows]);
-  const estimate=useMemo(()=>selected.reduce((sum,r)=>{
-    const rate=taxRates.find(t=>t.id===r.item.tax_rate_id)?.rate||0;
-    return sum+r.quantity*Number(r.item.unit_price||0)*(1+rate/100);
-  },0),[selected,taxRates]);
+  const estimate=useMemo(()=>selected.reduce((sum,r)=>sum+r.quantity*(Number(r.item.line_total||0)/Math.max(Number(r.item.quantity||0),1)),0),[selected]);
 
   const setQty=(itemId:string,value:number)=>{
     setRows(rs=>rs.map(r=>{
@@ -61,18 +56,14 @@ export default function VendorCreditModal({
     setBusy(true);setError('');
     try{
       const { supabase }=await import('@/lib/supabase');
-      const context=await supabase.rpc('get_my_business_context');
-      const business=context.data?.[0];
-      if(context.error||!business)throw new Error(context.error?.message||'Business context is unavailable.');
       const payload=selected.map((r,index)=>{
-        const rate=taxRates.find(t=>t.id===r.item.tax_rate_id)?.rate||0;
         return {
           bill_item_id:r.item.id,
           product_service_id:r.item.product_service_id,
           description:r.item.description,
           quantity:r.quantity,
           unit_price:Number(r.item.unit_price||0),
-          tax_rate:rate,
+          tax_rate:0,
           sort_order:index
         };
       });
@@ -125,7 +116,7 @@ export default function VendorCreditModal({
     </div>
     <div className="mt-4 grid gap-4 sm:grid-cols-2">
       <Field label="Notes"><Textarea rows={3} value={notes} onChange={e=>setNotes(e.target.value)} placeholder="Optional supplier/return notes." /></Field>
-      <div className="rounded-xl bg-slate-50 p-4"><span className="text-xs text-slate-500">Estimated credit</span><b className="mt-1 block text-xl text-slate-900">{money(estimate)}</b><p className="mt-1 text-[11px] text-slate-400">The server recalculates source-line base/tax from the posted bill before posting.</p></div>
+      <div className="rounded-xl bg-slate-50 p-4"><span className="text-xs text-slate-500">Estimated credit</span><b className="mt-1 block text-xl text-slate-900">{money(estimate)}</b><p className="mt-1 text-[11px] text-slate-400">The server derives the return amount and tax from the posted bill line before posting.</p></div>
     </div>
   </Modal>;
 }
