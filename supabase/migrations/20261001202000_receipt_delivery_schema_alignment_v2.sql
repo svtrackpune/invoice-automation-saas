@@ -106,7 +106,7 @@ BEGIN
     NEW.recipient,
     NEW.subject,
     NEW.message,
-    encode(digest(coalesce(NEW.message,''), 'sha256'), 'hex'),
+    encode(extensions.digest(coalesce(NEW.message,''), 'sha256'), 'hex'),
     NEW.provider_message_id,
     NEW.status,
     NEW.scheduled_for,
