@@ -191,6 +191,7 @@ test('supplier payment allocation lifecycle is atomic and multi-bill aware', asy
   const sql = await read('supabase/migrations/20261001178000_vendor_payment_allocation_lifecycle_v1.sql');
   const readPolicy = await read('supabase/migrations/20261001180000_vendor_payment_allocation_read_policy_v1.sql');
   const payment360 = await read('supabase/migrations/20261001179000_transaction_360_vendor_payment_allocations_v2.sql');
+  const purchaseBill360 = await read('supabase/migrations/20261001182000_transaction_360_purchase_bill_multi_payment_v1.sql');
   const payments = await read('app/next-workspace/payments/page.tsx');
   const modal = await read('app/next-workspace/payments/VendorPaymentAllocationModal.tsx');
   const vendor360 = await read('app/next-workspace/vendors/Vendor360Controlled.tsx');
@@ -206,6 +207,8 @@ test('supplier payment allocation lifecycle is atomic and multi-bill aware', asy
   assert.match(readPolicy, /vendors\.manage/);
   assert.match(payment360, /'vendor_allocations'/);
   assert.match(payment360, /'bill_number'/);
+  assert.match(purchaseBill360, /vendor_payment_allocations/);
+  assert.match(purchaseBill360, /p\.bill_id=p_entity_id/);
   assert.match(payments, /record_vendor_payment_unapplied/);
   assert.match(payments, /setAllocationPayment/);
   assert.match(payments, /Allocate/);
