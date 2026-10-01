@@ -97,6 +97,13 @@ test('core financial audit coverage is installed', async () => {
   }
 });
 
+test('quotation audit coverage is installed', async () => {
+  const sql = await read('supabase/migrations/20261001150000_quotation_audit_v1.sql');
+  assert.match(sql, /trg_audit_quotations/);
+  assert.match(sql, /trg_audit_quotation_items/);
+  assert.match(sql, /audit_financial_row/);
+});
+
 test('production readiness workflow includes regression gates', async () => {
   const workflow = await read('.github/workflows/production-readiness.yml');
   assert.match(workflow, /npm run test:financial/);
