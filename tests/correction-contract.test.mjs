@@ -194,13 +194,16 @@ test('quotation audit coverage is installed', async () => {
 
 test('transaction 360 read model and UI are wired for sales and purchase documents', async () => {
   const sql = await read('supabase/migrations/20261001150000_transaction_360_read_model_v1.sql');
+  const purchase360 = await read('supabase/migrations/20261001165000_transaction_360_supplier_credit_v1.sql');
+  const sales360 = await read('supabase/migrations/20261001173000_transaction_360_sales_credit_v1.sql');
   const panel = await read('app/next-workspace/documents/Transaction360Panel.tsx');
   const review = await read('app/next-workspace/documents/DocumentReviewCenter.tsx');
   assert.match(sql, /get_transaction_360/);
   assert.match(sql, /source_quotation/);
   assert.match(sql, /inventory_movements/);
   assert.match(sql, /bank_transactions/);
-  assert.match(sql, /supplier_credits/);
+  assert.match(purchase360, /supplier_credits/);
+  assert.match(sales360, /credit_notes/);
   assert.match(panel, /get_transaction_360/);
   assert.match(panel, /purchase_bill/);
   assert.match(panel, /credit_notes/);
