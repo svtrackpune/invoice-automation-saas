@@ -19,6 +19,10 @@ Base: `main` at `55ef7cc3b363e7f7513ff04364bbc8e86880c14a`
 | Journal balance protection | Retained | Correction/payment RPCs call `validate_journal_entry_balance` |
 | Cash Bill settlement method | Implemented | Cash/UPI only, with Cash/Bank ledger validation |
 | Cash Bill document navigation | Implemented | Invoice list shows Cash Bill badge and correct action label |
+| Purchase bill correction | Implemented | Existing bill ID/number preserved; posted journal is reversed and corrected accounting/inventory is reposted |
+| Supplier payment correction | Implemented | Existing payment identity is preserved; AP balance, journal and vendor credit are synchronized |
+| Expense correction | Implemented | Existing expense ID is preserved; posted journal is reversed and corrected expense accounting is reposted |
+| Paid purchase-bill void guard | Implemented | Database trigger blocks voiding a purchase bill with positive supplier-payment allocation |
 | Payment search | Implemented | Global search searches payment method/reference/amount |
 | CI financial gate | Implemented | Production readiness now runs `test:financial` |
 | CI correction contract gate | Implemented | Production readiness runs `tests/correction-contract.test.mjs` |
@@ -38,10 +42,10 @@ These items are not marked complete until code and tests demonstrate the accepta
 - Bidirectional transaction graph: customer, supplier, product/service, quotation, invoice/Cash Bill, payment, receipt, journal, bank movement and inventory movement.
 
 ### Purchasing and expenses
-- Posted purchase/bill correction with journal and inventory reversal/reapplication.
-- Expense correction with period control and accounting synchronization.
-- Supplier payment correction and supplier credit/refund synchronization.
-- Purchase bill popup correction experience.
+- Supplier refund/credit-note lifecycle beyond payment correction.
+- Purchase inventory correction replay across downstream inventory activity remains restricted when current stock cannot absorb the original movement reversal.
+- Supplier payment correction for multi-bill/unapplied payments remains on the controlled credit/reallocation roadmap.
+- Purchase bill popup correction experience is implemented.
 
 ### Quotations
 - Quotation edit/correction lifecycle with explicit draft/sent/accepted/rejected/cancelled states.
