@@ -1,6 +1,6 @@
 BEGIN;
 
-CREATE EXTENSION IF NOT EXISTS pgcrypto;
+CREATE EXTENSION IF NOT EXISTS pgcrypto WITH SCHEMA extensions;
 
 CREATE TABLE IF NOT EXISTS public.receipt_access_tokens (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -97,7 +97,7 @@ BEGIN
   END IF;
 
   token_value := encode(gen_random_bytes(32), 'hex');
-  token_hash := encode(digest(token_value, 'sha256'), 'hex');
+  token_hash := encode(extensions.digest(token_value, 'sha256'), 'hex');
   expires_value := CASE
     WHEN p_purpose = 'whatsapp_delivery' THEN now() + interval '30 minutes'
     ELSE now() + interval '5 years'
@@ -343,7 +343,7 @@ BEGIN
     NEW.recipient,
     NEW.subject,
     NEW.message,
-    encode(digest(coalesce(NEW.message,''), 'sha256'), 'hex'),
+    encode(extensions.digest(coalesce(NEW.message,''), 'sha256'), 'hex'),
     NEW.provider_message_id,
     NEW.status,
     NEW.scheduled_for,
