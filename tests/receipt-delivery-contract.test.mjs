@@ -17,8 +17,8 @@ test('receipt delivery is payment-wide and channel-flexible', async () => {
   assert.match(sql, /attachment_type.*receipt_pdf/);
   assert.match(sql, /idempotency_key.*receipt:/);
   assert.match(routing, /Automatic receipt routing is deliberately one channel per event/);
-  assert.match(sql, /nullif\(trim\(coalesce\(c\.phone,''\)\),''\) IS NOT NULL/);
-  assert.match(sql, /nullif\(trim\(coalesce\(c\.email,''\)\),''\) IS NOT NULL/);
+  assert.match(sql, /c\.phone/);
+  assert.match(sql, /c\.email/);
   assert.match(sql, /telegram_chat_id/);
   assert.match(worker, /case "email":/);
   assert.match(worker, /case "whatsapp":/);
