@@ -778,7 +778,7 @@ BEGIN
     RAISE EXCEPTION 'Expense account is invalid';
   END IF;
 
-  v_payment_account:=p_payment_account_id;
+  v_payment_account:=coalesce(p_payment_account_id,e.payment_account_id);
   IF v_payment_account IS NULL THEN
     SELECT id INTO v_payment_account
     FROM public.accounts
@@ -792,8 +792,8 @@ BEGIN
     RAISE EXCEPTION 'Payment account is invalid';
   END IF;
 
-  IF p_payment_method IS NOT NULL THEN
-    v_method:=lower(p_payment_method)::public.payment_method;
+  IF coalesce(nullif(trim(p_payment_method),''),e.payment_method::text) IS NOT NULL THEN
+    v_method:=lower(coalesce(nullif(trim(p_payment_method),''),e.payment_method::text))::public.payment_method;
   ELSE
     v_method:=NULL;
   END IF;
