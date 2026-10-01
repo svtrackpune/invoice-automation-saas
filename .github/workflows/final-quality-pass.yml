@@ -3,33 +3,36 @@ name: Moneymatters final quality pass
 on:
   push:
     branches: [main]
+  pull_request:
+    branches: [main]
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   quality:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     env:
       NEXT_PUBLIC_SUPABASE_URL: https://build-placeholder.supabase.co
       NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: build-placeholder-key
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+          cache: npm
+
       - run: npm ci
-      - run: python3 scripts/finish_quality_pass_v1.py
-      - name: Commit quality pass changes
-        run: |
-          if git diff --quiet; then
-            echo 'No additional quality changes required.'
-            exit 0
-          fi
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add app/next-workspace/layout.tsx app/next-workspace/tax/page.tsx app/next-workspace/quotation/QuotationWorkspaceControlled.tsx app/next-workspace/invoices/new/page.tsx
-          git commit -m 'Apply final core workflow quality improvements'
-          git push
-      - run: npm run build
+      - name: Typecheck
+        run: npx tsc --noEmit
+      - name: Lint
+        run: npm run lint
+      - name: Financial invariants
+        run: npm run test:financial
+      - name: Correction contract tests
+        run: node --test tests/correction-contract.test.mjs
+      - name: Production build
+        run: npm run build
