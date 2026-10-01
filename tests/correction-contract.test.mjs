@@ -178,6 +178,13 @@ test('payment center exposes Payment 360 context', async () => {
   assert.match(panel, /entityType:'payment'/);
   assert.match(panel, /Linked invoice/);
   assert.match(panel, /Linked purchase bill/);
+  const payment360 = await read('supabase/migrations/20261001176000_transaction_360_payment_credit_v1.sql');
+  const receipts = await read('app/next-workspace/receipts/page.tsx');
+  assert.match(payment360, /supplier_credit_ledger/);
+  assert.match(payment360, /customer_credit_ledger/);
+  assert.match(payment360, /customer_refunds/);
+  assert.match(receipts, /Transaction360Panel/);
+  assert.match(receipts, /entityType="payment"/);
 });
 
 test('global transaction surfaces expose the new document/payment model', async () => {
