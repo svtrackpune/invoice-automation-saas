@@ -239,7 +239,7 @@ test('Cash Bill supports anonymous walk-in customer identity', async () => {
   assert.match(sql, /get_or_create_cash_customer\(p_business_id\)/);
   assert.match(sql, /sales\.create/);
   assert.match(ui, /Customer mobile number \(optional\)/);
-  assert.doesNotMatch(ui, /!p\.customerPhone\.trim\(\)/);
+  assert.match(ui, /disabled=\{p\.busy\|\|!p\.lines\.length\|\|p\.totals\.total<=0\|\|!accountReady\}/);
 });
 
 test('Cash Bill correction is authoritative and cannot swallow financial failures', async () => {
