@@ -213,7 +213,7 @@ const encodePdf = (pages: string[][], pageWidth: number, pageHeight: number) => 
 
   for (const commands of pages) {
     const stream = commands.join('\n') + '\n';
-    const contentId = addObject(`<< /Length ${Buffer.byteLength(stream, 'ascii')} >>\\nstream\\n${stream}endstream`);
+    const contentId = addObject(`<< /Length ${Buffer.byteLength(stream, 'ascii')} >>\nstream\n${stream}endstream`);
     const pageId = addObject(`<< /Type /Page /Parent ${pagesId} 0 R /MediaBox [0 0 ${pageWidth} ${pageHeight}] /Resources << /Font << /F1 ${fontNormalId} 0 R /F2 ${fontBoldId} 0 R >> >> /Contents ${contentId} 0 R >>`);
     pageIds.push(pageId);
   }
@@ -221,21 +221,21 @@ const encodePdf = (pages: string[][], pageWidth: number, pageHeight: number) => 
   objects[pagesId - 1] = `<< /Type /Pages /Kids [${pageIds.map((id) => `${id} 0 R`).join(' ')}] /Count ${pageIds.length} >>`;
   objects[catalogId - 1] = `<< /Type /Catalog /Pages ${pagesId} 0 R >>`;
 
-  const chunks: string[] = ['%PDF-1.4\\n%Moneymatters\\n'];
+  const chunks: string[] = ['%PDF-1.4\n%Moneymatters\n'];
   const offsets: number[] = [0];
   let offset = Buffer.byteLength(chunks[0], 'ascii');
 
   objects.forEach((obj, index) => {
     offsets[index + 1] = offset;
-    const body = `${index + 1} 0 obj\\n${obj}\\nendobj\\n`;
+    const body = `${index + 1} 0 obj\n${obj}\nendobj\n`;
     chunks.push(body);
     offset += Buffer.byteLength(body, 'ascii');
   });
 
   const xrefOffset = offset;
-  chunks.push(`xref\\n0 ${objects.length + 1}\\n0000000000 65535 f \\n`);
-  for (let i = 1; i <= objects.length; i += 1) chunks.push(`${String(offsets[i]).padStart(10, '0')} 00000 n \\n`);
-  chunks.push(`trailer\\n<< /Size ${objects.length + 1} /Root ${catalogId} 0 R >>\\nstartxref\\n${xrefOffset}\\n%%EOF\\n`);
+  chunks.push(`xref\n0 ${objects.length + 1}\n0000000000 65535 f \n`);
+  for (let i = 1; i <= objects.length; i += 1) chunks.push(`${String(offsets[i]).padStart(10, '0')} 00000 n \n`);
+  chunks.push(`trailer\n<< /Size ${objects.length + 1} /Root ${catalogId} 0 R >>\nstartxref\n${xrefOffset}\n%%EOF\n`);
 
   return Buffer.from(chunks.join(''), 'ascii');
 };
