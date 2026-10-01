@@ -11,10 +11,11 @@ type Row={item:Item;quantity:number};
 const money=(n:number)=>new Intl.NumberFormat('en-IN',{style:'currency',currency:'INR',maximumFractionDigits:2}).format(Number(n||0));
 
 export default function VendorCreditModal({
-  open,bill,items,taxRates,creditedQtyByItem,onClose,onSaved
+  open,bill,vendorId,items,taxRates,creditedQtyByItem,onClose,onSaved
 }:{
   open:boolean;
   bill:Bill;
+  vendorId:string;
   items:Item[];
   taxRates:TaxRate[];
   creditedQtyByItem:Record<string,number>;
@@ -62,7 +63,6 @@ export default function VendorCreditModal({
       const context=await supabase.rpc('get_my_business_context');
       const business=context.data?.[0];
       if(context.error||!business)throw new Error(context.error?.message||'Business context is unavailable.');
-
       const payload=selected.map((r,index)=>{
         const rate=taxRates.find(t=>t.id===r.item.tax_rate_id)?.rate||0;
         return {
@@ -78,7 +78,7 @@ export default function VendorCreditModal({
 
       const result=await supabase.rpc('create_and_post_vendor_credit',{
         p_business_id:business.business_id,
-        p_vendor_id:business.vendor_id||null,
+        p_vendor_id:vendorId,
         p_bill_id:bill.id,
         p_credit_date:date,
         p_reason:reason.trim(),
