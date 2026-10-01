@@ -27,7 +27,7 @@ export default function PurchaseBillDetail(){
    supabase.from('accounts').select('id,code,name,account_type,account_subtype').eq('business_id',b.business_id).eq('is_active',true).eq('account_type','asset').order('code'),
    supabase.from('payments').select('id,amount,payment_date,method,reference,journal_entry_id,account_id,notes').eq('business_id',b.business_id).eq('bill_id',id).eq('direction','outbound').order('payment_date',{ascending:false})
  ]);
-if(br.error){setError(br.error.message);setLoading(false);return}setBill(br.data);setItems(ir.data||[]);setVendor((vr.data||[]).find(v=>v.id===br.data.vendor_id)||null);setAccounts(ar.data||[]);setPayments(pr.data||[]);if(ar.data?.length&&!payAccount)setPayAccount(ar.data[0].id);setPayAmount(String(Math.max(Number(br.data.balance_due||0),0)));setLoading(false)};
+if(br.error){setError(br.error.message);setLoading(false);return}setBill(br.data);setItems(ir.data||[]);setVendor((vr.data||[]).find(v=>v.id===br.data.vendor_id)||null);setAccounts((ar.data||[]).filter((a:any)=>a.account_subtype==='cash'||a.account_subtype==='bank'));setPayments(pr.data||[]);if(ar.data?.length&&!payAccount)setPayAccount(ar.data[0].id);setPayAmount(String(Math.max(Number(br.data.balance_due||0),0)));setLoading(false)};
  useEffect(()=>{if(id)load()},[id]);
  const canPost=!!bill&&bill.status==='draft';const canPay=!!bill&&['received','partially_paid','overdue'].includes(bill.status)&&Number(bill.balance_due)>0;
  const post=async()=>{if(!bill)return;setBusy(true);setError('');const r=await supabase.rpc('post_bill',{p_bill_id:bill.id});if(r.error)setError(r.error.message);else await load();setBusy(false)};
