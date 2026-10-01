@@ -90,6 +90,13 @@ test('global transaction surfaces expose the new document/payment model', async 
   assert.match(search, /kind: 'payment'/);
 });
 
+test('core financial audit coverage is installed', async () => {
+  const sql = await read('supabase/migrations/20261001140000_core_financial_audit_v1.sql');
+  for (const marker of ['trg_audit_invoices','trg_audit_bills','trg_audit_expenses','trg_audit_receipts','trg_audit_invoice_items','trg_audit_bill_items','audit_financial_row']) {
+    assert.ok(sql.includes(marker), 'missing audit marker: '+marker);
+  }
+});
+
 test('production readiness workflow includes regression gates', async () => {
   const workflow = await read('.github/workflows/production-readiness.yml');
   assert.match(workflow, /npm run test:financial/);
