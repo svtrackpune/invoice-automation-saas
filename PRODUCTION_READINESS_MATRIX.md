@@ -49,7 +49,7 @@ These items are not marked complete until code and tests demonstrate the accepta
 - Bidirectional transaction graph is materially surfaced for invoice/Cash Bill/quotation and supplier-side flows; remaining modules still need the same relationship depth.
 
 ### Purchasing and expenses
-- Multi-bill/unapplied supplier-credit allocation and reallocation remains on the controlled roadmap; current UI supports source-bill credit plus residual refund.
+- Multi-bill/unapplied supplier payment allocation and reallocation remains on the controlled roadmap; supplier-credit application to another posted bill is implemented.
 - Purchase inventory correction replay across downstream inventory activity remains restricted when current stock cannot absorb the original movement reversal.
 - Supplier payment correction for multi-bill/unapplied payments remains on the controlled credit/reallocation roadmap.
 - Purchase bill popup correction experience is implemented.
