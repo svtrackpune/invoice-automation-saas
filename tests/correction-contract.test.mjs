@@ -187,6 +187,16 @@ test('payment center exposes Payment 360 context', async () => {
   assert.match(receipts, /entityType="payment"/);
 });
 
+test('financial table writes are permission-bound', async () => {
+  const sql = await read('supabase/migrations/20261001185000_financial_table_write_permission_boundary_v1.sql');
+  assert.match(sql, /REVOKE ALL ON TABLE public\.payment_allocations FROM anon, authenticated/);
+  assert.match(sql, /GRANT SELECT ON TABLE public\.payment_allocations TO authenticated/);
+  assert.match(sql, /has_business_permission\(business_id,'purchases\.manage'\)/);
+  assert.match(sql, /has_business_permission\(business_id,'expenses\.manage'\)/);
+  assert.match(sql, /GRANT SELECT ON TABLE public\.invoice_items TO authenticated/);
+  assert.doesNotMatch(sql, /payment_allocations[^;]*FOR INSERT/);
+});
+
 test('Expense 360 is exposed from the Expenses workspace', async () => {
   const component = await read('app/next-workspace/documents/Transaction360Panel.tsx');
   const expenses = await read('app/next-workspace/expenses/ExpenseWorkspaceControlled.tsx');
