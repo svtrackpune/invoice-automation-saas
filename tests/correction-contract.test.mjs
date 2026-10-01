@@ -131,6 +131,8 @@ test('customer 360 surfaces existing credit and refund ledgers', async () => {
 test('sales credit note lifecycle is server-controlled', async () => {
   const sql = await read('supabase/migrations/20261001170000_sales_credit_note_boundary_v1.sql');
   const atomic = await read('supabase/migrations/20261001171000_sales_credit_note_atomic_v1.sql');
+  const customerSecurity = await read('supabase/migrations/20261001172000_customer_credit_security_boundary_v1.sql');
+  const sales360 = await read('supabase/migrations/20261001173000_transaction_360_sales_credit_v1.sql');
   const modal = await read('app/next-workspace/documents/CreditNoteModal.tsx');
   const review = await read('app/next-workspace/documents/DocumentReviewCenter.tsx');
   assert.match(sql, /create_credit_note\(/);
@@ -145,6 +147,11 @@ test('sales credit note lifecycle is server-controlled', async () => {
   assert.match(review, /CreditNoteModal/);
   assert.match(review, /canCreateCreditNote/);
   assert.match(review, /businessId/);
+  assert.match(customerSecurity, /customer_credit_ledger_select/);
+  assert.match(customerSecurity, /customer_refunds_select/);
+  assert.match(customerSecurity, /account_subtype IN \('cash','bank'\)/);
+  assert.match(sales360, /customer_credit_ledger/);
+  assert.match(sales360, /customer_refunds/);
 });
 
 test('global transaction surfaces expose the new document/payment model', async () => {
@@ -178,8 +185,10 @@ test('transaction 360 read model and UI are wired for sales and purchase documen
   assert.match(sql, /source_quotation/);
   assert.match(sql, /inventory_movements/);
   assert.match(sql, /bank_transactions/);
+  assert.match(sql, /supplier_credits/);
   assert.match(panel, /get_transaction_360/);
   assert.match(panel, /purchase_bill/);
+  assert.match(panel, /credit_notes/);
   assert.match(review, /Transaction360Panel/);
 });
 
