@@ -25,8 +25,8 @@ export default function PurchaseBillDetail(){
    supabase.from('bill_items').select('id,description,quantity,unit_price,discount,tax_amount,line_total,product_service_id,tax_rate_id').eq('bill_id',id).order('sort_order'),
    supabase.from('vendors').select('id,display_name,phone,email').eq('business_id',b.business_id),
    supabase.from('accounts').select('id,code,name,account_type,account_subtype').eq('business_id',b.business_id).eq('is_active',true).eq('account_type','asset').order('code'),
-   supabase.from('payments').select('id,amount,payment_date,method,reference,journal_entry_id,account_id,notes').eq('business_id',b.business_id).eq('bill_id',id).eq('direction','outbound').order('payment_date',{ascending:false}),
-];
+   supabase.from('payments').select('id,amount,payment_date,method,reference,journal_entry_id,account_id,notes').eq('business_id',b.business_id).eq('bill_id',id).eq('direction','outbound').order('payment_date',{ascending:false})
+ ]);
 if(br.error){setError(br.error.message);setLoading(false);return}setBill(br.data);setItems(ir.data||[]);setVendor((vr.data||[]).find(v=>v.id===br.data.vendor_id)||null);setAccounts(ar.data||[]);setPayments(pr.data||[]);if(ar.data?.length&&!payAccount)setPayAccount(ar.data[0].id);setPayAmount(String(Math.max(Number(br.data.balance_due||0),0)));setLoading(false)};
  useEffect(()=>{if(id)load()},[id]);
  const canPost=!!bill&&bill.status==='draft';const canPay=!!bill&&['received','partially_paid','overdue'].includes(bill.status)&&Number(bill.balance_due)>0;
