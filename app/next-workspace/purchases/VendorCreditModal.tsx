@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Button, DateInput, Field, Input, Modal, Textarea } from '@/components/moneymatters';
 
 type Bill={id:string;bill_number:string;bill_date:string;total:number;currency_code:string};
-type Item={id:string;description:string;quantity:number;unit_price:number;product_service_id:string|null;tax_rate_id:string|null};
+type Item={id:string;description:string;quantity:number;unit_price:number;line_total:number;product_service_id:string|null;tax_rate_id:string|null};
 type Row={item:Item;quantity:number};
 
 const money=(n:number)=>new Intl.NumberFormat('en-IN',{style:'currency',currency:'INR',maximumFractionDigits:2}).format(Number(n||0));
