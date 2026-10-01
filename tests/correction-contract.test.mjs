@@ -229,7 +229,7 @@ test('Expense 360 is exposed from the Expenses workspace', async () => {
 test('Cash Bill supports anonymous walk-in customer identity', async () => {
   const sql = await read('supabase/migrations/20261001188000_cash_bill_walkin_customer_optional_v1.sql');
   const ui = await read('app/next-workspace/cash-bill/CashBillControlled.tsx');
-  assert.match(sql, /nullif\(trim\(coalesce\(p_phone,''\)\),' '\) IS NULL/);
+  assert.match(sql, /nullif\(trim\(coalesce\(p_phone,''\)\),''\) IS NULL/);
   assert.match(sql, /get_or_create_cash_customer\(p_business_id\)/);
   assert.match(sql, /sales\.create/);
   assert.match(ui, /Customer mobile number \(optional\)/);
