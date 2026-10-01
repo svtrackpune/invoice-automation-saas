@@ -75,7 +75,7 @@ BEGIN
       'payments',coalesce((SELECT jsonb_agg(to_jsonb(p) ORDER BY p.payment_date,p.created_at) FROM public.payments p WHERE p.bill_id=p_entity_id),'[]'::jsonb),
       'journal',(SELECT to_jsonb(j) FROM public.journal_entries j JOIN public.bills b ON b.journal_entry_id=j.id WHERE b.id=p_entity_id),
       'inventory_movements',coalesce((SELECT jsonb_agg(to_jsonb(im) ORDER BY im.created_at,im.id) FROM public.inventory_movements im WHERE im.reference_id=p_entity_id AND im.reference_type IN ('bill','bill_amendment')),'[]'::jsonb),
-      'bank_transactions',coalesce((SELECT jsonb_agg(to_jsonb(bt) FROM public.bank_transactions bt WHERE bt.matched_payment_id IN (SELECT p.id FROM public.payments p WHERE p.bill_id=p_entity_id)),'[]'::jsonb)
+      'bank_transactions',coalesce((SELECT jsonb_agg(to_jsonb(bt)) FROM public.bank_transactions bt WHERE bt.matched_payment_id IN (SELECT p.id FROM public.payments p WHERE p.bill_id=p_entity_id)),'[]'::jsonb)
     );
   ELSE
     RETURN jsonb_build_object(
