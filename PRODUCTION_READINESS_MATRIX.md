@@ -21,11 +21,14 @@ Base: `main` at `55ef7cc3b363e7f7513ff04364bbc8e86880c14a`
 | Cash Bill document navigation | Implemented | Invoice list shows Cash Bill badge and correct action label |
 | Purchase bill correction | Implemented | Existing bill ID/number preserved; posted journal is reversed and corrected accounting/inventory is reposted |
 | Supplier payment correction | Implemented | Existing payment identity is preserved; AP balance, journal and vendor credit are synchronized |
+| Supplier 360 | Implemented | Vendor master links to Supplier 360 with bills, payments, balances and statement views |
 | Expense correction | Implemented | Existing expense ID is preserved; posted journal is reversed and corrected expense accounting is reposted |
 | Paid purchase-bill void guard | Implemented | Database trigger blocks voiding a purchase bill with positive supplier-payment allocation |
 | Payment search | Implemented | Global search searches payment method/reference/amount |
 | CI financial gate | Implemented | Production readiness now runs `test:financial` |
 | CI correction contract gate | Implemented | Production readiness runs `tests/correction-contract.test.mjs` |
+| Core financial audit coverage | Implemented | Audit triggers cover invoices, lines, bills, lines, expenses, receipts, quotations and lines |
+| Quotation audit coverage | Implemented | Draft/sent quotation corrections and lifecycle changes are recorded in the financial audit trail |
 | Read-only final quality workflow | Implemented | The previous auto-commit/auto-push quality workflow was replaced with deterministic verification |
 
 ## Existing capabilities verified during audit
