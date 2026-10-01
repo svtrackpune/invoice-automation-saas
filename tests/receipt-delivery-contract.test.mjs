@@ -9,13 +9,14 @@ test('receipt delivery is payment-wide and channel-flexible', async () => {
   const sql = await read('supabase/migrations/20261001200000_receipt_digital_delivery_whatsapp_v1.sql');
   const worker = await read('supabase/functions/process-notifications/index.ts');
   const cashCustomer = await read('supabase/migrations/20261001202000_receipt_delivery_schema_alignment_v2.sql');
+  const routing = await read('supabase/migrations/20261001205000_receipt_delivery_preference_and_primary_route_v5.sql');
   assert.match(sql, /AFTER INSERT ON public\.receipts/);
   assert.match(sql, /notification_type.*receipt/);
-  assert.match(sql, /receipt_delivery_enabled/);
+  assert.match(routing, /receipt_delivery_enabled/);
   assert.match(sql, /channel.*email.*whatsapp.*sms.*telegram/s);
   assert.match(sql, /attachment_type.*receipt_pdf/);
   assert.match(sql, /idempotency_key.*receipt:/);
-  assert.match(sql, /Automatic receipt routing is deliberately one channel per event/);
+  assert.match(routing, /Automatic receipt routing is deliberately one channel per event/);
   assert.match(sql, /nullif\(trim\(coalesce\(c\.phone,''\)\),''\) IS NOT NULL/);
   assert.match(sql, /nullif\(trim\(coalesce\(c\.email,''\)\),''\) IS NOT NULL/);
   assert.match(sql, /telegram_chat_id/);
