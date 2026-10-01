@@ -120,6 +120,14 @@ test('supplier credit lifecycle is server-controlled and credit-aware', async ()
   assert.match(vendor360, /Available credit/);
 });
 
+test('customer 360 surfaces existing credit and refund ledgers', async () => {
+  const customer360 = await read('app/next-workspace/customers/Customer360Controlled.tsx');
+  assert.match(customer360, /customer_credit_ledger/);
+  assert.match(customer360, /customer_refunds/);
+  assert.match(customer360, /Available credit/);
+  assert.match(customer360, /tab==='credits'/);
+});
+
 test('global transaction surfaces expose the new document/payment model', async () => {
   const invoices = await read('app/next-workspace/invoices/page.tsx');
   const search = await read('app/next-workspace/GlobalSearch.tsx');
