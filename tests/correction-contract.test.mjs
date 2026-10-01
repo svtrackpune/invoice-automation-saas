@@ -187,6 +187,35 @@ test('payment center exposes Payment 360 context', async () => {
   assert.match(receipts, /entityType="payment"/);
 });
 
+test('supplier payment allocation lifecycle is atomic and multi-bill aware', async () => {
+  const sql = await read('supabase/migrations/20261001178000_vendor_payment_allocation_lifecycle_v1.sql');
+  const readPolicy = await read('supabase/migrations/20261001180000_vendor_payment_allocation_read_policy_v1.sql');
+  const payment360 = await read('supabase/migrations/20261001179000_transaction_360_vendor_payment_allocations_v2.sql');
+  const payments = await read('app/next-workspace/payments/page.tsx');
+  const modal = await read('app/next-workspace/payments/VendorPaymentAllocationModal.tsx');
+  const vendor360 = await read('app/next-workspace/vendors/Vendor360Controlled.tsx');
+
+  assert.match(sql, /record_vendor_payment_unapplied/);
+  assert.match(sql, /allocate_vendor_payment/);
+  assert.match(sql, /Only posted supplier payments can be allocated or reallocated/);
+  assert.match(sql, /crosses business or supplier boundary/);
+  assert.match(sql, /Supplier payment currency does not match target purchase bill/);
+  assert.match(sql, /Accounting adjustment permission required/);
+  assert.match(sql, /idx_vendor_payment_allocations_payment/);
+  assert.match(sql, /REVOKE ALL ON TABLE public.vendor_payment_allocations FROM anon, authenticated/);
+  assert.match(readPolicy, /vendors\.manage/);
+  assert.match(payment360, /'vendor_allocations'/);
+  assert.match(payment360, /'bill_number'/);
+  assert.match(payments, /record_vendor_payment_unapplied/);
+  assert.match(payments, /setAllocationPayment/);
+  assert.match(payments, /Allocate/);
+  assert.match(modal, /allocate_vendor_payment/);
+  assert.match(modal, /Split or reassign/);
+  assert.match(vendor360, /vendor_payment_allocations/);
+  assert.match(vendor360, /Unapplied supplier advances/);
+  assert.match(vendor360, /VendorPaymentAllocationModal/);
+});
+
 test('internal business seed functions are not client-callable', async () => {
   const sql = await read('supabase/migrations/20261001177000_internal_seed_security_boundary_v1.sql');
   assert.match(sql, /REVOKE ALL ON FUNCTION public\.seed_business_defaults/);
