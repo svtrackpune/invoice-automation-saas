@@ -187,6 +187,19 @@ test('payment center exposes Payment 360 context', async () => {
   assert.match(receipts, /entityType="payment"/);
 });
 
+test('Cash Bill correction is authoritative and cannot swallow financial failures', async () => {
+  const sql = await read('supabase/migrations/20261001184000_cash_bill_correction_hardening_v2.sql');
+  assert.match(sql, /update_invoice_any_state/);
+  assert.match(sql, /update_customer_payment/);
+  assert.match(sql, /exactly one inbound settlement payment/);
+  assert.match(sql, /Cash settlement requires an active Cash account/);
+  assert.match(sql, /UPI settlement requires an active Bank account/);
+  assert.match(sql, /assert_accounting_period_open/);
+  assert.match(sql, /Cash Bill payment amount must equal the corrected document total/);
+  assert.match(sql, /amount_paid <> final_invoice\.total/);
+  assert.doesNotMatch(sql, /EXCEPTION WHEN OTHERS/);
+});
+
 test('supplier payment allocation lifecycle is atomic and multi-bill aware', async () => {
   const sql = await read('supabase/migrations/20261001178000_vendor_payment_allocation_lifecycle_v1.sql');
   const readPolicy = await read('supabase/migrations/20261001180000_vendor_payment_allocation_read_policy_v1.sql');
