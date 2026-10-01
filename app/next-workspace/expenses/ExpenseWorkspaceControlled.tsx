@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { supabase, type BusinessContext } from '@/lib/supabase';
 import Transaction360Panel from '../documents/Transaction360Panel';
-import { Alert, Button, Card, DateInput, EmptyState, Field, FormSection, Input, MoneyInput, PageHeader, SearchInput, Select, StatusBadge, Textarea } from '@/components/moneymatters';
+import { Alert, Button, Card, DateInput, EmptyState, Field, FormSection, Input, Modal, MoneyInput, PageHeader, SearchInput, Select, StatusBadge, Textarea } from '@/components/moneymatters';
 
 type Category={id:string;name:string;account_id:string;requires_vendor:boolean};
 type Account={id:string;code:string|null;name:string;account_type:string};
