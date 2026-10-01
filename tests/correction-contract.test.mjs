@@ -169,6 +169,17 @@ test('sales credit note lifecycle is server-controlled', async () => {
   assert.match(sales360, /customer_refunds/);
 });
 
+test('payment center exposes Payment 360 context', async () => {
+  const payments = await read('app/next-workspace/payments/page.tsx');
+  const panel = await read('app/next-workspace/documents/Transaction360Panel.tsx');
+  assert.match(payments, /Transaction360Panel/);
+  assert.match(payments, /entityType="payment"/);
+  assert.match(payments, /setSelected360/);
+  assert.match(panel, /entityType:'payment'/);
+  assert.match(panel, /Linked invoice/);
+  assert.match(panel, /Linked purchase bill/);
+});
+
 test('global transaction surfaces expose the new document/payment model', async () => {
   const invoices = await read('app/next-workspace/invoices/page.tsx');
   const search = await read('app/next-workspace/GlobalSearch.tsx');
