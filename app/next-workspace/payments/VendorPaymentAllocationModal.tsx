@@ -110,7 +110,7 @@ export default function VendorPaymentAllocationModal({
     onClose={()=>{if(!busy)onClose()}}
     title="Allocate supplier payment"
     description={payment?'Payment '+money(payment.amount)+' · '+payment.payment_date+'. Split or reassign this payment across posted purchase bills.':undefined}
-    size="xl"
+    size="lg"
   >
     {loading?<div className="py-10 text-center text-sm text-slate-500">Loading purchase bills…</div>:!payment?<div className="py-10 text-center text-sm text-slate-500">No supplier payment selected.</div>:<div className="space-y-5">
       {error&&<div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800">{error}</div>}
