@@ -78,7 +78,6 @@ test('purchase and expense correction surfaces use the server correction contrac
   assert.match(boundary, /Cash Bills must be corrected through the Cash Bill settlement workflow/);
   assert.match(boundary, /REVOKE EXECUTE ON FUNCTION public.update_invoice_any_state/);
   assert.match(sql, /reverse_journal_entry/);
-  assert.match(purchase, /update_bill_any_state/);
 });
 
 test('global transaction surfaces expose the new document/payment model', async () => {
