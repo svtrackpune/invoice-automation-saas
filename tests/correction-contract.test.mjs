@@ -187,6 +187,17 @@ test('payment center exposes Payment 360 context', async () => {
   assert.match(receipts, /entityType="payment"/);
 });
 
+test('Expense 360 is exposed from the Expenses workspace', async () => {
+  const component = await read('app/next-workspace/documents/Transaction360Panel.tsx');
+  const expenses = await read('app/next-workspace/expenses/ExpenseWorkspaceControlled.tsx');
+  assert.match(component, /entityType:[^;]*['"]expense['"]/);
+  assert.match(component, /entityType==='expense'\?'Supplier'/);
+  assert.match(component, /entityType==='expense'\?'Expense'/);
+  assert.match(expenses, /Transaction360Panel/);
+  assert.match(expenses, /entityType="expense"/);
+  assert.match(expenses, /setSelected360/);
+});
+
 test('Cash Bill correction is authoritative and cannot swallow financial failures', async () => {
   const sql = await read('supabase/migrations/20261001184000_cash_bill_correction_hardening_v2.sql');
   assert.match(sql, /update_invoice_any_state/);
