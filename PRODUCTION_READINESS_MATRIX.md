@@ -28,6 +28,9 @@ Base: `main` at `55ef7cc3b363e7f7513ff04364bbc8e86880c14a`
 | Supplier credit refund | Implemented | Available supplier credit can be received through Cash/Bank with period, permission and journal-balance checks |
 | Supplier credit settlement safety | Implemented | Bill balance is recalculated from payment allocations plus vendor-credit applications; payment allocations are blocked from net over-settlement |
 | Supplier credit tenancy boundary | Implemented | Vendor-credit tables are read-only to authenticated clients; writes flow through SECURITY DEFINER RPCs with explicit permissions |
+| Sales credit-note lifecycle | Implemented | Regular posted invoices expose source-line credit-note creation; server derives source amounts, enforces quantity/balance limits, and posts atomically |
+| Customer credit/refund security | Implemented | Customer credit/refund ledgers are read-only to clients; refund RPC enforces customer ownership, accounting period and Cash/Bank account |
+| Invoice 360 credit trail | Implemented | Invoice 360 now includes credit notes, customer-credit ledger entries and customer refunds |
 | Payment search | Implemented | Global search searches payment method/reference/amount |
 | CI financial gate | Implemented | Production readiness now runs `test:financial` |
 | CI correction contract gate | Implemented | Production readiness runs `tests/correction-contract.test.mjs` |
@@ -65,9 +68,9 @@ These items are not marked complete until code and tests demonstrate the accepta
 - Negative and concurrency cases, including simultaneous edits and duplicate posting attempts.
 
 ### 360-degree relationship views
-- Customer 360: quotes, invoices/Cash Bills, payments, receipts, credits/refunds, balance and aging.
+- Customer 360: quotes, invoices/Cash Bills, payments, receipts, credits/refunds, balance and aging; credit/refund history is now surfaced.
 - Supplier 360: bills, payments, credits/refunds and balance.
-- Invoice 360: source quotation, items, payment allocation, receipt, journal, inventory movement, bank transaction and corrections.
+- Invoice 360: source quotation, items, payment allocation, receipt, credit notes/customer credits/refunds, journal, inventory movement, bank transaction and corrections.
 - Purchase Bill 360: supplier, payments, journal, inventory movement and bank links are now surfaced on the purchase detail page.
 - Payment 360: invoice/bill allocation, receipt, journal, bank transaction, credit/refund history.
 
