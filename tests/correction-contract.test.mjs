@@ -103,6 +103,14 @@ test('quotation audit coverage is installed', async () => {
   assert.match(sql, /audit_financial_row/);
 });
 
+test('financial reconciliation guard is included', async () => {
+  const sql = await read('supabase/migrations/20261001140000_financial_integrity_summary_v1.sql');
+  assert.match(sql, /get_financial_integrity_summary/);
+  for (const marker of ['invoice_balance_mismatches','invoice_allocation_mismatches','bill_balance_mismatches','bill_allocation_mismatches','unbalanced_posted_journals','negative_inventory_balances','unsettled_cash_bills']) {
+    assert.ok(sql.includes(marker), 'missing reconciliation marker: '+marker);
+  }
+});
+
 test('production readiness workflow includes regression gates', async () => {
   const workflow = await read('.github/workflows/production-readiness.yml');
   assert.match(workflow, /npm run test:financial/);
