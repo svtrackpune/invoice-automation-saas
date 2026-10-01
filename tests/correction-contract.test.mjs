@@ -88,6 +88,8 @@ test('supplier credit lifecycle is server-controlled and credit-aware', async ()
   const purchaseDetail = await read('app/next-workspace/purchases/[id]/page.tsx');
   const creditModal = await read('app/next-workspace/purchases/VendorCreditModal.tsx');
   const refundModal = await read('app/next-workspace/purchases/VendorRefundModal.tsx');
+  const applyModal = await read('app/next-workspace/vendors/VendorCreditApplyModal.tsx');
+  const vendor360 = await read('app/next-workspace/vendors/Vendor360Controlled.tsx');
   assert.match(sql, /ADD COLUMN IF NOT EXISTS bill_id/);
   assert.match(sql, /purchases\.manage/);
   assert.doesNotMatch(sql, /purchases\.create/);
@@ -110,6 +112,9 @@ test('supplier credit lifecycle is server-controlled and credit-aware', async ()
   assert.match(purchaseDetail, /Transaction360Panel entityType="purchase_bill"/);
   assert.match(creditModal, /create_and_post_vendor_credit/);
   assert.match(refundModal, /receive_vendor_refund/);
+  assert.match(applyModal, /apply_vendor_credit_to_bill/);
+  assert.match(vendor360, /VendorCreditApplyModal/);
+  assert.match(vendor360, /Available credit/);
 });
 
 test('global transaction surfaces expose the new document/payment model', async () => {
