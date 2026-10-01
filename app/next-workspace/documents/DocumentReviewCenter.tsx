@@ -12,7 +12,6 @@ import CreditNoteModal from './CreditNoteModal';
 export default function DocumentReviewCenter({ type, id }: { type: string; id: string }) {
   const [status, setStatus] = useState<string>('loading');
   const [businessId, setBusinessId] = useState('');
-  const [businessId, setBusinessId] = useState('');
   const [amountPaid, setAmountPaid] = useState(0);
   const [paymentMode, setPaymentMode] = useState<'none'|'bank'|'online'>('none');
   const [quotationToken, setQuotationToken] = useState('');
