@@ -24,6 +24,10 @@ Base: `main` at `55ef7cc3b363e7f7513ff04364bbc8e86880c14a`
 | Supplier 360 | Implemented | Vendor master links to Supplier 360 with bills, payments, balances and statement views |
 | Expense correction | Implemented | Existing expense ID is preserved; posted journal is reversed and corrected expense accounting is reposted |
 | Paid purchase-bill void guard | Implemented | Database trigger blocks voiding a purchase bill with positive supplier-payment allocation |
+| Supplier credit lifecycle | Implemented | Posted supplier credits validate source-line quantities, reverse stock/AP/tax atomically, and auto-apply to the source bill when balance remains |
+| Supplier credit refund | Implemented | Available supplier credit can be received through Cash/Bank with period, permission and journal-balance checks |
+| Supplier credit settlement safety | Implemented | Bill balance is recalculated from payment allocations plus vendor-credit applications; payment allocations are blocked from net over-settlement |
+| Supplier credit tenancy boundary | Implemented | Vendor-credit tables are read-only to authenticated clients; writes flow through SECURITY DEFINER RPCs with explicit permissions |
 | Payment search | Implemented | Global search searches payment method/reference/amount |
 | CI financial gate | Implemented | Production readiness now runs `test:financial` |
 | CI correction contract gate | Implemented | Production readiness runs `tests/correction-contract.test.mjs` |
@@ -45,7 +49,7 @@ These items are not marked complete until code and tests demonstrate the accepta
 - Bidirectional transaction graph is materially surfaced for invoice/Cash Bill/quotation and supplier-side flows; remaining modules still need the same relationship depth.
 
 ### Purchasing and expenses
-- Supplier refund/credit-note lifecycle beyond payment correction.
+- Multi-bill/unapplied supplier-credit allocation and reallocation remains on the controlled roadmap; current UI supports source-bill credit plus residual refund.
 - Purchase inventory correction replay across downstream inventory activity remains restricted when current stock cannot absorb the original movement reversal.
 - Supplier payment correction for multi-bill/unapplied payments remains on the controlled credit/reallocation roadmap.
 - Purchase bill popup correction experience is implemented.
@@ -64,6 +68,7 @@ These items are not marked complete until code and tests demonstrate the accepta
 - Customer 360: quotes, invoices/Cash Bills, payments, receipts, credits/refunds, balance and aging.
 - Supplier 360: bills, payments, credits/refunds and balance.
 - Invoice 360: source quotation, items, payment allocation, receipt, journal, inventory movement, bank transaction and corrections.
+- Purchase Bill 360: supplier, payments, journal, inventory movement and bank links are now surfaced on the purchase detail page.
 - Payment 360: invoice/bill allocation, receipt, journal, bank transaction, credit/refund history.
 
 ### Reporting
