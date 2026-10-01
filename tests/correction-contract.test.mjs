@@ -187,6 +187,15 @@ test('payment center exposes Payment 360 context', async () => {
   assert.match(receipts, /entityType="payment"/);
 });
 
+test('Direct financial table writes are draft-only where legacy UI requires them', async () => {
+  const sql = await read('supabase/migrations/20261001186000_draft_financial_write_state_boundary_v1.sql');
+  assert.match(sql, /status = 'draft'::bill_status/);
+  assert.match(sql, /journal_entry_id IS NULL/);
+  assert.match(sql, /has_business_permission\(business_id,'purchases\.manage'\)/);
+  assert.match(sql, /has_business_permission\(business_id,'expenses\.manage'\)/);
+  assert.match(sql, /coalesce\(amount_paid,0\) = 0/);
+});
+
 test('financial table writes are permission-bound', async () => {
   const sql = await read('supabase/migrations/20261001185000_financial_table_write_permission_boundary_v1.sql');
   assert.match(sql, /REVOKE ALL ON TABLE public\.payment_allocations FROM anon, authenticated/);
