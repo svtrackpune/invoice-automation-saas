@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 
 type ReceiptRow = {
@@ -11,6 +12,7 @@ type ReceiptRow = {
   customer_id: string | null;
   payment_id: string | null;
   notes: string | null;
+  business_id: string;
 };
 
 type PdfData = {
@@ -245,15 +247,12 @@ export const getServerSupabase = () => {
   return createClient(url, key, { auth: { autoRefreshToken: false, persistSession: false } });
 };
 
-export const sha256Hex = (value: string) => {
-  const crypto = require('node:crypto') as typeof import('node:crypto');
-  return crypto.createHash('sha256').update(value, 'utf8').digest('hex');
-};
+export const sha256Hex = (value: string) => createHash('sha256').update(value, 'utf8').digest('hex');
 
 export async function loadReceiptPdfData(db: SupabaseClient, receiptId: string): Promise<PdfData> {
   const { data: receipt, error: receiptError } = await db
     .from('receipts')
-    .select('id,receipt_number,receipt_date,amount,currency_code,payment_method,reference_number,customer_id,payment_id,notes')
+    .select('id,business_id,receipt_number,receipt_date,amount,currency_code,payment_method,reference_number,customer_id,payment_id,notes')
     .eq('id', receiptId)
     .single();
   if (receiptError || !receipt) throw new Error('Receipt not found.');
