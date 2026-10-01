@@ -1,5 +1,43 @@
 BEGIN;
 
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
+
+CREATE TABLE IF NOT EXISTS public.receipt_access_tokens (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  business_id uuid NOT NULL REFERENCES public.businesses(id) ON DELETE CASCADE,
+  receipt_id uuid NOT NULL REFERENCES public.receipts(id) ON DELETE CASCADE,
+  purpose text NOT NULL CHECK (purpose IN ('customer_download','whatsapp_delivery')),
+  token_hash text NOT NULL UNIQUE,
+  expires_at timestamptz,
+  revoked_at timestamptz,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_receipt_access_tokens_receipt
+  ON public.receipt_access_tokens(receipt_id, purpose, created_at DESC);
+
+ALTER TABLE public.receipt_access_tokens ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS receipt_access_tokens_select ON public.receipt_access_tokens;
+DROP POLICY IF EXISTS receipt_access_tokens_insert ON public.receipt_access_tokens;
+DROP POLICY IF EXISTS receipt_access_tokens_update ON public.receipt_access_tokens;
+DROP POLICY IF EXISTS receipt_access_tokens_delete ON public.receipt_access_tokens;
+
+CREATE POLICY receipt_access_tokens_select
+  ON public.receipt_access_tokens FOR SELECT TO authenticated
+  USING (
+    EXISTS (
+      SELECT 1
+      FROM public.receipts r
+      WHERE r.id = receipt_access_tokens.receipt_id
+        AND r.business_id = receipt_access_tokens.business_id
+        AND (
+          mm_private.has_business_permission(r.business_id, 'sales.view')
+          OR mm_private.has_business_permission(r.business_id, 'payments.receive')
+        )
+    )
+  );
+
 -- Receipt delivery is a notification concern, not an accounting concern.
 -- A receipt insert may enqueue delivery jobs, but delivery failure must never
 -- roll back the payment/receipt transaction.
@@ -286,6 +324,73 @@ BEGIN
   RETURN queued;
 END;
 $function$;
+
+CREATE OR REPLACE FUNCTION public.sync_notification_delivery_evidence()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $function$
+BEGIN
+  INSERT INTO public.notification_delivery_evidence (
+    business_id, customer_id, vendor_id, notification_job_id, channel,
+    recipient, subject, message, content_hash, provider_message_id, status,
+    queued_at, sent_at, metadata, created_at
+  ) VALUES (
+    NEW.business_id,
+    NEW.customer_id,
+    NEW.vendor_id,
+    NEW.id,
+    NEW.channel,
+    NEW.recipient,
+    NEW.subject,
+    NEW.message,
+    encode(digest(coalesce(NEW.message,''), 'sha256'), 'hex'),
+    NEW.provider_message_id,
+    NEW.status,
+    NEW.scheduled_for,
+    NEW.sent_at,
+    jsonb_build_object(
+      'notification_type', NEW.notification_type,
+      'action_url', NEW.action_url,
+      'attempts', NEW.attempts,
+      'last_error', NEW.last_error,
+      'source', 'notification_jobs'
+    ),
+    coalesce(NEW.created_at, now())
+  )
+  ON CONFLICT (notification_job_id) WHERE notification_job_id IS NOT NULL
+  DO UPDATE SET
+    customer_id = EXCLUDED.customer_id,
+    vendor_id = EXCLUDED.vendor_id,
+    channel = EXCLUDED.channel,
+    recipient = EXCLUDED.recipient,
+    subject = EXCLUDED.subject,
+    message = EXCLUDED.message,
+    content_hash = EXCLUDED.content_hash,
+    provider_message_id = EXCLUDED.provider_message_id,
+    status = EXCLUDED.status,
+    queued_at = EXCLUDED.queued_at,
+    sent_at = EXCLUDED.sent_at,
+    delivered_at = CASE
+      WHEN EXCLUDED.status IN ('delivered','success','sent')
+        THEN coalesce(public.notification_delivery_evidence.delivered_at, now())
+      ELSE public.notification_delivery_evidence.delivered_at
+    END,
+    failed_at = CASE
+      WHEN EXCLUDED.status IN ('failed','error')
+        THEN coalesce(public.notification_delivery_evidence.failed_at, now())
+      ELSE public.notification_delivery_evidence.failed_at
+    END,
+    metadata = EXCLUDED.metadata;
+  RETURN NEW;
+END;
+$function$;
+
+DROP TRIGGER IF EXISTS trg_sync_notification_delivery_evidence ON public.notification_jobs;
+CREATE TRIGGER trg_sync_notification_delivery_evidence
+AFTER INSERT OR UPDATE ON public.notification_jobs
+FOR EACH ROW EXECUTE FUNCTION public.sync_notification_delivery_evidence();
 
 CREATE OR REPLACE FUNCTION public.trg_enqueue_receipt_delivery_notifications()
 RETURNS trigger
