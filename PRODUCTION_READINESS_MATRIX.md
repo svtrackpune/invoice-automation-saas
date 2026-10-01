@@ -32,6 +32,7 @@ Base: `main` at `55ef7cc3b363e7f7513ff04364bbc8e86880c14a`
 | Customer credit/refund security | Implemented | Customer credit/refund ledgers are read-only to clients; refund RPC enforces customer ownership, accounting period and Cash/Bank account |
 | Invoice 360 credit trail | Implemented | Invoice 360 now includes credit notes, customer-credit ledger entries and customer refunds |
 | Payment search | Implemented | Global search searches payment method/reference/amount |
+| Payment 360 | Implemented | Payments and Receipts centers open the canonical Payment 360 relationship view |
 | CI financial gate | Implemented | Production readiness now runs `test:financial` |
 | CI correction contract gate | Implemented | Production readiness runs `tests/correction-contract.test.mjs` |
 | Core financial audit coverage | Implemented | Audit triggers cover invoices, lines, bills, lines, expenses, receipts, quotations and lines |
@@ -54,7 +55,7 @@ These items are not marked complete until code and tests demonstrate the accepta
 ### Purchasing and expenses
 - Multi-bill/unapplied supplier payment allocation and reallocation remains on the controlled roadmap; supplier-credit application to another posted bill is implemented.
 - Purchase inventory correction replay across downstream inventory activity remains restricted when current stock cannot absorb the original movement reversal.
-- Supplier payment correction for multi-bill/unapplied payments remains on the controlled credit/reallocation roadmap.
+- Supplier payment correction for multi-bill/unapplied payments remains on the controlled credit/reallocation roadmap; vendor-credit application is handled separately.
 - Purchase bill popup correction experience is implemented.
 
 ### Quotations
