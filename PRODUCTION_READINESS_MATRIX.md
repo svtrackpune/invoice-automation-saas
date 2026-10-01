@@ -33,6 +33,7 @@ Base: `main` at `55ef7cc3b363e7f7513ff04364bbc8e86880c14a`
 | Invoice 360 credit trail | Implemented | Invoice 360 now includes credit notes, customer-credit ledger entries and customer refunds |
 | Payment search | Implemented | Global search searches payment method/reference/amount |
 | Payment 360 | Implemented | Payments and Receipts centers open the canonical Payment 360 relationship view |
+| Internal business seeding boundary | Implemented | Business default-seeding and feature-flag trigger functions are no longer directly executable by authenticated/anonymous clients |
 | CI financial gate | Implemented | Production readiness now runs `test:financial` |
 | CI correction contract gate | Implemented | Production readiness runs `tests/correction-contract.test.mjs` |
 | Core financial audit coverage | Implemented | Audit triggers cover invoices, lines, bills, lines, expenses, receipts, quotations and lines |
@@ -82,7 +83,7 @@ These items are not marked complete until code and tests demonstrate the accepta
 
 ### Security and tenancy
 - Systematic cross-business negative tests for all new and high-value RPCs.
-- Review of all existing exposed SECURITY DEFINER functions; reduce grants where public execution is not intentional.
+- Review of all existing exposed SECURITY DEFINER functions; reduce grants where public execution is not intentional. The internal business-seeding functions are now locked; the broader inventory remains.
 - RLS policy coverage and automated member/non-member tests for critical business tables.
 - Audit trail coverage for every correction, void, payment change and master-data change.
 
