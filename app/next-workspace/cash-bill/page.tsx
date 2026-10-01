@@ -2,6 +2,7 @@
 import {useEffect,useMemo,useState} from 'react';
 import {supabase,type BusinessContext} from '@/lib/supabase';
 import CashBillControlled from './CashBillControlled';
+import { dispatchPendingNotifications } from '@/lib/receipt-delivery';
 type Product={id:string;name:string;sku:string|null;sales_price:number;default_tax_rate_id:string|null};
 type Tax={id:string;name:string;rate:number};
 type Account={id:string;code:string;name:string;account_subtype:string|null};
