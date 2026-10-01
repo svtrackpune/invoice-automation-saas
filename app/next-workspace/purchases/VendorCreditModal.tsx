@@ -11,10 +11,11 @@ type Row={item:Item;quantity:number};
 const money=(n:number)=>new Intl.NumberFormat('en-IN',{style:'currency',currency:'INR',maximumFractionDigits:2}).format(Number(n||0));
 
 export default function VendorCreditModal({
-  open,bill,vendorId,items,taxRates,creditedQtyByItem,onClose,onSaved
+  open,bill,businessId,vendorId,items,taxRates,creditedQtyByItem,onClose,onSaved
 }:{
   open:boolean;
   bill:Bill;
+  businessId:string;
   vendorId:string;
   items:Item[];
   taxRates:TaxRate[];
@@ -77,7 +78,7 @@ export default function VendorCreditModal({
       });
 
       const result=await supabase.rpc('create_and_post_vendor_credit',{
-        p_business_id:business.business_id,
+        p_business_id:businessId,
         p_vendor_id:vendorId,
         p_bill_id:bill.id,
         p_credit_date:date,
