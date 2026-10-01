@@ -99,6 +99,9 @@ test('supplier credit lifecycle is server-controlled and credit-aware', async ()
   assert.match(sql, /receive_vendor_refund/);
   assert.match(sql, /guard_vendor_payment_allocation_net_balance/);
   assert.match(sql, /recalculate_bill_settlement_state/);
+  const currencyGuard = await read('supabase/migrations/20261001166000_vendor_credit_currency_guard_v1.sql');
+  assert.match(currencyGuard, /currency does not match/);
+  assert.match(currencyGuard, /b\.currency_code IS DISTINCT FROM vc\.currency_code/);
   assert.match(rls, /DROP POLICY IF EXISTS vendor_credits_access/);
   assert.match(rls, /DROP POLICY IF EXISTS vendor_credit_items_access/);
   assert.match(security, /REVOKE ALL ON FUNCTION public.recalculate_bill_settlement_state/);
