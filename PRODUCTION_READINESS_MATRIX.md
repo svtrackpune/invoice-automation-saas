@@ -9,7 +9,7 @@ Base: `main` at `55ef7cc3b363e7f7513ff04364bbc8e86880c14a`
 |---|---|---|
 | First-class sales document type | Implemented | `invoices.document_kind` supports `invoice` and `cash_bill`; legacy Cash & Carry records are backfilled |
 | Cash Bill atomic creation | Implemented | UI calls `create_cash_bill`; DB function creates invoice, posts it, and records the payment in one transaction |
-| Cash Bill correction | Implemented | `update_cash_bill_any_state` corrects bill and settlement together and requires final balance zero |
+| Cash Bill correction | Implemented | `update_cash_bill_any_state` corrects bill and settlement together with no exception-swallowing fallback, explicit Cash/UPI account validation, period checks, and a final fully-settled assertion |
 | Cash Bill popup | Implemented | Document review passes `cash_bill=1`; iframe correction reports completion to parent without navigating away |
 | Invoice correction | Existing + retained | `update_invoice_any_state` remains the correction engine for ordinary invoices |
 | Payment correction | Implemented | `update_customer_payment` preserves payment identity, allocation identity and receipt identity; journal is synchronized |
@@ -32,9 +32,14 @@ Base: `main` at `55ef7cc3b363e7f7513ff04364bbc8e86880c14a`
 | Customer credit/refund security | Implemented | Customer credit/refund ledgers are read-only to clients; refund RPC enforces customer ownership, accounting period and Cash/Bank account |
 | Invoice 360 credit trail | Implemented | Invoice 360 now includes credit notes, customer-credit ledger entries and customer refunds |
 | Payment search | Implemented | Global search searches payment method/reference/amount |
-| Payment 360 | Implemented | Payments and Receipts centers open the canonical Payment 360 relationship view; supplier payments expose bill allocations and unapplied advance state |
-| Supplier payment allocation | Implemented | Posted supplier payments can be left unapplied or split/reallocated across multiple posted purchase bills through `allocate_vendor_payment`; payment and affected bill settlement state are synchronized atomically |
+| Payment 360 | Implemented | Payments and Receipts centers open the canonical Payment 360 relationship view; supplier payments expose bill allocations, unapplied advance state, supplier credits and correction relationships |
+| Supplier payment allocation | Implemented | Posted supplier payments can be left unapplied or split/reallocated across multiple posted purchase bills through `allocate_vendor_payment`; payment identity, journal, allocation set and affected bill settlement state are synchronized atomically |
 | Internal business seeding boundary | Implemented | Business default-seeding and feature-flag trigger functions are no longer directly executable by authenticated/anonymous clients |
+| Internal financial helper boundary | Implemented | Core journal/receipt/Cash Customer helper RPCs are server-side only; `ensure_bank_account_ledger` remains intentionally callable because the Cash & Carry UI uses it |
+| Financial ledger table boundary | Implemented | Posted inventory, banking, credit/refund, write-off and payment-allocation tables are read-only to clients; mutations use controlled RPCs |
+| Draft financial write boundary | Implemented | Direct bill/bill-line and expense writes require module permission and remain limited to draft/unposted state |
+| Expense 360 | Implemented | Expenses workspace exposes the canonical Transaction 360 relationship view |
+| Cash Bill walk-in customer | Implemented | Customer mobile is optional; blank mobile resolves to the generic walk-in Cash Customer |
 | CI financial gate | Implemented | Production readiness now runs `test:financial` |
 | CI correction contract gate | Implemented | Production readiness runs `tests/correction-contract.test.mjs` |
 | Core financial audit coverage | Implemented | Audit triggers cover invoices, lines, bills, lines, expenses, receipts, quotations and lines |
@@ -68,7 +73,7 @@ These items are not marked complete until code and tests demonstrate the accepta
 ### Inventory/accounting
 - Full correction test matrix for quantity, rate, discount, GST, location, batch and serial changes.
 - Reconciliation tests for COGS, stock, receivables, revenue and tax after every supported correction.
-- Negative and concurrency cases, including simultaneous edits and duplicate posting attempts.
+- Negative and concurrency cases, including simultaneous edits and duplicate posting attempts; supported financial RPCs use row/advisory locks where required, but full authenticated concurrency E2E remains a sign-off item.
 
 ### 360-degree relationship views
 - Customer 360: quotes, invoices/Cash Bills, payments, receipts, credits/refunds, balance and aging; credit/refund history is now surfaced.
@@ -78,13 +83,13 @@ These items are not marked complete until code and tests demonstrate the accepta
 - Payment 360: invoice/bill allocation, receipt, journal, bank transaction, credit/refund history.
 
 ### Reporting
-- Automated reconciliation checks between subledgers, journals, inventory and bank balances.
+- Automated reconciliation checks between subledgers, journals, inventory and bank balances; current connected-project read-only integrity scan returned zero mismatches across invoice/bill balances, allocations, posted journals, inventory, Cash Bills, payment journals, receipts, and credit-note/credit allocation sanity checks.
 - CA-ready GST/income-tax report verification against transactional data.
 - Query-driven filters for customer/supplier/date/document/tax/payment dimensions.
 
 ### Security and tenancy
 - Systematic cross-business negative tests for all new and high-value RPCs.
-- Review of all existing exposed SECURITY DEFINER functions; reduce grants where public execution is not intentional. Internal business-seeding and core financial helper functions are now locked; the broader inventory remains.
+- Review of all existing exposed SECURITY DEFINER functions; reduce grants where public execution is not intentional. Internal business-seeding and core financial helper functions are now locked. Remaining callable functions are predominantly intentional application RPCs; a full formal grant inventory is still retained as a sign-off item.
 - RLS policy coverage and automated member/non-member tests for critical business tables.
 - Audit trail coverage for every correction, void, payment change and master-data change.
 
