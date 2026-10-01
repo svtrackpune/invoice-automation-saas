@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { supabase, type BusinessContext } from '@/lib/supabase';
+import { Button } from '@/components/moneymatters';
 import PurchaseEditModal from '../PurchaseEditModal';
 import VendorCreditModal from '../VendorCreditModal';
 import VendorRefundModal from '../VendorRefundModal';
