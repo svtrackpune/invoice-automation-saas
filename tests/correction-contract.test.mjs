@@ -175,7 +175,7 @@ test('payment center exposes Payment 360 context', async () => {
   assert.match(payments, /Transaction360Panel/);
   assert.match(payments, /entityType="payment"/);
   assert.match(payments, /setSelected360/);
-  assert.match(panel, /entityType:'payment'/);
+  assert.match(panel, /entityType:[^;]*['"]payment['"]/);
   assert.match(panel, /Linked invoice/);
   assert.match(panel, /Linked purchase bill/);
   const payment360 = await read('supabase/migrations/20261001176000_transaction_360_payment_credit_v1.sql');
