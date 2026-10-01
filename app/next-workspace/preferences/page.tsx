@@ -9,6 +9,10 @@ type Prefs = {
   inventory_discount_enabled: boolean;
   inventory_discount_type: string;
   inventory_discount_limit: number;
+  notification_email_enabled: boolean;
+  notification_whatsapp_enabled: boolean;
+  notification_sms_enabled: boolean;
+  notification_telegram_enabled: boolean;
 };
 
 export default function Preferences() {
@@ -30,6 +34,10 @@ export default function Preferences() {
       inventory_discount_enabled: true,
       inventory_discount_type: 'percent',
       inventory_discount_limit: 0,
+      notification_email_enabled: true,
+      notification_whatsapp_enabled: true,
+      notification_sms_enabled: false,
+      notification_telegram_enabled: false,
     }) as Prefs);
   }
 
@@ -70,6 +78,17 @@ export default function Preferences() {
           <p className="mt-1 text-sm text-slate-500">This is the default. Each customer can override it.</p>
           <label className="mt-5 flex items-center justify-between rounded-2xl border border-slate-200 p-4"><span><b>Enable reminders by default</b><span className="block text-xs text-slate-400">Customers can turn reminders off individually.</span></span><input type="checkbox" checked={!!prefs?.default_payment_reminders} onChange={e => set('default_payment_reminders', e.target.checked)} className="h-5 w-5" /></label>
           <label className="mt-3 block"><span className="text-xs font-semibold text-slate-500">Remind before due date</span><input type="number" min="0" max="365" value={prefs?.default_reminder_days ?? 3} onChange={e => set('default_reminder_days', Number(e.target.value))} className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2.5" /><span className="mt-1 block text-xs text-slate-400">0 = on the due date.</span></label>
+        </section>
+
+        <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+          <h2 className="text-lg font-semibold">Customer delivery channels</h2>
+          <p className="mt-1 text-sm text-slate-500">These channels are available for automatic receipts and customer conversations. Customer contact details remain optional.</p>
+          <div className="mt-5 grid gap-2 sm:grid-cols-2">
+            <label className="flex items-center justify-between rounded-2xl border border-slate-200 p-4"><span><b>WhatsApp</b><span className="block text-xs text-slate-400">Primary when a customer phone is available.</span></span><input type="checkbox" checked={!!prefs?.notification_whatsapp_enabled} onChange={e=>set('notification_whatsapp_enabled',e.target.checked)} className="h-5 w-5"/></label>
+            <label className="flex items-center justify-between rounded-2xl border border-slate-200 p-4"><span><b>Email</b><span className="block text-xs text-slate-400">Used automatically when WhatsApp is unavailable.</span></span><input type="checkbox" checked={!!prefs?.notification_email_enabled} onChange={e=>set('notification_email_enabled',e.target.checked)} className="h-5 w-5"/></label>
+            <label className="flex items-center justify-between rounded-2xl border border-slate-200 p-4"><span><b>SMS</b><span className="block text-xs text-slate-400">Link-based fallback when enabled.</span></span><input type="checkbox" checked={!!prefs?.notification_sms_enabled} onChange={e=>set('notification_sms_enabled',e.target.checked)} className="h-5 w-5"/></label>
+            <label className="flex items-center justify-between rounded-2xl border border-slate-200 p-4"><span><b>Telegram</b><span className="block text-xs text-slate-400">Requires the customer's Telegram chat ID.</span></span><input type="checkbox" checked={!!prefs?.notification_telegram_enabled} onChange={e=>set('notification_telegram_enabled',e.target.checked)} className="h-5 w-5"/></label>
+          </div>
         </section>
 
         <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
