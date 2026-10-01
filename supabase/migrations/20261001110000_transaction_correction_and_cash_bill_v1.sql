@@ -73,6 +73,7 @@ DECLARE
   v_ar uuid;
   v_credit_acct uuid;
   v_old_credit numeric := 0;
+  v_other_alloc numeric := 0;
   v_new_alloc numeric := 0;
   v_new_excess numeric := 0;
   v_entry_number bigint;
@@ -170,7 +171,13 @@ BEGIN
   FROM public.customer_credit_ledger
   WHERE payment_id = pay_row.id;
 
-  v_new_alloc := least(p_amount, greatest(inv.total, 0));
+  SELECT coalesce(sum(pa.amount), 0)
+  INTO v_other_alloc
+  FROM public.payment_allocations pa
+  WHERE pa.invoice_id = inv.id
+    AND pa.payment_id <> pay_row.id;
+
+  v_new_alloc := least(p_amount, greatest(inv.total - v_other_alloc, 0));
   v_new_excess := greatest(p_amount - v_new_alloc, 0);
 
   IF v_new_excess > 0 OR v_old_credit <> 0 THEN
