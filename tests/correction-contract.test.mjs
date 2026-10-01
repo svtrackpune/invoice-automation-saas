@@ -187,6 +187,23 @@ test('payment center exposes Payment 360 context', async () => {
   assert.match(receipts, /entityType="payment"/);
 });
 
+test('Operational ledger tables are read-only to clients when mutation is RPC-controlled', async () => {
+  const sql = await read('supabase/migrations/20261001190000_operational_ledger_table_readonly_boundary_v1.sql');
+  assert.match(sql, /quotation_items_member_all/);
+  assert.match(sql, /bank_reconciliations_access/);
+  assert.match(sql, /inventory_transfers_member_all/);
+  assert.match(sql, /inventory_transfer_items_member_all/);
+  for (const table of ['quotation_items','bank_reconciliations','bank_reconciliation_items','inventory_transfers','inventory_transfer_items']) {
+    assert.match(sql, new RegExp('REVOKE ALL ON TABLE public\\.' + table));
+    assert.match(sql, new RegExp('GRANT SELECT ON TABLE public\\.' + table + ' TO authenticated'));
+  }
+  assert.match(sql, /CREATE POLICY quotation_items_select/);
+  assert.match(sql, /CREATE POLICY bank_reconciliations_select/);
+  assert.match(sql, /CREATE POLICY bank_reconciliation_items_select/);
+  assert.match(sql, /CREATE POLICY inventory_transfers_select/);
+  assert.match(sql, /CREATE POLICY inventory_transfer_items_select/);
+});
+
 test('Core posted ledger tables are read-only to clients', async () => {
   const sql = await read('supabase/migrations/20261001187000_financial_ledger_table_readonly_boundary_v1.sql');
   for (const table of ['inventory_balances','inventory_movements','bank_transactions','credit_notes','credit_note_items','customer_credit_ledger','customer_refunds','vendor_credits','vendor_credit_items','vendor_credit_ledger','write_offs']) {
