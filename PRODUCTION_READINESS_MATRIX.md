@@ -40,6 +40,10 @@ Base: `main` at `55ef7cc3b363e7f7513ff04364bbc8e86880c14a`
 | Draft financial write boundary | Implemented | Direct bill/bill-line and expense writes require module permission and remain limited to draft/unposted state |
 | Expense 360 | Implemented | Expenses workspace exposes the canonical Transaction 360 relationship view |
 | Cash Bill walk-in customer | Implemented | Customer mobile is optional; blank mobile resolves to the generic walk-in Cash Customer |
+| Payment-wide digital receipt delivery | Implemented | Every new receipt created by an inbound payment queues one automatic delivery job; WhatsApp is primary when a phone is available, with Email/SMS/Telegram fallbacks according to business settings and customer contact data |
+| Customer receipt-delivery preference | Implemented | Dedicated `receipt_delivery_enabled` flag is separate from payment-reminder preferences; customer can opt receipt automation out without changing financial posting |
+| Secure receipt PDF delivery | Implemented | Opaque hashed receipt token, non-cacheable PDF endpoint and server-side PDF generation support digital warranty/guarantee copies without exposing customer records |
+| Notification worker cadence | Implemented | Dedicated notification worker runs every minute; delivery failures remain isolated from payment/receipt accounting state and retry through the existing queue |
 | CI financial gate | Implemented | Production readiness now runs `test:financial` |
 | CI correction contract gate | Implemented | Production readiness runs `tests/correction-contract.test.mjs` |
 | Core financial audit coverage | Implemented | Audit triggers cover invoices, lines, bills, lines, expenses, receipts, quotations and lines |
