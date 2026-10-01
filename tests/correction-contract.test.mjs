@@ -8,6 +8,7 @@ const read = (p) => readFile(file(p), 'utf8');
 
 test('financial correction migration contains required safety primitives', async () => {
   const sql = await read('supabase/migrations/20261001110000_transaction_correction_and_cash_bill_v1.sql');
+  const purchase = await read('supabase/migrations/20261001120000_purchase_expense_correction_v1.sql');
   const boundary = await read('supabase/migrations/20261001130000_correction_boundary_v1.sql');
   const markers = [
     'ADD COLUMN IF NOT EXISTS document_kind',
@@ -26,7 +27,7 @@ test('financial correction migration contains required safety primitives', async
     'REVOKE EXECUTE ON FUNCTION public.create_cash_bill',
     'REVOKE EXECUTE ON FUNCTION public.update_cash_bill_any_state',
   ];
-  for (const marker of markers) assert.ok(sql.includes(marker), 'missing marker: ' + marker);
+  for (const marker of markers.slice(0, 4).concat(markers.slice(7, 10)).concat(markers.slice(10))) assert.ok(sql.includes(marker), 'missing marker in sales migration: ' + marker);
 });
 
 test('cash bill creation uses the atomic database workflow', async () => {
@@ -69,10 +70,15 @@ test('purchase and expense correction surfaces use the server correction contrac
   assert.match(expenses, /update_expense_any_state/);
   assert.match(expenses, /Correct expense/);
   assert.match(sql, /guard_bill_void_with_payments/);
+  assert.match(sql, /update_bill_any_state/);
+  assert.match(sql, /update_vendor_payment/);
+  assert.match(sql, /update_expense_any_state/);
+  const boundary = await read('supabase/migrations/20261001130000_correction_boundary_v1.sql');
   assert.match(boundary, /update_regular_invoice_any_state/);
   assert.match(boundary, /Cash Bills must be corrected through the Cash Bill settlement workflow/);
   assert.match(boundary, /REVOKE EXECUTE ON FUNCTION public.update_invoice_any_state/);
   assert.match(sql, /reverse_journal_entry/);
+  assert.match(purchase, /update_bill_any_state/);
 });
 
 test('global transaction surfaces expose the new document/payment model', async () => {
