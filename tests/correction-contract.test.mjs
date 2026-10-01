@@ -84,6 +84,7 @@ test('supplier credit lifecycle is server-controlled and credit-aware', async ()
   const sql = await read('supabase/migrations/20261001160000_vendor_credit_lifecycle_v1.sql');
   const rls = await read('supabase/migrations/20261001161000_vendor_credit_rls_lockdown_v1.sql');
   const security = await read('supabase/migrations/20261001162000_vendor_credit_security_boundary_v1.sql');
+  const paymentBoundary = await read('supabase/migrations/20261001163000_supplier_payment_account_boundary_v1.sql');
   const purchaseDetail = await read('app/next-workspace/purchases/[id]/page.tsx');
   const creditModal = await read('app/next-workspace/purchases/VendorCreditModal.tsx');
   const refundModal = await read('app/next-workspace/purchases/VendorRefundModal.tsx');
@@ -101,6 +102,9 @@ test('supplier credit lifecycle is server-controlled and credit-aware', async ()
   assert.match(security, /REVOKE ALL ON FUNCTION public.recalculate_bill_settlement_state/);
   assert.match(security, /REVOKE ALL ON FUNCTION public.guard_vendor_payment_allocation_net_balance/);
   assert.match(security, /has_business_permission\(p_business_id,'accounting\.view'\)/);
+  assert.match(paymentBoundary, /guard_vendor_bill_payment_account/);
+  assert.match(paymentBoundary, /account_subtype IN \('cash','bank'\)/);
+  assert.match(purchaseDetail, /account_subtype==='cash'\|\|a\.account_subtype==='bank'/);
   assert.match(purchaseDetail, /VendorCreditModal/);
   assert.match(purchaseDetail, /VendorRefundModal/);
   assert.match(purchaseDetail, /Transaction360Panel entityType="purchase_bill"/);
