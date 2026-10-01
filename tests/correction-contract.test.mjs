@@ -8,6 +8,7 @@ const read = (p) => readFile(file(p), 'utf8');
 
 test('financial correction migration contains required safety primitives', async () => {
   const sql = await read('supabase/migrations/20261001110000_transaction_correction_and_cash_bill_v1.sql');
+  const boundary = await read('supabase/migrations/20261001130000_correction_boundary_v1.sql');
   const markers = [
     'ADD COLUMN IF NOT EXISTS document_kind',
     'invoices_document_kind_check',
@@ -68,6 +69,9 @@ test('purchase and expense correction surfaces use the server correction contrac
   assert.match(expenses, /update_expense_any_state/);
   assert.match(expenses, /Correct expense/);
   assert.match(sql, /guard_bill_void_with_payments/);
+  assert.match(boundary, /update_regular_invoice_any_state/);
+  assert.match(boundary, /Cash Bills must be corrected through the Cash Bill settlement workflow/);
+  assert.match(boundary, /REVOKE EXECUTE ON FUNCTION public.update_invoice_any_state/);
   assert.match(sql, /reverse_journal_entry/);
 });
 
