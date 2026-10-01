@@ -83,6 +83,7 @@ test('purchase and expense correction surfaces use the server correction contrac
 test('supplier credit lifecycle is server-controlled and credit-aware', async () => {
   const sql = await read('supabase/migrations/20261001160000_vendor_credit_lifecycle_v1.sql');
   const rls = await read('supabase/migrations/20261001161000_vendor_credit_rls_lockdown_v1.sql');
+  const security = await read('supabase/migrations/20261001162000_vendor_credit_security_boundary_v1.sql');
   const purchaseDetail = await read('app/next-workspace/purchases/[id]/page.tsx');
   const creditModal = await read('app/next-workspace/purchases/VendorCreditModal.tsx');
   const refundModal = await read('app/next-workspace/purchases/VendorRefundModal.tsx');
@@ -97,6 +98,9 @@ test('supplier credit lifecycle is server-controlled and credit-aware', async ()
   assert.match(sql, /recalculate_bill_settlement_state/);
   assert.match(rls, /DROP POLICY IF EXISTS vendor_credits_access/);
   assert.match(rls, /DROP POLICY IF EXISTS vendor_credit_items_access/);
+  assert.match(security, /REVOKE ALL ON FUNCTION public.recalculate_bill_settlement_state/);
+  assert.match(security, /REVOKE ALL ON FUNCTION public.guard_vendor_payment_allocation_net_balance/);
+  assert.match(security, /has_business_permission\(p_business_id,'accounting\.view'\)/);
   assert.match(purchaseDetail, /VendorCreditModal/);
   assert.match(purchaseDetail, /VendorRefundModal/);
   assert.match(purchaseDetail, /Transaction360Panel entityType="purchase_bill"/);
@@ -127,7 +131,7 @@ test('quotation audit coverage is installed', async () => {
   assert.match(sql, /audit_financial_row/);
 });
 
-test('transaction 360 read model and UI are wired for sales documents', async () => {
+test('transaction 360 read model and UI are wired for sales and purchase documents', async () => {
   const sql = await read('supabase/migrations/20261001150000_transaction_360_read_model_v1.sql');
   const panel = await read('app/next-workspace/documents/Transaction360Panel.tsx');
   const review = await read('app/next-workspace/documents/DocumentReviewCenter.tsx');
@@ -136,6 +140,7 @@ test('transaction 360 read model and UI are wired for sales documents', async ()
   assert.match(sql, /inventory_movements/);
   assert.match(sql, /bank_transactions/);
   assert.match(panel, /get_transaction_360/);
+  assert.match(panel, /purchase_bill/);
   assert.match(review, /Transaction360Panel/);
 });
 
