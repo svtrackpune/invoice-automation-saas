@@ -40,9 +40,9 @@ Quotation conversion, customer editing, product/service management, inventory-aw
 These items are not marked complete until code and tests demonstrate the acceptance criteria.
 
 ### Transaction lifecycle integration
-- Canonical lifecycle service/RPC layer across invoice, Cash Bill, quotation, purchase bill, expense and payment.
-- Consistent View / Edit / Duplicate / Void / Pay / Receipt / Link actions across every transaction type.
-- Bidirectional transaction graph: customer, supplier, product/service, quotation, invoice/Cash Bill, payment, receipt, journal, bank movement and inventory movement.
+- Canonical lifecycle service/RPC layer across every transaction type is still being consolidated; the current branch now provides dedicated correction RPCs plus a canonical read-side Transaction 360 model.
+- Consistent View / Edit / Duplicate / Void / Pay / Receipt / Link actions across every transaction type still need a full route-by-route pass.
+- Bidirectional transaction graph is materially surfaced for invoice/Cash Bill/quotation and supplier-side flows; remaining modules still need the same relationship depth.
 
 ### Purchasing and expenses
 - Supplier refund/credit-note lifecycle beyond payment correction.
@@ -51,9 +51,9 @@ These items are not marked complete until code and tests demonstrate the accepta
 - Purchase bill popup correction experience is implemented.
 
 ### Quotations
-- Quotation edit/correction lifecycle with explicit draft/sent/accepted/rejected/cancelled states.
-- Guarantee that conversion creates an independent invoice snapshot and later quotation changes cannot mutate the converted invoice.
-- Quotation correction popup.
+- Quotation edit/correction lifecycle with explicit draft/sent/accepted/rejected/cancelled states is implemented for the current workflow.
+- Conversion creates an independent invoice record from quotation items; full regression coverage is still required to sign off historical independence under all edge cases.
+- Quotation correction popup is implemented for draft/sent estimates.
 
 ### Inventory/accounting
 - Full correction test matrix for quantity, rate, discount, GST, location, batch and serial changes.
