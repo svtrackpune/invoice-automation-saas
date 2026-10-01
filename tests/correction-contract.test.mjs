@@ -80,6 +80,30 @@ test('purchase and expense correction surfaces use the server correction contrac
   assert.match(sql, /reverse_journal_entry/);
 });
 
+test('supplier credit lifecycle is server-controlled and credit-aware', async () => {
+  const sql = await read('supabase/migrations/20261001160000_vendor_credit_lifecycle_v1.sql');
+  const rls = await read('supabase/migrations/20261001161000_vendor_credit_rls_lockdown_v1.sql');
+  const purchaseDetail = await read('app/next-workspace/purchases/[id]/page.tsx');
+  const creditModal = await read('app/next-workspace/purchases/VendorCreditModal.tsx');
+  const refundModal = await read('app/next-workspace/purchases/VendorRefundModal.tsx');
+  assert.match(sql, /ADD COLUMN IF NOT EXISTS bill_id/);
+  assert.match(sql, /purchases\.manage/);
+  assert.doesNotMatch(sql, /purchases\.create/);
+  assert.match(sql, /create_and_post_vendor_credit/);
+  assert.match(sql, /post_vendor_credit/);
+  assert.match(sql, /apply_vendor_credit_to_bill/);
+  assert.match(sql, /receive_vendor_refund/);
+  assert.match(sql, /guard_vendor_payment_allocation_net_balance/);
+  assert.match(sql, /recalculate_bill_settlement_state/);
+  assert.match(rls, /DROP POLICY IF EXISTS vendor_credits_access/);
+  assert.match(rls, /DROP POLICY IF EXISTS vendor_credit_items_access/);
+  assert.match(purchaseDetail, /VendorCreditModal/);
+  assert.match(purchaseDetail, /VendorRefundModal/);
+  assert.match(purchaseDetail, /Transaction360Panel entityType="purchase_bill"/);
+  assert.match(creditModal, /create_and_post_vendor_credit/);
+  assert.match(refundModal, /receive_vendor_refund/);
+});
+
 test('global transaction surfaces expose the new document/payment model', async () => {
   const invoices = await read('app/next-workspace/invoices/page.tsx');
   const search = await read('app/next-workspace/GlobalSearch.tsx');
