@@ -187,6 +187,12 @@ test('payment center exposes Payment 360 context', async () => {
   assert.match(receipts, /entityType="payment"/);
 });
 
+test('internal business seed functions are not client-callable', async () => {
+  const sql = await read('supabase/migrations/20261001177000_internal_seed_security_boundary_v1.sql');
+  assert.match(sql, /REVOKE ALL ON FUNCTION public\.seed_business_defaults/);
+  assert.match(sql, /REVOKE ALL ON FUNCTION public\.seed_business_feature_flags_after_update/);
+});
+
 test('global transaction surfaces expose the new document/payment model', async () => {
   const invoices = await read('app/next-workspace/invoices/page.tsx');
   const search = await read('app/next-workspace/GlobalSearch.tsx');
