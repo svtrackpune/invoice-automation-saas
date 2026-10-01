@@ -26,7 +26,8 @@ test('receipt delivery is payment-wide and channel-flexible', async () => {
   assert.match(worker, /case "telegram":/);
   assert.match(worker, /attachment_type.*receipt_pdf/);
   assert.match(worker, /sendDocument/);
-  assert.match(cashCustomer, /receipt_delivery_enabled = true/);
+  assert.match(cashCustomer, /notify_customer = true/);
+  assert.match(routing, /receipt_delivery_enabled = true/);
   const prefs = await read('app/next-workspace/preferences/page.tsx');
   assert.match(prefs, /notification_telegram_enabled/);
   assert.match(prefs, /Customer delivery channels/);
