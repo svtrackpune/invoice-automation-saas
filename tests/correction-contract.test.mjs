@@ -103,6 +103,18 @@ test('quotation audit coverage is installed', async () => {
   assert.match(sql, /audit_financial_row/);
 });
 
+test('transaction 360 read model and UI are wired for sales documents', async () => {
+  const sql = await read('supabase/migrations/20261001150000_transaction_360_read_model_v1.sql');
+  const panel = await read('app/next-workspace/documents/Transaction360Panel.tsx');
+  const review = await read('app/next-workspace/documents/DocumentReviewCenter.tsx');
+  assert.match(sql, /get_transaction_360/);
+  assert.match(sql, /source_quotation/);
+  assert.match(sql, /inventory_movements/);
+  assert.match(sql, /bank_transactions/);
+  assert.match(panel, /get_transaction_360/);
+  assert.match(review, /Transaction360Panel/);
+});
+
 test('financial reconciliation guard is included', async () => {
   const sql = await read('supabase/migrations/20261001140000_financial_integrity_summary_v1.sql');
   assert.match(sql, /get_financial_integrity_summary/);
