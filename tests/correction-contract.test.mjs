@@ -153,7 +153,7 @@ test('sales credit note lifecycle is server-controlled', async () => {
   assert.match(customerApply, /Target invoice must be posted/);
   assert.match(customerApply, /validate_journal_entry_balance/);
   assert.match(customerPermission, /payments\.receive/);
-  assert.match(customerPermission, /account_subtype IN \('cash','bank'\)/);
+  assert.match(customerPermission, /customer_credit_balance/);
   assert.match(customerApplyModal, /apply_customer_credit_to_invoice/);
   assert.match(customerRefundModal, /refund_customer_credit/);
   assert.match(customer360, /CustomerRefundModal/);
