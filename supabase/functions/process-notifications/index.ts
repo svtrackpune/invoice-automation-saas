@@ -7,11 +7,45 @@ const json = (body: unknown, status = 200) =>
 const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
 const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const admin = createClient(supabaseUrl, serviceKey);
+const publicAppUrl = (Deno.env.get("MONEYMATTERS_PUBLIC_URL") || "").replace(/\/$/, "");
+
+function absoluteUrl(value: string | null | undefined) {
+  if (!value) return null;
+  if (/^https?:\/\//i.test(value)) return value;
+  if (!publicAppUrl) throw new Error("MONEYMATTERS_PUBLIC_URL is required for document delivery.");
+  return publicAppUrl + (value.startsWith("/") ? value : "/" + value);
+}
+
+function receiptFilename(job: any) {
+  const supplied = String(job?.metadata?.attachment_filename || "").trim();
+  if (supplied) return supplied.replace(/[^a-zA-Z0-9._-]+/g, "-");
+  const number = String(job?.metadata?.receipt_number || "receipt").trim();
+  return `receipt-${number.replace(/[^a-zA-Z0-9._-]+/g, "-")}.pdf`;
+}
+
+async function fetchPdfBase64(url: string) {
+  const response = await fetch(url, { headers: { Accept: "application/pdf" } });
+  if (!response.ok) throw new Error(`Receipt PDF endpoint returned HTTP ${response.status}.`);
+  const bytes = new Uint8Array(await response.arrayBuffer());
+  let binary = "";
+  const chunkSize = 0x8000;
+  for (let i = 0; i < bytes.length; i += chunkSize) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + chunkSize));
+  }
+  return btoa(binary);
+}
 
 async function sendEmail(job: any) {
   const key = Deno.env.get("RESEND_API_KEY");
   const from = Deno.env.get("RESEND_FROM_EMAIL");
   if (!key || !from) throw new Error("Email provider is not configured");
+
+  const attachment = job.metadata?.attachment_type === "receipt_pdf" && job.action_url
+    ? {
+        filename: receiptFilename(job),
+        content: await fetchPdfBase64(absoluteUrl(job.action_url)!),
+      }
+    : null;
 
   const response = await fetch("https://api.resend.com/emails", {
     method: "POST",
@@ -25,6 +59,7 @@ async function sendEmail(job: any) {
       to: [job.recipient],
       subject: job.subject || "Notification",
       text: job.message,
+      ...(attachment ? { attachments: [attachment] } : {}),
     }),
   });
   const data = await response.json();
@@ -37,16 +72,28 @@ async function sendWhatsApp(job: any) {
   const phoneId = Deno.env.get("WHATSAPP_PHONE_NUMBER_ID");
   if (!token || !phoneId) throw new Error("WhatsApp provider is not configured");
 
+  const documentUrl = job.metadata?.attachment_type === "receipt_pdf" && job.action_url
+    ? absoluteUrl(job.action_url)
+    : null;
   const response = await fetch("https://graph.facebook.com/v23.0/" + phoneId + "/messages", {
     method: "POST",
     headers: { Authorization: "Bearer " + token, "Content-Type": "application/json" },
-    body: JSON.stringify({
+    body: JSON.stringify(documentUrl ? {
+      messaging_product: "whatsapp",
+      to: job.recipient,
+      type: "document",
+      document: {
+        link: documentUrl,
+        filename: receiptFilename(job),
+        caption: job.message,
+      },
+    } : {
       messaging_product: "whatsapp",
       to: job.recipient,
       type: "text",
       text: {
         preview_url: Boolean(job.action_url),
-        body: job.action_url ? job.message + "\n\n" + job.action_url : job.message,
+        body: job.action_url ? job.message + "\n\n" + absoluteUrl(job.action_url) : job.message,
       },
     }),
   });
@@ -61,10 +108,11 @@ async function sendSms(job: any) {
   const from = Deno.env.get("TWILIO_FROM_NUMBER");
   if (!sid || !token || !from) throw new Error("SMS provider is not configured");
 
+  const link = job.action_url ? absoluteUrl(job.action_url) : null;
   const body = new URLSearchParams({
     To: job.recipient,
     From: from,
-    Body: job.action_url ? job.message + " " + job.action_url : job.message,
+    Body: link ? job.message + " " + link : job.message,
   });
   const response = await fetch("https://api.twilio.com/2010-04-01/Accounts/" + sid + "/Messages.json", {
     method: "POST",
@@ -79,6 +127,37 @@ async function sendSms(job: any) {
   return data?.sid || null;
 }
 
+async function sendTelegram(job: any) {
+  const token = Deno.env.get("TELEGRAM_BOT_TOKEN");
+  if (!token) throw new Error("Telegram provider is not configured");
+
+  const documentUrl = job.metadata?.attachment_type === "receipt_pdf" && job.action_url
+    ? absoluteUrl(job.action_url)
+    : null;
+  const endpoint = `https://api.telegram.org/bot${token}/${documentUrl ? "sendDocument" : "sendMessage"}`;
+  const body = documentUrl
+    ? {
+        chat_id: job.recipient,
+        document: documentUrl,
+        caption: job.message,
+      }
+    : {
+        chat_id: job.recipient,
+        text: job.action_url ? job.message + "\n\n" + absoluteUrl(job.action_url) : job.message,
+      };
+
+  const response = await fetch(endpoint, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  const data = await response.json();
+  if (!response.ok || data?.ok !== true) {
+    throw new Error(data?.description || "Telegram delivery failed");
+  }
+  return data?.result?.message_id ? String(data.result.message_id) : null;
+}
+
 function retryDelayMs(attempt: number) {
   return Math.min(60 * 60 * 1000, Math.max(60 * 1000, 2 ** Math.max(attempt - 1, 0) * 60 * 1000));
 }
@@ -87,9 +166,6 @@ Deno.serve(async (req) => {
   if (req.method !== "POST") return json({ error: "POST required" }, 405);
 
   try {
-    // The endpoint is intentionally callable by pg_net without a JWT. It accepts
-    // no job IDs or message payloads from the caller; all work is selected by
-    // the service-role-only atomic claim RPC.
     const { data: jobs, error } = await admin.rpc("claim_notification_jobs", { p_limit: 20 });
     if (error) throw error;
 
@@ -108,6 +184,9 @@ Deno.serve(async (req) => {
             break;
           case "sms":
             providerId = await sendSms(job);
+            break;
+          case "telegram":
+            providerId = await sendTelegram(job);
             break;
           default:
             throw new Error("Unsupported notification channel: " + job.channel);
