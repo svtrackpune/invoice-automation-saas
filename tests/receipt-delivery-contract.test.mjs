@@ -10,6 +10,8 @@ test('receipt delivery is payment-wide and channel-flexible', async () => {
   const worker = await read('supabase/functions/process-notifications/index.ts');
   const cashCustomer = await read('supabase/migrations/20261001202000_receipt_delivery_schema_alignment_v2.sql');
   const routing = await read('supabase/migrations/20261001205000_receipt_delivery_preference_and_primary_route_v5.sql');
+  const authoritative = await read('supabase/migrations/20261001206000_receipt_delivery_authoritative_v6.sql');
+  const customerUi = await read('app/next-workspace/customers/CustomerManagerControlled.tsx');
   assert.match(sql, /AFTER INSERT ON public\.receipts/);
   assert.match(sql, /notification_type.*receipt/s);
   assert.match(routing, /receipt_delivery_enabled/);
@@ -28,6 +30,11 @@ test('receipt delivery is payment-wide and channel-flexible', async () => {
   assert.match(worker, /sendDocument/);
   assert.match(cashCustomer, /notify_customer = true/);
   assert.match(routing, /receipt_delivery_enabled = true/);
+  assert.match(authoritative, /coalesce\(c\.receipt_delivery_enabled, true\)/);
+  assert.match(authoritative, /selected_channel := 'whatsapp'/);
+  assert.match(customerUi, /telegram_chat_id/);
+  assert.match(customerUi, /receipt_delivery_enabled/);
+  assert.match(customerUi, /Automatic digital receipt delivery/);
   const prefs = await read('app/next-workspace/preferences/page.tsx');
   assert.match(prefs, /notification_telegram_enabled/);
   assert.match(prefs, /Customer delivery channels/);
