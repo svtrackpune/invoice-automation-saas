@@ -387,8 +387,9 @@ BEGIN
 END;
 $function$;
 
+DROP TRIGGER IF EXISTS notification_jobs_sync_delivery_evidence ON public.notification_jobs;
 DROP TRIGGER IF EXISTS trg_sync_notification_delivery_evidence ON public.notification_jobs;
-CREATE TRIGGER trg_sync_notification_delivery_evidence
+CREATE TRIGGER notification_jobs_sync_delivery_evidence
 AFTER INSERT OR UPDATE ON public.notification_jobs
 FOR EACH ROW EXECUTE FUNCTION public.sync_notification_delivery_evidence();
 
