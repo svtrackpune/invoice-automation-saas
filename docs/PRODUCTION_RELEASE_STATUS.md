@@ -1,3 +1,4 @@
+
 # Production Release Status
 
 Updated: 2026-10-02
@@ -7,7 +8,7 @@ Updated: 2026-10-02
 Branch: `production-ready-2026-10`
 PR: #69
 Base: `main`
-Release head: `c8e545ec1883e0c87999bfb43abfe38fc338d8f0`
+Release head: `43228b0f6a98480f777581b6ba3a72e59ee20a13`
 
 ## Code-side hardening completed
 
@@ -17,20 +18,33 @@ Release head: `c8e545ec1883e0c87999bfb43abfe38fc338d8f0`
 - Posted financial/operational ledgers are read-only to authenticated browser clients where controlled RPCs exist.
 - Core audit triggers and Transaction 360 relationships are present.
 - Receipt delivery is queued asynchronously and separated from accounting success.
-- Production signup no longer uses testing-mode verification semantics.
+- New-user onboarding is routed through production business setup; testing-mode signup behavior is removed.
 - Node runtime is standardized to 22.23.3.
-- Production dependency gate is enabled.
+- Production dependency audit gate is enabled and currently passes on the release head.
 - Vulnerable `xlsx` dependency was removed; spreadsheet features use the patched ExcelJS browser bundle.
 - `sharp` is pinned to patched 0.35.5 through npm overrides.
 - Live Supabase security/performance hardening was applied successfully, including RLS initplan fixes, permissive-policy cleanup, trigger-only receipt enqueue grant lockdown, explicit webhook-table deny policy, duplicate-index removal and high-value FK indexes.
+- The latest `process-notifications` Edge Function version is deployed to the live Supabase project.
 
-## Automated release evidence
+## Automated release evidence for exact head
 
-The previous production-hardening head passed build, typecheck, lint, 25 correction/security contracts and 4 receipt-delivery contracts.
+All three release CI workflows passed on `43228b0f6a98480f777581b6ba3a72e59ee20a13`:
 
-The latest dependency/runtime/spreadsheet/security changes were added after that evidence. GitHub currently has no CI result attached to the exact release head because repository-app workflow triggering is not available through the connected GitHub write path. Therefore the exact release head is **not certified green yet**.
+- Moneymatters build
+- Moneymatters final quality pass
+- Production Readiness
 
-## Required external release gates
+The Production Readiness workflow passed:
+- `npm ci`
+- TypeScript typecheck
+- ESLint
+- production dependency audit with no high/critical runtime findings
+- financial invariant tests
+- correction contract tests
+- receipt-delivery contract tests
+- production build
+
+## Remaining release gates
 
 1. Run the authenticated staging rehearsal with disposable staging Supabase fixtures.
 2. Verify the complete correction matrix: quantity, rate, discount, GST/non-GST, location, batch and serial.
@@ -38,8 +52,7 @@ The latest dependency/runtime/spreadsheet/security changes were added after that
 4. Perform human mobile/device acceptance.
 5. Verify the production WhatsApp/WAPI provider contract and templates.
 6. Enable Supabase Auth leaked-password protection.
-7. Re-run the production dependency audit on the exact release head.
-8. Only after all gates pass should PR #69 be merged.
+7. Only after these gates pass should PR #69 be merged.
 
 ## Explicit non-release roadmap
 
