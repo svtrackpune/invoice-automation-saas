@@ -10,7 +10,8 @@
     "build": "node scripts/build.js",
     "start": "node server.js",
     "lint": "eslint",
-    "test:financial": "node --test tests/financial-invariants.test.mjs"
+    "test:financial": "node --test tests/financial-invariants.test.mjs",
+    "test:production-smoke": "node --test tests/production-smoke.test.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.55.0",
