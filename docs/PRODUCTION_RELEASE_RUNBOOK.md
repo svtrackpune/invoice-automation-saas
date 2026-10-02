@@ -44,6 +44,8 @@ Before production deployment:
 
 ### Deployment controls
 
+- In Supabase Auth settings, enable **Leaked Password Protection** before production sign-up is opened publicly.
+
 - apply Supabase migrations in order;
 - verify the authoritative receipt trigger remains the only automatic receipt-delivery enqueue route;
 - verify notification-worker scheduling and provider credentials;
