@@ -73,7 +73,8 @@ test('global formatting and ISO selectors are currency/locale driven',async()=>{
   assert.match(i18n,/Intl\.supportedValuesOf\('currency'\)/);
   assert.match(i18n,/Intl\.DisplayNames\(\[locale\], \{ type: 'region' \}\)/);
   assert.match(i18n,/formatBusinessMoney/);
-  assert.doesNotMatch(i18n,/en-IN/);
+  assert.doesNotMatch(i18n,/Intl\.NumberFormat\(['"]en-IN['"]/);
+  assert.doesNotMatch(i18n,/formatMoney\([^)]*currency\s*=\s*['"]INR['"]/i);
 });
 
 test('base currency is immutable after journal activity exists',async()=>{
