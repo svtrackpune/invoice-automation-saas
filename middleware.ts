@@ -46,7 +46,7 @@ function buildContentSecurityPolicy(nonce: string, supabaseOrigin: string | null
     "form-action 'self'",
     "frame-ancestors 'none'",
     "manifest-src 'self'",
-    'upgrade-insecure-requests',
+    ...(process.env.NODE_ENV === 'production' ? ['upgrade-insecure-requests'] : []),
   ].join('; ');
 }
 
@@ -57,10 +57,10 @@ export function middleware(request: NextRequest): NextResponse {
   const allowedOrigin = getAllowedOrigin();
   const requestOrigin = request.headers.get('origin');
   const nonce = createNonce();
-  const responseHeaders = new Headers(request.headers);
-  responseHeaders.set('x-nonce', nonce);
+  const requestHeaders = new Headers(request.headers);
+  requestHeaders.set('x-nonce', nonce);
 
-  const response = NextResponse.next({ request: { headers: responseHeaders } });
+  const response = NextResponse.next({ request: { headers: requestHeaders } });
 
   response.headers.set('X-Content-Type-Options', 'nosniff');
   response.headers.set('X-Frame-Options', 'DENY');
@@ -80,8 +80,6 @@ export function middleware(request: NextRequest): NextResponse {
       response.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Request-Id');
       response.headers.set('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS');
     } else if (requestOrigin && request.method !== 'OPTIONS') {
-      response.headers.delete('Access-Control-Allow-Origin');
-
       if (!SAFE_CORS_METHODS.has(request.method)) {
         return NextResponse.json(
           { success: false, error: { code: 'CORS_FORBIDDEN', message: 'Cross-origin request is not allowed.' } },
@@ -109,7 +107,5 @@ export function middleware(request: NextRequest): NextResponse {
 }
 
 export const config = {
-  matcher: [
-    '/((?!_next/static|_next/image|favicon.ico).*)',
-  ],
+  matcher: ['/((?!_next|favicon.ico).*)'],
 };
