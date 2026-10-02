@@ -22,7 +22,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version-file: .nvmrc
           cache: npm
 
       - run: npm ci
@@ -30,6 +30,8 @@ jobs:
         run: npx tsc --noEmit
       - name: Lint
         run: npm run lint
+      - name: Production dependency audit
+        run: npm audit --omit=dev --audit-level=high
       - name: Financial invariants
         run: npm run test:financial
       - name: Correction contract tests
