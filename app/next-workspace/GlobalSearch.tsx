@@ -16,7 +16,7 @@ type Result = {
 type NavResult = { id: string; title: string; subtitle: string; kind: 'navigation'; href: string; keywords: string };
 
 const kindLabel: Record<string, string> = {
-  navigation: 'Open', customer: 'Customer', invoice: 'Invoice', quotation: 'Estimate', receipt: 'Receipt', product: 'Product / Service', vendor: 'Vendor',
+  navigation: 'Open', customer: 'Customer', invoice: 'Invoice', quotation: 'Estimate', receipt: 'Receipt', payment: 'Payment', product: 'Product / Service', vendor: 'Vendor',
 };
 
 const navigation: NavResult[] = [
@@ -136,17 +136,18 @@ export default function GlobalSearch() {
       setLoading(true);
       const pattern = `%${escapeLike(term)}%`;
       try {
-        const [customers, invoices, estimates, receipts, products, vendors] = await Promise.all([
+        const [customers, invoices, estimates, receipts, payments, products, vendors] = await Promise.all([
           supabase.from('customers').select('id,display_name,legal_name,phone,email,tax_id').eq('business_id', businessId).eq('is_active', true).or(`display_name.ilike.${pattern},legal_name.ilike.${pattern},phone.ilike.${pattern},email.ilike.${pattern},tax_id.ilike.${pattern}`).limit(10),
           supabase.from('invoices').select('id,invoice_number,total,status,customer_id,created_at').eq('business_id', businessId).or(`invoice_number.ilike.${pattern},status.ilike.${pattern}`).order('created_at', { ascending: false }).limit(10),
           supabase.from('quotations').select('id,quotation_number,total,status,customer_id,created_at').eq('business_id', businessId).or(`quotation_number.ilike.${pattern},status.ilike.${pattern}`).order('created_at', { ascending: false }).limit(10),
           supabase.from('receipts').select('id,receipt_number,amount,payment_method,reference_number,customer_id,created_at').eq('business_id', businessId).or(`receipt_number.ilike.${pattern},payment_method.ilike.${pattern},reference_number.ilike.${pattern}`).order('created_at', { ascending: false }).limit(10),
+          supabase.from('payments').select('id,amount,method,reference,payment_date,customer_id,invoice_id,direction,created_at').eq('business_id', businessId).or(`reference.ilike.${pattern},method.ilike.${pattern}`).order('created_at', { ascending: false }).limit(10),
           supabase.from('products_services').select('id,name,sku,item_type,barcode,hsn_sac').eq('business_id', businessId).eq('is_active', true).or(`name.ilike.${pattern},sku.ilike.${pattern},barcode.ilike.${pattern},hsn_sac.ilike.${pattern}`).limit(10),
           supabase.from('vendors').select('id,display_name,legal_name,phone,email,tax_id').eq('business_id', businessId).eq('is_active', true).or(`display_name.ilike.${pattern},legal_name.ilike.${pattern},phone.ilike.${pattern},email.ilike.${pattern},tax_id.ilike.${pattern}`).limit(10),
         ]);
 
         if (cancelled) return;
-        const errors = [customers.error, invoices.error, estimates.error, receipts.error, products.error, vendors.error].filter(Boolean);
+        const errors = [customers.error, invoices.error, estimates.error, receipts.error, payments.error, products.error, vendors.error].filter(Boolean);
         if (errors.length) console.warn('Global search query warning', errors);
 
         const customerRows = (customers.data || []) as any[];
@@ -157,6 +158,7 @@ export default function GlobalSearch() {
         const invoiceRows = (invoices.data || []) as any[];
         const estimateRows = (estimates.data || []) as any[];
         const receiptRows = (receipts.data || []) as any[];
+        const paymentRows = (payments.data || []) as any[];
         const referencedCustomerIds = Array.from(new Set([
           ...invoiceRows.map(x => x.customer_id),
           ...estimateRows.map(x => x.customer_id),
@@ -176,6 +178,7 @@ export default function GlobalSearch() {
         invoiceRows.forEach(x => out.push({ id: x.id, title: x.invoice_number || 'Invoice', subtitle: `${x.status || 'Invoice'} · ${customerName.get(x.customer_id) || 'Customer'} · ₹${Number(x.total || 0).toLocaleString('en-IN')}`, kind: 'invoice', href: documentHref('invoice', x.id), score: scoreText(term, x.invoice_number, x.status) }));
         estimateRows.forEach(x => out.push({ id: x.id, title: x.quotation_number || 'Estimate', subtitle: `${x.status || 'Estimate'} · ${customerName.get(x.customer_id) || 'Customer'} · ₹${Number(x.total || 0).toLocaleString('en-IN')}`, kind: 'quotation', href: documentHref('quotation', x.id), score: scoreText(term, x.quotation_number, x.status) }));
         receiptRows.forEach(x => out.push({ id: x.id, title: x.receipt_number || 'Receipt', subtitle: `${x.payment_method || 'Payment'} · ${customerName.get(x.customer_id) || 'Customer'} · ₹${Number(x.amount || 0).toLocaleString('en-IN')}${x.reference_number ? ` · ${x.reference_number}` : ''}`, kind: 'receipt', href: documentHref('receipt', x.id), score: scoreText(term, x.receipt_number, x.payment_method, x.reference_number) }));
+        paymentRows.forEach(x => out.push({ id: x.id, title: `Payment · ₹${Number(x.amount || 0).toLocaleString('en-IN')}`, subtitle: `${x.method || 'Payment'} · ${x.direction || 'inbound'} · ${customerName.get(x.customer_id) || 'Customer'}${x.reference ? ` · ${x.reference}` : ''}`, kind: 'payment', href: x.invoice_id ? documentHref('invoice', x.invoice_id) : '/next-workspace/payments', score: scoreText(term, x.reference, x.method, x.payment_date, String(x.amount)) }));
         (products.data || []).forEach((x: any) => out.push({ id: x.id, title: x.name || 'Product / Service', subtitle: x.sku || x.barcode || x.hsn_sac || x.item_type || 'Product / Service', kind: 'product', href: `/next-workspace/items?search=${encodeURIComponent(x.name || '')}`, score: scoreText(term, x.name, x.sku, x.barcode, x.hsn_sac) }));
         (vendors.data || []).forEach((x: any) => out.push({ id: x.id, title: x.display_name || x.legal_name || 'Vendor', subtitle: x.phone || x.email || x.tax_id || 'Vendor', kind: 'vendor', href: `/next-workspace/vendors?search=${encodeURIComponent(x.display_name || x.legal_name || '')}`, score: scoreText(term, x.display_name, x.legal_name, x.phone, x.email, x.tax_id) }));
 
