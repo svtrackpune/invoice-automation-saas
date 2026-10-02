@@ -2,12 +2,45 @@ import { NextRequest } from 'next/server';
 import { getServerSupabase, loadReceiptPdfData, sha256Hex, buildReceiptPdf } from '@/lib/server/receipt-pdf';
 import { withErrorHandler, NotFoundError, ValidationError } from '@/lib/server/errors';
 import { receiptAccessQuerySchema } from '@/lib/validations/receipt';
+import { checkRateLimit, getClientRateLimitKey } from '@/lib/server/rate-limit';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
+const RECEIPT_RATE_LIMIT = 30;
+const RECEIPT_RATE_WINDOW_MS = 60_000;
+
 export async function GET(request: NextRequest) {
   return withErrorHandler(request, async (req) => {
+    const rateLimit = checkRateLimit(
+      getClientRateLimitKey(req, 'receipt-pdf'),
+      RECEIPT_RATE_LIMIT,
+      RECEIPT_RATE_WINDOW_MS,
+    );
+
+    if (!rateLimit.allowed) {
+      return Response.json(
+        {
+          success: false,
+          error: {
+            code: 'RATE_LIMIT_EXCEEDED',
+            message: 'Too many receipt requests. Please try again later.',
+            details: [],
+            requestId: req.headers.get('x-request-id') ?? 'generated-by-handler',
+          },
+        },
+        {
+          status: 429,
+          headers: {
+            'Cache-Control': 'no-store',
+            'Retry-After': String(rateLimit.retryAfterSeconds),
+            'X-RateLimit-Limit': String(rateLimit.limit),
+            'X-RateLimit-Remaining': String(rateLimit.remaining),
+          },
+        },
+      );
+    }
+
     const result = receiptAccessQuerySchema.safeParse({
       token: req.nextUrl.searchParams.get('token') ?? undefined,
     });
@@ -48,6 +81,8 @@ export async function GET(request: NextRequest) {
         'Cache-Control': 'private, no-store',
         'X-Content-Type-Options': 'nosniff',
         'X-Robots-Tag': 'noindex, nofollow, noarchive',
+        'X-RateLimit-Limit': String(rateLimit.limit),
+        'X-RateLimit-Remaining': String(rateLimit.remaining),
       },
     });
   });
