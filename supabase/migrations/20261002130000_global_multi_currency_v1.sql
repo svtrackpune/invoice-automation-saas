@@ -1154,4 +1154,40 @@ GRANT EXECUTE ON FUNCTION public.create_business_for_current_user(
   uuid,uuid,text,jsonb,text,text,text,jsonb
 ) TO authenticated;
 
+
+-- Currency-aware AR/AP read models. The legacy one-row-per-party views are kept
+-- for backward-compatible UI reads, but are explicitly marked unsafe once a
+-- party has transactions in multiple currencies.
+CREATE OR REPLACE VIEW public.customer_currency_balances AS
+SELECT
+  c.business_id,
+  c.id AS customer_id,
+  c.display_name,
+  i.currency_code,
+  COALESCE(SUM(i.total) FILTER (WHERE i.status <> 'void'),0)::numeric(20,4) AS invoiced,
+  COALESCE(SUM(i.amount_paid) FILTER (WHERE i.status <> 'void'),0)::numeric(20,4) AS paid,
+  COALESCE(SUM(i.balance_due) FILTER (WHERE i.status <> 'void'),0)::numeric(20,4) AS balance_due
+FROM public.customers c
+JOIN public.invoices i
+  ON i.customer_id=c.id
+ AND i.business_id=c.business_id
+ AND i.status <> 'void'
+GROUP BY c.business_id,c.id,c.display_name,i.currency_code;
+
+CREATE OR REPLACE VIEW public.vendor_currency_balances AS
+SELECT
+  v.business_id,
+  v.id AS vendor_id,
+  v.display_name,
+  b.currency_code,
+  COALESCE(SUM(b.total) FILTER (WHERE b.status <> 'void'),0)::numeric(20,4) AS billed,
+  COALESCE(SUM(b.amount_paid) FILTER (WHERE b.status <> 'void'),0)::numeric(20,4) AS paid,
+  COALESCE(SUM(b.balance_due) FILTER (WHERE b.status <> 'void'),0)::numeric(20,4) AS balance_due
+FROM public.vendors v
+JOIN public.bills b
+  ON b.vendor_id=v.id
+ AND b.business_id=v.business_id
+ AND b.status <> 'void'
+GROUP BY v.business_id,v.id,v.display_name,b.currency_code;
+
 COMMIT;
