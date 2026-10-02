@@ -11,6 +11,7 @@
     "start": "node server.js",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
+    "test": "npm run test:financial && node --test tests/*.test.mjs",
     "test:financial": "node --test tests/financial-invariants.test.mjs",
     "test:production-smoke": "node --test tests/production-smoke.test.mjs"
   },
