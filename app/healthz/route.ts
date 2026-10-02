@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+import { NextResponse } from 'next/server.js';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
