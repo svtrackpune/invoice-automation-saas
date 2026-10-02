@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server.js';
 
 const API_PREFIX = '/api/';
 const SAFE_CORS_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
@@ -6,34 +6,20 @@ const SAFE_CORS_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
 function getAllowedOrigin(): string | null {
   const configured = process.env.NEXT_PUBLIC_APP_URL?.trim();
   if (!configured) return null;
-
-  try {
-    return new URL(configured).origin;
-  } catch {
-    return null;
-  }
+  try { return new URL(configured).origin; } catch { return null; }
 }
 
 function getSupabaseOrigin(): string | null {
   const configured = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
   if (!configured) return null;
-
-  try {
-    return new URL(configured).origin;
-  } catch {
-    return null;
-  }
+  try { return new URL(configured).origin; } catch { return null; }
 }
 
-function createNonce(): string {
-  return btoa(crypto.randomUUID());
-}
+function createNonce(): string { return btoa(crypto.randomUUID()); }
 
 function buildContentSecurityPolicy(nonce: string, supabaseOrigin: string | null): string {
   const connectSources = ["'self'", supabaseOrigin, 'https://*.supabase.co', 'wss://*.supabase.co']
-    .filter((value): value is string => Boolean(value))
-    .join(' ');
-
+    .filter((value): value is string => Boolean(value)).join(' ');
   return [
     "default-src 'self'",
     `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'`,
@@ -59,7 +45,6 @@ export function middleware(request: NextRequest): NextResponse {
   const nonce = createNonce();
   const requestHeaders = new Headers(request.headers);
   requestHeaders.set('x-nonce', nonce);
-
   const response = NextResponse.next({ request: { headers: requestHeaders } });
 
   response.headers.set('X-Content-Type-Options', 'nosniff');
@@ -68,9 +53,7 @@ export function middleware(request: NextRequest): NextResponse {
   response.headers.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
   response.headers.set('Content-Security-Policy', buildContentSecurityPolicy(nonce, getSupabaseOrigin()));
 
-  if (isProduction) {
-    response.headers.set('Strict-Transport-Security', 'max-age=63072000; includeSubDomains; preload');
-  }
+  if (isProduction) response.headers.set('Strict-Transport-Security', 'max-age=63072000; includeSubDomains; preload');
 
   if (isApi) {
     if (requestOrigin && allowedOrigin && requestOrigin === allowedOrigin) {
@@ -79,13 +62,11 @@ export function middleware(request: NextRequest): NextResponse {
       response.headers.set('Access-Control-Allow-Credentials', 'true');
       response.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Request-Id');
       response.headers.set('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS');
-    } else if (requestOrigin && request.method !== 'OPTIONS') {
-      if (!SAFE_CORS_METHODS.has(request.method)) {
-        return NextResponse.json(
-          { success: false, error: { code: 'CORS_FORBIDDEN', message: 'Cross-origin request is not allowed.' } },
-          { status: 403 },
-        );
-      }
+    } else if (requestOrigin && request.method !== 'OPTIONS' && !SAFE_CORS_METHODS.has(request.method)) {
+      return NextResponse.json(
+        { success: false, error: { code: 'CORS_FORBIDDEN', message: 'Cross-origin request is not allowed.' } },
+        { status: 403 },
+      );
     }
 
     if (request.method === 'OPTIONS') {
@@ -95,17 +76,11 @@ export function middleware(request: NextRequest): NextResponse {
           { status: 403 },
         );
       }
-
-      return new NextResponse(null, {
-        status: 204,
-        headers: response.headers,
-      });
+      return new NextResponse(null, { status: 204, headers: response.headers });
     }
   }
 
   return response;
 }
 
-export const config = {
-  matcher: ['/((?!_next|favicon.ico).*)'],
-};
+export const config = { matcher: ['/((?!_next|favicon.ico).*)'] };
