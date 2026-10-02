@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server';
 import { getServerSupabase, loadReceiptPdfData, sha256Hex, buildReceiptPdf } from '@/lib/server/receipt-pdf';
-import { withErrorHandler, ValidationError } from '@/lib/server/errors';
+import { withErrorHandler, NotFoundError, ValidationError } from '@/lib/server/errors';
 import { receiptAccessQuerySchema } from '@/lib/validations/receipt';
 
 export const runtime = 'nodejs';
@@ -29,23 +29,11 @@ export async function GET(request: NextRequest) {
     }
 
     if (!access || access.revoked_at) {
-      return new Response('Receipt link is invalid.', {
-        status: 404,
-        headers: {
-          'Cache-Control': 'no-store',
-          'Content-Type': 'text/plain; charset=utf-8',
-        },
-      });
+      throw new NotFoundError('Receipt link is invalid.');
     }
 
     if (access.expires_at && new Date(access.expires_at).getTime() <= Date.now()) {
-      return new Response('Receipt link is invalid or has expired.', {
-        status: 404,
-        headers: {
-          'Cache-Control': 'no-store',
-          'Content-Type': 'text/plain; charset=utf-8',
-        },
-      });
+      throw new NotFoundError('Receipt link is invalid or has expired.');
     }
 
     const data = await loadReceiptPdfData(db, access.receipt_id);
