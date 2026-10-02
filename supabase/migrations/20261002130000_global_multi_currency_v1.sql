@@ -250,7 +250,7 @@ BEGIN
     currency_code,reversal_of_id,created_by,is_system_generated
   ) VALUES(
     v_old.business_id,v_num,p_reversal_date,coalesce(p_reason,'Reversal of '||v_old.entry_number),
-    'reversal',v_old.id,'draft',v_old.currency_code,v_old.id,p_created_by,true
+    'reversal',v_old.id,'draft',v_old.currency_code,v_old.id,auth.uid(),true
   ) RETURNING id INTO v_new;
 
   INSERT INTO public.journal_lines(
