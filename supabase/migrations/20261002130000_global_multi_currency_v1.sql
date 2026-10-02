@@ -42,6 +42,32 @@ ALTER TABLE public.organizations
   ADD CONSTRAINT organizations_country_code_iso_chk
     CHECK (country_code ~ '^[A-Z]{2}$');
 
+CREATE OR REPLACE FUNCTION public.guard_business_base_currency_change()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path=public,mm_private
+AS $
+BEGIN
+  IF NEW.base_currency_code IS DISTINCT FROM OLD.base_currency_code
+     AND EXISTS (
+       SELECT 1
+       FROM public.journal_entries
+       WHERE business_id=OLD.id
+     ) THEN
+    RAISE EXCEPTION 'Business base currency cannot be changed after journal activity exists';
+  END IF;
+  RETURN NEW;
+END;
+$;
+
+DROP TRIGGER IF EXISTS trg_business_base_currency_change ON public.businesses;
+CREATE TRIGGER trg_business_base_currency_change
+BEFORE UPDATE OF base_currency_code ON public.businesses
+FOR EACH ROW EXECUTE FUNCTION public.guard_business_base_currency_change();
+
+REVOKE ALL ON FUNCTION public.guard_business_base_currency_change() FROM public,anon,authenticated;
+
 ALTER TABLE public.journal_lines
   ADD COLUMN IF NOT EXISTS transaction_currency_code char(3),
   ADD COLUMN IF NOT EXISTS transaction_amount numeric(20,6),
