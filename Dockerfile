@@ -2,7 +2,7 @@ FROM node:24.18.1-alpine AS deps
 WORKDIR /app
 
 COPY package.json package-lock.json ./
-RUN npm ci --omit=dev
+RUN npm ci
 
 FROM node:24.18.1-alpine AS builder
 WORKDIR /app
