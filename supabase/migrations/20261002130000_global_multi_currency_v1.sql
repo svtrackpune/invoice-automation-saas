@@ -55,6 +55,7 @@ SET
   transaction_currency_code = upper(coalesce(nullif(btrim(jl.currency_code),''), nullif(btrim(je.currency_code),''),'INR')),
   transaction_amount = round(abs(coalesce(jl.debit,0)) + abs(coalesce(jl.credit,0)), 6),
   base_currency_code = upper(b.base_currency_code),
+  exchange_rate = coalesce(jl.exchange_rate,1),
   base_amount = round(
     (abs(coalesce(jl.debit,0)) + abs(coalesce(jl.credit,0)))
     * coalesce(jl.exchange_rate,1),
@@ -67,6 +68,8 @@ JOIN public.businesses b ON b.id=je.business_id
 WHERE je.id=jl.journal_entry_id;
 
 ALTER TABLE public.journal_lines
+  ALTER COLUMN exchange_rate SET DEFAULT 1,
+  ALTER COLUMN exchange_rate SET NOT NULL,
   ALTER COLUMN transaction_currency_code SET NOT NULL,
   ALTER COLUMN transaction_amount SET NOT NULL,
   ALTER COLUMN base_currency_code SET NOT NULL,
@@ -390,8 +393,8 @@ BEGIN
 END;
 $$;
 
-REVOKE ALL ON FUNCTION public.customer_credit_balance(uuid,char) FROM public,anon;
-GRANT EXECUTE ON FUNCTION public.customer_credit_balance(uuid,char) TO authenticated;
+REVOKE ALL ON FUNCTION public.customer_credit_balance(uuid,uuid,char) FROM public,anon;
+GRANT EXECUTE ON FUNCTION public.customer_credit_balance(uuid,uuid,char) TO authenticated;
 
 CREATE OR REPLACE FUNCTION public.guard_customer_credit_currency()
 RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path=public,mm_private AS $$
@@ -670,8 +673,8 @@ BEGIN
 END;
 $$;
 
-REVOKE ALL ON FUNCTION public.vendor_credit_balance(uuid,char) FROM public,anon;
-GRANT EXECUTE ON FUNCTION public.vendor_credit_balance(uuid,char) TO authenticated;
+REVOKE ALL ON FUNCTION public.vendor_credit_balance(uuid,uuid,char) FROM public,anon;
+GRANT EXECUTE ON FUNCTION public.vendor_credit_balance(uuid,uuid,char) TO authenticated;
 
 CREATE OR REPLACE FUNCTION public.guard_vendor_credit_currency()
 RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path=public,mm_private AS $$
