@@ -175,7 +175,7 @@ export default function DataExportPage() {
           .select(relation.parentKey)
           .eq('business_id', businessId);
 
-        const ids = (parents || []) as Array<Record<string, unknown>>;
+        const ids = (parents || []) as unknown as Array<Record<string, unknown>>;
         const parentIds = ids.map((row) => row[relation.parentKey])
           .filter(Boolean);
 
