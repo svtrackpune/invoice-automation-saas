@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import { NextRequest } from 'next/server';
 import type { ZodIssue } from 'zod';
 
@@ -22,12 +23,7 @@ export class AppError extends Error {
   readonly status: number;
   readonly details: ErrorDetail[];
 
-  constructor(
-    code: string,
-    message: string,
-    status: number,
-    details: ErrorDetail[] = [],
-  ) {
+  constructor(code: string, message: string, status: number, details: ErrorDetail[] = []) {
     super(message);
     this.name = 'AppError';
     this.code = code;
@@ -87,13 +83,10 @@ export function getRequestId(request: NextRequest): string {
     return supplied;
   }
 
-  return crypto.randomUUID();
+  return randomUUID();
 }
 
-function errorResponse(
-  requestId: string,
-  error: AppError,
-): Response {
+function errorResponse(requestId: string, error: AppError): Response {
   const body: ErrorResponseBody = {
     success: false,
     error: {
@@ -130,10 +123,7 @@ export type ApiHandler = (
   requestId: string,
 ) => Promise<Response> | Response;
 
-export async function withErrorHandler(
-  request: NextRequest,
-  handler: ApiHandler,
-): Promise<Response> {
+export async function withErrorHandler(request: NextRequest, handler: ApiHandler): Promise<Response> {
   const requestId = getRequestId(request);
 
   try {
@@ -148,11 +138,7 @@ export async function withErrorHandler(
     logUnexpectedError(requestId, error);
     return errorResponse(
       requestId,
-      new AppError(
-        'INTERNAL_SERVER_ERROR',
-        'An unexpected server error occurred.',
-        500,
-      ),
+      new AppError('INTERNAL_SERVER_ERROR', 'An unexpected server error occurred.', 500),
     );
   }
 }
