@@ -1,0 +1,94 @@
+name: Release
+
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-main
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: Create SemVer release
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout verified commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+          fetch-depth: 0
+
+      - name: Setup Node 24.18.1
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24.18.1
+
+      - name: Resolve package version
+        id: version
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="$(node -p "require('./package.json').version")"
+          if [[ ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "package.json version is not a stable SemVer: $version"
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "tag=v$version" >> "$GITHUB_OUTPUT"
+
+      - name: Verify release tag is unused or already released
+        id: existing
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.version.outputs.tag }}
+        shell: bash
+        run: |
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+            echo "Release $TAG already exists; nothing to create."
+            exit 0
+          fi
+
+          if git rev-parse "$TAG" >/dev/null 2>&1; then
+            echo "Tag $TAG already exists without a GitHub Release."
+            exit 1
+          fi
+
+          echo "exists=false" >> "$GITHUB_OUTPUT"
+
+      - name: Generate release notes from git history
+        if: steps.existing.outputs.exists != 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          previous_tag="$(git tag --sort=-version:refname | head -n 1 || true)"
+
+          if [[ -n "$previous_tag" ]]; then
+            git log --pretty=format:'- %s (%h)' "$previous_tag..${{ github.event.workflow_run.head_sha }}" > release-notes.md
+          else
+            git log -20 --pretty=format:'- %s (%h)' "${{ github.event.workflow_run.head_sha }}" > release-notes.md
+          fi
+
+          if [[ ! -s release-notes.md ]]; then
+            echo '- Initial automated release.' > release-notes.md
+          fi
+
+      - name: Create GitHub Release
+        if: steps.existing.outputs.exists != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.version.outputs.tag }}
+          SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          gh release create "$TAG" \
+            --target "$SHA" \
+            --title "$TAG" \
+            --notes-file release-notes.md
