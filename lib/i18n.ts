@@ -31,9 +31,10 @@ const ISO_COUNTRY_CODES = [
 export { ISO_COUNTRY_CODES };
 
 export function getCurrencyOptions(locale = 'en-US') {
-  const codes = typeof Intl.supportedValuesOf === 'function'
-    ? Intl.supportedValuesOf('currency')
-    : ['USD','EUR','GBP','INR','AED','AUD','CAD','CHF','CNY','JPY','SGD','ZAR'];
+  if (typeof Intl.supportedValuesOf !== 'function') {
+    throw new Error('This runtime does not expose ISO 4217 currency enumeration');
+  }
+  const codes = Intl.supportedValuesOf('currency');
   const names = typeof Intl.DisplayNames === 'function'
     ? new Intl.DisplayNames([locale], { type: 'currency' })
     : null;
