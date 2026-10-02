@@ -1155,39 +1155,61 @@ GRANT EXECUTE ON FUNCTION public.create_business_for_current_user(
 ) TO authenticated;
 
 
--- Currency-aware AR/AP read models. The legacy one-row-per-party views are kept
--- for backward-compatible UI reads, but are explicitly marked unsafe once a
--- party has transactions in multiple currencies.
+-- Currency-aware AR/AP read models.
 CREATE OR REPLACE VIEW public.customer_currency_balances AS
 SELECT
-  c.business_id,
-  c.id AS customer_id,
-  c.display_name,
-  i.currency_code,
-  COALESCE(SUM(i.total) FILTER (WHERE i.status <> 'void'),0)::numeric(20,4) AS invoiced,
-  COALESCE(SUM(i.amount_paid) FILTER (WHERE i.status <> 'void'),0)::numeric(20,4) AS paid,
-  COALESCE(SUM(i.balance_due) FILTER (WHERE i.status <> 'void'),0)::numeric(20,4) AS balance_due
+  c.business_id,c.id AS customer_id,c.display_name,i.currency_code,
+  COALESCE(SUM(i.total),0)::numeric(20,4) AS invoiced,
+  COALESCE(SUM(i.amount_paid),0)::numeric(20,4) AS paid,
+  COALESCE(SUM(i.balance_due),0)::numeric(20,4) AS balance_due
 FROM public.customers c
 JOIN public.invoices i
-  ON i.customer_id=c.id
- AND i.business_id=c.business_id
- AND i.status <> 'void'
+  ON i.customer_id=c.id AND i.business_id=c.business_id AND i.status <> 'void'
 GROUP BY c.business_id,c.id,c.display_name,i.currency_code;
 
 CREATE OR REPLACE VIEW public.vendor_currency_balances AS
 SELECT
-  v.business_id,
-  v.id AS vendor_id,
-  v.display_name,
-  b.currency_code,
-  COALESCE(SUM(b.total) FILTER (WHERE b.status <> 'void'),0)::numeric(20,4) AS billed,
-  COALESCE(SUM(b.amount_paid) FILTER (WHERE b.status <> 'void'),0)::numeric(20,4) AS paid,
-  COALESCE(SUM(b.balance_due) FILTER (WHERE b.status <> 'void'),0)::numeric(20,4) AS balance_due
+  v.business_id,v.id AS vendor_id,v.display_name,b.currency_code,
+  COALESCE(SUM(b.total),0)::numeric(20,4) AS billed,
+  COALESCE(SUM(b.amount_paid),0)::numeric(20,4) AS paid,
+  COALESCE(SUM(b.balance_due),0)::numeric(20,4) AS balance_due
 FROM public.vendors v
 JOIN public.bills b
+  ON b.vendor_id=v.id AND b.business_id=v.business_id AND b.status <> 'void'
+GROUP BY v.business_id,v.id,v.display_name,b.currency_code;
+
+-- Preserve the legacy one-row-per-party contract without ever mixing currencies:
+-- it exposes only the business base currency. New UI should use the currency views.
+DROP VIEW IF EXISTS public.customer_balances;
+CREATE VIEW public.customer_balances AS
+SELECT
+  c.business_id,c.id AS customer_id,c.display_name,
+  COALESCE(SUM(i.total),0)::numeric(20,4) AS invoiced,
+  COALESCE(SUM(i.amount_paid),0)::numeric(20,4) AS paid,
+  COALESCE(SUM(i.balance_due),0)::numeric(20,4) AS balance_due
+FROM public.customers c
+LEFT JOIN public.businesses bus ON bus.id=c.business_id
+LEFT JOIN public.invoices i
+  ON i.customer_id=c.id
+ AND i.business_id=c.business_id
+ AND i.status <> 'void'
+ AND upper(i.currency_code)=upper(bus.base_currency_code)
+GROUP BY c.business_id,c.id,c.display_name;
+
+DROP VIEW IF EXISTS public.vendor_balances;
+CREATE VIEW public.vendor_balances AS
+SELECT
+  v.business_id,v.id AS vendor_id,v.display_name,
+  COALESCE(SUM(b.total),0)::numeric(20,4) AS billed,
+  COALESCE(SUM(b.amount_paid),0)::numeric(20,4) AS paid,
+  COALESCE(SUM(b.balance_due),0)::numeric(20,4) AS balance_due
+FROM public.vendors v
+LEFT JOIN public.businesses bus ON bus.id=v.business_id
+LEFT JOIN public.bills b
   ON b.vendor_id=v.id
  AND b.business_id=v.business_id
  AND b.status <> 'void'
-GROUP BY v.business_id,v.id,v.display_name,b.currency_code;
+ AND upper(b.currency_code)=upper(bus.base_currency_code)
+GROUP BY v.business_id,v.id,v.display_name;
 
 COMMIT;
