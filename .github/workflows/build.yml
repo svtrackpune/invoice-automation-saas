@@ -7,7 +7,7 @@ on:
     branches: [main]
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   build:
@@ -22,33 +22,3 @@ jobs:
           node-version: 22
       - run: npm ci
       - run: npm run build
-
-  repair_production_lock:
-    if: github.ref == 'refs/heads/main' && github.event.head_commit.message == 'ci: generate production lock'
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: production-ready-2026-10
-          fetch-depth: 0
-      - uses: actions/setup-node@v4
-        with:
-          node-version-file: .nvmrc
-          cache: npm
-      - name: Regenerate production branch lockfile
-        run: npm install --package-lock-only --ignore-scripts
-      - name: Push regenerated lockfile to production branch
-        run: |
-          if git diff --quiet -- package-lock.json; then
-            echo "Production lockfile is already current"
-            exit 0
-          fi
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add package-lock.json
-          git commit -m "chore: refresh dependency lockfile"
-          git fetch origin production-ready-2026-10
-          git rebase origin/production-ready-2026-10
-          git push origin HEAD:production-ready-2026-10
-
