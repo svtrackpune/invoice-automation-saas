@@ -68,6 +68,20 @@ test('Wave 1 migration contains the required contracts',async()=>{
   assert.doesNotMatch(sql,/<> 'razorpay'/i);
 });
 
+test('global formatting and ISO selectors are currency/locale driven',async()=>{
+  const i18n=await readFile(new URL('../lib/i18n.ts',import.meta.url),'utf8');
+  assert.match(i18n,/Intl\.supportedValuesOf\('currency'\)/);
+  assert.match(i18n,/Intl\.DisplayNames\(\[locale\], \{ type: 'region' \}\)/);
+  assert.match(i18n,/formatBusinessMoney/);
+  assert.doesNotMatch(i18n,/en-IN/);
+});
+
+test('base currency is immutable after journal activity exists',async()=>{
+  const sql=await readFile(migrationPath,'utf8');
+  assert.match(sql,/guard_business_base_currency_change/i);
+  assert.match(sql,/Business base currency cannot be changed after journal activity exists/i);
+});
+
 test('payment adapter contracts contain Stripe Checkout and PaymentIntent webhook handling',async()=>{
   const types=await readFile(new URL('../lib/server/payments/types.ts',import.meta.url),'utf8');
   const stripe=await readFile(new URL('../lib/server/payments/stripe.ts',import.meta.url),'utf8');
