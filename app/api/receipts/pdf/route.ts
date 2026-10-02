@@ -11,7 +11,7 @@ const RECEIPT_RATE_LIMIT = 30;
 const RECEIPT_RATE_WINDOW_MS = 60_000;
 
 export async function GET(request: NextRequest) {
-  return withErrorHandler(request, async (req) => {
+  return withErrorHandler(request, async (req, requestId) => {
     const rateLimit = checkRateLimit(
       getClientRateLimitKey(req, 'receipt-pdf'),
       RECEIPT_RATE_LIMIT,
@@ -26,7 +26,7 @@ export async function GET(request: NextRequest) {
             code: 'RATE_LIMIT_EXCEEDED',
             message: 'Too many receipt requests. Please try again later.',
             details: [],
-            requestId: req.headers.get('x-request-id') ?? 'generated-by-handler',
+            requestId,
           },
         },
         {
