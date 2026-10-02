@@ -7,7 +7,7 @@ Updated: 2026-10-02
 Branch: `production-ready-2026-10`
 PR: #69
 Base: `main`
-Release head: `ba47652d93387e249fc0e99d3b001d22917d0320`
+Release head: `3af574f95053ac470c287d07bcaf2bbee0038fc3`
 
 ## Code-side hardening completed
 
