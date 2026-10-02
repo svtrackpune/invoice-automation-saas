@@ -36,3 +36,5 @@ jobs:
           git add package-lock.json
           git commit -m "chore: synchronize package-lock version metadata"
           git push
+
+# One-time maintenance synchronization for GA v1.0.0 metadata.
