@@ -218,7 +218,6 @@ test('Core posted ledger tables are read-only to clients', async () => {
   assert.match(sql, /DROP POLICY IF EXISTS write_offs_member/);
 });
 
-
 test('Direct financial table writes are draft-only where legacy UI requires them', async () => {
   const sql = await read('supabase/migrations/20261001186000_draft_financial_write_state_boundary_v1.sql');
   assert.match(sql, /status = 'draft'::bill_status/);
@@ -375,15 +374,27 @@ test('financial reconciliation guard is included', async () => {
   }
 });
 
-test('production readiness workflow includes regression gates', async () => {
-  const workflow = await read('.github/workflows/production-readiness.yml');
-  assert.match(workflow, /npm run test:financial/);
-  assert.match(workflow, /tests\/correction-contract\.test\.mjs/);
-  const quality = await read('.github/workflows/final-quality-pass.yml');
-  assert.match(quality, /contents: read/);
-  assert.doesNotMatch(quality, /git push/);
+test('canonical CI workflow contains all release gates', async () => {
+  const workflow = await read('.github/workflows/ci.yml');
+  assert.match(workflow, /node-version: 24\.18\.1/);
+  assert.match(workflow, /npm ci/);
+  assert.match(workflow, /npm run typecheck/);
+  assert.match(workflow, /npm run lint/);
+  assert.match(workflow, /npm audit --omit=dev --audit-level=high/);
+  assert.match(workflow, /npm test/);
+  assert.match(workflow, /npm run build/);
+  assert.match(workflow, /docker build -t app:test \./);
+  assert.doesNotMatch(workflow, /build-placeholder/);
 });
 
+test('release workflow is gated on successful canonical CI', async () => {
+  const workflow = await read('.github/workflows/release.yml');
+  assert.match(workflow, /workflow_run:/);
+  assert.match(workflow, /workflows: \[CI\]/);
+  assert.match(workflow, /github\.event\.workflow_run\.conclusion == 'success'/);
+  assert.match(workflow, /gh release create/);
+  assert.match(workflow, /\^\[0-9\]\+\\\.[0-9\]\+\\\.[0-9\]\+\$/);
+});
 
 test('production dependency and export boundaries stay hardened', async () => {
   const pkg = JSON.parse(await read('package.json'));
