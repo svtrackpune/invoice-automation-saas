@@ -294,11 +294,13 @@ WHERE p.id=vpa.payment_id AND vpa.currency_code IS NULL;
 ALTER TABLE public.vendor_payment_allocations ALTER COLUMN currency_code SET NOT NULL;
 
 CREATE OR REPLACE FUNCTION public.guard_payment_allocation_currency()
-RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path=public,mm_private AS $$
+RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path=public,mm_private AS $
 DECLARE
   p public.payments%rowtype;
   i public.invoices%rowtype;
   b public.bills%rowtype;
+  v_invoice_id uuid;
+  v_bill_id uuid;
 BEGIN
   SELECT * INTO p FROM public.payments WHERE id=NEW.payment_id;
   IF p.id IS NULL THEN RAISE EXCEPTION 'Payment not found for allocation'; END IF;
@@ -316,8 +318,13 @@ BEGIN
     RAISE EXCEPTION 'Payment allocation currency does not match payment currency';
   END IF;
 
-  IF TG_TABLE_NAME='payment_allocations' AND NEW.invoice_id IS NOT NULL THEN
-    SELECT * INTO i FROM public.invoices WHERE id=NEW.invoice_id;
+  -- Convert optional fields through JSON so the same trigger function is
+  -- safe for both allocation table shapes.
+  v_invoice_id:=NULLIF(to_jsonb(NEW)->>'invoice_id','')::uuid;
+  v_bill_id:=NULLIF(to_jsonb(NEW)->>'bill_id','')::uuid;
+
+  IF v_invoice_id IS NOT NULL THEN
+    SELECT * INTO i FROM public.invoices WHERE id=v_invoice_id;
     IF i.id IS NULL THEN RAISE EXCEPTION 'Invoice not found for payment allocation'; END IF;
     IF i.business_id IS DISTINCT FROM NEW.business_id THEN
       RAISE EXCEPTION 'Payment allocation invoice business does not match';
@@ -327,8 +334,8 @@ BEGIN
     END IF;
   END IF;
 
-  IF NEW.bill_id IS NOT NULL THEN
-    SELECT * INTO b FROM public.bills WHERE id=NEW.bill_id;
+  IF v_bill_id IS NOT NULL THEN
+    SELECT * INTO b FROM public.bills WHERE id=v_bill_id;
     IF b.id IS NULL THEN RAISE EXCEPTION 'Bill not found for payment allocation'; END IF;
     IF b.business_id IS DISTINCT FROM NEW.business_id THEN
       RAISE EXCEPTION 'Payment allocation bill business does not match';
@@ -338,13 +345,13 @@ BEGIN
     END IF;
   END IF;
 
-  IF TG_TABLE_NAME='payment_allocations' AND NEW.invoice_id IS NULL AND NEW.bill_id IS NULL THEN
+  IF TG_TABLE_NAME='payment_allocations' AND v_invoice_id IS NULL AND v_bill_id IS NULL THEN
     RAISE EXCEPTION 'Payment allocation must reference an invoice or bill';
   END IF;
 
   RETURN NEW;
 END;
-$$;
+$;
 
 DROP TRIGGER IF EXISTS trg_payment_allocation_currency_guard ON public.payment_allocations;
 CREATE TRIGGER trg_payment_allocation_currency_guard
