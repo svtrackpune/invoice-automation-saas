@@ -14,11 +14,15 @@ const secondPassword = process.env.E2E_SECOND_USER_PASSWORD;
 const secondBusinessId = process.env.E2E_SECOND_BUSINESS_ID;
 
 const configured = Boolean(
-  url && anonKey && email && password && businessId && productId && cashAccountId
+  url && anonKey && email && password && businessId && productId && cashAccountId,
 );
 
 function requireConfigured() {
   assert.ok(configured, 'E2E staging secrets/fixture IDs are not configured');
+}
+
+function smokeTest(name, fn, options = {}) {
+  return test(name, { ...options, skip: options.skip ?? !configured }, fn);
 }
 
 async function signIn(client, userEmail, userPassword) {
@@ -31,7 +35,7 @@ async function signIn(client, userEmail, userPassword) {
   return data.session;
 }
 
-test('authenticated user resolves exactly the configured business context', async () => {
+smokeTest('authenticated user resolves exactly the configured business context', async () => {
   requireConfigured();
   const client = createClient(url, anonKey, { auth: { persistSession: false, autoRefreshToken: false } });
   await signIn(client, email, password);
@@ -41,7 +45,7 @@ test('authenticated user resolves exactly the configured business context', asyn
     'configured business must belong to the authenticated user');
 });
 
-test('authenticated Cash Bill creation is atomic and produces one paid payment and receipt', async () => {
+smokeTest('authenticated Cash Bill creation is atomic and produces one paid payment and receipt', async () => {
   requireConfigured();
   const client = createClient(url, anonKey, { auth: { persistSession: false, autoRefreshToken: false } });
   await signIn(client, email, password);
@@ -113,8 +117,6 @@ test('authenticated Cash Bill creation is atomic and produces one paid payment a
   assert.equal(receipts?.length, 1);
   assert.equal(Number(receipts[0].amount), Number(invoice.total));
 
-  // Correction path: change only the unit price by ₹1 and require the authoritative
-  // Cash Bill workflow to update the document and its single settlement together.
   const correctedPrice = unitPrice + 1;
   const { error: correctionError } = await client.rpc('update_cash_bill_any_state', {
     p_invoice_id: invoice.id,
@@ -167,8 +169,10 @@ test('authenticated Cash Bill creation is atomic and produces one paid payment a
   assert.equal(correctedPayments[0].account_id, cashAccountId);
 });
 
-test('cross-business access is denied when a second authenticated tenant is configured', { skip: !(configured && secondEmail && secondPassword && secondBusinessId) }, async () => {
+smokeTest('cross-business access is denied when a second authenticated tenant is configured', async () => {
   requireConfigured();
+  if (!secondEmail || !secondPassword || !secondBusinessId) return;
+
   const ownerClient = createClient(url, anonKey, { auth: { persistSession: false, autoRefreshToken: false } });
   await signIn(ownerClient, email, password);
   const { data: ownerInvoices, error: ownerError } = await ownerClient
