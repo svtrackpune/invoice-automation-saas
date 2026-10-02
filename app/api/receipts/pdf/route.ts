@@ -1,30 +1,51 @@
 import { NextRequest } from 'next/server';
 import { getServerSupabase, loadReceiptPdfData, sha256Hex, buildReceiptPdf } from '@/lib/server/receipt-pdf';
+import { withErrorHandler, ValidationError } from '@/lib/server/errors';
+import { receiptAccessQuerySchema } from '@/lib/validations/receipt';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 export async function GET(request: NextRequest) {
-  const token = request.nextUrl.searchParams.get('token')?.trim();
-  if (!token || token.length < 32) {
-    return new Response('Invalid receipt access token.', { status: 400 });
-  }
+  return withErrorHandler(request, async (req) => {
+    const result = receiptAccessQuerySchema.safeParse({
+      token: req.nextUrl.searchParams.get('token') ?? undefined,
+    });
 
-  try {
+    if (!result.success) {
+      throw ValidationError.fromZodIssues(result.error.issues);
+    }
+
     const db = getServerSupabase();
-    const tokenHash = sha256Hex(token);
+    const tokenHash = sha256Hex(result.data.token);
     const { data: access, error: accessError } = await db
       .from('receipt_access_tokens')
       .select('id,receipt_id,purpose,expires_at,revoked_at')
       .eq('token_hash', tokenHash)
       .maybeSingle();
 
-    if (accessError || !access || access.revoked_at) {
-      return new Response('Receipt link is invalid.', { status: 404 });
+    if (accessError) {
+      throw accessError;
+    }
+
+    if (!access || access.revoked_at) {
+      return new Response('Receipt link is invalid.', {
+        status: 404,
+        headers: {
+          'Cache-Control': 'no-store',
+          'Content-Type': 'text/plain; charset=utf-8',
+        },
+      });
     }
 
     if (access.expires_at && new Date(access.expires_at).getTime() <= Date.now()) {
-      return new Response('Receipt link has expired.', { status: 410 });
+      return new Response('Receipt link is invalid or has expired.', {
+        status: 404,
+        headers: {
+          'Cache-Control': 'no-store',
+          'Content-Type': 'text/plain; charset=utf-8',
+        },
+      });
     }
 
     const data = await loadReceiptPdfData(db, access.receipt_id);
@@ -41,8 +62,5 @@ export async function GET(request: NextRequest) {
         'X-Robots-Tag': 'noindex, nofollow, noarchive',
       },
     });
-  } catch (error) {
-    const message = error instanceof Error ? error.message : 'Unable to prepare receipt PDF.';
-    return new Response(message, { status: 500 });
-  }
+  });
 }
