@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getServerSupabase } from '@/lib/server/receipt-pdf';
+import { checkDatabaseReadiness } from '@/lib/server/readiness';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -7,14 +8,13 @@ export const dynamic = 'force-dynamic';
 export async function GET(): Promise<NextResponse> {
   try {
     const db = getServerSupabase();
-    const { error } = await db.from('businesses').select('id').limit(1);
+    const ready = await checkDatabaseReadiness(db);
 
-    if (error) {
+    if (!ready) {
       console.error(JSON.stringify({
         event: 'readiness_database_check_failed',
-        name: error.name,
-        code: error.code,
       }));
+
       return NextResponse.json(
         { status: 'unhealthy', database: 'disconnected' },
         { status: 503, headers: { 'Cache-Control': 'no-store' } },
