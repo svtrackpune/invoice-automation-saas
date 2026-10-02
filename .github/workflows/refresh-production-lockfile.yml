@@ -1,9 +1,9 @@
 name: Refresh production-ready lockfile
 
 on:
-  push:
-    branches:
-      - production-ready-2026-10
+  pull_request:
+    types: [opened, synchronize]
+    branches: [main]
 
 permissions:
   contents: write
