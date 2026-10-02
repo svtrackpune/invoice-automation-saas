@@ -1,9 +1,10 @@
 name: Maintenance - Sync Lockfile Metadata
 
 on:
-  push:
+  pull_request:
     branches:
-      - maintenance/sync-lockfile-version
+      - main
+    types: [opened, synchronize]
 
 permissions:
   contents: write
