@@ -7,7 +7,7 @@ export type ReadinessQueryResult = {
 
 export type ReadinessQuery = {
   select(columns: string): {
-    limit(count: number): Promise<ReadinessQueryResult>;
+    limit(count: number): PromiseLike<ReadinessQueryResult>;
   };
 };
 
