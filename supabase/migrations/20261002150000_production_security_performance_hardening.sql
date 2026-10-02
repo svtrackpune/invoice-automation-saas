@@ -149,7 +149,21 @@ drop policy if exists organization_members_admin_manage on public.organization_m
 create policy organization_members_admin_insert
   on public.organization_members
   for insert to authenticated
-  with check (mm_private.is_org_member(organization_id));
+  with check (
+    exists (
+      select 1
+      from public.organizations o
+      where o.id = organization_members.organization_id
+        and o.owner_user_id = (select auth.uid())
+    )
+    or exists (
+      select 1 from public.organization_members om
+      where om.organization_id = organization_members.organization_id
+        and om.user_id = (select auth.uid())
+        and om.role = 'admin'::public.member_role
+        and om.is_active
+    )
+  );
 create policy organization_members_admin_update
   on public.organization_members
   for update to authenticated
