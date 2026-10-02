@@ -26,6 +26,8 @@ const channels = [
 ];
 const sizes = ['Just me', '2–5', '6–10', '11–25', '26–50', '51–100', '100+'];
 const states = ['Maharashtra', 'Karnataka', 'Telangana', 'Gujarat', 'Delhi', 'Tamil Nadu', 'Uttar Pradesh', 'Other'];
+const countryOptions = getCountryOptions();
+const currencyOptions = getCurrencyOptions();
 
 export default function CreateBusiness() {
   const [name, setName] = useState('');
