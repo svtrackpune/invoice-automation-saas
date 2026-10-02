@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import ExcelJS from '@andreeewill/exceljs';
 import { supabase } from '@/lib/supabase';
 
 const DIRECT_BUSINESS_TABLES = [
@@ -30,7 +29,7 @@ function safeSheetName(name: string) {
   return name.replace(/[\\/?*:[\]]/g, '_').slice(0, 31) || 'Sheet';
 }
 
-function uniqueSheetName(workbook: ExcelJS.Workbook, requested: string) {
+function uniqueSheetName(workbook: any, requested: string) {
   const base = safeSheetName(requested);
   if (!workbook.getWorksheet(base)) return base;
   for (let n = 2; n < 1000; n += 1) {
@@ -41,13 +40,13 @@ function uniqueSheetName(workbook: ExcelJS.Workbook, requested: string) {
   throw new Error(`Unable to allocate a worksheet name for ${requested}.`);
 }
 
-function normalizeCellValue(value: unknown): ExcelJS.CellValue {
+function normalizeCellValue(value: unknown): any {
   if (value === null || value === undefined) return null;
   if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean' || value instanceof Date) return value;
   return JSON.stringify(value);
 }
 
-function appendRowsAsWorksheet(workbook: ExcelJS.Workbook, requestedName: string, rows: Record<string, unknown>[]) {
+function appendRowsAsWorksheet(workbook: any, requestedName: string, rows: Record<string, unknown>[]) {
   if (!rows.length) return;
   const columns = Array.from(new Set(rows.flatMap((row) => Object.keys(row))));
   if (!columns.length) return;
@@ -72,7 +71,7 @@ function downloadWorkbook(buffer: unknown, filename: string) {
     : buffer instanceof Uint8Array
       ? buffer
       : new Uint8Array(buffer as ArrayBuffer);
-  const blob = new Blob([bytes], { type: XLSX_MIME });
+  const blob = new Blob([bytes.buffer as ArrayBuffer], { type: XLSX_MIME });
   const url = URL.createObjectURL(blob);
   const anchor = document.createElement('a');
   anchor.href = url;
@@ -124,6 +123,7 @@ export default function DataExportPage() {
 
       exportLogId = log?.id || null;
 
+      const { default: ExcelJS } = await import('@andreeewill/exceljs/dist/exceljs.min.js');
       const workbook = new ExcelJS.Workbook();
       workbook.creator = 'Moneymatters';
       workbook.lastModifiedBy = 'Moneymatters';
@@ -175,8 +175,8 @@ export default function DataExportPage() {
           .select(relation.parentKey)
           .eq('business_id', businessId);
 
-        const ids = (parents || [])
-          .map((row: Record<string, unknown>) => row[relation.parentKey])
+        const ids = (parents || []) as Array<Record<string, unknown>>;
+        const parentIds = ids.map((row) => row[relation.parentKey])
           .filter(Boolean);
 
         if (!ids.length) continue;
@@ -184,7 +184,7 @@ export default function DataExportPage() {
         const { data, error } = await supabase
           .from(table)
           .select('*')
-          .in(relation.childKey, ids);
+          .in(relation.childKey, parentIds);
 
         if (error) {
           failures.push(table);
