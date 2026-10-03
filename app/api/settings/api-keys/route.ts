@@ -20,7 +20,7 @@ async function actor(req:Request) {
   const {data:{user}}=await client.auth.getUser();
   if(!user)return null;
   const {data:ctx}=await client.rpc('get_my_business_context');
-  return {user,context:(ctx||[]).find((x:any)=>x.business_id)};
+  return {user,context:(ctx||[]).find((x:any)=>x.business_id),client};
 }
 
 export async function GET(req:Request){
@@ -48,3 +48,15 @@ export async function POST(req:Request){
   return Response.json({data,secret:token},{status:201});
 }
 
+
+export async function PATCH(req:Request){
+  const body=await req.json().catch(()=>null) as {business_id?:unknown;id?:unknown;revoked?:unknown};
+  if(typeof body?.business_id!=='string'||typeof body?.id!=='string'||typeof body?.revoked!=='boolean')return Response.json({error:'business_id, id and revoked are required'},{status:400});
+  const a=await actor(req); if(!a?.user)return Response.json({error:'Unauthorized'},{status:401});
+  const allowed=await a.client.rpc('has_my_business_permission',{p_business_id:body.business_id,p_permission:'integrations.manage'});
+  if(allowed.error||allowed.data!==true)return Response.json({error:'Permission denied'},{status:403});
+  const db=getAdmin();
+  const {data,error}=await db.from('api_keys').update({revoked_at:body.revoked?new Date().toISOString():null,updated_at:new Date().toISOString()}).eq('id',body.id).eq('business_id',body.business_id).select('id,name,key_prefix,scopes,revoked_at,expires_at,last_used_at,created_at').single();
+  if(error||!data)return Response.json({error:error?.message||'API key not found'},{status:404});
+  return Response.json({data});
+}
