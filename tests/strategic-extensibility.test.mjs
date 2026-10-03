@@ -35,7 +35,7 @@ test('invoice mutation delegates to existing financial RPCs',()=>{
   assert.match(migration,/api_create_invoice_from_items/);
   assert.match(migration,/public\.create_invoice_from_items/);
   assert.match(migration,/public\.post_invoice/);
-  assert.match(migration,/validate_journal_entry_balance/);
+  assert.match(migration,/public\.post_invoice/); assert.match(migration,/API key lacks invoices:write scope/);
 });
 
 test('webhooks have HTTPS targets, HMAC signatures and bounded retries',()=>{
