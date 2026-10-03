@@ -2,11 +2,37 @@ const { createServer } = require('http');
 const { parse } = require('url');
 const next = require('next');
 const fs = require('fs');
+const path = require('path');
 
 // Plesk-compatible production server. The same application entrypoint remains usable
 // for self-hosted deployments while Docker uses Next.js standalone output.
 const canonicalRoot = fs.realpathSync(__dirname);
 process.chdir(canonicalRoot);
+
+// Plesk deployments without a native environment-variable UI may use a local
+// .env.production file. Prefer process-manager environment variables when present,
+// and load the local file only when the server-side Supabase configuration is absent.
+// Node 24 provides process.loadEnvFile natively, so no dotenv dependency is required.
+if (
+  typeof process.loadEnvFile === 'function' &&
+  (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || !process.env.SUPABASE_SERVICE_ROLE_KEY)
+) {
+  for (const fileName of ['.env.production', '.env']) {
+    const filePath = path.join(canonicalRoot, fileName);
+    if (!fs.existsSync(filePath)) continue;
+    try {
+      process.loadEnvFile(filePath);
+      break;
+    } catch (error) {
+      console.error(JSON.stringify({
+        event: 'env_file_load_failed',
+        fileName,
+        name: error instanceof Error ? error.name : 'UnknownError',
+        message: error instanceof Error ? error.message : String(error),
+      }));
+    }
+  }
+}
 
 const dev = false;
 const hostname = '0.0.0.0';
