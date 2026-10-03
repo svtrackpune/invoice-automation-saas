@@ -5,10 +5,9 @@ ALTER TYPE public.member_role ADD VALUE IF NOT EXISTS 'auditor';
 
 INSERT INTO public.role_permissions(role,permission_key,allowed) VALUES
   ('owner','ownership.manage',true),('admin','ownership.manage',true),
-  ('cashier','dashboard.view',true),('cashier','inventory.view',true),('cashier','pos.cash_bill.create',true),
-  ('cashier','sales.view',true),
+  ('cashier','pos.cash_bill.create',true),
   ('auditor','dashboard.view',true),('auditor','sales.view',true),('auditor','accounting.view',true),
-  ('auditor','reports.view',true),('auditor','documents.view',true),('auditor','payments.receive',true),
+  ('auditor','reports.view',true),('auditor','documents.view',true),
   ('auditor','inventory.view',true),('auditor','tax.view',true)
 ON CONFLICT(role,permission_key) DO UPDATE SET allowed=excluded.allowed;
 
@@ -23,6 +22,31 @@ UPDATE public.role_permissions rp SET allowed=true
 WHERE rp.permission_key IN ('customers.view','vendors.view','purchases.view','expenses.view','payments.view','tax.view')
   AND rp.role IN ('owner','admin','accountant');
 
+CREATE OR REPLACE FUNCTION public.get_cash_bill_pos_context(p_business_id uuid)
+RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path=public,mm_private AS $fn$
+DECLARE v_products jsonb; v_taxes jsonb; v_cash jsonb; v_upi jsonb; v_profile jsonb;
+DECLARE v_bank_account uuid;
+BEGIN
+  IF NOT mm_private.has_business_permission(p_business_id,'pos.cash_bill.create') THEN RAISE EXCEPTION 'Access denied'; END IF;
+  SELECT coalesce(jsonb_agg(jsonb_build_object('id',p.id,'name',p.name,'sku',p.sku,'sales_price',p.sales_price,'default_tax_rate_id',p.default_tax_rate_id) ORDER BY p.name),'[]'::jsonb) INTO v_products
+  FROM public.products_services p WHERE p.business_id=p_business_id AND p.is_active AND p.sell_enabled;
+  SELECT coalesce(jsonb_agg(jsonb_build_object('id',t.id,'name',t.name,'rate',t.rate) ORDER BY t.rate),'[]'::jsonb) INTO v_taxes
+  FROM public.tax_rates t WHERE t.business_id=p_business_id AND t.is_active;
+  SELECT coalesce(jsonb_build_object('id',a.id,'code',a.code,'name',a.name,'account_subtype',a.account_subtype),'{}'::jsonb) INTO v_cash
+  FROM public.accounts a WHERE a.business_id=p_business_id AND a.is_active AND a.account_subtype='cash' ORDER BY a.code LIMIT 1;
+  SELECT bpm.bank_account_id INTO v_bank_account FROM public.business_payment_method_accounts bpm WHERE bpm.business_id=p_business_id AND bpm.payment_method='upi' AND bpm.is_active ORDER BY bpm.updated_at DESC LIMIT 1;
+  IF v_bank_account IS NOT NULL THEN
+    SELECT coalesce(jsonb_build_object('id',a.id,'code',a.code,'name',a.name,'account_subtype',a.account_subtype,'bank_account_id',ba.id),'{}'::jsonb) INTO v_upi
+    FROM public.bank_accounts ba JOIN public.accounts a ON a.id=ba.linked_account_id
+    WHERE ba.id=v_bank_account AND ba.business_id=p_business_id AND a.business_id=p_business_id AND a.is_active AND a.account_subtype='bank' LIMIT 1;
+  END IF;
+  SELECT coalesce(jsonb_build_object('tax_regime',tp.tax_regime,'gst_registration_type',tp.gst_registration_type,'gstin',tp.gstin),'{}'::jsonb) INTO v_profile
+  FROM public.business_tax_profiles tp WHERE tp.business_id=p_business_id LIMIT 1;
+  RETURN jsonb_build_object('products',v_products,'taxes',v_taxes,'cash_account',coalesce(v_cash,'{}'::jsonb),'upi_account',coalesce(v_upi,'{}'::jsonb),'tax_profile',coalesce(v_profile,'{}'::jsonb));
+END;
+$fn$;
+REVOKE ALL ON FUNCTION public.get_cash_bill_pos_context(uuid) FROM public,anon;
+GRANT EXECUTE ON FUNCTION public.get_cash_bill_pos_context(uuid) TO authenticated;
 -- Cashier is deliberately not granted generic sales.create; only the POS Cash Bill context below may satisfy it.
 DELETE FROM public.role_permissions WHERE role='cashier' AND permission_key IN ('sales.create','sales.edit','sales.send','sales.void','customers.manage','vendors.manage','purchases.manage','expenses.manage','reports.view','accounting.view','banking.view','settings.manage','tax.manage','integrations.manage','users.manage','branding.manage');
 
