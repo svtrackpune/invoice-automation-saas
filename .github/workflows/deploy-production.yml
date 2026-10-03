@@ -1,0 +1,59 @@
+name: Deploy Production (Plesk / mm.nilanga.in)
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Deployment & Rebuild
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.PROD_SSH_HOST }}
+          username: ${{ secrets.PROD_SSH_USER }}
+          key: ${{ secrets.PROD_SSH_KEY }}
+          port: ${{ secrets.PROD_SSH_PORT || 22 }}
+          script: |
+            set -e
+            cd /var/www/vhosts/nilanga.in/mm.nilanga.in
+
+            echo "Fetching latest changes from main..."
+            git fetch origin main
+            git reset --hard origin/main
+
+            echo "Cleaning previous build..."
+            rm -rf .next
+
+            echo "Installing dependencies & building production bundle..."
+            npm ci --prefer-offline --no-audit
+            npm run build
+
+            echo "Restarting application process..."
+            mkdir -p tmp && touch tmp/restart.txt
+
+      - name: Automated Synthetic Health Verification
+        run: |
+          echo "Waiting 10 seconds for process restart..."
+          sleep 10
+
+          echo "Verifying Liveness (/healthz)..."
+          HEALTHZ=$(curl -sS --max-time 10 https://mm.nilanga.in/healthz)
+          echo "Healthz response: $HEALTHZ"
+          echo "$HEALTHZ" | grep -q '"status":"healthy"'
+
+          echo "Verifying Readiness & Database Connection (/readyz)..."
+          READYZ=$(curl -sS --max-time 15 https://mm.nilanga.in/readyz)
+          echo "Readyz response: $READYZ"
+          echo "$READYZ" | grep -q '"database":"connected"'
+
+          echo "Verifying Strict CSP & Dynamic Nonce Emission..."
+          CSP_HEADER=$(curl -sI https://mm.nilanga.in/next-workspace | grep -i "content-security-policy" || true)
+          echo "CSP Header: $CSP_HEADER"
+          echo "$CSP_HEADER" | grep -q "strict-dynamic"
+          echo "$CSP_HEADER" | grep -q "nonce-"
+
+          echo "Deployment and automated verification successful."
