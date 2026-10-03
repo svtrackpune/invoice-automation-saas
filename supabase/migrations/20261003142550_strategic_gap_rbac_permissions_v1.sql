@@ -1,5 +1,19 @@
 BEGIN;
 
+-- Define the operational permissions before role_permissions references them.
+-- Some of these keys are intentionally absent from the legacy permission catalog.
+INSERT INTO public.permission_definitions(key,label,module,description) VALUES
+  ('pos.cash_bill.create','Create cash bills','POS','Create cash/UPI point-of-sale bills'),
+  ('ownership.manage','Manage business ownership','Settings','Manage ownership-level business settings'),
+  ('customers.view','View customers','Customers','View customer master data'),
+  ('vendors.view','View vendors','Vendors','View vendor master data'),
+  ('purchases.view','View purchases','Purchases','View purchase transactions'),
+  ('expenses.view','View expenses','Expenses','View expense transactions'),
+  ('payments.view','View payments','Payments','View payment transactions'),
+  ('tax.view','View taxes','Tax','View tax configuration and tax data')
+ON CONFLICT(key) DO NOTHING;
+
+
 -- Operational roles reuse the existing permission engine. These are deny-by-default;
 -- only the documented permissions below are granted.
 INSERT INTO public.role_permissions(role,permission_key,allowed) VALUES
