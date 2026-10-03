@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { headers } from "next/headers";
 import "./globals.css";
 import "./document-templates.css";
 import "./document-branding-final.css";
@@ -10,14 +11,19 @@ import ModalPersistenceGuard from "./ModalPersistenceGuard";
 const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
 const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] });
 
+export const dynamic = "force-dynamic";
+
 export const metadata: Metadata = {
   title: "Moneymatters — Business finance, simplified",
   description: "Accounting, invoicing, banking, payroll and automation in one simple workspace.",
 };
 
-export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+  const headersList = await headers();
+  const nonce = headersList.get("x-nonce") ?? undefined;
+
   return (
-    <html lang="en" className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}>
+    <html lang="en" nonce={nonce} className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}>
       <head>
         <style dangerouslySetInnerHTML={{ __html: `
           /* Screen document canvas: A4 for invoices/estimates, thermal for receipts. */
@@ -60,7 +66,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
           }
         ` }} />
       </head>
-      <body className="min-h-full flex flex-col">
+      <body nonce={nonce} className="min-h-full flex flex-col">
         <ModalPersistenceGuard />
         {children}
       </body>
