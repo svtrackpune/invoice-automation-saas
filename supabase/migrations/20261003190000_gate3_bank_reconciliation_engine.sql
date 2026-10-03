@@ -705,6 +705,17 @@ BEGIN
 END;
 $fn$;
 
+CREATE TABLE IF NOT EXISTS mm_private.bank_reversal_context (
+  transaction_id bigint NOT NULL,
+  reconciliation_id uuid NOT NULL,
+  bank_transaction_id uuid NOT NULL,
+  bank_reconciliation_item_id uuid NOT NULL,
+  operation text NOT NULL,
+  PRIMARY KEY (transaction_id, reconciliation_id, bank_transaction_id, bank_reconciliation_item_id)
+);
+
+REVOKE ALL ON TABLE mm_private.bank_reversal_context FROM PUBLIC, anon, authenticated;
+
 CREATE OR REPLACE FUNCTION public.prevent_locked_reconciliation_mutation()
 RETURNS trigger
 LANGUAGE plpgsql
@@ -714,39 +725,115 @@ AS $fn$
 DECLARE
   v_transaction_id uuid;
   v_reconciliation_id uuid;
+  v_item_id uuid;
+  v_business_id uuid;
+  v_transaction_date date;
 BEGIN
-  IF current_setting('moneymatters.locked_reconciliation_reversal', true) = 'true' THEN
-    RETURN coalesce(NEW, OLD);
-  END IF;
-
   IF TG_TABLE_NAME = 'bank_transactions' THEN
     v_transaction_id := CASE WHEN TG_OP='DELETE' THEN OLD.id ELSE NEW.id END;
 
     IF TG_OP IN ('UPDATE','DELETE')
        AND EXISTS (
          SELECT 1
-         FROM public.bank_reconciliation_items bri
-         JOIN public.bank_reconciliations br
-           ON br.id=bri.reconciliation_id
-         WHERE bri.bank_transaction_id=v_transaction_id
-           AND br.status='locked'
+         FROM mm_private.bank_reversal_context c
+         WHERE c.transaction_id = txid_current()
+           AND c.bank_transaction_id = v_transaction_id
+           AND c.operation = 'reverse_locked_reconciliation'
        ) THEN
-      RAISE EXCEPTION 'Bank transaction belongs to a locked reconciliation';
+      RETURN coalesce(NEW, OLD);
+    END IF;
+
+    IF TG_OP IN ('UPDATE','DELETE') AND (
+      EXISTS (
+        SELECT 1
+        FROM public.bank_reconciliation_items bri
+        JOIN public.bank_reconciliations br ON br.id=bri.reconciliation_id
+        WHERE bri.bank_transaction_id=v_transaction_id
+          AND br.status='locked'
+      )
+      OR EXISTS (
+        SELECT 1
+        FROM public.bank_accounts ba
+        JOIN public.accounting_periods ap ON ap.business_id=ba.business_id
+        WHERE ba.id=CASE WHEN TG_OP='DELETE' THEN OLD.bank_account_id ELSE NEW.bank_account_id END
+          AND CASE WHEN TG_OP='DELETE' THEN OLD.transaction_date ELSE NEW.transaction_date END
+            BETWEEN ap.period_start AND ap.period_end
+          AND ap.status IN ('closed','locked')
+      )
+      OR (TG_OP='UPDATE' AND EXISTS (
+        SELECT 1
+        FROM public.bank_accounts ba
+        JOIN public.accounting_periods ap ON ap.business_id=ba.business_id
+        WHERE ba.id=OLD.bank_account_id
+          AND OLD.transaction_date BETWEEN ap.period_start AND ap.period_end
+          AND ap.status IN ('closed','locked')
+      ))
+    ) THEN
+      RAISE EXCEPTION 'Bank transaction belongs to a locked reconciliation or accounting period';
     END IF;
 
     RETURN coalesce(NEW, OLD);
   END IF;
 
   IF TG_TABLE_NAME = 'bank_reconciliation_items' THEN
+    v_item_id := CASE WHEN TG_OP='DELETE' THEN OLD.id ELSE NEW.id END;
     v_reconciliation_id := CASE WHEN TG_OP='DELETE' THEN OLD.reconciliation_id ELSE NEW.reconciliation_id END;
 
-    IF EXISTS (
+    IF TG_OP IN ('UPDATE','DELETE')
+       AND EXISTS (
+         SELECT 1
+         FROM mm_private.bank_reversal_context c
+         WHERE c.transaction_id = txid_current()
+           AND c.bank_reconciliation_item_id = v_item_id
+           AND c.operation = 'reverse_locked_reconciliation'
+       ) THEN
+      RETURN coalesce(NEW, OLD);
+    END IF;
+
+    IF TG_OP='UPDATE' AND EXISTS (
+      SELECT 1
+      FROM public.bank_reconciliations
+      WHERE id IN (OLD.reconciliation_id, NEW.reconciliation_id)
+        AND status='locked'
+    ) THEN
+      RAISE EXCEPTION 'Bank reconciliation item belongs to a locked reconciliation';
+    END IF;
+
+    IF TG_OP IN ('INSERT','DELETE') AND EXISTS (
       SELECT 1
       FROM public.bank_reconciliations
       WHERE id=v_reconciliation_id
         AND status='locked'
     ) THEN
       RAISE EXCEPTION 'Bank reconciliation item belongs to a locked reconciliation';
+    END IF;
+
+    IF EXISTS (
+      SELECT 1
+      FROM public.bank_reconciliations br
+      JOIN public.bank_transactions bt
+        ON bt.id IN (
+          CASE WHEN TG_OP='DELETE' THEN OLD.bank_transaction_id ELSE NEW.bank_transaction_id END
+        )
+      JOIN public.accounting_periods ap
+        ON ap.business_id=br.business_id
+      WHERE br.id=v_reconciliation_id
+        AND bt.transaction_date BETWEEN ap.period_start AND ap.period_end
+        AND ap.status IN ('closed','locked')
+    ) THEN
+      RAISE EXCEPTION 'Bank reconciliation item belongs to a locked accounting period';
+    END IF;
+
+    IF TG_OP='UPDATE' AND EXISTS (
+      SELECT 1
+      FROM public.bank_reconciliations br
+      JOIN public.bank_transactions bt ON bt.id=OLD.bank_transaction_id
+      JOIN public.accounting_periods ap ON ap.business_id=br.business_id
+      WHERE br.id=OLD.reconciliation_id
+        AND bt.transaction_date BETWEEN ap.period_start AND ap.period_end
+        AND ap.status IN ('closed','locked')
+    ) THEN
+      RAISE EXCEPTION 'Bank reconciliation item belongs to a locked accounting period';
     END IF;
 
     RETURN coalesce(NEW, OLD);
@@ -834,7 +921,11 @@ BEGIN
   v_old_item := to_jsonb(v_item);
   v_old_tx := to_jsonb(v_tx);
 
-  PERFORM set_config('moneymatters.locked_reconciliation_reversal','true',true);
+  INSERT INTO mm_private.bank_reversal_context(
+    transaction_id,reconciliation_id,bank_transaction_id,bank_reconciliation_item_id,operation
+  ) VALUES (
+    txid_current(),v_rec.id,v_tx.id,v_item.id,'reverse_locked_reconciliation'
+  );
 
   IF v_item.adjustment_journal_id IS NOT NULL THEN
     v_reversal := public.reverse_journal_entry(
@@ -912,6 +1003,13 @@ BEGIN
       'reversal_date',p_reversal_date
     )
   );
+
+  DELETE FROM mm_private.bank_reversal_context
+  WHERE transaction_id=txid_current()
+    AND reconciliation_id=v_rec.id
+    AND bank_transaction_id=v_tx.id
+    AND bank_reconciliation_item_id=v_item.id
+    AND operation='reverse_locked_reconciliation';
 
   RETURN coalesce(v_reversal,v_item.id);
 END;
