@@ -44,7 +44,7 @@ export async function GET(req: Request) {
       .limit(limit);
     if (q) {
       const escaped = q.replace(/[%_]/g, '\\$&');
-      query = query.or(\`display_name.ilike.%\${escaped}%,legal_name.ilike.%\${escaped}%,email.ilike.%\${escaped}%,phone.ilike.%\${escaped}%\`);
+      query = query.or('display_name.ilike.%'+escaped+'%,legal_name.ilike.%'+escaped+'%,email.ilike.%'+escaped+'%,phone.ilike.%'+escaped+'%');
     }
     const { data, error } = await query;
     if (error) return jsonError(error.message, 500);
