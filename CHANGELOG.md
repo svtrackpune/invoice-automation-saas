@@ -80,4 +80,5 @@ Initial Production GA Release.
 - Added dependency vulnerability checks to the canonical CI gate.
 - Preserved Supabase RLS, financial RPC, transaction, and accounting write boundaries throughout release hardening.
 
+[1.3.0]: https://github.com/svtrackpune/invoice-automation-saas/releases/tag/v1.3.0
 [1.0.0]: https://github.com/svtrackpune/invoice-automation-saas/releases/tag/v1.0.0
