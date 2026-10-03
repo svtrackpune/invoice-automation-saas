@@ -6,7 +6,7 @@ import type { TaxSystem } from './types';
 
 type InputLine={
   product_service_id?:string|null; description:string; quantity:number; unit_price:number;
-  discount_type?:'percentage'|'fixed'|'amount'|null; discount_value?:number; hsn_sac?:string|null;
+  discount_type?:'percentage'|'fixed'|'amount'|null; discount_value?:number; hsn_sac?:string|null; tax_rate_id?:string|null;
 };
 type AppliedLine=InputLine&{discount:number;tax_amount:number;tax_category:string;dynamic_tax_snapshot:any[];jurisdiction_id:string|null;tax_rule_id:string|null;source_provider:string};
 const round2=(v:number)=>Math.round((v+Number.EPSILON)*100)/100;
@@ -54,12 +54,11 @@ export async function applyDynamicTax(params:{
   for(let i=0;i<params.items.length;i++){const base=round2(params.items[i].quantity*params.items[i].unit_price);const lineDisc=normalizeLineDiscount(params.items[i],base);const allocated=allocateDiscount(totalInvoiceDiscount,netValues,i);finalDiscounts.push(round2(lineDisc+allocated));finalNet.push(Math.max(0,round2(base-lineDisc-allocated)));}
   const provider=new DynamicTaxDeterminationProvider(params.db);
   const supplierTax=await params.db.from('business_tax_registrations').select('registration_number,tax_system').eq('business_id',params.businessId).eq('is_primary',true).limit(1).maybeSingle();
-  const taxResult=await provider.calculateTaxes({businessId:params.businessId,invoiceDate:params.invoiceDate,supplierAddress,buyerAddress,supplierTaxId:supplierTax.data?.registration_number||null,buyerTaxId:c.tax_id||null,taxSystem:params.taxSystem||null,currencyCode:params.currencyCode,lines:params.items.map((line,i)=>({invoiceItemId:String(i),taxCode:null,netAmount:finalNet[i]}))});
+  const taxResult=await provider.calculateTaxes({businessId:params.businessId,invoiceDate:params.invoiceDate,supplierAddress,buyerAddress,supplierTaxId:supplierTax.data?.registration_number||null,buyerTaxId:c.tax_id||null,taxSystem:params.taxSystem||null,currencyCode:params.currencyCode,lines:params.items.map((line,i)=>({invoiceItemId:String(i),taxCode:line.tax_rate_id||null,netAmount:finalNet[i]}))});
   const byLine=new Map<string,any[]>();
   for(const line of taxResult.lines){if(!byLine.has(line.invoiceItemId))byLine.set(line.invoiceItemId,[]);byLine.get(line.invoiceItemId)!.push(line);}
   const applied:AppliedLine[]=params.items.map((line,i)=>{
     const taxes=byLine.get(String(i))||[];const taxAmount=round2(taxes.reduce((s,x)=>s+x.taxAmount,0));
-    const effectiveRate=finalNet[i]>0?round2(taxAmount*100/finalNet[i]):0;
     const first=taxes[0];
     return {...line,discount:finalDiscounts[i],tax_amount:taxAmount,tax_category:first?.taxCategory||'STANDARD',dynamic_tax_snapshot:taxes,jurisdiction_id:first?.jurisdictionId||null,tax_rule_id:first?.taxRuleId||null,source_provider:provider.name,discount_type:finalDiscounts[i]>0?'fixed':null};
   });
