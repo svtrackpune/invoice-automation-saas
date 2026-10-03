@@ -25,6 +25,7 @@ Production GA consolidation release.
 
 ### Security
 
+- Pinned the bank-transaction fingerprint helper to trusted PostgreSQL schemas to remove search-path ambiguity in the production database.
 - Hardened API authorization, error sanitization, security headers, CORS handling, and rate limiting from the production perimeter work.
 - Preserved financial write boundaries and accounting-period controls while expanding operational capabilities.
 - Revoked direct mutation paths for locked bank reconciliations; corrections require explicit audited reversal context.
