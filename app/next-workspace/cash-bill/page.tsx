@@ -4,7 +4,7 @@ import {supabase,type BusinessContext} from '@/lib/supabase';
 import CashBillControlled from './CashBillControlled';
 import OfflineCashBillSync from '@/components/OfflineCashBillSync';
 import PosServiceWorker from '@/components/PosServiceWorker';
-import { queueOfflineCashBill } from '@/lib/client/offline-cash-bills';
+import { queueOfflineCashBill,nextOfflineTicketNumber } from '@/lib/client/offline-cash-bills';
 type Product={id:string;name:string;sku:string|null;sales_price:number;default_tax_rate_id:string|null};
 type Tax={id:string;name:string;rate:number};
 type Account={id:string;code:string;name:string;account_subtype:string|null};
@@ -45,15 +45,16 @@ export default function CashBillPage(){
   if(!settlementAccount){setError('No settlement account is configured for the selected payment method. Open Cash & Carry settings and configure UPI, or use Cash.');setBusy(false);return;}
   const payload={businessId:ctx.business_id,phone:customerPhone.trim(),invoiceDate:date,items:lines.map(l=>taxRegistered?l:{...l,tax_rate_id:''}),paymentMethod,accountId:settlementAccount.id,invoiceDiscountType:null,invoiceDiscountValue:0,notes:'Cash & Carry',terms:'Paid in full at counter.'} as const;
   const tempPosUuid=typeof crypto!=='undefined'&&'randomUUID'in crypto?crypto.randomUUID():undefined;
+  const offlineTicketNumber=nextOfflineTicketNumber(ctx.business_id);
   if(!navigator.onLine){
-    const queued=await queueOfflineCashBill(payload,{tempPosUuid});
+    const queued=await queueOfflineCashBill(payload,{tempPosUuid,offlineTicketNumber});
     setSuccess(`Offline mode: Cash & Carry bill ${queued.offlineTicketNumber} queued and will sync automatically when connectivity returns.`);setBusy(false);return;
   }
-  const bill=await supabase.rpc('create_cash_bill',{p_business_id:payload.businessId,p_phone:payload.phone,p_invoice_date:payload.invoiceDate,p_items:payload.items,p_payment_method:payload.paymentMethod,p_account_id:payload.accountId,p_invoice_discount_type:null,p_invoice_discount_value:0,p_notes:payload.notes,p_terms:payload.terms});
+  const bill=await supabase.rpc('create_cash_bill',{p_business_id:payload.businessId,p_phone:payload.phone,p_invoice_date:payload.invoiceDate,p_items:payload.items,p_payment_method:payload.paymentMethod,p_account_id:payload.accountId,p_invoice_discount_type:null,p_invoice_discount_value:0,p_notes:payload.notes,p_terms:payload.terms,p_temp_pos_uuid:tempPosUuid,p_offline_ticket_number:offlineTicketNumber});
   if(bill.error){
     const msg=bill.error.message||'Cash Bill could not be saved.';
     if(!navigator.onLine||/fetch|network|offline|failed to send|connection/i.test(msg)){
-      const queued=await queueOfflineCashBill(payload,{tempPosUuid});
+      const queued=await queueOfflineCashBill(payload,{tempPosUuid,offlineTicketNumber});
       setSuccess(`Connection lost: Cash & Carry bill ${queued.offlineTicketNumber} queued for automatic sync. No duplicate posting will be created if the original request reached the server.`);setBusy(false);return;
     }
     setError(msg);setBusy(false);return;
