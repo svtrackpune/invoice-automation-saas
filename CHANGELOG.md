@@ -1,8 +1,46 @@
 # Changelog
 
-All notable changes to this project are documented in this file.
+All notable changes to Moneymatters are documented in this file.
 
-The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project adheres to [Semantic Versioning](https://semver.org/).
+The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project uses [Semantic Versioning](https://semver.org/).
+
+## [1.4.0] - 2026-10-03
+
+Production GA consolidation release.
+
+### Added
+
+- Enterprise bank-statement parsing for CSV, CAMT.053, MT940, OFX, and QBO inputs.
+- Deterministic bank-transaction fingerprints and duplicate-detection constraints.
+- Bank reconciliation rules, heuristic matching, gateway-fee tolerance, locking, immutable mutation guards, and audited reversal support.
+- Tenant notification connections with provider-aware routing and failover infrastructure.
+- Offline POS capability with durable cash-bill replay boundaries and SaaS entitlement enforcement.
+- Operational RBAC roles for cashier and auditor workflows with database-backed permission definitions and deny-by-default mutation boundaries.
+- Dynamic tax determination and posted-invoice tax snapshots.
+- Regulatory buyer-reference support and dynamic invoice RPC surfaces.
+- Multi-currency accounting metadata, currency-aware payment allocations, and base-currency safeguards.
+- Provider-neutral PAYable payment adapter/session/webhook infrastructure.
+- Gateway settlement accounting with explicit gross, fee, and net amounts.
+- SaaS entitlement records and feature gates for API, e-invoicing, and offline POS capabilities.
+
+### Security
+
+- Hardened API authorization, error sanitization, security headers, CORS handling, and rate limiting from the production perimeter work.
+- Preserved financial write boundaries and accounting-period controls while expanding operational capabilities.
+- Revoked direct mutation paths for locked bank reconciliations; corrections require explicit audited reversal context.
+- Preserved tenant isolation through Supabase RLS and controlled server-side operations.
+- Added production dependency auditing to the canonical CI gate.
+- Synchronized the live Supabase schema through the October 2026 GA migration sequence.
+
+### Operations
+
+- Verified the Gate 3 bank-reconciliation implementation through the repository CI pipeline, including typecheck, lint, tests, production build, and Docker build.
+- Preserved compatibility with Plesk Node.js 24.18.1 deployment and the Docker deployment target.
+- Standardized release automation around package SemVer and matching Git tags.
+
+### Integration note
+
+- The PAYable application adapter is intentionally provider-boundary code. Before enabling live PAYable traffic, confirm the exact merchant endpoint and signature/check-value contract for the account being connected.
 
 ## [1.3.0] - 2026-10-03
 
@@ -52,33 +90,6 @@ Initial Production GA Release.
 - OpenAPI 3.1 documentation for the public HTTP surface.
 - MIT open-source licensing, contribution guidelines, and security policy.
 
-### Changed
-
-- Production build now treats ESLint violations as blocking errors.
-- Added an explicit strict TypeScript typecheck command.
-- Standardized public API error responses and status handling.
-- Consolidated CI responsibilities into a canonical `ci.yml` workflow.
-- Consolidated release automation into `release.yml` with CI success as a prerequisite.
-- Harmonized deployment behavior across Plesk and Docker using `server.js`.
-- Replaced the starter README with production and deployment documentation.
-
-### Fixed
-
-- Removed obsolete repository backup artifacts and development-only release clutter.
-- Prevented raw database/runtime error messages from being exposed through public API responses.
-- Added validation handling for invalid receipt access tokens before database lookup.
-- Added deterministic infrastructure tests for health, readiness, rate limiting, security headers, CORS, and error handling.
-- Hardened shutdown behavior so in-flight requests can complete before process termination.
-
-### Security
-
-- Added strict server-side environment handling for the Supabase service-role credential.
-- Added CSP with per-request nonces.
-- Added `X-Content-Type-Options`, `X-Frame-Options`, Referrer-Policy, HSTS, and Permissions-Policy headers.
-- Restricted API cross-origin behavior to the configured application origin.
-- Added rate limiting and `Retry-After` responses for public receipt PDF access.
-- Added dependency vulnerability checks to the canonical CI gate.
-- Preserved Supabase RLS, financial RPC, transaction, and accounting write boundaries throughout release hardening.
-
+[1.4.0]: https://github.com/svtrackpune/invoice-automation-saas/releases/tag/v1.4.0
 [1.3.0]: https://github.com/svtrackpune/invoice-automation-saas/releases/tag/v1.3.0
 [1.0.0]: https://github.com/svtrackpune/invoice-automation-saas/releases/tag/v1.0.0
