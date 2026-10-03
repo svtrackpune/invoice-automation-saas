@@ -21,6 +21,7 @@ export type CanonicalInvoiceLine = {
   taxAmount: number;
   lineTotal: number;
   unitCode: string | null;
+  discount: number;
   hsnSac: string | null;
   taxCode: string | null;
   taxCategory: string | null;
@@ -72,7 +73,7 @@ export async function loadCanonicalInvoice(db: SupabaseClient, invoiceId: string
 
   const [{data:b,error:be},{data:c,error:ce},{data:items,error:ie},{data:taxLines,error:te}] = await Promise.all([
     db.from('businesses').select('id,name,legal_name,email,phone,tax_registration_number,address,address_iso,country_code,e_invoice_endpoint_id,e_invoice_endpoint_scheme').eq('id',invoice.business_id).single(),
-    db.from('customers').select('id,display_name,legal_name,email,phone,tax_id,billing_address_iso,shipping_address_iso,e_invoice_endpoint_id,e_invoice_endpoint_scheme').eq('id',invoice.customer_id).eq('business_id',invoice.business_id).single(),
+    db.from('customers').select('id,display_name,legal_name,email,phone,tax_id,billing_address_iso,shipping_address_iso,billing_address,shipping_address,e_invoice_endpoint_id,e_invoice_endpoint_scheme').eq('id',invoice.customer_id).eq('business_id',invoice.business_id).single(),
     db.from('invoice_items').select('id,description,quantity,unit_price,discount,tax_amount,line_total,hsn_sac,sort_order,product_service_id').eq('invoice_id',invoice.id).order('sort_order').order('id'),
     db.from('invoice_tax_lines').select('invoice_item_id,tax_code,tax_category,rate,taxable_amount,tax_amount,is_reverse_charge').eq('invoice_id',invoice.id).order('invoice_item_id'),
   ]);
@@ -80,8 +81,8 @@ export async function loadCanonicalInvoice(db: SupabaseClient, invoiceId: string
 
   const lineTaxes = new Map<string, any[]>();
   for (const line of (taxLines || [])) { const key=String(line.invoice_item_id || ''); if(!lineTaxes.has(key)) lineTaxes.set(key,[]); lineTaxes.get(key)!.push(line); }
-  const customerAddress = addressOf(c.shipping_address_iso || c.billing_address_iso, b.country_code);
-  const supplierAddress = addressOf(b.address_iso, b.country_code);
+  const customerAddress = addressOf(c.shipping_address_iso || c.billing_address_iso || c.shipping_address || c.billing_address, b.country_code);
+  const supplierAddress = addressOf(b.address_iso || b.address, b.country_code);
   const supplierName=text(b.legal_name||b.name)||'Supplier';
   const customerName=text(c.legal_name||c.display_name)||'Customer';
   const supplier:CanonicalParty={id:b.id,name:supplierName,legalName:b.legal_name,email:b.email,phone:b.phone,taxId:b.tax_registration_number,address:supplierAddress,endpointId:b.e_invoice_endpoint_id,endpointScheme:b.e_invoice_endpoint_scheme};
@@ -91,7 +92,7 @@ export async function loadCanonicalInvoice(db: SupabaseClient, invoiceId: string
     const taxes=(lineTaxes.get(item.id)||[]).map((x:any)=>({taxCode:text(x.tax_code),taxCategory:text(x.tax_category),rate:num(x.rate),taxableAmount:num(x.taxable_amount),taxAmount:num(x.tax_amount),isReverseCharge:Boolean(x.is_reverse_charge)}));
     const first=taxes[0];
     const net=num(item.quantity)*num(item.unit_price)-num(item.discount);
-    return {id:item.id,description:text(item.description)||'Item',quantity:num(item.quantity),unitPrice:num(item.unit_price),netAmount:Math.max(0,net),taxAmount:num(item.tax_amount),lineTotal:num(item.line_total),unitCode:null,hsnSac:item.hsn_sac?text(item.hsn_sac):null,taxCode:first?.taxCode||null,taxCategory:first?.taxCategory||null,taxRate:first?.rate??null,taxLines:taxes};
+    return {id:item.id,description:text(item.description)||'Item',quantity:num(item.quantity),unitPrice:num(item.unit_price),discount:num(item.discount),netAmount:Math.max(0,net),taxAmount:num(item.tax_amount),lineTotal:num(item.line_total),unitCode:null,hsnSac:item.hsn_sac?text(item.hsn_sac):null,taxCode:first?.taxCode||null,taxCategory:first?.taxCategory||null,taxRate:first?.rate??null,taxLines:taxes};
   });
   const flattened=(taxLines||[]).map((x:any)=>({taxCode:text(x.tax_code),taxCategory:text(x.tax_category),rate:num(x.rate),taxableAmount:num(x.taxable_amount),taxAmount:num(x.tax_amount),isReverseCharge:Boolean(x.is_reverse_charge),invoiceItemId:x.invoice_item_id?String(x.invoice_item_id):null}));
 
