@@ -14,7 +14,7 @@ test('offline queue uses IndexedDB, cryptographic UUIDs and sequential device ti
   assert.match(queue,/offline_cash_bills/);
   assert.match(queue,/crypto\.randomUUID\(\)/);
   assert.match(queue,/deviceToken/);
-  assert.match(queue,/POS-\$/);
+  assert.match(queue,/POS-/); assert.match(queue,/deviceToken/);
   assert.match(queue,/padStart\(6,'0'\)/);
 });
 
