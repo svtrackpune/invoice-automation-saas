@@ -25,21 +25,19 @@ function getSupabaseOrigin(): string | null {
 function createNonce(): string { return btoa(crypto.randomUUID()); }
 
 function buildContentSecurityPolicy(nonce: string, supabaseOrigin: string | null): string {
-  const connectSources = ["'self'", supabaseOrigin, 'https://*.supabase.co', 'wss://*.supabase.co']
+  const connectSources = ["'self'", 'https://*.supabase.co', 'wss://*.supabase.co', 'https://mm.nilanga.in', supabaseOrigin]
     .filter((value): value is string => Boolean(value)).join(' ');
   return [
     "default-src 'self'",
-    `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'`,
+    `script-src 'self' 'nonce-${nonce}' 'strict-dynamic' https:`,
     "style-src 'self' 'unsafe-inline'",
-    "img-src 'self' data: blob:",
+    "img-src 'self' blob: data: https:",
     "font-src 'self' data:",
     `connect-src ${connectSources}`,
+    "frame-ancestors 'none'",
     "object-src 'none'",
     "base-uri 'self'",
     "form-action 'self'",
-    "frame-ancestors 'none'",
-    "manifest-src 'self'",
-    ...(process.env.NODE_ENV === 'production' ? ['upgrade-insecure-requests'] : []),
   ].join('; ');
 }
 
@@ -117,4 +115,14 @@ export function middleware(request: NextRequest): NextResponse {
   return response;
 }
 
-export const config = { matcher: ['/((?!_next|favicon.ico).*)'] };
+export const config = {
+  matcher: [
+    {
+      source: '/((?!api|_next/static|_next/image|favicon.ico|healthz|readyz).*)',
+      missing: [
+        { type: 'header', key: 'next-router-prefetch' },
+        { type: 'header', key: 'purpose', value: 'prefetch' },
+      ],
+    },
+  ],
+};
