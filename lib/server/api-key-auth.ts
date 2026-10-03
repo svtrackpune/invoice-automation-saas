@@ -48,7 +48,12 @@ export async function authenticatePublicApi(request: Request, requiredScope?: Pu
     .maybeSingle();
 
   if (error || !data) throw new Error('Invalid or expired API key.');
+  if (!data.created_by) throw new Error('Invalid or expired API key.');
   if (data.expires_at && new Date(data.expires_at).getTime() <= Date.now()) throw new Error('Invalid or expired API key.');
+  const { data: business } = await db.from('businesses').select('organization_id,is_active').eq('id', data.business_id).maybeSingle();
+  if (!business?.is_active) throw new Error('API key business is inactive.');
+  const { data: member } = await db.from('organization_members').select('user_id').eq('organization_id', business.organization_id).eq('user_id', data.created_by).eq('is_active', true).maybeSingle();
+  if (!member) throw new Error('API key creator is no longer an active business member.');
   const { data: entitlement } = await db.from('saas_entitlements').select('api_enabled').eq('business_id', data.business_id).maybeSingle();
   if (entitlement && entitlement.api_enabled !== true) throw new Error('Public API access is not enabled for this business.');
 
