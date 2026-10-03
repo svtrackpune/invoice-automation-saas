@@ -135,7 +135,7 @@ const postPayable = async (payload: Record<string, unknown>): Promise<RecordValu
   const response = await fetch(getApiUrl(), {
     method: 'POST',
     headers: {
-      Authorization: \x60Bearer \${apiKey}\x60,
+      Authorization: `Bearer ${apiKey}`,
       'Content-Type': 'application/json',
       Accept: 'application/json',
     },
@@ -146,13 +146,13 @@ const postPayable = async (payload: Record<string, unknown>): Promise<RecordValu
   const data = asRecord(await response.json().catch(() => ({})));
   if (!response.ok) {
     const message = firstString(asRecord(data.error).message, data.message, data.error);
-    throw new Error(message || \x60Payable request failed with HTTP \${response.status}\x60);
+    throw new Error(message || `Payable request failed with HTTP ${response.status}`);
   }
   return data;
 };
 
 export const signPayableWebhook = (timestamp: string, rawBody: string, secret: string): string =>
-  createHmac('sha256', secret).update(\x60\${timestamp}.\${rawBody}\x60, 'utf8').digest('hex');
+  createHmac('sha256', secret).update(`${timestamp}.${rawBody}`, 'utf8').digest('hex');
 
 export const verifyPayableWebhookPayload = (
   rawBody: string,
@@ -319,7 +319,7 @@ export class PayablePaymentAdapter implements PaymentProviderAdapter {
       paymentDate: toDateOnly(
         pickNested(root, 'paid_at') ?? root.timestamp ?? root.created_at ?? nested.timestamp,
       ),
-      notes: \x60Payable \${eventType}\x60,
+      notes: `Payable ${eventType}`,
       metadata: {
         ...toMetadata(root.metadata),
         ...toMetadata(nested.metadata),
