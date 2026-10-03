@@ -4,6 +4,26 @@ All notable changes to this project are documented in this file.
 
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.3.0] - 2026-10-03
+
+Strategic Gap Remediation release.
+
+### Added
+
+- Developer REST API under `/api/v1/*) with business-scoped API keys and outbound HMAC webhooks with retry delivery.
+- Regulatory e-invoicing document paths for PEPPOL UBL 2.1 and Factur-X/ZUGFeRD 2.5.2 with structural fail-closed validation.
+- Offline-first IndexedDB POS queue for cash bills with durable device ticket sequencing and idempotent server replay.
+- Operational RBAC roles: Owner, Admin, Accountant, Cashier, and Auditor, with database-backed permission enforcement and SaaS entitlements.
+- Dynamic tax determination through a pluggable provider with jurisdiction metadata and EU VAT reverse-charge detection/validation.
+
+### Security & Scope
+
+- Preserved existing financial RPCs as the accounting posting boundary.
+- Preserved existing Treasury / Bank Reconciliation, Plaid, and ISO 20022 boundaries.
+- Preserved immutable invoice tax-line snapshot protections.
+- Offline replay deduplicates before entering the existing Cash Bill financial workflow.
+- Public API authorization remains business-scoped.
+
 ## [1.0.0] - 2026-10-02
 
 Initial Production GA Release.
