@@ -71,7 +71,7 @@ BEGIN
   IF i.id IS NULL OR i.journal_entry_id IS NULL THEN RETURN 0; END IF;
   IF EXISTS(SELECT 1 FROM public.invoice_tax_lines WHERE invoice_id=i.id) THEN RETURN (SELECT count(*) FROM public.invoice_tax_lines WHERE invoice_id=i.id); END IF;
   SELECT * INTO b FROM public.businesses WHERE id=i.business_id; IF b.id IS NULL THEN RAISE EXCEPTION 'Business not found'; END IF;
-  SELECT upper(coalesce(min(jl.exchange_rate),1)), upper(b.base_currency_code) INTO v_exchange_rate,v_base_currency FROM public.journal_lines jl WHERE jl.journal_entry_id=i.journal_entry_id AND jl.transaction_currency_code=upper(i.currency_code);
+  SELECT coalesce(min(jl.exchange_rate),1), upper(b.base_currency_code) INTO v_exchange_rate,v_base_currency FROM public.journal_lines jl WHERE jl.journal_entry_id=i.journal_entry_id AND jl.transaction_currency_code=upper(i.currency_code);
   v_exchange_rate:=coalesce(v_exchange_rate,1); v_base_currency:=coalesce(v_base_currency,upper(i.currency_code));
   FOR item IN SELECT ii.*,ps.id AS ps_id FROM public.invoice_items ii LEFT JOIN public.products_services ps ON ps.id=ii.product_service_id WHERE ii.invoice_id=i.id ORDER BY ii.sort_order,ii.id LOOP
     SELECT * INTO tr FROM public.tax_rates WHERE id=item.tax_rate_id AND business_id=i.business_id LIMIT 1;
@@ -94,14 +94,6 @@ BEGIN
   END IF;
   RETURN NEW;
 END; $fn$;
-CREATE OR REPLACE FUNCTION public.trigger_snapshot_posted_invoice_tax_dynamic() RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path=public,mm_private AS $fn$
-BEGIN
-  IF NEW.journal_entry_id IS NOT NULL AND (TG_OP='INSERT' OR OLD.journal_entry_id IS DISTINCT FROM NEW.journal_entry_id) THEN PERFORM public.snapshot_dynamic_invoice_tax(NEW.id); END IF;
-  RETURN NEW;
-END; $fn$;
-
-DROP TRIGGER IF EXISTS trg_snapshot_posted_invoice_tax_dynamic ON public.invoices;
-CREATE TRIGGER trg_snapshot_posted_invoice_tax_dynamic AFTER INSERT OR UPDATE OF journal_entry_id ON public.invoices FOR EACH ROW EXECUTE FUNCTION public.trigger_snapshot_posted_invoice_tax_dynamic();
 
 REVOKE ALL ON FUNCTION public.snapshot_dynamic_invoice_tax(uuid) FROM public,anon,authenticated;
 REVOKE ALL ON FUNCTION public.trigger_snapshot_posted_invoice_tax_dynamic() FROM public,anon,authenticated;
