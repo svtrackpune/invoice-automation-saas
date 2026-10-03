@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import type { CanonicalBankTransaction } from './banking/parsers/types';
+import type { CanonicalBankTransaction } from './parsers/types';
 
 export const normalizeBankReference = (value: string | null | undefined): string =>
   (value ?? '').normalize('NFKD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '');
