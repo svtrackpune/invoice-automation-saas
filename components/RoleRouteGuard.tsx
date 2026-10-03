@@ -1,5 +1,6 @@
-import type { ReactNode } from 'react';
 'use client';
+
+import type { ReactNode } from 'react';
 import { useEffect,useState } from 'react';
 import { usePathname,useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
