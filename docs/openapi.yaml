@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Invoice Automation SaaS API
-  version: 1.0.0
+  version: 1.4.0
   description: |
     Public operational and receipt-delivery HTTP surface for Invoice Automation SaaS.
     Financial writes remain protected by the application's existing authentication,
