@@ -1,0 +1,33 @@
+name: One-time branch pruning
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  prune:
+    name: Delete non-main branches
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Delete non-main branches
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          while IFS=$'\t' read -r branch protected; do
+            [[ -z "$branch" ]] && continue
+            [[ "$branch" == "main" ]] && continue
+            [[ "$protected" == "true" ]] && continue
+
+            echo "Deleting branch: $branch"
+            gh api --method DELETE "repos/$REPO/git/refs/heads/$branch"
+          done < <(
+            gh api --paginate "repos/$REPO/branches?per_page=100"               --jq '.[] | [.name, (.protected | tostring)] | @tsv'
+          )
