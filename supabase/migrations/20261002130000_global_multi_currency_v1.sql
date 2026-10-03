@@ -76,6 +76,11 @@ ALTER TABLE public.journal_lines
   ADD COLUMN IF NOT EXISTS exchange_rate_source text,
   ADD COLUMN IF NOT EXISTS exchange_rate_timestamp timestamptz;
 
+-- Metadata-only backfill: temporarily suspend posted-line mutation guards while
+-- derived dual-currency columns are populated. The table lock is held until COMMIT.
+ALTER TABLE public.journal_lines DISABLE TRIGGER trg_immutable_journal_lines;
+ALTER TABLE public.journal_lines DISABLE TRIGGER trg_prevent_posted_journal_lines;
+
 UPDATE public.journal_lines jl
 SET
   transaction_currency_code = upper(coalesce(nullif(btrim(jl.currency_code),''), nullif(btrim(je.currency_code),''),'INR')),
@@ -92,6 +97,9 @@ SET
 FROM public.journal_entries je
 JOIN public.businesses b ON b.id=je.business_id
 WHERE je.id=jl.journal_entry_id;
+
+ALTER TABLE public.journal_lines ENABLE TRIGGER trg_immutable_journal_lines;
+ALTER TABLE public.journal_lines ENABLE TRIGGER trg_prevent_posted_journal_lines;
 
 ALTER TABLE public.journal_lines
   ALTER COLUMN exchange_rate SET DEFAULT 1,
