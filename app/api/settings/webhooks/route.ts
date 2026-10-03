@@ -10,7 +10,8 @@ async function actor(req:Request){
   const client=createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!,process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,{global:{headers:{Authorization:authorization}}});
   const [{data:{user}},ctx]=await Promise.all([client.auth.getUser(),client.rpc('get_my_business_context')]);
   if(!user)return null;
-  return {user,context:(ctx.data||[]).find((x:any)=>x.business_id),client};
+  const rows = Array.isArray(ctx.data) ? ctx.data as Array<{ business_id: string }> : [];
+  return {user,context:rows.find((x)=>x.business_id),client};
 }
 export async function GET(req:Request){
   const a=await actor(req); if(!a?.context)return Response.json({error:'Unauthorized'},{status:401});

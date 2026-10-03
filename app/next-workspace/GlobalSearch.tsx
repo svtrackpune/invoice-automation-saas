@@ -15,6 +15,29 @@ type Result = {
 
 type NavResult = { id: string; title: string; subtitle: string; kind: 'navigation'; href: string; keywords: string };
 
+type CustomerSearchRow = {
+  id: string; display_name: string | null; legal_name: string | null; phone: string | null; email: string | null; tax_id: string | null;
+};
+type InvoiceSearchRow = {
+  id: string; invoice_number: string | null; total: number | null; status: string | null; customer_id: string | null; created_at: string | null;
+};
+type QuotationSearchRow = {
+  id: string; quotation_number: string | null; total: number | null; status: string | null; customer_id: string | null; created_at: string | null;
+};
+type ReceiptSearchRow = {
+  id: string; receipt_number: string | null; amount: number | null; payment_method: string | null; reference_number: string | null; customer_id: string | null; created_at: string | null;
+};
+type PaymentSearchRow = {
+  id: string; amount: number | null; method: string | null; reference: string | null; payment_date: string | null; customer_id: string | null; invoice_id: string | null; direction: string | null; created_at: string | null;
+};
+type ProductSearchRow = {
+  id: string; name: string | null; sku: string | null; item_type: string | null; barcode: string | null; hsn_sac: string | null;
+};
+type VendorSearchRow = {
+  id: string; display_name: string | null; legal_name: string | null; phone: string | null; email: string | null; tax_id: string | null;
+};
+type CustomerNameRow = Pick<CustomerSearchRow, 'id' | 'display_name' | 'legal_name'>;
+
 const kindLabel: Record<string, string> = {
   navigation: 'Open', customer: 'Customer', invoice: 'Invoice', quotation: 'Estimate', receipt: 'Receipt', payment: 'Payment', product: 'Product / Service', vendor: 'Vendor',
 };
@@ -150,37 +173,38 @@ export default function GlobalSearch() {
         const errors = [customers.error, invoices.error, estimates.error, receipts.error, payments.error, products.error, vendors.error].filter(Boolean);
         if (errors.length) console.warn('Global search query warning', errors);
 
-        const customerRows = (customers.data || []) as any[];
+        const customerRows = (customers.data || []) as CustomerSearchRow[];
         const directCustomerIds = new Set(customerRows.map(x => x.id));
         const customerName = new Map<string, string>();
         customerRows.forEach(x => customerName.set(x.id, x.display_name || x.legal_name || 'Customer'));
+        const getCustomerName = (id: string | null) => id ? customerName.get(id) || 'Customer' : 'Customer';
 
-        const invoiceRows = (invoices.data || []) as any[];
-        const estimateRows = (estimates.data || []) as any[];
-        const receiptRows = (receipts.data || []) as any[];
-        const paymentRows = (payments.data || []) as any[];
-        const referencedCustomerIds = Array.from(new Set([
+        const invoiceRows = (invoices.data || []) as InvoiceSearchRow[];
+        const estimateRows = (estimates.data || []) as QuotationSearchRow[];
+        const receiptRows = (receipts.data || []) as ReceiptSearchRow[];
+        const paymentRows = (payments.data || []) as PaymentSearchRow[];
+        const referencedCustomerIds: string[] = Array.from(new Set([
           ...invoiceRows.map(x => x.customer_id),
           ...estimateRows.map(x => x.customer_id),
           ...receiptRows.map(x => x.customer_id),
-        ].filter(Boolean)));
+        ].filter((id): id is string => Boolean(id))));
 
         if (referencedCustomerIds.length) {
           const missingIds = referencedCustomerIds.filter(id => !customerName.has(id));
           if (missingIds.length) {
             const { data } = await supabase.from('customers').select('id,display_name,legal_name').eq('business_id', businessId).in('id', missingIds);
-            (data || []).forEach((x: any) => customerName.set(x.id, x.display_name || x.legal_name || 'Customer'));
+            (data || []).forEach((x: CustomerNameRow) => customerName.set(x.id, x.display_name || x.legal_name || 'Customer'));
           }
         }
 
         const out: Result[] = [];
         customerRows.forEach(x => out.push({ id: x.id, title: x.display_name || x.legal_name || 'Customer', subtitle: x.phone || x.email || x.tax_id || 'Customer', kind: 'customer', href: `/next-workspace/customers/${x.id}`, score: scoreText(term, x.display_name, x.legal_name, x.phone, x.email, x.tax_id) }));
-        invoiceRows.forEach(x => out.push({ id: x.id, title: x.invoice_number || 'Invoice', subtitle: `${x.status || 'Invoice'} · ${customerName.get(x.customer_id) || 'Customer'} · ₹${Number(x.total || 0).toLocaleString('en-IN')}`, kind: 'invoice', href: documentHref('invoice', x.id), score: scoreText(term, x.invoice_number, x.status) }));
-        estimateRows.forEach(x => out.push({ id: x.id, title: x.quotation_number || 'Estimate', subtitle: `${x.status || 'Estimate'} · ${customerName.get(x.customer_id) || 'Customer'} · ₹${Number(x.total || 0).toLocaleString('en-IN')}`, kind: 'quotation', href: documentHref('quotation', x.id), score: scoreText(term, x.quotation_number, x.status) }));
-        receiptRows.forEach(x => out.push({ id: x.id, title: x.receipt_number || 'Receipt', subtitle: `${x.payment_method || 'Payment'} · ${customerName.get(x.customer_id) || 'Customer'} · ₹${Number(x.amount || 0).toLocaleString('en-IN')}${x.reference_number ? ` · ${x.reference_number}` : ''}`, kind: 'receipt', href: documentHref('receipt', x.id), score: scoreText(term, x.receipt_number, x.payment_method, x.reference_number) }));
-        paymentRows.forEach(x => out.push({ id: x.id, title: `Payment · ₹${Number(x.amount || 0).toLocaleString('en-IN')}`, subtitle: `${x.method || 'Payment'} · ${x.direction || 'inbound'} · ${customerName.get(x.customer_id) || 'Customer'}${x.reference ? ` · ${x.reference}` : ''}`, kind: 'payment', href: x.invoice_id ? documentHref('invoice', x.invoice_id) : '/next-workspace/payments', score: scoreText(term, x.reference, x.method, x.payment_date, String(x.amount)) }));
-        (products.data || []).forEach((x: any) => out.push({ id: x.id, title: x.name || 'Product / Service', subtitle: x.sku || x.barcode || x.hsn_sac || x.item_type || 'Product / Service', kind: 'product', href: `/next-workspace/items?search=${encodeURIComponent(x.name || '')}`, score: scoreText(term, x.name, x.sku, x.barcode, x.hsn_sac) }));
-        (vendors.data || []).forEach((x: any) => out.push({ id: x.id, title: x.display_name || x.legal_name || 'Vendor', subtitle: x.phone || x.email || x.tax_id || 'Vendor', kind: 'vendor', href: `/next-workspace/vendors?search=${encodeURIComponent(x.display_name || x.legal_name || '')}`, score: scoreText(term, x.display_name, x.legal_name, x.phone, x.email, x.tax_id) }));
+        invoiceRows.forEach(x => out.push({ id: x.id, title: x.invoice_number || 'Invoice', subtitle: `${x.status || 'Invoice'} · ${getCustomerName(x.customer_id)} · ₹${Number(x.total || 0).toLocaleString('en-IN')}`, kind: 'invoice', href: documentHref('invoice', x.id), score: scoreText(term, x.invoice_number, x.status) }));
+        estimateRows.forEach(x => out.push({ id: x.id, title: x.quotation_number || 'Estimate', subtitle: `${x.status || 'Estimate'} · ${getCustomerName(x.customer_id)} · ₹${Number(x.total || 0).toLocaleString('en-IN')}`, kind: 'quotation', href: documentHref('quotation', x.id), score: scoreText(term, x.quotation_number, x.status) }));
+        receiptRows.forEach(x => out.push({ id: x.id, title: x.receipt_number || 'Receipt', subtitle: `${x.payment_method || 'Payment'} · ${getCustomerName(x.customer_id)} · ₹${Number(x.amount || 0).toLocaleString('en-IN')}${x.reference_number ? ` · ${x.reference_number}` : ''}`, kind: 'receipt', href: documentHref('receipt', x.id), score: scoreText(term, x.receipt_number, x.payment_method, x.reference_number) }));
+        paymentRows.forEach(x => out.push({ id: x.id, title: `Payment · ₹${Number(x.amount || 0).toLocaleString('en-IN')}`, subtitle: `${x.method || 'Payment'} · ${x.direction || 'inbound'} · ${getCustomerName(x.customer_id)}${x.reference ? ` · ${x.reference}` : ''}`, kind: 'payment', href: x.invoice_id ? documentHref('invoice', x.invoice_id) : '/next-workspace/payments', score: scoreText(term, x.reference, x.method, x.payment_date, String(x.amount)) }));
+        (products.data || []).forEach((x: ProductSearchRow) => out.push({ id: x.id, title: x.name || 'Product / Service', subtitle: x.sku || x.barcode || x.hsn_sac || x.item_type || 'Product / Service', kind: 'product', href: `/next-workspace/items?search=${encodeURIComponent(x.name || '')}`, score: scoreText(term, x.name, x.sku, x.barcode, x.hsn_sac) }));
+        (vendors.data || []).forEach((x: VendorSearchRow) => out.push({ id: x.id, title: x.display_name || x.legal_name || 'Vendor', subtitle: x.phone || x.email || x.tax_id || 'Vendor', kind: 'vendor', href: `/next-workspace/vendors?search=${encodeURIComponent(x.display_name || x.legal_name || '')}`, score: scoreText(term, x.display_name, x.legal_name, x.phone, x.email, x.tax_id) }));
 
         if (directCustomerIds.size) {
           const ids = Array.from(directCustomerIds);
@@ -190,9 +214,9 @@ export default function GlobalSearch() {
             supabase.from('receipts').select('id,receipt_number,amount,payment_method,reference_number,customer_id,created_at').eq('business_id', businessId).in('customer_id', ids).order('created_at', { ascending: false }).limit(8),
           ]);
           const existing = new Set(out.map(x => `${x.kind}:${x.id}`));
-          (customerInvoices.data || []).forEach((x: any) => { if (!existing.has(`invoice:${x.id}`)) out.push({ id: x.id, title: x.invoice_number || 'Invoice', subtitle: `${x.status || 'Invoice'} · ${customerName.get(x.customer_id) || 'Customer'} · ₹${Number(x.total || 0).toLocaleString('en-IN')}`, kind: 'invoice', href: documentHref('invoice', x.id), score: 55 }); });
-          (customerEstimates.data || []).forEach((x: any) => { if (!existing.has(`quotation:${x.id}`)) out.push({ id: x.id, title: x.quotation_number || 'Estimate', subtitle: `${x.status || 'Estimate'} · ${customerName.get(x.customer_id) || 'Customer'} · ₹${Number(x.total || 0).toLocaleString('en-IN')}`, kind: 'quotation', href: documentHref('quotation', x.id), score: 55 }); });
-          (customerReceipts.data || []).forEach((x: any) => { if (!existing.has(`receipt:${x.id}`)) out.push({ id: x.id, title: x.receipt_number || 'Receipt', subtitle: `${x.payment_method || 'Payment'} · ${customerName.get(x.customer_id) || 'Customer'} · ₹${Number(x.amount || 0).toLocaleString('en-IN')}`, kind: 'receipt', href: documentHref('receipt', x.id), score: 55 }); });
+          (customerInvoices.data || []).forEach((x: InvoiceSearchRow) => { if (!existing.has(`invoice:${x.id}`)) out.push({ id: x.id, title: x.invoice_number || 'Invoice', subtitle: `${x.status || 'Invoice'} · ${getCustomerName(x.customer_id)} · ₹${Number(x.total || 0).toLocaleString('en-IN')}`, kind: 'invoice', href: documentHref('invoice', x.id), score: 55 }); });
+          (customerEstimates.data || []).forEach((x: QuotationSearchRow) => { if (!existing.has(`quotation:${x.id}`)) out.push({ id: x.id, title: x.quotation_number || 'Estimate', subtitle: `${x.status || 'Estimate'} · ${getCustomerName(x.customer_id)} · ₹${Number(x.total || 0).toLocaleString('en-IN')}`, kind: 'quotation', href: documentHref('quotation', x.id), score: 55 }); });
+          (customerReceipts.data || []).forEach((x: ReceiptSearchRow) => { if (!existing.has(`receipt:${x.id}`)) out.push({ id: x.id, title: x.receipt_number || 'Receipt', subtitle: `${x.payment_method || 'Payment'} · ${getCustomerName(x.customer_id)} · ₹${Number(x.amount || 0).toLocaleString('en-IN')}`, kind: 'receipt', href: documentHref('receipt', x.id), score: 55 }); });
         }
 
         if (!cancelled) setResults(out.sort((a, b) => (b.score || 0) - (a.score || 0)).slice(0, 24));

@@ -1,11 +1,13 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import Image from 'next/image';
 import { supabase, type BusinessContext } from '@/lib/supabase';
 
 type DocType = 'invoice' | 'quotation' | 'receipt';
 type Template = { id: string; document_type: DocType; template_name: string; description: string | null; template_key: string };
 type Brand = { name: string; legal_name: string | null; tax_registration_number: string | null; brand_primary_color: string; brand_secondary_color: string; brand_accent_color: string; logo_storage_path: string | null; logo_original_filename: string | null };
+type PreferenceRow = { document_type: DocType; template_id: string | null };
 
 const SAMPLE = { customer: 'Rahul Sharma', number: 'INV-2026-0042', date: '21 Aug 2026', item: 'Professional Consulting Service' };
 const KEYS = ['classic', 'minimal', 'modern', 'premium', 'professional'] as const;
@@ -36,7 +38,7 @@ function Preview({ type, keyName, brand, logoUrl, large = false }: { type: DocTy
     <header className={`flex items-start justify-between gap-5 border-b pb-4 ${heading} ${dark ? 'bg-slate-950 text-white p-5 border-slate-950' : ''}`}>
       <div className="flex items-start gap-3">
         <div className={`${large ? 'h-16 w-20' : 'h-10 w-14'} grid shrink-0 place-items-center overflow-hidden rounded-lg border border-slate-200 bg-white p-1`}>
-          {logoUrl ? <img src={logoUrl} alt="Business logo" className="max-h-full max-w-full object-contain" /> : <span className="font-bold text-slate-400">LOGO</span>}
+          {logoUrl ? <Image src={logoUrl} alt="Business logo" width={80} height={64} unoptimized className="max-h-full max-w-full object-contain" /> : <span className="font-bold text-slate-400">LOGO</span>}
         </div>
         <div><div className={`${large ? 'text-xl' : 'text-sm'} font-black`} style={{ color: dark ? '#fff' : accentColor }}>{brand.name || 'Your Business Name'}</div><div className="mt-1 text-slate-400">{brand.legal_name || 'Business & Professional Services'}</div>{brand.tax_registration_number && <div className="mt-1 text-slate-500">GSTIN: {brand.tax_registration_number}</div>}</div>
       </div>
@@ -77,7 +79,7 @@ export default function BrandManager() {
       if (t.error) { setError(t.error.message); return; }
       setBrand(b.data as Brand);
       setTemplates((t.data || []) as Template[]);
-      setSelected(Object.fromEntries((p.data || []).map((x: any) => [x.document_type, x.template_id])));
+      setSelected(Object.fromEntries((p.data || []).map((x: PreferenceRow) => [x.document_type, x.template_id || ''])));
       if (b.data?.logo_storage_path) setLogoUrl(supabase.storage.from('business-branding-public').getPublicUrl(b.data.logo_storage_path).data.publicUrl);
     })();
   }, []);
@@ -133,7 +135,7 @@ export default function BrandManager() {
             <div className="grid grid-cols-3 gap-3"><Input type="color" value={brand.brand_primary_color} onChange={e => setBrand({ ...brand, brand_primary_color: e.target.value })} className="h-11 p-1" /><Input type="color" value={brand.brand_secondary_color} onChange={e => setBrand({ ...brand, brand_secondary_color: e.target.value })} className="h-11 p-1" /><Input type="color" value={brand.brand_accent_color} onChange={e => setBrand({ ...brand, brand_accent_color: e.target.value })} className="h-11 p-1" /></div>
             <Button disabled={busy} onClick={saveBranding}>Save branding</Button>
           </div>
-          <div className="mt-7 border-t border-slate-100 pt-6"><b className="text-sm">Business logo</b><p className="mt-1 text-xs text-slate-400">Used automatically on document previews and generated documents.</p><div className="mt-4 flex items-center gap-4"><div className="grid h-24 w-32 place-items-center rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-3">{logoUrl ? <img src={logoUrl} alt="Business logo" className="max-h-full max-w-full object-contain" /> : <span className="text-xs text-slate-400">No logo</span>}</div><label className="cursor-pointer rounded-xl bg-slate-950 px-4 py-2.5 text-sm font-semibold text-white"><input type="file" accept="image/png,image/jpeg,image/webp" className="hidden" onChange={e => { const file = e.target.files?.[0]; if (file) uploadLogo(file); }} />{logoUrl ? 'Replace logo' : 'Upload logo'}</label></div></div>
+          <div className="mt-7 border-t border-slate-100 pt-6"><b className="text-sm">Business logo</b><p className="mt-1 text-xs text-slate-400">Used automatically on document previews and generated documents.</p><div className="mt-4 flex items-center gap-4"><div className="grid h-24 w-32 place-items-center rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-3">{logoUrl ? <Image src={logoUrl} alt="Business logo" width={128} height={96} unoptimized className="max-h-full max-w-full object-contain" /> : <span className="text-xs text-slate-400">No logo</span>}</div><label className="cursor-pointer rounded-xl bg-slate-950 px-4 py-2.5 text-sm font-semibold text-white"><input type="file" accept="image/png,image/jpeg,image/webp" className="hidden" onChange={e => { const file = e.target.files?.[0]; if (file) uploadLogo(file); }} />{logoUrl ? 'Replace logo' : 'Upload logo'}</label></div></div>
         </Card>
         <Card className="p-6">
           <div className="flex flex-wrap items-center justify-between gap-3"><div><h2 className="text-lg font-semibold">Document templates</h2><p className="mt-1 text-xs text-slate-400">Five production templates are available for each document type.</p></div><div className="flex rounded-xl bg-slate-100 p-1">{(['invoice','quotation','receipt'] as DocType[]).map(x => <button type="button" key={x} onClick={() => setType(x)} className={`rounded-lg px-3 py-2 text-xs font-semibold capitalize ${type === x ? 'bg-white shadow-sm text-slate-900' : 'text-slate-500'}`}>{x === 'quotation' ? 'Estimate' : x}</button>)}</div></div>

@@ -14,13 +14,13 @@ const DIRECT_BUSINESS_TABLES = [
   'tcs_rules','tcs_transactions','tax_transaction_lines','report_snapshots','ca_exports','notification_jobs',
   'notification_delivery_evidence','business_whatsapp_connections','whatsapp_templates','whatsapp_notification_queue',
   'vendor_purchase_items','ai_agent_preferences','ai_insight_events','ai_action_requests','document_render_jobs',
-  'recurring_invoice_runs','fx_rates','bank_reconciliations','reconciliations','year_end_closings',
+  'recurring_invoice_runs','fx_rates','bank_reconciliations','year_end_closings',
 ] as const;
 
 const CHILD_TABLES = [
   'invoice_items','quotation_items','bill_items','credit_note_items','debit_note_items','journal_lines',
   'vendor_credit_items','recurring_invoice_items','inventory_transfer_items','payroll_items','bank_transactions',
-  'bank_reconciliation_items','reconciliation_items',
+  'bank_reconciliation_items',
 ] as const;
 
 const XLSX_MIME = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
@@ -163,7 +163,6 @@ export default function DataExportPage() {
         payroll_items: { parent: 'payroll_runs', childKey: 'payroll_run_id', parentKey: 'id' },
         bank_transactions: { parent: 'bank_accounts', childKey: 'bank_account_id', parentKey: 'id' },
         bank_reconciliation_items: { parent: 'bank_reconciliations', childKey: 'reconciliation_id', parentKey: 'id' },
-        reconciliation_items: { parent: 'reconciliations', childKey: 'reconciliation_id', parentKey: 'id' },
       };
 
       for (const table of CHILD_TABLES) {
