@@ -17,7 +17,7 @@ const category=(value:string|null|undefined)=>value==='ZERO_RATED'?'Z':value==='
 export function validateCanonicalForPeppol(inv:CanonicalInvoice){
   if(!inv.number||!/^\d{4}-\d{2}-\d{2}$/.test(inv.issueDate)) throw new Error('Invoice number and issue date are required.');
   if(inv.dueDate&&!/^\d{4}-\d{2}-\d{2}$/.test(inv.dueDate)) throw new Error('Invoice due date must use YYYY-MM-DD.');
-  if(!inv.buyerReference?.trim()) throw new Error('PEPPOL export requires a buyer reference (BT-10) or purchase-order reference (BT-13).');
+  if(!inv.buyerReference?.trim()) throw new Error('PEPPOL export requires a buyer reference (BT-10) or purchase-order reference (BT-13); one of these references is required.');
   if(!/^[A-Z]{3}$/.test(inv.currencyCode)) throw new Error('Invoice currency must be an ISO 4217 code.');
   for(const p of [inv.supplier,inv.customer]){
     if(!p.name||!p.address.country_code) throw new Error('Party name and ISO country code are required.');
