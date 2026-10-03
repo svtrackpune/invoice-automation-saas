@@ -136,8 +136,8 @@ SET fingerprint = public.bank_transaction_fingerprint(
   bt.reference
 );
 
-DO $
-BEGIN
+DO $$
+EGIN
   IF EXISTS (
     SELECT business_id, bank_account_id, fingerprint
     FROM public.bank_transactions
@@ -146,7 +146,7 @@ BEGIN
   ) THEN
     RAISE EXCEPTION 'Gate 3 found duplicate historical bank transaction fingerprints; resolve them before enabling the unique constraint';
   END IF;
-END $;
+END $$;
 
 ALTER TABLE public.bank_transactions
   ALTER COLUMN fingerprint SET NOT NULL;
