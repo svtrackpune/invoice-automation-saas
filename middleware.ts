@@ -1,7 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server.js';
 
 const API_PREFIX = '/api/';
+const PUBLIC_API_PREFIX = '/api/v1/';
 const SAFE_CORS_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
+
+function getPublicApiCorsOrigins(): string[] {
+  return (process.env.MONEYMATTERS_API_CORS_ORIGINS || '').split(',').map((x) => x.trim()).filter(Boolean).flatMap((x) => {
+    try { return [new URL(x).origin]; } catch { return []; }
+  });
+}
 
 function getAllowedOrigin(): string | null {
   const configured = process.env.NEXT_PUBLIC_APP_URL?.trim();
@@ -55,7 +62,30 @@ export function middleware(request: NextRequest): NextResponse {
 
   if (isProduction) response.headers.set('Strict-Transport-Security', 'max-age=63072000; includeSubDomains; preload');
 
-  if (isApi) {
+  const isPublicApi = pathname.startsWith(PUBLIC_API_PREFIX);
+
+  if (isPublicApi) {
+    const origins = getPublicApiCorsOrigins();
+    const allowed = Boolean(requestOrigin && origins.includes(requestOrigin));
+    if (request.method === 'OPTIONS') {
+      if (requestOrigin && !allowed) return NextResponse.json(
+        { success: false, error: { code: 'CORS_FORBIDDEN', message: 'Public API origin is not allowed.' } },
+        { status: 403 },
+      );
+      if (requestOrigin) {
+        response.headers.set('Access-Control-Allow-Origin', requestOrigin);
+        response.headers.set('Vary', 'Origin');
+      }
+      response.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Request-Id');
+      response.headers.set('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS, POST');
+      response.headers.set('Access-Control-Max-Age', '600');
+      return new NextResponse(null, { status: 204, headers: response.headers });
+    }
+    if (requestOrigin && !allowed) return NextResponse.json(
+      { success: false, error: { code: 'CORS_FORBIDDEN', message: 'Public API origin is not allowed.' } },
+      { status: 403 },
+    );
+  } else if (isApi) {
     if (requestOrigin && allowedOrigin && requestOrigin === allowedOrigin) {
       response.headers.set('Access-Control-Allow-Origin', allowedOrigin);
       response.headers.set('Vary', 'Origin');
