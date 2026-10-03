@@ -5,7 +5,7 @@ const round6=(value:number)=>Math.round(value*1_000_000)/1_000_000;
 const distribute=(total:number,items:TaxSnapshotInput['items'])=>{
   const raw=items.reduce((sum,item)=>sum+Math.max(item.taxAmount,0),0);
   const scale=raw>0?total/raw:1;
-  return items.map(item=>({...item,taxableAmount:round6(Math.max(item.taxableAmount,0)*scale),taxAmount:round6(Math.max(item.taxAmount,0)*scale)});
+  return items.map(item=>({...item,taxableAmount:round6(Math.max(item.taxableAmount,0)*scale),taxAmount:round6(Math.max(item.taxAmount,0)*scale)}));
 };
 
 export const IndiaGSTAdapter:TaxAdapter={
