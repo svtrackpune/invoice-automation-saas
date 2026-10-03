@@ -24,7 +24,7 @@ function invoiceDiscount(lines:Array<{net:number}>,type:string|null|undefined,va
   return round2(Math.min(value,total));
 }
 
-function allocateDiscount(totalDiscount:number,netValues:number,index:number){
+function allocateDiscount(totalDiscount:number,netValues:number[],index:number){
   if(totalDiscount<=0||netValues.length===0)return 0;
   const total=netValues.reduce((s,x)=>s+x,0);
   if(index===netValues.length-1)return round2(Math.max(0,totalDiscount-netValues.slice(0,-1).reduce((s,x,j)=>s+round2(totalDiscount*x/total),0)));
