@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { createHash } from 'node:crypto';
+import { applyDynamicTax } from '@/lib/server/tax/apply-dynamic';
 import { z } from 'zod';
 import { authenticatePublicApi, jsonError, parseLimit, extractApiKey } from '@/lib/server/api-key-auth';
 
@@ -27,6 +28,7 @@ const invoiceSchema = z.object({
   notes: z.string().max(5000).optional().nullable(),
   terms: z.string().max(5000).optional().nullable(),
   post: z.boolean().optional().default(false),
+  tax_system: z.enum(['VAT','SALES_TAX','GST','CUSTOM']).optional().nullable(),
 }).strict();
 
 const getAdmin = () => {
@@ -64,28 +66,32 @@ export async function POST(req: Request) {
     if (!parsed.success) return jsonError(parsed.error.issues[0]?.message || 'Invalid invoice payload', 400);
     const body = parsed.data;
     const db = getAdmin();
-    const { data, error } = await db.rpc('api_create_invoice_from_items', {
-      p_api_key_hash: createHash('sha256').update(extractApiKey(req),'utf8').digest('hex'),
-      p_business_id: key.businessId,
-      p_customer_id: body.customer_id,
-      p_invoice_date: body.invoice_date,
-      p_due_date: body.due_date ?? body.invoice_date,
-      p_items: body.items,
-      p_invoice_discount_type: body.invoice_discount_type ?? null,
-      p_invoice_discount_value: body.invoice_discount_value ?? 0,
-      p_notes: body.notes ?? null,
-      p_terms: body.terms ?? null,
-      p_post: body.post ?? false,
-    });
-    if (error) return jsonError(error.message, 422);
-    const { data: invoice, error: fetchError } = await db
-      .from('invoices')
-      .select('id,invoice_number,document_kind,invoice_date,due_date,status,customer_id,subtotal,discount_total,tax_total,total,amount_paid,balance_due,currency_code,journal_entry_id,created_at,updated_at')
-      .eq('id', data)
-      .eq('business_id', key.businessId)
-      .single();
-    if (fetchError || !invoice) return jsonError(fetchError?.message || 'Invoice was created but could not be read back', 500);
-    return Response.json({ success: true, data: invoice }, { status: 201 });
+    const {data:business}=await db.from('businesses').select('country_code,currency_code').eq('id',key.businessId).single();
+    if(!business)return jsonError('Business not found',404);
+
+    try {
+      const dynamic=await applyDynamicTax({db,businessId:key.businessId,customerId:body.customer_id,invoiceDate:body.invoice_date,currencyCode:business.currency_code,items:body.items,invoiceDiscountType:body.invoice_discount_type,invoiceDiscountValue:body.invoice_discount_value,taxSystem:body.tax_system});
+      const rpc=await db.rpc('api_create_invoice_with_dynamic_tax',{
+        p_api_key_hash:createHash('sha256').update(extractApiKey(req),'utf8').digest('hex'),
+        p_business_id:key.businessId,p_customer_id:body.customer_id,p_invoice_date:body.invoice_date,p_due_date:body.due_date??body.invoice_date,
+        p_items:dynamic.items,p_notes:body.notes??null,p_terms:body.terms??null,p_post:body.post??false,
+      });
+      if(rpc.error)throw rpc.error;
+      const invoiceId=String(rpc.data);
+      const {data:invoice,error:fetchError}=await db.from('invoices').select('id,invoice_number,document_kind,invoice_date,due_date,status,customer_id,subtotal,discount_total,tax_total,total,amount_paid,balance_due,currency_code,journal_entry_id,created_at,updated_at').eq('id',invoiceId).eq('business_id',key.businessId).single();
+      if(fetchError||!invoice)return jsonError(fetchError?.message||'Invoice was created but could not be read back',500);
+      return Response.json({success:true,data:invoice,tax:{provider:dynamic.provider,totalTax:dynamic.totalTax}}, {status:201});
+    } catch(dynamicError) {
+      if(String(business.country_code).toUpperCase()!=='IN') throw dynamicError;
+      const legacy=await db.rpc('api_create_invoice_from_items',{
+        p_api_key_hash:createHash('sha256').update(extractApiKey(req),'utf8').digest('hex'),p_business_id:key.businessId,p_customer_id:body.customer_id,p_invoice_date:body.invoice_date,p_due_date:body.due_date??body.invoice_date,
+        p_items:body.items,p_invoice_discount_type:body.invoice_discount_type??null,p_invoice_discount_value:body.invoice_discount_value??0,p_notes:body.notes??null,p_terms:body.terms??null,p_post:body.post??false,
+      });
+      if(legacy.error)return jsonError(legacy.error.message,422);
+      const {data:invoice,error:fetchError}=await db.from('invoices').select('id,invoice_number,document_kind,invoice_date,due_date,status,customer_id,subtotal,discount_total,tax_total,total,amount_paid,balance_due,currency_code,journal_entry_id,created_at,updated_at').eq('id',legacy.data).eq('business_id',key.businessId).single();
+      if(fetchError||!invoice)return jsonError(fetchError?.message||'Invoice was created but could not be read back',500);
+      return Response.json({success:true,data:invoice,tax:{provider:'IndiaLegacyGSTAdapter',fallback:true}} ,{status:201});
+    }
   } catch (error) {
     return jsonError(error instanceof Error ? error.message : 'Invalid request', 400);
   }
