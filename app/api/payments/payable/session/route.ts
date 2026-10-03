@@ -112,7 +112,7 @@ export async function POST(req: Request) {
     );
     const webhookUrl = new URL('/api/payments/payable/webhook', origin).toString();
 
-    const localLinkId = link?.id || crypto.randomUUID();
+    const localLinkId = typeof link?.id === 'string' ? link.id : crypto.randomUUID();
     const compactId = localLinkId.replaceAll('-', '').slice(0, 8);
     const orderId = 'MM-' + String(invoice.invoice_number).slice(0, 40) + '-' + compactId;
 
