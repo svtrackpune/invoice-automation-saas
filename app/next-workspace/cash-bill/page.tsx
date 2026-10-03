@@ -24,8 +24,8 @@ export default function CashBillPage(){
   setTaxes((value.taxes||[]) as Tax[]);
   const cash=value.cash_account||null;const upi=value.upi_account||null;
   setCashAccount(cash?.id?cash as Account:null);setUpiAccount(upi?.id?upi as Account:null);
-  const bankId=upi?.bank_account_id;
-  if(bankId){const bank=await supabase.from('bank_accounts').select('id,name,institution_name,account_last4').eq('id',bankId).eq('business_id',c.business_id).maybeSingle();if(bank.data)setUpiBankLabel(`${bank.data.name} · ${bank.data.institution_name||'Bank'}${bank.data.account_last4?` · ••••${bank.data.account_last4}`:''}`);}
+  const bank= value.upi_label||{};
+  if(bank.name)setUpiBankLabel(`${bank.name} · ${bank.institution_name||'Bank'}${bank.account_last4?` · ••••${bank.account_last4}`:''}`);
   const profile=value.tax_profile||{};
   const registered=Boolean(profile.tax_regime&&profile.tax_regime!=='NONE'&&((profile.tax_regime!=='GST')||profile.gst_registration_type&&profile.gst_registration_type!=='NONE'));
   setTaxRegistered(registered);
