@@ -1,6 +1,6 @@
 {
   "name": "invoice-automation-saas",
-  "version": "1.0.0",
+  "version": "1.3.0",
   "private": true,
   "description": "Production-grade multi-business invoicing and financial operations software built with Next.js, Node.js, and Supabase/PostgreSQL.",
   "repository": {
