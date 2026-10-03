@@ -43,3 +43,19 @@ test('dynamic output reaches the immutable posting snapshot boundary',()=>{
   assert.match(snapshot,/ON CONFLICT\(dedupe_key\) DO NOTHING/);
   assert.match(snapshot,/snapshot_invoice_tax_lines_v2/);
 });
+
+test('dynamic application preserves legacy addresses and line snapshots',()=>{
+  assert.match(apply,/shipping_address_iso\|c\.billing_address_iso\|c\.shipping_address\|c\.billing_address/);
+  assert.match(apply,/address_iso\|b\.address/);
+  assert.match(apply,/dynamic_tax_snapshot/);
+  assert.match(apply,/jurisdiction_id/);
+  assert.match(apply,/tax_rule_id/);
+});
+
+test('India GST remains the legacy-compatible system while US and Canada use global systems',()=>{
+  assert.match(provider,/buyer==='IN'\|\|seller==='IN'\?'GST'/);
+  assert.match(provider,/buyer==='US'\?'SALES_TAX'/);
+  assert.match(provider,/buyer==='CA'\?'GST'/);
+  assert.equal(100*0.05+100*0.02,7);
+  assert.equal(Number((100*0.05+(100+5)*0.08).toFixed(2)),13.4);
+});
