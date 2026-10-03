@@ -98,6 +98,9 @@ FOR UPDATE TO authenticated
 USING (mm_private.has_business_permission(business_id,'integrations.manage'))
 WITH CHECK (mm_private.has_business_permission(business_id,'integrations.manage'));
 REVOKE ALL ON TABLE public.webhook_subscriptions FROM anon,authenticated;
+GRANT SELECT (
+  id,business_id,name,target_url,subscribed_events,is_active,created_by,created_at,updated_at
+) ON public.webhook_subscriptions TO authenticated;
 
 -- Do not expose webhook secrets through the Data API.
 CREATE OR REPLACE VIEW public.webhook_subscriptions_safe
@@ -519,5 +522,20 @@ GRANT SELECT ON public.saas_entitlements TO authenticated;
 INSERT INTO public.saas_entitlements(business_id)
 SELECT id FROM public.businesses
 ON CONFLICT (business_id) DO NOTHING;
+
+
+-- Small authenticated wrapper keeps the established mm_private permission engine
+-- usable from the application layer without exposing the private schema.
+CREATE OR REPLACE FUNCTION public.has_my_business_permission(
+  p_business_id uuid,p_permission text
+)
+RETURNS boolean
+LANGUAGE sql STABLE SECURITY INVOKER
+SET search_path=public,mm_private
+AS $
+  SELECT mm_private.has_business_permission(p_business_id,p_permission,auth.uid());
+$;
+REVOKE ALL ON FUNCTION public.has_my_business_permission(uuid,text) FROM public,anon;
+GRANT EXECUTE ON FUNCTION public.has_my_business_permission(uuid,text) TO authenticated;
 
 COMMIT;
