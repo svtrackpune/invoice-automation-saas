@@ -42,12 +42,12 @@ export async function applyDynamicTax(params:{
   invoiceDiscountValue?:number;
   taxSystem?:TaxSystem|null;
 }){
-  const {data:b,error:be}=await params.db.from('businesses').select('id,country_code,address_iso,legal_name,name,base_currency_code').eq('id',params.businessId).single();
+  const {data:b,error:be}=await params.db.from('businesses').select('id,country_code,address_iso,address,legal_name,name,base_currency_code').eq('id',params.businessId).single();
   if(be||!b)throw new Error('Business not found.');
-  const {data:c,error:ce}=await params.db.from('customers').select('id,tax_id,billing_address_iso,shipping_address_iso').eq('id',params.customerId).eq('business_id',params.businessId).eq('is_active',true).single();
+  const {data:c,error:ce}=await params.db.from('customers').select('id,tax_id,billing_address_iso,shipping_address_iso,billing_address,shipping_address').eq('id',params.customerId).eq('business_id',params.businessId).eq('is_active',true).single();
   if(ce||!c)throw new Error('Customer not found or inactive.');
-  const supplierAddress=normalizeCanonicalAddress((b.address_iso||{}) as Record<string,unknown>,b.country_code);
-  const buyerAddress=normalizeCanonicalAddress((c.shipping_address_iso||c.billing_address_iso||{}) as Record<string,unknown>,b.country_code);
+  const supplierAddress=normalizeCanonicalAddress((b.address_iso||b.address||{}) as Record<string,unknown>,b.country_code);
+  const buyerAddress=normalizeCanonicalAddress((c.shipping_address_iso||c.billing_address_iso||c.shipping_address||c.billing_address||{}) as Record<string,unknown>,b.country_code);
   const netValues=params.items.map((line)=>{const base=round2(line.quantity*line.unit_price);return Math.max(0,round2(base-normalizeLineDiscount(line,base)));});
   const totalInvoiceDiscount=invoiceDiscount(netValues.map(net=>({net})),params.invoiceDiscountType,Number(params.invoiceDiscountValue||0));
   const finalDiscounts:number[]=[];const finalNet:number[]=[];
