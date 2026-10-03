@@ -20,7 +20,7 @@ async function actor(req:Request) {
   const {data:{user}}=await client.auth.getUser();
   if(!user)return null;
   const {data:ctx}=await client.rpc('get_my_business_context');
-  return {user,context:(ctx||[]).find((x:any)=>x.business_id)};
+  return {user,client,context:(ctx||[]).find((x:any)=>x.business_id)};
 }
 
 export async function GET(req:Request){
@@ -48,3 +48,19 @@ export async function POST(req:Request){
   return Response.json({data,secret:token},{status:201});
 }
 
+
+
+export async function PATCH(req:Request){
+  const a=await actor(req); if(!a?.context)return Response.json({error:'Unauthorized'},{status:401});
+  const body=await req.json().catch(()=>null) as {id?:string; action?:string}|null;
+  if(!body?.id||body.action!=='revoke')return Response.json({error:'Only key revocation is supported.'},{status:400});
+  const allowed=await a.client.rpc('has_my_business_permission',{p_business_id:a.context.business_id,p_permission:'integrations.manage'});
+  if(allowed.error||allowed.data!==true)return Response.json({error:'Permission denied'},{status:403});
+  const db=getAdmin();
+  const {data,error}=await db.from('api_keys').update({revoked_at:new Date().toISOString(),updated_at:new Date().toISOString()})
+    .eq('id',body.id).eq('business_id',a.context.business_id).is('revoked_at',null)
+    .select('id,name,key_prefix,scopes,revoked_at').maybeSingle();
+  if(error)return Response.json({error:error.message},{status:422});
+  if(!data)return Response.json({error:'API key not found or already revoked.'},{status:404});
+  return Response.json({data});
+}
