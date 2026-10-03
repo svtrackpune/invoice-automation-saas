@@ -63,6 +63,7 @@ export interface TaxCalculationLineParam {
 }
 
 export interface TaxCalculationParams {
+  businessId: string;
   invoiceDate: string;
   supplierAddress: CanonicalAddress;
   buyerAddress: CanonicalAddress;
