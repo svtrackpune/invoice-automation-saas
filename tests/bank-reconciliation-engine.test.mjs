@@ -192,7 +192,7 @@ test('Gate 3 SQL enforces unique fingerprints, accounting period authority, and 
   assert.match(sql, /Bank transaction belongs to a locked reconciliation/);
   assert.match(sql, /Bank reconciliation item belongs to a locked reconciliation/);
   assert.match(sql, /reverse_locked_bank_reconciliation/);
-  assert.match(sql, /set_config\('moneymatters\.locked_reconciliation_reversal','true',true\)/);
+  assert.match(sql, /mm_private\.bank_reversal_context/);
   assert.match(sql, /bank_reconciliation_reversal/);
   assert.match(sql, /PERFORM public\.assert_accounting_period_open\(r\.business_id, r\.period_start\)/);
 });
