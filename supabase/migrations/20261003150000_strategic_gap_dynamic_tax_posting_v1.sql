@@ -63,8 +63,8 @@ BEGIN
   RETURN v_invoice;
 END; $fn$;
 
-REVOKE ALL ON FUNCTION public.api_create_invoice_with_dynamic_tax(text,uuid,uuid,date,date,jsonb,text,text,boolean) FROM public,anon,authenticated;
-GRANT EXECUTE ON FUNCTION public.api_create_invoice_with_dynamic_tax(text,uuid,uuid,date,date,jsonb,text,text,boolean) TO service_role;
+REVOKE ALL ON FUNCTION public.api_create_invoice_with_dynamic_tax(text,uuid,uuid,date,date,jsonb,text,text,text,boolean) FROM public,anon,authenticated;
+GRANT EXECUTE ON FUNCTION public.api_create_invoice_with_dynamic_tax(text,uuid,uuid,date,date,jsonb,text,text,text,boolean) TO service_role;
 
 CREATE OR REPLACE FUNCTION public.snapshot_dynamic_invoice_tax(p_invoice_id uuid)
 RETURNS integer LANGUAGE plpgsql SECURITY DEFINER SET search_path=public,mm_private AS $fn$
