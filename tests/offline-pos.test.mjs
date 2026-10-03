@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 const root=new URL('../',import.meta.url);
 const migration=await readFile(new URL('supabase/migrations/20261003140000_strategic_gap_offline_pos_v1.sql',root),'utf8');
-const enforcement=await readFile(new URL('supabase/migrations/20261003143500_strategic_gap_entitlement_enforcement_v1.sql',root),'utf8');
+const enforcement=await readFile(new URL('supabase/migrations/20261003143510_strategic_gap_entitlement_enforcement_v1.sql',root),'utf8');
 const queue=await readFile(new URL('lib/client/offline-cash-bills.ts',root),'utf8');
 const sync=await readFile(new URL('components/OfflineCashBillSync.tsx',root),'utf8');
 const sw=await readFile(new URL('public/pos-sw.js',root),'utf8');
