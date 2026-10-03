@@ -1,0 +1,12 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
+const root=new URL('../',import.meta.url);
+const migration=await readFile(new URL('supabase/migrations/20261003140000_strategic_gap_offline_pos_v1.sql',root),'utf8');
+const queue=await readFile(new URL('lib/client/offline-cash-bills.ts',root),'utf8');
+const sync=await readFile(new URL('components/OfflineCashBillSync.tsx',root),'utf8');
+const sw=await readFile(new URL('public/pos-sw.js',root),'utf8');
+test('offline queue uses IndexedDB and durable UUIDs',()=>{assert.match(queue,/indexedDB\.open/);assert.match(queue,/offline_cash_bills/);assert.match(queue,/crypto\.randomUUID\(\)/);assert.match(queue,/POS-.*padStart/);});
+test('server deduplicates retries before posting',()=>{assert.match(migration,/UNIQUE\(business_id,temp_pos_uuid\)/);assert.match(migration,/pg_advisory_xact_lock/);assert.match(migration,/request_hash char\(64\)/);assert.match(migration,/public\.create_cash_bill\(/);assert.match(migration,/Offline POS idempotency conflict/);});
+test('replay is sequential and calls idempotent Cash Bill overload',()=>{assert.match(sync,/for\(const record of records\)/);assert.match(sync,/p_temp_pos_uuid/);assert.match(sync,/p_offline_ticket_number/);});
+test('service worker broadcasts POS sync when online',()=>{assert.match(sw,/addEventListener\('online'/);assert.match(sw,/POS_SYNC_REQUESTED/);});
