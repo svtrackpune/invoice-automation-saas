@@ -9,12 +9,12 @@ const decodeXml = (value: string): string =>
     .replace(/&apos;/g, "'");
 
 const blocks = (xml: string, tag: string): string[] => {
-  const pattern = new RegExp('<' + tag + '(?:\\s[^>]*)?>([\\s\\S]*?)</' + tag + '>', 'gi');
+  const pattern = new RegExp('<' + tag + '(?:\s[^>]*)?>([\s\S]*?)</' + tag + '>', 'gi');
   return Array.from(xml.matchAll(pattern), (match) => match[1]);
 };
 
 const texts = (xml: string, tag: string): string[] => {
-  const pattern = new RegExp('<' + tag + '(?:\\s[^>]*)?>([\\s\\S]*?)</' + tag + '>', 'gi');
+  const pattern = new RegExp('<' + tag + '(?:\s[^>]*)?>([\s\S]*?)</' + tag + '>', 'gi');
   return Array.from(xml.matchAll(pattern), (match) =>
     decodeXml(match[1].replace(/<[^>]+>/g, '').trim()),
   );
@@ -71,7 +71,7 @@ export const parseCamt053Statement = (xml: string): BankStatementParseResult => 
       firstText(blocks(entry, 'BookgDt')[0] ?? '', 'Dt') ??
       firstText(blocks(entry, 'ValDt')[0] ?? '', 'Dt');
 
-    if (!date || !/^\\d{4}-\\d{2}-\\d{2}$/.test(date)) {
+    if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
       throw new Error('CAMT.053 entry ' + String(index + 1) + ' has an invalid booking date');
     }
 
