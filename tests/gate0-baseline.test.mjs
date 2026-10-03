@@ -55,6 +55,6 @@ test('Deprecated reconciliation tables are removed from business export paths',a
 
 test('Offline POS test points at the migration actually present in main',async()=>{
   const testFile=await read('tests/offline-pos.test.mjs');
-  assert.match(testFile,/20261003143510_strategic_gap_entitlement_enforcement_v1\.sql/);
-  assert.doesNotMatch(testFile,/20261003143500_strategic_gap_entitlement_enforcement_v1\.sql/);
+  assert.match(testFile,/20261003143500_strategic_gap_entitlement_enforcement_v1\.sql/);
+  assert.doesNotMatch(testFile,/20261003143510_strategic_gap_entitlement_enforcement_v1\.sql/);
 });
