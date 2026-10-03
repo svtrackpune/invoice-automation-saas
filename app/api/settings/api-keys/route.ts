@@ -39,7 +39,7 @@ export async function POST(req:Request){
   if(parsed.data.business_id!==a.context.business_id)return Response.json({error:'Business context mismatch'},{status:403});
   const allowed=await a.client.rpc('has_my_business_permission',{p_business_id:a.context.business_id,p_permission:'integrations.manage'});
   if(allowed.error||allowed.data!==true)return Response.json({error:'Permission denied'},{status:403});
-  const token=\`mm_live_\${randomBytes(32).toString('base64url')}\`;
+  const token='mm_live_'+randomBytes(32).toString('base64url');
   const keyHash=createHash('sha256').update(token,'utf8').digest('hex');
   const prefix=token.slice(0,16);
   const db=getAdmin();
