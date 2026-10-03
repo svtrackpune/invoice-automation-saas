@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { GET as health } from '../app/healthz/route.ts';
-import { checkDatabaseReadiness } from '../lib/server/readiness.ts';
+import { checkDatabaseReadiness, getDatabaseReadiness } from '../lib/server/readiness.ts';
 
 test('GET /healthz returns healthy with no-store caching', async () => {
   const response = health();
@@ -51,4 +51,34 @@ test('readiness check reports disconnected when the database query fails', async
   };
 
   assert.equal(await checkDatabaseReadiness(db), false);
+});
+
+test('readiness check preserves database error diagnostics', async () => {
+  const db = {
+    from() {
+      return {
+        select() {
+          return {
+            async limit() {
+              return {
+                error: {
+                  name: 'PostgrestError',
+                  code: 'PGRST000',
+                  message: 'Connection refused',
+                },
+              };
+            },
+          };
+        },
+      };
+    },
+  };
+
+  assert.deepEqual(await getDatabaseReadiness(db), {
+    error: {
+      name: 'PostgrestError',
+      code: 'PGRST000',
+      message: 'Connection refused',
+    },
+  });
 });
