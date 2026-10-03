@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { supabase, type BusinessContext } from '@/lib/supabase';
+import { formatMoney } from '@/lib/i18n';
 import { useBusinessConfig } from '@/lib/BusinessConfigContext';
 import ItemServiceModal from './ItemServiceModal';
 import InventoryTrackingModal from './InventoryTrackingModal';
@@ -20,7 +21,6 @@ type DocumentDefaults = { invoice_due_days:number; invoice_notes:string|null; de
 type PaymentDisplayMode = 'none'|'bank'|'online';
 type NewItemKind = 'product'|'service';
 
-const money=(n:number)=>new Intl.NumberFormat('en-IN',{style:'currency',currency:'INR',maximumFractionDigits:2}).format(Number(n||0));
 const today=()=>new Date().toISOString().slice(0,10);
 const plusDays=(n:number)=>new Date(Date.now()+Math.max(0,n)*86400000).toISOString().slice(0,10);
 const normalizeDiscountType=(v:string|null|undefined)=>v==='percent'?'percentage':v==='amount'?'amount':v==='percentage'?'percentage':'';
@@ -33,6 +33,7 @@ function Card({children,className='' }:{children:React.ReactNode;className?:stri
 
 export default function NewInvoice(){
  const { config: businessConfig } = useBusinessConfig();
+ const money=(n:number)=>formatMoney(Number(n||0),ctx?.currency_code||'USD');
  const query=typeof window!=='undefined'?new URLSearchParams(window.location.search):null;
  const editId=query?.get('edit')||null;
  const embedded=query?.get('embedded')==='1';
