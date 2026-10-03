@@ -15,9 +15,19 @@ type Prefs = {
   notification_telegram_enabled: boolean;
 };
 
+type NotificationConnectionSummary = {
+  channel: 'whatsapp' | 'telegram' | 'email' | 'sms';
+  provider: string;
+  enabled: boolean;
+  health_status: string;
+};
+
+type PrefValue = Prefs[keyof Prefs];
+
 export default function Preferences() {
   const [ctx, setCtx] = useState<BusinessContext | null>(null);
   const [prefs, setPrefs] = useState<Prefs | null>(null);
+  const [connections, setConnections] = useState<NotificationConnectionSummary[]>([]);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState('');
 
@@ -26,7 +36,10 @@ export default function Preferences() {
     const business = (c.data?.[0] || null) as BusinessContext | null;
     if (!business) return;
     setCtx(business);
-    const p = await supabase.from('business_preferences').select('*').eq('business_id', business.business_id).maybeSingle();
+    const [p, nc] = await Promise.all([
+      supabase.from('business_preferences').select('*').eq('business_id', business.business_id).maybeSingle(),
+      supabase.from('business_notification_connections').select('channel,provider,enabled,health_status').eq('business_id', business.business_id).order('channel'),
+    ]);
     setPrefs((p.data || {
       tax_mode: 'auto',
       default_payment_reminders: true,
@@ -39,10 +52,18 @@ export default function Preferences() {
       notification_sms_enabled: false,
       notification_telegram_enabled: false,
     }) as Prefs);
+    setConnections((nc.data || []) as NotificationConnectionSummary[]);
   }
 
   useEffect(() => { load(); }, []);
-  const set = (k: keyof Prefs, v: any) => setPrefs((p) => p ? ({ ...p, [k]: v }) : p);
+  const set = (k: keyof Prefs, v: PrefValue) =>
+    setPrefs((p) => p ? ({ ...p, [k]: v } as Prefs) : p);
+
+  const configuredChannels = new Set(
+    connections
+      .filter((connection) => connection.enabled && connection.health_status !== 'failing')
+      .map((connection) => connection.channel),
+  );
 
   async function save() {
     if (!ctx || !prefs) return;
@@ -80,7 +101,27 @@ export default function Preferences() {
           <label className="mt-3 block"><span className="text-xs font-semibold text-slate-500">Remind before due date</span><input type="number" min="0" max="365" value={prefs?.default_reminder_days ?? 3} onChange={e => set('default_reminder_days', Number(e.target.value))} className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2.5" /><span className="mt-1 block text-xs text-slate-400">0 = on the due date.</span></label>
         </section>
 
-        <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+        <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm lg:col-span-2">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h2 className="text-lg font-semibold">Notification connections</h2>
+              <p className="mt-1 text-sm text-slate-500">Provider credentials and tenant routing are configured separately from channel preferences.</p>
+            </div>
+            <button type="button" onClick={() => { location.href = '/next-workspace/whatsapp'; }} className="rounded-xl bg-slate-950 px-4 py-2.5 text-sm font-semibold text-white">Configure Wapi & Telegram</button>
+          </div>
+          <div className="mt-4 grid gap-2 sm:grid-cols-4">
+            {(['whatsapp', 'telegram', 'email', 'sms'] as const).map((channel) => (
+              <div key={channel} className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
+                <span className="text-xs font-semibold capitalize">{channel}</span>
+                <b className={'mt-1 block text-sm ' + (configuredChannels.has(channel) ? 'text-emerald-700' : 'text-slate-400')}>
+                  {configuredChannels.has(channel) ? 'Configured' : 'Not configured'}
+                </b>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm lg:col-span-2">
           <h2 className="text-lg font-semibold">Customer delivery channels</h2>
           <p className="mt-1 text-sm text-slate-500">These channels are available for automatic receipts and customer conversations. Customer contact details remain optional.</p>
           <div className="mt-5 grid gap-2 sm:grid-cols-2">
