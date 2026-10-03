@@ -219,7 +219,7 @@ $fn$;
 
 REVOKE ALL ON FUNCTION public.create_invoice_with_dynamic_tax(uuid,uuid,uuid,date,date,jsonb,text,text,text,boolean) FROM public,anon;
 GRANT EXECUTE ON FUNCTION public.create_invoice_with_dynamic_tax(uuid,uuid,uuid,date,date,jsonb,text,text,text,boolean) TO authenticated,service_role;
-REVOKE ALL ON FUNCTION public.create_invoice_with_dynamic_tax(uuid,uuid,uuid,uuid,date,date,jsonb,text,text,text,boolean) FROM public,anon,authenticated;
-GRANT EXECUTE ON FUNCTION public.create_invoice_with_dynamic_tax(uuid,uuid,uuid,uuid,date,date,jsonb,text,text,text,boolean) TO service_role;
+REVOKE ALL ON FUNCTION public.create_invoice_with_dynamic_tax(uuid,uuid,uuid,date,date,jsonb,text,text,text,boolean) FROM public,anon,authenticated;
+GRANT EXECUTE ON FUNCTION public.create_invoice_with_dynamic_tax(uuid,uuid,uuid,date,date,jsonb,text,text,text,boolean) TO authenticated,service_role;
 
 COMMIT;
