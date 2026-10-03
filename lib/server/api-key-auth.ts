@@ -44,10 +44,10 @@ export async function authenticatePublicApi(request: Request, requiredScope?: Pu
     .select('id,business_id,name,key_prefix,scopes,revoked_at,expires_at')
     .eq('key_hash', keyHash)
     .is('revoked_at', null)
-    .or('expires_at.is.null,expires_at.gt.now()')
     .maybeSingle();
 
   if (error || !data) throw new Error('Invalid or expired API key.');
+  if (data.expires_at && new Date(data.expires_at).getTime() <= Date.now()) throw new Error('Invalid or expired API key.');
 
   const scopes = Array.isArray(data.scopes) ? data.scopes as PublicApiScope[] : [];
   if (requiredScope && !scopes.includes(requiredScope)) {
