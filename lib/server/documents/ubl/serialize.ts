@@ -15,7 +15,7 @@ const amount=(tag:string,value:number,currency:string)=>`<cbc:${tag} currencyID=
 const category=(value:string|null|undefined)=>value==='ZERO_RATED'?'Z':value==='EXEMPT'?'E':value==='REVERSE_CHARGE'?'AE':'S';
 
 export function validateCanonicalForPeppol(inv:CanonicalInvoice){
-  if(!inv.number||!/^d{4}-d{2}-d{2}$/.test(inv.issueDate)) throw new Error('Invoice number and issue date are required.');
+  if(!inv.number||!/^\d{4}-\d{2}-\d{2}$/.test(inv.issueDate)) throw new Error('Invoice number and issue date are required.');
   if(inv.dueDate&&!/^\d{4}-\d{2}-\d{2}$/.test(inv.dueDate)) throw new Error('Invoice due date must use YYYY-MM-DD.');
   if(!inv.buyerReference?.trim()) throw new Error('PEPPOL export requires a buyer reference (BT-10) or purchase-order reference (BT-13).');
   if(!/^[A-Z]{3}$/.test(inv.currencyCode)) throw new Error('Invoice currency must be an ISO 4217 code.');
@@ -26,9 +26,11 @@ export function validateCanonicalForPeppol(inv:CanonicalInvoice){
   }
   if(inv.lines.length===0) throw new Error('At least one invoice line is required.');
   const lineSubtotal=round(inv.lines.reduce((s,l)=>s+round(l.netAmount),0));
+  const lineDiscountTotal=round(inv.lines.reduce((s,l)=>s+round(l.discount),0));
+  const documentDiscount=round(Math.max(inv.discountTotal-lineDiscountTotal,0));
   const taxSnapshot=round(inv.taxLines.reduce((s,x)=>s+round(x.taxAmount),0));
-  const taxExclusive=round(inv.subtotal-inv.discountTotal);
-  if(Math.abs(round(lineSubtotal)-round(inv.subtotal))>0.02) throw new Error('Invoice lines do not reconcile to the invoice subtotal.');
+  const taxExclusive=round(lineSubtotal-documentDiscount);
+  if(Math.abs(round(lineSubtotal+lineDiscountTotal)-round(inv.subtotal))>0.02) throw new Error('Invoice lines do not reconcile to the invoice subtotal.');
   if(Math.abs(taxSnapshot-round(inv.taxTotal))>0.02) throw new Error('Tax snapshot does not reconcile to invoice tax total.');
   if(Math.abs(round(taxExclusive+inv.taxTotal)-round(inv.total))>0.02) throw new Error('Invoice totals do not reconcile for PEPPOL export.');
   if(inv.balanceDue>0&&!inv.dueDate&&!inv.terms?.trim()) throw new Error('A positive payable amount requires a due date or payment terms.');
@@ -52,6 +54,7 @@ export function serializePeppolUblInvoice(inv:CanonicalInvoice){
     g.taxable=round(g.taxable+line.taxableAmount); g.tax=round(g.tax+line.taxAmount); grouped.set(key,g);
   }
   const subtotal=round(inv.lines.reduce((s,l)=>s+round(l.netAmount),0));
+  const documentDiscount=round(Math.max(inv.discountTotal-inv.lines.reduce((s,l)=>s+round(l.discount),0),0));
   const taxSubtotals=Array.from(grouped.values()).map(g=>{
     const code=category(g.category);
     const exemption=g.category==='EXEMPT'?'<cbc:TaxExemptionReason>Exempt supply</cbc:TaxExemptionReason>':'';
@@ -62,13 +65,14 @@ export function serializePeppolUblInvoice(inv:CanonicalInvoice){
     const lineNet=round(l.netAmount);
     const price=l.quantity>0?round(lineNet/l.quantity):0;
     const taxCategory=category(l.taxCategory);
-    return `<cac:InvoiceLine><cbc:ID>${i+1}</cbc:ID><cbc:InvoicedQuantity unitCode="${esc(unit)}">${dec(l.quantity)}</cbc:InvoicedQuantity>${amount('LineExtensionAmount',lineNet,inv.currencyCode)}<cac:Item><cbc:Description>${esc(l.description)}</cbc:Description><cbc:Name>${esc(l.description)}</cbc:Name><cac:ClassifiedTaxCategory><cbc:ID>${taxCategory}</cbc:ID><cbc:Percent>${dec(l.taxRate||0)}</cbc:Percent><cac:TaxScheme><cbc:ID>VAT</cbc:ID></cac:TaxScheme></cac:ClassifiedTaxCategory></cac:Item><cac:Price>${amount('PriceAmount',price,inv.currencyCode)}<cbc:BaseQuantity unitCode="${esc(unit)}">1</cbc:BaseQuantity></cac:Price></cac:InvoiceLine>`;
+    const lineAllowance=l.discount>0?`<cac:AllowanceCharge><cbc:ChargeIndicator>false</cbc:ChargeIndicator><cbc:AllowanceChargeReason>Line discount</cbc:AllowanceChargeReason>${amount('Amount',round(l.discount),inv.currencyCode)}</cac:AllowanceCharge>`:'';
+    return `<cac:InvoiceLine><cbc:ID>${i+1}</cbc:ID><cbc:InvoicedQuantity unitCode="${esc(unit)}">${dec(l.quantity)}</cbc:InvoicedQuantity>${amount('LineExtensionAmount',lineNet,inv.currencyCode)}${lineAllowance}<cac:Item><cbc:Description>${esc(l.description)}</cbc:Description><cbc:Name>${esc(l.description)}</cbc:Name><cac:ClassifiedTaxCategory><cbc:ID>${taxCategory}</cbc:ID><cbc:Percent>${dec(l.taxRate||0)}</cbc:Percent><cac:TaxScheme><cbc:ID>VAT</cbc:ID></cac:TaxScheme></cac:ClassifiedTaxCategory></cac:Item><cac:Price>${amount('PriceAmount',price,inv.currencyCode)}<cbc:BaseQuantity unitCode="${esc(unit)}">1</cbc:BaseQuantity></cac:Price></cac:InvoiceLine>`;
   }).join('');
-  const allowance=inv.discountTotal>0?`<cac:AllowanceCharge><cbc:ChargeIndicator>false</cbc:ChargeIndicator>${amount('Amount',inv.discountTotal,inv.currencyCode)}</cac:AllowanceCharge>`:'';
+  const allowance=documentDiscount>0?`<cac:AllowanceCharge><cbc:ChargeIndicator>false</cbc:ChargeIndicator><cbc:AllowanceChargeReason>Document discount</cbc:AllowanceChargeReason>${amount('Amount',documentDiscount,inv.currencyCode)}</cac:AllowanceCharge>`:'';
   const due=inv.dueDate?`<cbc:DueDate>${esc(inv.dueDate)}</cbc:DueDate>`:'';
   const terms=(!inv.dueDate&&inv.terms?.trim())?`<cac:PaymentTerms><cbc:Note>${esc(inv.terms)}</cbc:Note></cac:PaymentTerms>`:'';
   const note=inv.note?.trim()?`<cbc:Note>${esc(inv.note)}</cbc:Note>`:'';
-  return `<?xml version="1.0" encoding="UTF-8"?><Invoice xmlns="${UBL_INVOICE_NS}" xmlns:cac="${CAC_NS}" xmlns:cbc="${CBC_NS}"><cbc:CustomizationID>${PEPPOL_CUSTOMIZATION_ID}</cbc:CustomizationID><cbc:ProfileID>${PEPPOL_PROFILE_ID}</cbc:ProfileID><cbc:ID>${esc(inv.number)}</cbc:ID><cbc:IssueDate>${esc(inv.issueDate)}</cbc:IssueDate>${due}<cbc:InvoiceTypeCode>380</cbc:InvoiceTypeCode>${note}<cbc:DocumentCurrencyCode>${esc(inv.currencyCode)}</cbc:DocumentCurrencyCode><cbc:BuyerReference>${esc(inv.buyerReference)}</cbc:BuyerReference>${partyXml('AccountingSupplierParty',inv.supplier)}${partyXml('AccountingCustomerParty',inv.customer)}${terms}${allowance}<cac:TaxTotal>${amount('TaxAmount',inv.taxTotal,inv.currencyCode)}${taxSubtotals}</cac:TaxTotal><cac:LegalMonetaryTotal>${amount('LineExtensionAmount',subtotal,inv.currencyCode)}${amount('TaxExclusiveAmount',round(inv.subtotal-inv.discountTotal),inv.currencyCode)}${amount('TaxInclusiveAmount',round(inv.total),inv.currencyCode)}${amount('PayableAmount',round(inv.balanceDue),inv.currencyCode)}</cac:LegalMonetaryTotal>${lines}</Invoice>`.replace('<cac:AllowanceCharge></cac:AllowanceCharge>','');
+  return `<?xml version="1.0" encoding="UTF-8"?><Invoice xmlns="${UBL_INVOICE_NS}" xmlns:cac="${CAC_NS}" xmlns:cbc="${CBC_NS}"><cbc:CustomizationID>${PEPPOL_CUSTOMIZATION_ID}</cbc:CustomizationID><cbc:ProfileID>${PEPPOL_PROFILE_ID}</cbc:ProfileID><cbc:ID>${esc(inv.number)}</cbc:ID><cbc:IssueDate>${esc(inv.issueDate)}</cbc:IssueDate>${due}<cbc:InvoiceTypeCode>380</cbc:InvoiceTypeCode>${note}<cbc:DocumentCurrencyCode>${esc(inv.currencyCode)}</cbc:DocumentCurrencyCode><cbc:BuyerReference>${esc(inv.buyerReference)}</cbc:BuyerReference>${partyXml('AccountingSupplierParty',inv.supplier)}${partyXml('AccountingCustomerParty',inv.customer)}${terms}${allowance}<cac:TaxTotal>${amount('TaxAmount',inv.taxTotal,inv.currencyCode)}${taxSubtotals}</cac:TaxTotal><cac:LegalMonetaryTotal>${amount('LineExtensionAmount',subtotal,inv.currencyCode)}${amount('TaxExclusiveAmount',taxExclusive,inv.currencyCode)}${amount('TaxInclusiveAmount',round(inv.total),inv.currencyCode)}${amount('PayableAmount',round(inv.balanceDue),inv.currencyCode)}</cac:LegalMonetaryTotal>${lines}</Invoice>`.replace('<cac:AllowanceCharge></cac:AllowanceCharge>','');
 }
 
 export function validatePeppolXml(xml:string){
