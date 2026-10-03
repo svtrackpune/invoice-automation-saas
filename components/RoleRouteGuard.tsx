@@ -4,7 +4,7 @@ import {usePathname} from 'next/navigation';
 import type {BusinessContext} from '@/lib/supabase';
 import {canAccessRoute} from '@/lib/rbac';
 
-export default function RoleRouteGuard({business,children}:{business:BusinessContext;children:React.ReactNode}){
+export default function RoleRouteGuard({business,children}:{business:BusinessContext|null;children:React.ReactNode}){
   const pathname=usePathname();
   const [allowed,setAllowed]=useState<boolean|null>(null);
   useEffect(()=>{setAllowed(canAccessRoute(business,pathname));},[business,pathname]);
