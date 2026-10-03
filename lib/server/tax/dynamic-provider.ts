@@ -78,11 +78,17 @@ function ruleScore(rule:Rule,jurisdiction:Jurisdiction,buyer:CanonicalAddress,se
   if(postalPrefixes.length&&(!buyer.postal_code||!postalPrefixes.some(p=>buyer.postal_code!.toUpperCase().startsWith(p.toUpperCase()))))return -Infinity;
   const localities=asArray(m.buyer_localities??m.localities??m.cities);
   if(localities.length&&(!buyer.locality||!localities.some(x=>x.toUpperCase()===buyer.locality!.toUpperCase())))return -Infinity;
+  const sameSubdivision=m.same_buyer_supplier_subdivision;
+  if(sameSubdivision===true&&(!buyer.country_subdivision_code||!seller.country_subdivision_code||buyer.country_subdivision_code!==seller.country_subdivision_code))return -Infinity;
+  if(sameSubdivision===false&&(!buyer.country_subdivision_code||!seller.country_subdivision_code||buyer.country_subdivision_code===seller.country_subdivision_code))return -Infinity;
+  const legacyRateId=typeof m.legacy_tax_rate_id==='string'?m.legacy_tax_rate_id:null;
+  if(legacyRateId&&lineTaxCode&&legacyRateId!==lineTaxCode)return -Infinity;
   const businessPriority=rule.business_id?100:0;
   const sameCountry=jurisdiction.country_code===buyer.country_code?40:-Infinity;
   if(!Number.isFinite(sameCountry))return -Infinity;
   let score=businessPriority+sameCountry;
   if(jurisdiction.subdivision_code&&jurisdiction.subdivision_code===buyer.country_subdivision_code)score+=50;
+  if(lineTaxCode&&legacyRateId===lineTaxCode)score+=25;
   if(lineTaxCode&&rule.tax_code===lineTaxCode)score+=25;
   const priority=Number(m.priority);
   if(Number.isFinite(priority))score+=priority;
