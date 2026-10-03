@@ -24,7 +24,7 @@ WHERE rp.permission_key IN ('customers.view','vendors.view','purchases.view','ex
 
 CREATE OR REPLACE FUNCTION public.get_cash_bill_pos_context(p_business_id uuid)
 RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path=public,mm_private AS $fn$
-DECLARE v_products jsonb; v_taxes jsonb; v_cash jsonb; v_upi jsonb; v_profile jsonb;
+DECLARE v_products jsonb; v_taxes jsonb; v_cash jsonb; v_upi jsonb; v_profile jsonb; v_upi_label jsonb;
 DECLARE v_bank_account uuid;
 BEGIN
   IF NOT mm_private.has_business_permission(p_business_id,'pos.cash_bill.create') THEN RAISE EXCEPTION 'Access denied'; END IF;
@@ -39,10 +39,11 @@ BEGIN
     SELECT coalesce(jsonb_build_object('id',a.id,'code',a.code,'name',a.name,'account_subtype',a.account_subtype,'bank_account_id',ba.id),'{}'::jsonb) INTO v_upi
     FROM public.bank_accounts ba JOIN public.accounts a ON a.id=ba.linked_account_id
     WHERE ba.id=v_bank_account AND ba.business_id=p_business_id AND a.business_id=p_business_id AND a.is_active AND a.account_subtype='bank' LIMIT 1;
+    SELECT coalesce(jsonb_build_object('name',ba.name,'institution_name',ba.institution_name,'account_last4',ba.account_last4),'{}'::jsonb) INTO v_upi_label FROM public.bank_accounts ba WHERE ba.id=v_bank_account AND ba.business_id=p_business_id LIMIT 1;
   END IF;
   SELECT coalesce(jsonb_build_object('tax_regime',tp.tax_regime,'gst_registration_type',tp.gst_registration_type,'gstin',tp.gstin),'{}'::jsonb) INTO v_profile
   FROM public.business_tax_profiles tp WHERE tp.business_id=p_business_id LIMIT 1;
-  RETURN jsonb_build_object('products',v_products,'taxes',v_taxes,'cash_account',coalesce(v_cash,'{}'::jsonb),'upi_account',coalesce(v_upi,'{}'::jsonb),'tax_profile',coalesce(v_profile,'{}'::jsonb));
+  RETURN jsonb_build_object('products',v_products,'taxes',v_taxes,'cash_account',coalesce(v_cash,'{}'::jsonb),'upi_account',coalesce(v_upi,'{}'::jsonb),'upi_label',coalesce(v_upi_label,'{}'::jsonb),'tax_profile',coalesce(v_profile,'{}'::jsonb));
 END;
 $fn$;
 REVOKE ALL ON FUNCTION public.get_cash_bill_pos_context(uuid) FROM public,anon;
