@@ -20,7 +20,7 @@ const DIRECT_BUSINESS_TABLES = [
 const CHILD_TABLES = [
   'invoice_items','quotation_items','bill_items','credit_note_items','debit_note_items','journal_lines',
   'vendor_credit_items','recurring_invoice_items','inventory_transfer_items','payroll_items','bank_transactions',
-  'bank_reconciliation_items','reconciliation_items',
+  'bank_reconciliation_items',
 ] as const;
 
 const XLSX_MIME = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
