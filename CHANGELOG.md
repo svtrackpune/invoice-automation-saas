@@ -10,7 +10,7 @@ Strategic Gap Remediation release.
 
 ### Added
 
-- Developer REST API under `/api/v1/*) with business-scoped API keys and outbound HMAC webhooks with retry delivery.
+- Developer REST API under `/api/v1/*` with business-scoped API keys and outbound HMAC webhooks with retry delivery.
 - Regulatory e-invoicing document paths for PEPPOL UBL 2.1 and Factur-X/ZUGFeRD 2.5.2 with structural fail-closed validation.
 - Offline-first IndexedDB POS queue for cash bills with durable device ticket sequencing and idempotent server replay.
 - Operational RBAC roles: Owner, Admin, Accountant, Cashier, and Auditor, with database-backed permission enforcement and SaaS entitlements.
