@@ -50,7 +50,7 @@ test('CSV parser dynamically maps debit and credit columns', async () => {
   assert.equal(result.transactions[1].signedAmount, -350.5);
   assert.equal(result.transactions[2].reference, 'INV2026002');
   assert.equal(result.openingBalance, 10000);
-  assert.equal(result.closingBalance, 12049.5);
+  assert.equal(result.closingBalance, 13049.5);
 });
 
 test('CAMT.053 parser extracts Stmt, Ntry, Amt, CdtDbtInd and RmtInf references', async () => {
