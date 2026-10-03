@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 'use client';
 import { useEffect,useState } from 'react';
 import { usePathname,useRouter } from 'next/navigation';
@@ -11,9 +12,9 @@ const cashierAllowed=['/next-workspace','/next-workspace/cash-bill'];
 const auditorAllowed=['/next-workspace','/next-workspace/invoices','/next-workspace/sales','/next-workspace/accounting','/next-workspace/reports','/next-workspace/documents','/next-workspace/payments','/next-workspace/receipts','/next-workspace/tax','/next-workspace/inventory','/next-workspace/items'];
 function prefixMatch(path:string,list:string[]){return list.some((x)=>path===x||path.startsWith(x+'/'));}
 
-export default function RoleRouteGuard({children}:{children:React.ReactNode}){
+export default function RoleRouteGuard({children}:{children:ReactNode}){
  const pathname=usePathname(),router=useRouter(),[access,setAccess]=useState<Access|null>(null),[denied,setDenied]=useState(false);
- useEffect(()=>{let active=true;(async()=>{const ctx=await supabase.rpc('get_my_business_context');const b=ctx.data?.[0] as {business_id:string}|undefined;if(!b){router.replace('/');return;}const r=await supabase.rpc('get_my_business_access',{p_business_id:b.business_id});if(!active)return;if(r.error||!r.data){setDenied(true);return;}const a=r.data as Access;setAccess(a);
+ useEffect(()=>{let active=true;(async()=>{const ctx=await supabase.rpc('get_my_business_context');const rows=(ctx.data||[]) as {business_id:string}[];const saved=localStorage.getItem('moneymatters.activeBusinessId');const b=rows.find(x=>x.business_id===saved)||rows[0];if(!b){router.replace('/');return;}const r=await supabase.rpc('get_my_business_access',{p_business_id:b.business_id});if(!active)return;if(r.error||!r.data){setDenied(true);return;}const a=r.data as Access;setAccess(a);
    if(a.role==='cashier'&&pathname==='/next-workspace'){router.replace('/next-workspace/cash-bill');return;}
    if(a.role==='cashier'&&!prefixMatch(pathname,cashierAllowed)){setDenied(true);return;}
    if(a.role==='auditor'&&!prefixMatch(pathname,auditorAllowed)){setDenied(true);return;}
