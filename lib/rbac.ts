@@ -1,32 +1,23 @@
 import type { BusinessContext } from '@/lib/supabase';
+
 export type BusinessRole='owner'|'admin'|'accountant'|'cashier'|'auditor'|'staff'|'viewer'|string;
-const exact:Record<string,BusinessRole[]|null>={
- '/next-workspace/cash-bill':['owner','admin','accountant','cashier','staff'],
- '/next-workspace/business-settings':['owner','admin'],
- '/next-workspace/brand':['owner','admin'],
- '/next-workspace/preferences':['owner','admin','accountant'],
- '/next-workspace/data-migration':['owner','admin','accountant'],
- '/next-workspace/items':['owner','admin','accountant','auditor'],
- '/next-workspace/accounting':['owner','admin','accountant','auditor'],
- '/next-workspace/reports':['owner','admin','accountant','auditor'],
- '/next-workspace/tax':['owner','admin','accountant','auditor'],
- '/next-workspace/invoices':['owner','admin','accountant','auditor'],
- '/next-workspace/sales':['owner','admin','accountant','auditor'],
- '/next-workspace/documents':['owner','admin','accountant','auditor'],
- '/next-workspace/payments':['owner','admin','accountant','auditor'],
- '/next-workspace/receipts':['owner','admin','accountant','auditor'],
- '/next-workspace/inventory':['owner','admin','accountant','auditor'],
- '/next-workspace/banking':['owner','admin','accountant'],
- '/next-workspace/purchases':['owner','admin','accountant'],
- '/next-workspace/vendors':['owner','admin','accountant'],
- '/next-workspace/expenses':['owner','admin','accountant'],
- '/next-workspace/customers':['owner','admin','accountant'],
- '/next-workspace/whatsapp':['owner','admin','accountant'],
+
+const allowedByRole:Record<string,string[]>={
+  cashier:['/next-workspace/cash-bill'],
+  auditor:['/next-workspace','/next-workspace/invoices','/next-workspace/sales','/next-workspace/customers','/next-workspace/vendors','/next-workspace/items','/next-workspace/inventory','/next-workspace/purchases','/next-workspace/expenses','/next-workspace/payments','/next-workspace/receipts','/next-workspace/accounting','/next-workspace/tax','/next-workspace/reports','/next-workspace/documents','/next-workspace/profile'],
+  accountant:['/next-workspace','/next-workspace/invoices','/next-workspace/sales','/next-workspace/quotation','/next-workspace/customers','/next-workspace/vendors','/next-workspace/items','/next-workspace/inventory','/next-workspace/purchases','/next-workspace/expenses','/next-workspace/recurring','/next-workspace/banking','/next-workspace/payments','/next-workspace/receipts','/next-workspace/accounting','/next-workspace/tax','/next-workspace/reports','/next-workspace/documents','/next-workspace/whatsapp','/next-workspace/profile'],
 };
-export function canSeeRoute(ctx:BusinessContext|null,path:string){
- if(!ctx)return false;if(ctx.role==='owner'||ctx.role==='admin')return true;
- const hit=Object.keys(exact).find((x)=>path===x||path.startsWith(x+'/'));
- if(hit)return Boolean(exact[hit]?.includes(ctx.role));
- if(path==='/next-workspace'||path==='/next-workspace/profile')return true;
- return ctx.role!=='cashier'&&ctx.role!=='auditor';
+
+const matches=(path:string,allowed:string[])=>allowed.some((route)=>path===route||path.startsWith(route+'/'));
+
+export function canAccessRoute(ctx:Pick<BusinessContext,'role'>|null,path:string){
+  if(!ctx)return false;
+  if(ctx.role==='owner'||ctx.role==='admin')return true;
+  const allowed=allowedByRole[ctx.role];
+  if(allowed)return matches(path,allowed);
+  return true;
+}
+
+export function canShowCreateMenu(ctx:Pick<BusinessContext,'role'>|null){
+  return Boolean(ctx&&['owner','admin','accountant'].includes(ctx.role));
 }
