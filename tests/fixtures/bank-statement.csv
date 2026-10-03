@@ -1,0 +1,4 @@
+Date,Description,Reference,Debit,Credit,Running Balance
+2026-10-01,Customer payment,INV2026001,,2500,12500
+2026-10-01,Electricity Provider,ELEC-001,350.50,,12149.50
+01/10/2026,Customer payment,INV2026002,,900,13049.50
