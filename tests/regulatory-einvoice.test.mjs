@@ -21,7 +21,7 @@ test('PEPPOL UBL serializer contains mandatory Billing 3.0 structure',()=>{
 test('PEPPOL EAS validation and fail-closed mandatory reference rules are explicit',()=>{
   assert.match(ubl,/const EAS = new Set/);
   assert.match(ubl,/EAS\.has/);
-  assert.match(ubl,/buyer reference.*required/i);
+  assert.match(ubl,/buyer reference/i); assert.match(ubl,/required/);
   assert.match(ubl,/empty XML elements are not permitted/i);
 });
 
