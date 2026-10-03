@@ -545,7 +545,7 @@ ALTER TABLE public.vendors DROP CONSTRAINT IF EXISTS vendors_address_iso_shape_c
 ALTER TABLE public.businesses
   ADD CONSTRAINT businesses_address_iso_shape_chk CHECK (
     jsonb_typeof(address_iso)='object'
-    AND jsonb_object_length(address_iso)=6
+
     AND address_iso ?& ARRAY[
       'country_code','country_subdivision_code','locality',
       'postal_code','address_line_1','address_line_2'
@@ -560,7 +560,7 @@ ALTER TABLE public.businesses
 ALTER TABLE public.customers
   ADD CONSTRAINT customers_billing_address_iso_shape_chk CHECK (
     jsonb_typeof(billing_address_iso)='object'
-    AND jsonb_object_length(billing_address_iso)=6
+
     AND billing_address_iso ?& ARRAY[
       'country_code','country_subdivision_code','locality',
       'postal_code','address_line_1','address_line_2'
@@ -573,7 +573,7 @@ ALTER TABLE public.customers
   ),
   ADD CONSTRAINT customers_shipping_address_iso_shape_chk CHECK (
     jsonb_typeof(shipping_address_iso)='object'
-    AND jsonb_object_length(shipping_address_iso)=6
+
     AND shipping_address_iso ?& ARRAY[
       'country_code','country_subdivision_code','locality',
       'postal_code','address_line_1','address_line_2'
@@ -588,7 +588,7 @@ ALTER TABLE public.customers
 ALTER TABLE public.vendors
   ADD CONSTRAINT vendors_address_iso_shape_chk CHECK (
     jsonb_typeof(address_iso)='object'
-    AND jsonb_object_length(address_iso)=6
+
     AND address_iso ?& ARRAY[
       'country_code','country_subdivision_code','locality',
       'postal_code','address_line_1','address_line_2'
