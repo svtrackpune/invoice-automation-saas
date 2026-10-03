@@ -33,6 +33,9 @@ AS $fn$
 DECLARE
   v_request jsonb; v_hash text; v_existing public.offline_cash_bill_sync%rowtype; v_invoice uuid;
 BEGIN
+  IF NOT EXISTS (SELECT 1 FROM public.saas_entitlements WHERE business_id=p_business_id AND offline_pos_enabled=true) THEN
+    RAISE EXCEPTION 'Offline POS is not enabled for this business plan.';
+  END IF;
   IF p_temp_pos_uuid IS NULL THEN RAISE EXCEPTION 'Offline POS idempotency key is required.'; END IF;
   IF nullif(btrim(p_offline_ticket_number),'') IS NULL THEN RAISE EXCEPTION 'Offline POS ticket number is required.'; END IF;
   v_request:=jsonb_build_object(
