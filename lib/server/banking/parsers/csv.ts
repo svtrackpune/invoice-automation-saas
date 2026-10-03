@@ -1,13 +1,13 @@
 import type { BankStatementParseResult, CanonicalBankTransaction } from './types';
 
 const normalizeHeader = (value: string): string =>
-  value.normalize('NFKD').replace(/[\\u0300-\\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+  value.normalize('NFKD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
 
 const parseNumber = (value: string): number | null => {
-  const cleaned = value.trim().replace(/\\s/g, '').replace(/₹/g, '');
+  const cleaned = value.trim().replace(/\s/g, '').replace(/₹/g, '');
   if (!cleaned) return null;
-  const negative = /^\\(.*\\)$/.test(cleaned);
-  const bare = cleaned.replace(/^\\(|\\)$/g, '').replace(/,/g, '');
+  const negative = /^\(.*\)$/.test(cleaned);
+  const bare = cleaned.replace(/^\(|\)$/g, '').replace(/,/g, '');
   const n = Number(bare);
   if (!Number.isFinite(n)) return null;
   return negative ? -Math.abs(n) : n;
@@ -16,11 +16,11 @@ const parseNumber = (value: string): number | null => {
 const parseDate = (value: string): string | null => {
   const input = value.trim();
   if (!input) return null;
-  let m = input.match(/^(\\d{4})[-/.](\\d{1,2})[-/.](\\d{1,2})$/);
+  let m = input.match(/^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})$/);
   if (m) return m[1] + '-' + m[2].padStart(2, '0') + '-' + m[3].padStart(2, '0');
-  m = input.match(/^(\\d{1,2})[-/.](\\d{1,2})[-/.](\\d{4})$/);
+  m = input.match(/^(\d{1,2})[-/.](\d{1,2})[-/.](\d{4})$/);
   if (m) return m[3] + '-' + m[2].padStart(2, '0') + '-' + m[1].padStart(2, '0');
-  m = input.match(/^(\\d{1,2})[- ]([A-Za-z]{3,9})[- ](\\d{2,4})$/);
+  m = input.match(/^(\d{1,2})[- ]([A-Za-z]{3,9})[- ](\d{2,4})$/);
   if (m) {
     const months: Record<string, number> = {jan:1,january:1,feb:2,february:2,mar:3,march:3,apr:4,april:4,may:5,jun:6,june:6,jul:7,july:7,aug:8,august:8,sep:9,sept:9,september:9,oct:10,october:10,nov:11,november:11,dec:12,december:12};
     const year = Number(m[3].length === 2 ? '20' + m[3] : m[3]);
