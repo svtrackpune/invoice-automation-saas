@@ -9,6 +9,7 @@ async function actor(req:Request){
   const authorization=req.headers.get('authorization')||''; if(!authorization)return null;
   const client=createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!,process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,{global:{headers:{Authorization:authorization}}});
   const [{data:{user}},ctx]=await Promise.all([client.auth.getUser(),client.rpc('get_my_business_context')]);
+  if(!user)return null;
   return {user,context:(ctx.data||[]).find((x:any)=>x.business_id),client};
 }
 export async function GET(req:Request){
