@@ -1,8 +1,10 @@
 BEGIN;
 
+DROP FUNCTION IF EXISTS public.api_create_invoice_with_dynamic_tax(text,uuid,uuid,date,date,jsonb,text,text,boolean);
+
 CREATE OR REPLACE FUNCTION public.api_create_invoice_with_dynamic_tax(
   p_api_key_hash text,p_business_id uuid,p_customer_id uuid,p_invoice_date date,p_due_date date,p_items jsonb,
-  p_notes text DEFAULT NULL,p_terms text DEFAULT NULL,p_post boolean DEFAULT false
+  p_notes text DEFAULT NULL,p_terms text DEFAULT NULL,p_buyer_reference text DEFAULT NULL,p_post boolean DEFAULT false
 ) RETURNS uuid LANGUAGE plpgsql SECURITY DEFINER SET search_path=public,mm_private AS $fn$
 DECLARE k public.api_keys%rowtype; v_invoice uuid; v_number text; v_currency text; v_item jsonb;
 DECLARE v_product uuid; v_qty numeric; v_price numeric; v_discount numeric; v_tax numeric; v_total numeric; v_hsn text; v_tax_rate uuid; v_meta jsonb;
@@ -13,13 +15,14 @@ BEGIN
   IF NOT ('invoices:write'=ANY(k.scopes)) THEN RAISE EXCEPTION 'API key lacks invoices:write scope'; END IF;
   IF k.created_by IS NULL OR NOT EXISTS (SELECT 1 FROM public.businesses b JOIN public.organization_members om ON om.organization_id=b.organization_id WHERE b.id=p_business_id AND om.user_id=k.created_by AND om.is_active) THEN RAISE EXCEPTION 'API key actor is no longer a business member'; END IF;
   IF jsonb_typeof(p_items)<>'array' OR jsonb_array_length(p_items)=0 THEN RAISE EXCEPTION 'At least one invoice item is required'; END IF;
+  IF p_buyer_reference IS NOT NULL AND (btrim(p_buyer_reference)='' OR length(btrim(p_buyer_reference))>70) THEN RAISE EXCEPTION 'Buyer reference must be 1-70 characters when provided.'; END IF;
   PERFORM set_config('request.jwt.claim.sub',k.created_by::text,true);
   SELECT currency_code INTO v_currency FROM public.businesses WHERE id=p_business_id AND is_active;
   IF v_currency IS NULL THEN RAISE EXCEPTION 'Business not found or inactive'; END IF;
   IF NOT EXISTS(SELECT 1 FROM public.customers WHERE id=p_customer_id AND business_id=p_business_id AND is_active) THEN RAISE EXCEPTION 'Customer not found or inactive'; END IF;
   v_number:=public.next_document_number(p_business_id,'invoice');
-  INSERT INTO public.invoices(business_id,customer_id,invoice_number,invoice_date,due_date,status,currency_code,subtotal,discount_total,tax_total,total,amount_paid,balance_due,notes,terms,discount_type,discount_value,discount_before_tax,created_by)
-  VALUES(p_business_id,p_customer_id,v_number,coalesce(p_invoice_date,current_date),coalesce(p_due_date,coalesce(p_invoice_date,current_date)),'draft',v_currency,0,0,0,0,0,0,p_notes,p_terms,NULL,0,true,k.created_by) RETURNING id INTO v_invoice;
+  INSERT INTO public.invoices(business_id,customer_id,invoice_number,invoice_date,due_date,status,currency_code,subtotal,discount_total,tax_total,total,amount_paid,balance_due,notes,terms,discount_type,discount_value,discount_before_tax,buyer_reference,created_by)
+  VALUES(p_business_id,p_customer_id,v_number,coalesce(p_invoice_date,current_date),coalesce(p_due_date,coalesce(p_invoice_date,current_date)),'draft',v_currency,0,0,0,0,0,0,p_notes,p_terms,NULL,0,true,nullif(btrim(p_buyer_reference),''),k.created_by) RETURNING id INTO v_invoice;
 
   FOR v_item IN SELECT * FROM jsonb_array_elements(p_items) LOOP
     v_product:=nullif(v_item->>'product_service_id','')::uuid;
