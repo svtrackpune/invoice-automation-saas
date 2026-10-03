@@ -64,6 +64,7 @@ export class DynamicTaxDeterminationProvider implements TaxDeterminationProvider
     if(!params.businessId)throw new Error('Tax calculation business context is required.');
     if(!params.lines.length)return {lines:[],totalTax:0};
     const system=inferSystem(params.buyerAddress.country_code,params.supplierAddress.country_code,params.taxSystem);
+    if(!params.buyerAddress.country_code)throw new Error('Buyer tax destination country is required.');
     const buyerVatValid=system==='VAT'&&EU_MEMBER_STATES.has(params.buyerAddress.country_code)?await validateVatWithVies(params.buyerTaxId,params.buyerAddress.country_code):false;
     const eligibleReverseCharge=system==='VAT'&&EU_MEMBER_STATES.has(params.supplierAddress.country_code)&&EU_MEMBER_STATES.has(params.buyerAddress.country_code)&&params.supplierAddress.country_code!==params.buyerAddress.country_code&&buyerVatValid;
     const {data:rules,error:rulesError}=await this.db.from('tax_rules').select('id,business_id,jurisdiction_id,tax_system,tax_code,name,tax_category,effective_from,effective_to,is_active,metadata').or('business_id.eq.'+params.businessId+',business_id.is.null').eq('tax_system',system).eq('is_active',true).lte('effective_from',params.invoiceDate);
@@ -85,21 +86,26 @@ export class DynamicTaxDeterminationProvider implements TaxDeterminationProvider
     for(const line of params.lines){
       const candidates=usableRules.map(r=>({r,j:jurisdictions.get(r.jurisdiction_id)!,score:ruleScore(r,jurisdictions.get(r.jurisdiction_id)!,params.buyerAddress,params.supplierAddress,line.taxCode||null,params.buyerTaxId)})).filter(x=>Number.isFinite(x.score));
       if(eligibleReverseCharge)candidates.splice(0,candidates.length,...candidates.filter(x=>x.r.tax_category==='REVERSE_CHARGE'));
-      candidates.sort((a,b)=>((b.score||0)-(a.score||0))||String(b.r.effective_from).localeCompare(String(a.r.effective_from)));
-      if(!candidates.length)throw new Error('No applicable '+system+' tax rule for item '+line.invoiceItemId+'.');
-      const selected=candidates[0].r;const comps=byRule.get(selected.id)||[];
-      if(!comps.length)throw new Error('Tax rule '+selected.tax_code+' has no tax components.');
+      candidates.sort((a,b)=>((b.score||0)-(a.score||0))||String(b.r.effective_from).localeCompare(String(a.r.effective_from))||String(a.r.tax_code).localeCompare(String(b.r.tax_code)));
+      const selectedByCode=new Map();
+      for(const candidate of candidates){ if(!selectedByCode.has(candidate.r.tax_code))selectedByCode.set(candidate.r.tax_code,candidate); }
+      const selectedRules=[...selectedByCode.values()].sort((a,b)=>{const rank=(j)=>j==='state'?0:j==='county'?1:j==='city'?2:3;return (rank(a.j.jurisdiction_type)-rank(b.j.jurisdiction_type))||((b.score||0)-(a.score||0));});
+      if(!selectedRules.length)throw new Error('No applicable '+system+' tax rule for item '+line.invoiceItemId+'.');
       if(eligibleReverseCharge){
+        const selected=selectedRules[0].r; const comps=byRule.get(selected.id)||[];
         result.push({invoiceItemId:line.invoiceItemId,jurisdictionId:selected.jurisdiction_id,taxRuleId:selected.id,taxComponentId:comps[0]?.id||null,taxCode:selected.tax_code,taxCategory:'REVERSE_CHARGE',rate:0,taxableAmount:round2(line.netAmount),taxAmount:0,isReverseCharge:true,componentSequence:comps[0]?.sequence||1,calculationBasis:comps[0]?.calculation_basis||'net',sourceProvider:this.name});
         continue;
       }
-      const previous=new Map<string,number>();
-      for(const comp of comps){
-        const priorTax=previous.get(comp.compound_on_component_id||'')||0;
-        const taxable=round2(comp.calculation_basis==='net'?line.netAmount:line.netAmount+priorTax);
-        const tax=round2(taxable*Number(comp.rate)/100);
-        previous.set(comp.id,tax);
-        result.push({invoiceItemId:line.invoiceItemId,jurisdictionId:selected.jurisdiction_id,taxRuleId:selected.id,taxComponentId:comp.id,taxCode:comp.tax_code,taxCategory:selected.tax_category,rate:Number(comp.rate),taxableAmount:taxable,taxAmount:tax,isReverseCharge:false,componentSequence:comp.sequence,calculationBasis:comp.calculation_basis,sourceProvider:this.name});
+      for(const selected of selectedRules){
+        const comps=byRule.get(selected.r.id)||[];
+        if(!comps.length)throw new Error('Tax rule '+selected.r.tax_code+' has no tax components.');
+        const previous=new Map();
+        for(const comp of comps){
+          const priorTax=previous.get(comp.compound_on_component_id||'')||0;
+          const taxable=round2(comp.calculation_basis==='net'?line.netAmount:line.netAmount+priorTax);
+          const tax=round2(taxable*Number(comp.rate)/100); previous.set(comp.id,tax);
+          result.push({invoiceItemId:line.invoiceItemId,jurisdictionId:selected.r.jurisdiction_id,taxRuleId:selected.r.id,taxComponentId:comp.id,taxCode:comp.tax_code,taxCategory:selected.r.tax_category,rate:Number(comp.rate),taxableAmount:taxable,taxAmount:tax,isReverseCharge:false,componentSequence:comp.sequence,calculationBasis:comp.calculation_basis,sourceProvider:this.name});
+        }
       }
     }
     return {lines:result,totalTax:round2(result.reduce((sum,line)=>sum+line.taxAmount,0))};
