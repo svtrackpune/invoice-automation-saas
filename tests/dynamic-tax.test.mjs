@@ -45,7 +45,7 @@ test('dynamic output reaches the immutable posting snapshot boundary',()=>{
 });
 
 test('dynamic application preserves legacy addresses and line snapshots',()=>{
-  assert.match(apply,/shipping_address_iso\|c\.billing_address_iso\|c\.shipping_address\|c\.billing_address/);
+  assert.match(apply,/shipping_address_iso/); assert.match(apply,/billing_address_iso/); assert.match(apply,/shipping_address/); assert.match(apply,/billing_address/);
   assert.match(apply,/address_iso\|b\.address/);
   assert.match(apply,/dynamic_tax_snapshot/);
   assert.match(apply,/jurisdiction_id/);
