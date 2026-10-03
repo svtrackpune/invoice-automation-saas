@@ -41,7 +41,7 @@ export async function POST(req: Request) {
     if (!invoiceId && !paymentLinkId) return json({ error: 'invoice_id or payment_link_id is required' }, 400);
 
     const admin = createClient(supabaseUrl, serviceRoleKey);
-    let link: Record<string, any> | null = null;
+    let link: Record<string, unknown> | null = null;
 
     if (paymentLinkId) {
       const { data, error } = await admin.from('payment_links')
@@ -55,8 +55,8 @@ export async function POST(req: Request) {
       if (!data) return json({ error: 'Payable payment link not found' }, 404);
       link = data;
 
-      if (link.short_url && ['created', 'paid', 'partially_paid'].includes(String(link.status))) {
-        return json({ payment_session: link });
+      if (data.short_url && ['created', 'paid', 'partially_paid'].includes(String(data.status))) {
+        return json({ payment_session: data });
       }
     }
 
