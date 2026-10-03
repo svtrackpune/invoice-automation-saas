@@ -36,6 +36,7 @@ export type CanonicalInvoice = {
   status: string;
   note: string | null;
   terms: string | null;
+  buyerReference: string | null;
   subtotal: number;
   discountTotal: number;
   taxTotal: number;
@@ -65,7 +66,7 @@ function addressOf(value: any, fallbackCountry: string) {
 }
 
 export async function loadCanonicalInvoice(db: SupabaseClient, invoiceId: string): Promise<CanonicalInvoice> {
-  const { data: invoice, error: invoiceError } = await db.from('invoices').select('id,business_id,invoice_number,invoice_date,due_date,status,currency_code,notes,terms,subtotal,discount_total,tax_total,total,amount_paid,balance_due,customer_id,journal_entry_id').eq('id',invoiceId).single();
+  const { data: invoice, error: invoiceError } = await db.from('invoices').select('id,business_id,invoice_number,invoice_date,due_date,status,currency_code,notes,terms,buyer_reference,subtotal,discount_total,tax_total,total,amount_paid,balance_due,customer_id,journal_entry_id').eq('id',invoiceId).single();
   if (invoiceError || !invoice) throw new Error('Invoice not found.');
   if (!invoice.journal_entry_id) throw new Error('Only posted invoices can be exported as e-invoices.');
 
@@ -94,7 +95,7 @@ export async function loadCanonicalInvoice(db: SupabaseClient, invoiceId: string
   });
   const flattened=(taxLines||[]).map((x:any)=>({taxCode:text(x.tax_code),taxCategory:text(x.tax_category),rate:num(x.rate),taxableAmount:num(x.taxable_amount),taxAmount:num(x.tax_amount),isReverseCharge:Boolean(x.is_reverse_charge),invoiceItemId:x.invoice_item_id?String(x.invoice_item_id):null}));
 
-  return {id:String(invoice.id),number:text(invoice.invoice_number),issueDate:String(invoice.invoice_date),dueDate:invoice.due_date?String(invoice.due_date):null,currencyCode:text(invoice.currency_code).toUpperCase(),status:text(invoice.status),note:invoice.notes?text(invoice.notes):null,terms:invoice.terms?text(invoice.terms):null,subtotal:num(invoice.subtotal),discountTotal:num(invoice.discount_total),taxTotal:num(invoice.tax_total),total:num(invoice.total),amountPaid:num(invoice.amount_paid),balanceDue:num(invoice.balance_due),businessId:String(invoice.business_id),supplier,customer,lines,taxLines:flattened};
+  return {id:String(invoice.id),number:text(invoice.invoice_number),issueDate:String(invoice.invoice_date),dueDate:invoice.due_date?String(invoice.due_date):null,currencyCode:text(invoice.currency_code).toUpperCase(),status:text(invoice.status),note:invoice.notes?text(invoice.notes):null,terms:invoice.terms?text(invoice.terms):null,buyerReference:invoice.buyer_reference?text(invoice.buyer_reference):null,subtotal:num(invoice.subtotal),discountTotal:num(invoice.discount_total),taxTotal:num(invoice.tax_total),total:num(invoice.total),amountPaid:num(invoice.amount_paid),balanceDue:num(invoice.balance_due),businessId:String(invoice.business_id),supplier,customer,lines,taxLines:flattened};
 }
 
 export function canonicalFromAdmin(invoiceId: string) { return loadCanonicalInvoice(admin(), invoiceId); }
