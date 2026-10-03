@@ -149,25 +149,26 @@ export async function POST(req: Request) {
       targetAccountId: rule.target_account_id,
     })) as BankReconciliationRule[];
 
+    const accountCurrency = String(bankAccount.currency_code).toUpperCase();
+    const invoicesForCurrency = (invoices ?? [])
+      .filter((invoice) => String(invoice.currency_code).toUpperCase() === accountCurrency)
+      .map((invoice) => ({
+        id: invoice.id,
+        invoiceNumber: invoice.invoice_number,
+        balanceDue: Number(invoice.balance_due),
+        currencyCode: invoice.currency_code,
+      }));
+
+    const paymentsForCurrency = (payments ?? [])
+      .filter((payment) => String(payment.currency_code).toUpperCase() === accountCurrency)
+      .map((payment) => ({
+        id: payment.id,
+        amount: Number(payment.amount),
+        reference: payment.reference,
+        currencyCode: payment.currency_code,
+      }));
+
     const importRows = parsed.transactions.map((transaction) => {
-      const invoicesForCurrency = (invoices ?? [])
-        .filter((invoice) => String(invoice.currency_code).toUpperCase() === String(bankAccount.currency_code).toUpperCase())
-        .map((invoice) => ({
-          id: invoice.id,
-          invoiceNumber: invoice.invoice_number,
-          balanceDue: Number(invoice.balance_due),
-          currencyCode: invoice.currency_code,
-        }));
-
-      const paymentsForCurrency = (payments ?? [])
-        .filter((payment) => String(payment.currency_code).toUpperCase() === String(bankAccount.currency_code).toUpperCase())
-        .map((payment) => ({
-          id: payment.id,
-          amount: Number(payment.amount),
-          reference: payment.reference,
-          currencyCode: payment.currency_code,
-        }));
-
       const suggestion = findBestBankMatch(
         transaction,
         invoicesForCurrency,
