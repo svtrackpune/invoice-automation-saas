@@ -4,15 +4,15 @@ const clean = (value: string | undefined): string =>
   (value ?? '').replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, '$1').trim();
 
 const tagValue = (block: string, tag: string): string => {
-  const xml = new RegExp('<' + tag + '>([\\s\\S]*?)</' + tag + '>', 'i').exec(block)?.[1];
+  const xml = new RegExp('<' + tag + '>([\s\S]*?)</' + tag + '>', 'i').exec(block)?.[1];
   if (xml !== undefined) return clean(xml.replace(/<[^>]+>/g, ''));
 
-  const sgml = new RegExp('<' + tag + '>([^<\\r\\n]*)', 'i').exec(block)?.[1];
+  const sgml = new RegExp('<' + tag + '>([^<\r\n]*)', 'i').exec(block)?.[1];
   return clean(sgml);
 };
 
 const dateOnly = (value: string): string | null => {
-  const match = value.match(/^(\\d{4})(\\d{2})(\\d{2})/);
+  const match = value.match(/^(\d{4})(\d{2})(\d{2})/);
   return match
     ? match[1] + '-' + match[2] + '-' + match[3]
     : null;
@@ -28,7 +28,7 @@ export const parseOfxStatement = (
   format: BankSourceFormat = 'ofx',
 ): BankStatementParseResult => {
   const transactionBlocks = Array.from(
-    text.matchAll(/<STMTTRN>([\\s\\S]*?)(?:<\/STMTTRN>|(?=<STMTTRN>|<\/BANKTRANLIST>))/gi),
+    text.matchAll(/<STMTTRN>([\s\S]*?)(?:<\/STMTTRN>|(?=<STMTTRN>|<\/BANKTRANLIST>))/gi),
     (match) => match[1],
   );
 
