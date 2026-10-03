@@ -320,7 +320,7 @@ WHERE p.id=vpa.payment_id AND vpa.currency_code IS NULL;
 ALTER TABLE public.vendor_payment_allocations ALTER COLUMN currency_code SET NOT NULL;
 
 CREATE OR REPLACE FUNCTION public.guard_payment_allocation_currency()
-RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path=public,mm_private A$$
+RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path=public,mm_private AS $
 DECLARE
   p public.payments%rowtype;
   i public.invoices%rowtype;
