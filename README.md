@@ -1,4 +1,4 @@
-# Invoice Automation SaaS
+# Moneymatters
 
 [![CI](https://github.com/svtrackpune/invoice-automation-saas/actions/workflows/ci.yml/badge.svg)](https://github.com/svtrackpune/invoice-automation-saas/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/svtrackpune/invoice-automation-saas)](https://github.com/svtrackpune/invoice-automation-saas/releases)
@@ -7,150 +7,151 @@
 [![Next.js](https://img.shields.io/badge/Next.js-15.5.27-000000.svg)](https://nextjs.org/)
 [![Supabase](https://img.shields.io/badge/Supabase-PostgreSQL-3ECF8E.svg)](https://supabase.com/)
 
-Production-grade, multi-business invoicing and financial operations software built with Next.js, Node.js, Supabase/PostgreSQL, and a hardened transaction-oriented financial domain.
+Moneymatters is a production-oriented, multi-business invoicing and financial operations platform built with Next.js, Node.js, and Supabase/PostgreSQL.
 
-The application is designed around flexible business billing: a business can support GST and non-GST sales, cash and UPI settlements, customer-specific billing requirements, and distinct invoice, estimate, quotation, and receipt workflows without forcing every customer into the same billing mode.
+It is designed around a simple principle: **one business can serve different customers in different billing modes without maintaining separate systems**. The application supports GST and non-GST sales, cash and UPI settlement, customer-specific document workflows, accounting controls, and operational workflows in the same business.
 
-## Release status
+## Current release
 
-**Current release: v1.0.0 — General Availability**
+**v1.4.0 — GA release line**
 
-The release is verified by the canonical GitHub Actions CI pipeline, which performs type checking, linting, production dependency auditing, the complete automated test suite, a production build, and a Docker build.
+This release consolidates the production security perimeter, global tax foundations, offline POS, operational RBAC and SaaS entitlements, notification connections, payment adapter infrastructure, multi-currency accounting metadata, regulatory document fields, and the enterprise bank-reconciliation engine.
+
+The canonical CI workflow is the release gate. It runs strict TypeScript checking, ESLint, production dependency auditing, the full automated test suite, a production build, and a Docker build.
+
+## What the application does
+
+### Billing and sales
+
+- GST and non-GST sales can coexist in the same business.
+- Cash and UPI settlement workflows are supported in the same business.
+- Customer-specific billing requirements can be handled without creating separate businesses.
+- Invoice, estimate, quotation, and receipt workflows are supported as distinct document types.
+- Customer and transaction records remain tenant-scoped through the existing authorization and RLS architecture.
+
+### Financial operations
+
+- Atomic invoice, cash-bill, payment, purchase, expense, credit, refund, and settlement workflows.
+- Accounting-period protection and locked-period enforcement.
+- Financial write boundaries remain centered on transactional database RPCs.
+- Posted journal entries and locked reconciliations remain protected from direct mutation; corrections use explicit reversal/correction paths.
+- Dual-currency journal metadata and currency-aware AR/AP views are available for multi-currency accounting.
+
+### Tax and regulatory foundations
+
+- Global tax-rule and jurisdiction structures.
+- Dynamic tax determination with snapshot persistence for posted invoices.
+- India GST-compatible foundations and support for non-GST business modes.
+- Buyer-reference support on invoices.
+- Regulatory document requirements and structured tax-line snapshots.
+- Provider-adapter boundary for external tax services.
+
+### Payments and notifications
+
+- Gateway payment recording with explicit gross/fee/net accounting.
+- Idempotent payment webhook handling.
+- PAYable adapter/session/webhook infrastructure.
+- Tenant notification connections with provider-aware routing and failover infrastructure.
+- Supported notification adapters include WAPI/WhatsApp, Telegram, Resend, and Twilio.
+
+> **PAYable production note:** the current adapter provides the application-side integration boundary. A live PAYable merchant deployment must still be validated against the exact PAYable endpoint and signature/check-value contract configured for that account before enabling production traffic.
+
+### Offline POS and bank reconciliation
+
+- Offline-first cash-bill queue with durable device tickets and idempotent replay.
+- CSV, CAMT.053, MT940, OFX, and QBO bank-statement parsing.
+- Deterministic transaction fingerprinting for duplicate detection.
+- Heuristic invoice/payment/gateway-fee matching and configurable categorization rules.
+- Reconciliation locking with immutable-state protections and audited reversal workflow.
 
 ## Architecture
 
-```text
-                         Public users / operators
-                                   |
-                                   v
-                    +---------------------------+
-                    |       Next.js 15           |
-                    |  App Router + API routes   |
-                    +-------------+-------------+
-                                  |
-                    +-------------v-------------+
-                    |     Node.js 24.18.1       |
-                    |       server.js           |
-                    | healthz / readyz / APIs   |
-                    +-------------+-------------+
-                                  |
-                    +-------------v-------------+
-                    |       Supabase             |
-                    | PostgreSQL + Auth + RLS    |
-                    | atomic financial RPCs      |
-                    +----------------------------+
+```
+                        Operators / Customers
+                                 |
+                                 v
+                   +---------------------------+
+                   |       Next.js 15           |
+                   | App Router + API routes    |
+                   +-------------+-------------+
+                                 |
+                   +-------------v-------------+
+                   |       Node.js 24.18.1      |
+                   |        server.js           |
+                   | healthz / readyz / APIs   |
+                   +-------------+-------------+
+                                 |
+                   +-------------v-------------+
+                   |       Supabase             |
+                   | PostgreSQL + Auth + RLS    |
+                   | transactional financial RPCs|
+                   +----------------------------+
 
-       Deployment A                              Deployment B
-       Plesk / Node.js                           Docker / Compose
-       server.js                                 standalone image
-``` 
-
-### Deployment targets
-
-- **Plesk:** Node.js 24.18.1, production mode, `server.js` as the application entrypoint.
-- **Docker:** multi-stage Node 24.18.1 Alpine image, standalone Next.js output, non-root runtime user.
-- Both deployment modes use the same application entrypoint and environment contract.
-
-## Core domain capabilities
-
-The financial engine has been hardened around explicit transaction and accounting boundaries. Important capabilities include:
-
-- Atomic cash-bill creation and correction.
-- Cash and UPI settlement validation.
-- Invoice and payment correction workflows.
-- Accounting-period protection and period locks.
-- Over-allocation and paid-invoice protection.
-- Purchase-bill, supplier-payment, expense, credit, refund, and customer-credit workflows.
-- Supplier 360, Invoice 360, and Payment 360 financial views.
-- Ledger write boundaries enforced through the existing database architecture.
-- Receipt PDF generation with protected access tokens.
-- Multi-channel notification workers for supported delivery channels.
-- Tenant isolation through Supabase RLS and controlled server-side operations.
-
-The release process deliberately protects these financial invariants. GA infrastructure changes do not rewrite the financial RPCs, accounting schema, or RLS boundaries.
-
-## Technology stack
-
-- Next.js 15.5.27
-- React 19.3
-- Node.js 24.18.1
-- TypeScript 5.x with strict checking
-- Supabase / PostgreSQL
-- Zod validation
-- Tailwind CSS 4
-- Node native test runner
-- Docker / Docker Compose
-- GitHub Actions
-
-## Environment configuration
-
-Copy `.env.example` into the environment used by the deployment platform and provide real values there. Never commit credentials.
-
-| Variable | Type | Default | Required | Scope |
-|---|---|---|---|---|
-| `PORT` | integer | `3000` | No | Server |
-| `NEXT_PUBLIC_SUPABASE_URL` | URL | empty | Yes | Browser + server |
-| `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | string | empty | Yes | Browser + server |
-| `SUPABASE_SERVICE_ROLE_KEY` | secret string | empty | Yes for protected server operations | **Server-only** |
-| `MONEYMATTERS_PUBLIC_URL` | URL | empty | Yes for public delivery links | Server |
-| `RESEND_API_KEY` | secret string | empty | Channel-dependent | Server-only |
-| `RESEND_FROM_EMAIL` | email/string | empty | Channel-dependent | Server |
-| `WHATSAPP_ACCESS_TOKEN` | secret string | empty | Channel-dependent | Server-only |
-| `WHATSAPP_PHONE_NUMBER_ID` | string | empty | Channel-dependent | Server |
-| `TWILIO_ACCOUNT_SID` | secret identifier | empty | Channel-dependent | Server-only |
-| `TWILIO_AUTH_TOKEN` | secret string | empty | Channel-dependent | **Server-only** |
-| `TWILIO_FROM_NUMBER` | phone string | empty | Channel-dependent | Server |
-| `TELEGRAM_BOT_TOKEN` | secret string | empty | Channel-dependent | **Server-only** |
-
-`SUPABASE_SERVICE_ROLE_KEY` is especially sensitive. It bypasses normal client-side authorization boundaries and must never be exposed through `NEXT_PUBLIC_*`, browser code, logs, source control, or client bundles.
-
-## Quickstart
-
-### Option A — Native development
-
-Requirements: Node.js 24.18.1 and npm compatible with the repository lockfile.
-
-```bash
-npm ci
-npm run dev
+       Deployment A                                  Deployment B
+       Plesk / Node.js                               Docker
+       server.js                                     standalone image
 ```
 
-Open `http://localhost:3000`.
+The same application entrypoint and environment contract are used for Plesk and Docker deployments.
 
-For a production-equivalent local run:
+## Deployment
 
-```bash
-npm ci
-npm run build
-npm start
-```
+### Plesk
 
-### Option B — Docker Compose
+The supported Plesk target is Node.js **24.18.1** in production mode.
 
-Configure the required values in a local environment file, then run:
+1. Set the application root to the repository root.
+2. Use `server.js` as the startup file.
+3. Configure the required environment variables through the Plesk Node.js environment settings.
+4. Install with `npm ci`.
+5. Build with `npm run build`.
+6. Restart the application and verify `/healthz` and `/readyz`.
+
+Plesk supplies `PORT`; `server.js` respects it and falls back to port 3000 for local execution.
+
+### Docker
+
+The repository contains a production Dockerfile and Compose configuration.
 
 ```bash
 docker compose up --build
 ```
 
-The application is exposed on `http://localhost:3000` and the container healthcheck calls `/healthz`.
+The application is exposed on `http://localhost:3000` in the standard local configuration.
 
-### Option C — Plesk production deployment
+## Environment variables
 
-1. Select **Node.js 24.18.1** in Plesk.
-2. Set application mode to **production**.
-3. Use the repository root as the application root.
-4. Use `server.js` as the startup file.
-5. Bind all required variables from `.env.example` through the Plesk Node.js environment configuration.
-6. Ensure `SUPABASE_SERVICE_ROLE_KEY` is configured only as a server-side environment variable.
-7. Install dependencies with `npm ci` and build with `npm run build` when the Plesk deployment process requires an application build.
-8. Verify `/healthz` and `/readyz` after restart.
+Use `.env.example` as the source of truth for deployment configuration.
 
-Plesk supplies the listening `PORT`; `server.js` respects that value while retaining `3000` as the local/default fallback.
+| Variable | Scope | Required |
+|---|---|---:|
+| `NEXT_PUBLIC_SUPABASE_URL` | Browser + server | Yes |
+| `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Browser + server | Yes |
+| `SUPABASE_SERVICE_ROLE_KEY` | Server-only secret | For protected server operations |
+| `MONEYMATTERS_PUBLIC_URL` | Server | For public delivery links |
+| `PORT` | Server | No |
+| `RESEND_API_KEY` | Server-only secret | Channel-dependent |
+| `RESEND_FROM_EMAIL` | Server | Channel-dependent |
+| `WHATSAPP_ACCESS_TOKEN` | Server-only secret | Channel-dependent |
+| `WHATSAPP_PHONE_NUMBER_ID` | Server | Channel-dependent |
+| `TWILIO_ACCOUNT_SID` | Server-only identifier | Channel-dependent |
+| `TWILIO_AUTH_TOKEN` | Server-only secret | Channel-dependent |
+| `TWILIO_FROM_NUMBER` | Server | Channel-dependent |
+| `TELEGRAM_BOT_TOKEN` | Server-only secret | Channel-dependent |
 
-## Testing and verification
+**Never expose `SUPABASE_SERVICE_ROLE_KEY` or provider secrets through client code, `NEXT_PUBLIC_*` variables, logs, or source control.**
 
-Run the complete local release gate:
+## Database migrations
+
+The authoritative database schema is maintained under `supabase/migrations/`.
+
+For the current GA rollout, the live Supabase project has been synchronized through the October 2026 release sequence, including the multi-currency foundation and Gates 0–3. Migration history is tracked in Supabase and should be treated as immutable deployment history.
+
+Do not manually rewrite applied financial migrations. Create a new forward-only migration for any correction.
+
+## Quality and release gate
+
+Run the repository's canonical release checks:
 
 ```bash
 npm ci
@@ -162,82 +163,79 @@ npm run build
 docker build -t app:test .
 ```
 
-The test suite protects both the financial domain and the production perimeter. It includes financial invariants, correction contracts, receipt delivery, production smoke checks, health/readiness behavior, rate limiting, security headers/CORS, and centralized error handling.
+The GitHub Actions CI workflow runs the same release gate on pull requests and pushes to `main`.
 
-### Health checks
+## Health and readiness
 
 ```bash
 curl -i http://localhost:3000/healthz
 curl -i http://localhost:3000/readyz
 ```
 
-`/healthz` is a shallow liveness probe and does not depend on external services.
+- `/healthz` is the shallow liveness probe.
+- `/readyz` checks the configured Supabase dependency and returns an unavailable response when the database is not reachable.
 
-`/readyz` verifies the application can reach the configured Supabase database and returns `503` when the dependency is unavailable.
+## Security model
 
-## Security and observability
+The production perimeter includes:
 
-The application perimeter includes:
-
-- Strict request validation with Zod.
-- Centralized structured API error responses with request correlation IDs.
-- Sanitization of unexpected database/runtime errors before they reach clients.
-- CSP with per-request nonces.
-- `X-Content-Type-Options: nosniff`.
-- `X-Frame-Options: DENY`.
-- Strict referrer policy.
-- HSTS in production.
-- Restrictive Permissions Policy.
+- Supabase Row Level Security and business-scoped authorization.
+- Transactional financial RPC boundaries.
+- Zod request validation for public API input.
+- Centralized, sanitized API errors with correlation IDs.
+- CSP nonces and hardened HTTP security headers.
 - Explicit API CORS handling.
-- In-memory rate limiting for public endpoints such as receipt PDF retrieval.
-- `/healthz` liveness and `/readyz` dependency readiness probes.
-- Structured startup, shutdown, and server-error logging.
-- Graceful `SIGTERM`/`SIGINT` handling for Plesk and container deployments.
+- Rate limiting for public receipt retrieval.
+- Health/readiness probes and structured server lifecycle logging.
+- Dependency vulnerability auditing in CI.
+- Immutable posted-journal and locked-reconciliation controls with explicit reversal paths.
 
-The in-memory rate limiter is intended for a single application process. Multi-instance deployments should place distributed rate limiting at the infrastructure layer or replace the limiter with a shared store before scaling horizontally.
+The application-level rate limiter is process-local. Horizontal deployments should use an infrastructure-level distributed limiter or shared store.
 
-## API
+Supabase security advisors should also be reviewed before enabling new public production surfaces.
 
-The public HTTP surface is documented in [`docs/openapi.yaml`](docs/openapi.yaml).
+## Public HTTP API
 
-Current documented endpoints:
+OpenAPI documentation is available at [`docs/openapi.yaml`](docs/openapi.yaml).
+
+The current public operational surface includes:
 
 - `GET /healthz`
 - `GET /readyz`
 - `GET /api/receipts/pdf?token=...`
 
+Additional server-side and tenant-authenticated routes are implemented in the application and are intentionally kept behind the normal authentication and authorization boundary.
+
 ## Project structure
 
 ```text
-app/                 Next.js application routes and UI
-app/api/             Public API routes
-app/healthz/         Liveness probe
-app/readyz/          Readiness probe
-lib/server/           Server-only business/infrastructure helpers
-lib/validations/      Zod request schemas
-supabase/              Database migrations and server functions
-tests/                 Contract, financial, infrastructure, and smoke tests
-docs/                  API and release documentation
-.github/workflows/     Canonical CI and release automation
-Dockerfile             Production container image
-server.js              Plesk/container Node entrypoint
+app/                    Next.js UI and route handlers
+app/api/                HTTP API routes
+lib/server/             Server-only domain and infrastructure code
+lib/validations/        Request schemas and validation
+supabase/migrations/    Database schema and security changes
+supabase/functions/     Supabase Edge Functions
+tests/                  Financial, contract, infrastructure and smoke tests
+docs/                   API documentation
+.github/workflows/      CI and release automation
+Dockerfile              Production container definition
+docker-compose.yml      Local container orchestration
+server.js               Node entrypoint for Plesk and Docker
 ```
 
-## Release process
+## Release automation
 
-`main` is protected by the canonical CI workflow. CI must pass before the release workflow creates a GitHub Release.
+The release workflow runs after a successful CI workflow on `main`.
 
-The release workflow reads the stable SemVer version from `package.json`, creates the matching `vX.Y.Z` tag, and generates release notes from repository history.
-
-For the current GA release:
+It reads the stable SemVer value from `package.json`, creates the corresponding Git tag, and publishes a GitHub Release. For this release:
 
 ```text
-package.json -> 1.0.0
-Git tag      -> v1.0.0
-Release      -> v1.0.0
+package.json  -> 1.4.0
+Git tag       -> v1.4.0
+GitHub Release-> v1.4.0
 ```
 
-## Governance and security
+## Contribution and security reporting
 
 - [Contributing](CONTRIBUTING.md)
 - [Security Policy](SECURITY.md)
@@ -246,4 +244,4 @@ Release      -> v1.0.0
 
 ## License
 
-This project is released under the MIT License. See [`LICENSE`](LICENSE).
+MIT. See [`LICENSE`](LICENSE).
