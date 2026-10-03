@@ -45,6 +45,6 @@ test('e-invoice endpoint fields are database-backed and export routes are entitl
   assert.match(migration,/e_invoice_endpoint_scheme/);
   assert.match(migration,/e_invoice_endpoint_pair_chk/);
   assert.match(requirements,/invoices_buyer_reference_chk/);
-  assert.match(ublRoute,/e_invoicing_enabled/);
-  assert.match(fxRoute,/e_invoicing_enabled/);
+  assert.match(ublRoute,/authenticateDocumentAccess/);
+  assert.match(fxRoute,/authenticateDocumentAccess/);
 });
