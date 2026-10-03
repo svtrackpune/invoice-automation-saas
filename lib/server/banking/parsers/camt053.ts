@@ -9,12 +9,12 @@ const decodeXml = (value: string): string =>
     .replace(/&apos;/g, "'");
 
 const blocks = (xml: string, tag: string): string[] => {
-  const pattern = new RegExp('<' + tag + '(?:\s[^>]*)?>([\s\S]*?)</' + tag + '>', 'gi');
+  const pattern = new RegExp(String.raw`<${tag}(?:\s[^>]*)?>([\s\S]*?)</${tag}>`, 'gi');
   return Array.from(xml.matchAll(pattern), (match) => match[1]);
 };
 
 const texts = (xml: string, tag: string): string[] => {
-  const pattern = new RegExp('<' + tag + '(?:\s[^>]*)?>([\s\S]*?)</' + tag + '>', 'gi');
+  const pattern = new RegExp(String.raw`<${tag}(?:\s[^>]*)?>([\s\S]*?)</${tag}>`, 'gi');
   return Array.from(xml.matchAll(pattern), (match) =>
     decodeXml(match[1].replace(/<[^>]+>/g, '').trim()),
   );
