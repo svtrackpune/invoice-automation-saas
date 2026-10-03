@@ -510,7 +510,8 @@ BEGIN
 END;
 $fn$;
 
-REVOKE ALL ON FUNCTION public.canonicalize_iso_address(jsonb,char) FROM PUBLIC,anon,authenticated;
+REVOKE ALL ON FUNCTION public.canonicalize_iso_address(jsonb,char) FROM PUBLIC,anon;
+GRANT EXECUTE ON FUNCTION public.canonicalize_iso_address(jsonb,char) TO authenticated;
 
 ALTER TABLE public.businesses
   ADD COLUMN IF NOT EXISTS address_iso jsonb NOT NULL DEFAULT '{}'::jsonb;
