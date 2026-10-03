@@ -9,6 +9,10 @@ export interface CreatePaymentSessionParams {
   cancelUrl: string;
   description: string;
   customerEmail?: string | null;
+  customerPhone?: string | null;
+  callbackUrl?: string | null;
+  webhookUrl?: string | null;
+  orderId?: string | null;
   mode?: PaymentSessionMode;
   metadata?: Record<string, string | number | boolean | null | undefined>;
 }
@@ -38,6 +42,9 @@ export interface NormalizedWebhookPayload {
   providerLinkId: string;
   providerTransactionId: string;
   amount: number;
+  feeAmount?: number;
+  netAmount?: number;
+  status?: string;
   currency: string;
   paymentDate: string;
   notes: string;
