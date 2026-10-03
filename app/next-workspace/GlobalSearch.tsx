@@ -182,11 +182,11 @@ export default function GlobalSearch() {
         const estimateRows = (estimates.data || []) as QuotationSearchRow[];
         const receiptRows = (receipts.data || []) as ReceiptSearchRow[];
         const paymentRows = (payments.data || []) as PaymentSearchRow[];
-        const referencedCustomerIds = Array.from(new Set([
+        const referencedCustomerIds: string[] = Array.from(new Set([
           ...invoiceRows.map(x => x.customer_id),
           ...estimateRows.map(x => x.customer_id),
           ...receiptRows.map(x => x.customer_id),
-        ].filter(Boolean)));
+        ].filter((id): id is string => Boolean(id))));
 
         if (referencedCustomerIds.length) {
           const missingIds = referencedCustomerIds.filter(id => !customerName.has(id));
