@@ -1,8 +1,5 @@
 BEGIN;
 
-ALTER TYPE public.member_role ADD VALUE IF NOT EXISTS 'cashier';
-ALTER TYPE public.member_role ADD VALUE IF NOT EXISTS 'auditor';
-
 INSERT INTO public.role_permissions(role,permission_key,allowed) VALUES
   ('owner','ownership.manage',true),('admin','ownership.manage',true),
   ('cashier','pos.cash_bill.create',true),
