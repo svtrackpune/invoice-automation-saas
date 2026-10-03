@@ -532,9 +532,9 @@ CREATE OR REPLACE FUNCTION public.has_my_business_permission(
 RETURNS boolean
 LANGUAGE sql STABLE SECURITY INVOKER
 SET search_path=public,mm_private
-AS $
+AS $fn$
   SELECT mm_private.has_business_permission(p_business_id,p_permission,auth.uid());
-$;
+$fn$;
 REVOKE ALL ON FUNCTION public.has_my_business_permission(uuid,text) FROM public,anon;
 GRANT EXECUTE ON FUNCTION public.has_my_business_permission(uuid,text) TO authenticated;
 
