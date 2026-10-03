@@ -55,6 +55,7 @@ export function serializePeppolUblInvoice(inv:CanonicalInvoice){
   }
   const subtotal=round(inv.lines.reduce((s,l)=>s+round(l.netAmount),0));
   const documentDiscount=round(Math.max(inv.discountTotal-inv.lines.reduce((s,l)=>s+round(l.discount),0),0));
+  const taxExclusive=round(subtotal-documentDiscount);
   const taxSubtotals=Array.from(grouped.values()).map(g=>{
     const code=category(g.category);
     const exemption=g.category==='EXEMPT'?'<cbc:TaxExemptionReason>Exempt supply</cbc:TaxExemptionReason>':'';
