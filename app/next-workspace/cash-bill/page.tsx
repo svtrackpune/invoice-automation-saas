@@ -13,7 +13,7 @@ type Bank={id:string;name:string;institution_name:string|null;account_last4:stri
 type Line={product_service_id:string;quantity:number;unit_price:number;tax_rate_id:string};
 const today=()=>new Date().toISOString().slice(0,10);
 export default function CashBillPage(){
- const[ctx,setCtx]=useState<BusinessContext|null>(null),[products,setProducts]=useState<Product[]>([]),[taxes,setTaxes]=useState<Tax[]>([]),[cashAccount,setCashAccount]=useState<Account|null>(null),[upiAccount,setUpiAccount]=useState<Account|null>(null),[upiBankLabel,setUpiBankLabel]=useState(''),[taxRegistered,setTaxRegistered]=useState(false),[lines,setLines]=useState<Line[]>([]),[date,setDate]=useState(today()),[customerPhone,setCustomerPhone]=useState(''),[busy,setBusy]=useState(false),[error,setError]=useState(''),[success,setSuccess]=useState(''),[createdInvoiceId,setCreatedInvoiceId]=useState(''),[paymentMethod,setPaymentMethod]=useState<'cash'|'upi'>('cash');
+ const[ctx,setCtx]=useState<BusinessContext|null>(null),[offlinePosEnabled,setOfflinePosEnabled]=useState(false),[products,setProducts]=useState<Product[]>([]),[taxes,setTaxes]=useState<Tax[]>([]),[cashAccount,setCashAccount]=useState<Account|null>(null),[upiAccount,setUpiAccount]=useState<Account|null>(null),[upiBankLabel,setUpiBankLabel]=useState(''),[taxRegistered,setTaxRegistered]=useState(false),[lines,setLines]=useState<Line[]>([]),[date,setDate]=useState(today()),[customerPhone,setCustomerPhone]=useState(''),[busy,setBusy]=useState(false),[error,setError]=useState(''),[success,setSuccess]=useState(''),[createdInvoiceId,setCreatedInvoiceId]=useState(''),[paymentMethod,setPaymentMethod]=useState<'cash'|'upi'>('cash');
  useEffect(()=>{(async()=>{
   const r=await supabase.rpc('get_my_business_context');
   const c=r.data?.[0] as BusinessContext|undefined;if(!c){location.href='/';return}setCtx(c);
@@ -26,6 +26,7 @@ export default function CashBillPage(){
   setCashAccount(cash?.id?cash as Account:null);setUpiAccount(upi?.id?upi as Account:null);
   const bank= value.upi_label||{};
   if(bank.name)setUpiBankLabel(`${bank.name} · ${bank.institution_name||'Bank'}${bank.account_last4?` · ••••${bank.account_last4}`:''}`);
+  setOfflinePosEnabled(Boolean(value.offline_pos_enabled));
   const profile=value.tax_profile||{};
   const registered=Boolean(profile.tax_regime&&profile.tax_regime!=='NONE'&&((profile.tax_regime!=='GST')||profile.gst_registration_type&&profile.gst_registration_type!=='NONE'));
   setTaxRegistered(registered);
@@ -47,6 +48,7 @@ export default function CashBillPage(){
   const tempPosUuid=typeof crypto!=='undefined'&&'randomUUID'in crypto?crypto.randomUUID():undefined;
   const offlineTicketNumber=nextOfflineTicketNumber(ctx.business_id);
   if(!navigator.onLine){
+    if(!offlinePosEnabled){setError('Offline POS is not enabled for this business plan. The Cash Bill requires an active internet connection.');setBusy(false);return;}
     const queued=await queueOfflineCashBill(payload,{tempPosUuid,offlineTicketNumber});
     setSuccess(`Offline mode: Cash & Carry bill ${queued.offlineTicketNumber} queued and will sync automatically when connectivity returns.`);setBusy(false);return;
   }
@@ -54,6 +56,7 @@ export default function CashBillPage(){
   if(bill.error){
     const msg=bill.error.message||'Cash Bill could not be saved.';
     if(!navigator.onLine||/fetch|network|offline|failed to send|connection/i.test(msg)){
+      if(!offlinePosEnabled){setError('Connection was lost and Offline POS is not enabled for this business plan. The Cash Bill was not queued.');setBusy(false);return;}
       const queued=await queueOfflineCashBill(payload,{tempPosUuid,offlineTicketNumber});
       setSuccess(`Connection lost: Cash & Carry bill ${queued.offlineTicketNumber} queued for automatic sync. No duplicate posting will be created if the original request reached the server.`);setBusy(false);return;
     }
