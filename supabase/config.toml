@@ -1,0 +1,2 @@
+[functions.process-webhooks]
+verify_jwt = false
