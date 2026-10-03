@@ -1,226 +1,425 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
-import { createClient } from "npm:@supabase/supabase-js@2";
+import {
+  absoluteUrl,
+  admin,
+  connectionCandidates,
+  resolveTenantConnection,
+  type NotificationChannel,
+  type TenantNotificationConnection,
+} from "../_shared/tenant-notifications.ts";
 
 const json = (body: unknown, status = 200) =>
-  new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
-
-const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-const admin = createClient(supabaseUrl, serviceKey);
-const publicAppUrl = (Deno.env.get("MONEYMATTERS_PUBLIC_URL") || "").replace(/\/$/, "");
-
-function absoluteUrl(value: string | null | undefined) {
-  if (!value) return null;
-  if (/^https?:\/\//i.test(value)) return value;
-  if (!publicAppUrl) throw new Error("MONEYMATTERS_PUBLIC_URL is required for document delivery.");
-  return publicAppUrl + (value.startsWith("/") ? value : "/" + value);
-}
-
-function receiptFilename(job: any) {
-  const supplied = String(job?.metadata?.attachment_filename || "").trim();
-  if (supplied) return supplied.replace(/[^a-zA-Z0-9._-]+/g, "-");
-  const number = String(job?.metadata?.receipt_number || "receipt").trim();
-  return `receipt-${number.replace(/[^a-zA-Z0-9._-]+/g, "-")}.pdf`;
-}
-
-async function fetchPdfBase64(url: string) {
-  const response = await fetch(url, { headers: { Accept: "application/pdf" } });
-  if (!response.ok) throw new Error(`Receipt PDF endpoint returned HTTP ${response.status}.`);
-  const bytes = new Uint8Array(await response.arrayBuffer());
-  let binary = "";
-  const chunkSize = 0x8000;
-  for (let i = 0; i < bytes.length; i += chunkSize) {
-    binary += String.fromCharCode(...bytes.subarray(i, i + chunkSize));
-  }
-  return btoa(binary);
-}
-
-async function sendEmail(job: any) {
-  const key = Deno.env.get("RESEND_API_KEY");
-  const from = Deno.env.get("RESEND_FROM_EMAIL");
-  if (!key || !from) throw new Error("Email provider is not configured");
-
-  const attachment = job.metadata?.attachment_type === "receipt_pdf" && job.action_url
-    ? {
-        filename: receiptFilename(job),
-        content: await fetchPdfBase64(absoluteUrl(job.action_url)!),
-      }
-    : null;
-
-  const response = await fetch("https://api.resend.com/emails", {
-    method: "POST",
-    headers: {
-      Authorization: "Bearer " + key,
-      "Content-Type": "application/json",
-      "Idempotency-Key": `notification-job/${job.id}`,
-    },
-    body: JSON.stringify({
-      from,
-      to: [job.recipient],
-      subject: job.subject || "Notification",
-      text: job.message,
-      ...(attachment ? { attachments: [attachment] } : {}),
-    }),
-  });
-  const data = await response.json();
-  if (!response.ok) throw new Error(data?.message || "Email delivery failed");
-  return data?.id || null;
-}
-
-async function sendWhatsApp(job: any) {
-  const token = Deno.env.get("WHATSAPP_ACCESS_TOKEN");
-  const phoneId = Deno.env.get("WHATSAPP_PHONE_NUMBER_ID");
-  if (!token || !phoneId) throw new Error("WhatsApp provider is not configured");
-
-  const documentUrl = job.metadata?.attachment_type === "receipt_pdf" && job.action_url
-    ? absoluteUrl(job.action_url)
-    : null;
-  const response = await fetch("https://graph.facebook.com/v23.0/" + phoneId + "/messages", {
-    method: "POST",
-    headers: { Authorization: "Bearer " + token, "Content-Type": "application/json" },
-    body: JSON.stringify(documentUrl ? {
-      messaging_product: "whatsapp",
-      to: job.recipient,
-      type: "document",
-      document: {
-        link: documentUrl,
-        filename: receiptFilename(job),
-        caption: job.message,
-      },
-    } : {
-      messaging_product: "whatsapp",
-      to: job.recipient,
-      type: "text",
-      text: {
-        preview_url: Boolean(job.action_url),
-        body: job.action_url ? job.message + "\n\n" + absoluteUrl(job.action_url) : job.message,
-      },
-    }),
-  });
-  const data = await response.json();
-  if (!response.ok) throw new Error(data?.error?.message || "WhatsApp delivery failed");
-  return data?.messages?.[0]?.id || null;
-}
-
-async function sendSms(job: any) {
-  const sid = Deno.env.get("TWILIO_ACCOUNT_SID");
-  const token = Deno.env.get("TWILIO_AUTH_TOKEN");
-  const from = Deno.env.get("TWILIO_FROM_NUMBER");
-  if (!sid || !token || !from) throw new Error("SMS provider is not configured");
-
-  const link = job.action_url ? absoluteUrl(job.action_url) : null;
-  const body = new URLSearchParams({
-    To: job.recipient,
-    From: from,
-    Body: link ? job.message + " " + link : job.message,
-  });
-  const response = await fetch("https://api.twilio.com/2010-04-01/Accounts/" + sid + "/Messages.json", {
-    method: "POST",
-    headers: {
-      Authorization: "Basic " + btoa(sid + ":" + token),
-      "Content-Type": "application/x-www-form-urlencoded",
-    },
-    body,
-  });
-  const data = await response.json();
-  if (!response.ok) throw new Error(data?.message || "SMS delivery failed");
-  return data?.sid || null;
-}
-
-async function sendTelegram(job: any) {
-  const token = Deno.env.get("TELEGRAM_BOT_TOKEN");
-  if (!token) throw new Error("Telegram provider is not configured");
-
-  const documentUrl = job.metadata?.attachment_type === "receipt_pdf" && job.action_url
-    ? absoluteUrl(job.action_url)
-    : null;
-  const endpoint = `https://api.telegram.org/bot${token}/${documentUrl ? "sendDocument" : "sendMessage"}`;
-  const body = documentUrl
-    ? {
-        chat_id: job.recipient,
-        document: documentUrl,
-        caption: job.message,
-      }
-    : {
-        chat_id: job.recipient,
-        text: job.action_url ? job.message + "\n\n" + absoluteUrl(job.action_url) : job.message,
-      };
-
-  const response = await fetch(endpoint, {
-    method: "POST",
+  new Response(JSON.stringify(body), {
+    status,
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
   });
-  const data = await response.json();
-  if (!response.ok || data?.ok !== true) {
-    throw new Error(data?.description || "Telegram delivery failed");
-  }
-  return data?.result?.message_id ? String(data.result.message_id) : null;
+
+type NotificationJob = {
+  id: string;
+  business_id: string;
+  customer_id: string | null;
+  invoice_id: string | null;
+  channel: NotificationChannel;
+  notification_type: string;
+  recipient: string;
+  subject: string | null;
+  message: string;
+  action_url: string | null;
+  scheduled_for: string;
+  sent_at: string | null;
+  status: string;
+  attempts: number;
+  last_error: string | null;
+  provider_message_id: string | null;
+  metadata: Record<string, unknown>;
+  delivery_idempotency_key: string | null;
+};
+
+const retryDelayMs = (attempt: number) =>
+  Math.min(
+    60 * 60 * 1000,
+    Math.max(60 * 1000, 2 ** Math.max(attempt - 1, 0) * 60 * 1000),
+  );
+
+function attemptedChannels(
+  metadata: Record<string, unknown>,
+  current: NotificationChannel,
+) {
+  const values = Array.isArray(metadata.attempted_channels)
+    ? metadata.attempted_channels.filter(
+        (value): value is NotificationChannel =>
+          typeof value === "string" &&
+          ["whatsapp", "telegram", "email", "sms"].includes(value),
+      )
+    : [];
+
+  return Array.from(new Set([...values, current]));
 }
 
-function retryDelayMs(attempt: number) {
-  return Math.min(60 * 60 * 1000, Math.max(60 * 1000, 2 ** Math.max(attempt - 1, 0) * 60 * 1000));
+async function send(
+  connection: TenantNotificationConnection,
+  job: NotificationJob,
+) {
+  const actionUrl = absoluteUrl(job.action_url);
+
+  if (connection.provider === "wapi") {
+    const endpoint = connection.endpoint_url?.replace(/\/+$/, "");
+    if (!endpoint || !connection.secret) {
+      throw new Error("Wapi connection is incomplete.");
+    }
+
+    const response = await fetch(endpoint + "/message/sendText", {
+      method: "POST",
+      headers: {
+        Authorization: "Bearer " + connection.secret,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        number: job.recipient,
+        text: actionUrl
+          ? job.message + "\n\n" + actionUrl
+          : job.message,
+      }),
+    });
+
+    if (!response.ok) throw new Error("Wapi delivery failed.");
+
+    const payload: unknown = await response.json().catch(() => null);
+    if (!payload || typeof payload !== "object") return null;
+
+    const record = payload as Record<string, unknown>;
+    const id = record.message_id ?? record.id;
+    return typeof id === "string" || typeof id === "number"
+      ? String(id)
+      : null;
+  }
+
+  if (connection.provider === "telegram-bot") {
+    if (!connection.secret) {
+      throw new Error("Telegram connection is incomplete.");
+    }
+
+    const linkLabel = "View receipt";
+    const text = actionUrl
+      ? job.message + "\n\n" + linkLabel
+      : job.message;
+
+    const entities = actionUrl
+      ? [{
+          type: "text_link",
+          offset: text.length - linkLabel.length,
+          length: linkLabel.length,
+          url: actionUrl,
+        }]
+      : undefined;
+
+    const response = await fetch(
+      "https://api.telegram.org/bot" + connection.secret + "/sendMessage",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          chat_id: job.recipient,
+          text,
+          ...(entities ? { entities } : {}),
+          disable_web_page_preview: true,
+        }),
+      },
+    );
+
+    const payload: unknown = await response.json().catch(() => null);
+    if (
+      !response.ok ||
+      !payload ||
+      typeof payload !== "object" ||
+      (payload as Record<string, unknown>).ok !== true
+    ) {
+      throw new Error("Telegram delivery failed.");
+    }
+
+    const result = (payload as Record<string, unknown>).result;
+    if (!result || typeof result !== "object") return null;
+
+    const id = (result as Record<string, unknown>).message_id;
+    return typeof id === "string" || typeof id === "number"
+      ? String(id)
+      : null;
+  }
+
+  if (connection.provider === "resend") {
+    if (!connection.secret || !connection.sender) {
+      throw new Error("Email connection is incomplete.");
+    }
+
+    const endpoint =
+      connection.endpoint_url?.replace(/\/+$/, "") ||
+      "https://api.resend.com";
+
+    const response = await fetch(endpoint + "/emails", {
+      method: "POST",
+      headers: {
+        Authorization: "Bearer " + connection.secret,
+        "Content-Type": "application/json",
+        "Idempotency-Key":
+          job.delivery_idempotency_key ||
+          "notification-job:" + job.id,
+      },
+      body: JSON.stringify({
+        from: connection.sender,
+        to: [job.recipient],
+        subject: job.subject || "Notification",
+        text: actionUrl
+          ? job.message + "\n\n" + actionUrl
+          : job.message,
+      }),
+    });
+
+    const payload: unknown = await response.json().catch(() => null);
+    if (
+      !response.ok ||
+      !payload ||
+      typeof payload !== "object"
+    ) {
+      throw new Error("Email delivery failed.");
+    }
+
+    const id = (payload as Record<string, unknown>).id;
+    return typeof id === "string" ? id : null;
+  }
+
+  if (connection.provider === "twilio") {
+    if (!connection.secret || !connection.sender) {
+      throw new Error("SMS connection is incomplete.");
+    }
+
+    const accountSid = connection.config.account_sid;
+    if (typeof accountSid !== "string" || !accountSid) {
+      throw new Error("SMS account configuration is incomplete.");
+    }
+
+    const body = new URLSearchParams({
+      To: job.recipient,
+      From: connection.sender,
+      Body: actionUrl
+        ? job.message + " " + actionUrl
+        : job.message,
+    });
+
+    const response = await fetch(
+      "https://api.twilio.com/2010-04-01/Accounts/" +
+        encodeURIComponent(accountSid) +
+        "/Messages.json",
+      {
+        method: "POST",
+        headers: {
+          Authorization:
+            "Basic " + btoa(accountSid + ":" + connection.secret),
+          "Content-Type": "application/x-www-form-urlencoded",
+        },
+        body,
+      },
+    );
+
+    const payload: unknown = await response.json().catch(() => null);
+    if (
+      !response.ok ||
+      !payload ||
+      typeof payload !== "object"
+    ) {
+      throw new Error("SMS delivery failed.");
+    }
+
+    const sid = (payload as Record<string, unknown>).sid;
+    return typeof sid === "string" ? sid : null;
+  }
+
+  throw new Error("Notification provider is not supported by this worker.");
+}
+
+async function markConnectionHealth(
+  connectionId: string,
+  healthStatus: "healthy" | "degraded" | "failing",
+  lastError: string | null,
+) {
+  await admin
+    .from("business_notification_connections")
+    .update({
+      health_status: healthStatus,
+      last_health_check_at: new Date().toISOString(),
+      last_error: lastError,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", connectionId);
 }
 
 Deno.serve(async (req) => {
-  if (req.method !== "POST") return json({ error: "POST required" }, 405);
+  if (req.method !== "POST") {
+    return json({ error: "POST required" }, 405);
+  }
 
   try {
-    const { data: jobs, error } = await admin.rpc("claim_notification_jobs", { p_limit: 20 });
+    const { data: jobs, error } = await admin.rpc(
+      "claim_notification_jobs",
+      { p_limit: 20 },
+    );
+
     if (error) throw error;
 
     let sent = 0;
     let failed = 0;
+    let failedOver = 0;
 
-    for (const job of jobs || []) {
+    for (const job of (jobs || []) as NotificationJob[]) {
       try {
-        let providerId: string | null = null;
-        switch (String(job.channel).toLowerCase()) {
-          case "email":
-            providerId = await sendEmail(job);
-            break;
-          case "whatsapp":
-            providerId = await sendWhatsApp(job);
-            break;
-          case "sms":
-            providerId = await sendSms(job);
-            break;
-          case "telegram":
-            providerId = await sendTelegram(job);
-            break;
-          default:
-            throw new Error("Unsupported notification channel: " + job.channel);
+        const connection = await resolveTenantConnection(
+          job.business_id,
+          job.channel,
+        );
+
+        if (!connection?.secret) {
+          throw new Error(
+            "No active tenant notification connection is configured.",
+          );
         }
 
-        await admin.from("notification_jobs").update({
-          status: "sent",
-          sent_at: new Date().toISOString(),
-          provider_message_id: providerId,
-          last_error: null,
-          updated_at: new Date().toISOString(),
-        }).eq("id", job.id);
+        const providerId = await send(connection, job);
+        const attempt = Math.max(Number(job.attempts) || 1, 1);
+        const metadata = {
+          ...job.metadata,
+          connection_id: connection.id,
+          provider: connection.provider,
+          delivery_idempotency_key: job.delivery_idempotency_key,
+          delivery_attempt: attempt,
+          attempted_channels: attemptedChannels(
+            job.metadata,
+            job.channel,
+          ),
+        };
 
+        await admin
+          .from("notification_jobs")
+          .update({
+            status: "sent",
+            sent_at: new Date().toISOString(),
+            provider_message_id: providerId,
+            last_error: null,
+            metadata,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", job.id)
+          .eq("business_id", job.business_id);
+
+        await markConnectionHealth(connection.id, "healthy", null);
         sent++;
-      } catch (error) {
-        const message = error instanceof Error ? error.message : "Notification delivery failed";
-        const attempts = Number(job.attempts) || 1;
-        const terminal = attempts >= 5;
+      } catch (deliveryError) {
+        const message =
+          deliveryError instanceof Error
+            ? deliveryError.message
+            : "Notification delivery failed.";
 
-        await admin.from("notification_jobs").update({
-          status: terminal ? "failed" : "queued",
-          scheduled_for: terminal
-            ? job.scheduled_for
-            : new Date(Date.now() + retryDelayMs(attempts)).toISOString(),
-          last_error: message,
-          updated_at: new Date().toISOString(),
-        }).eq("id", job.id);
+        const attempts = Math.max(Number(job.attempts) || 1, 1);
+        const attempted = attemptedChannels(
+          job.metadata,
+          job.channel,
+        );
+        const key =
+          job.delivery_idempotency_key ||
+          (typeof job.metadata.idempotency_key === "string"
+            ? job.metadata.idempotency_key
+            : "notification-job:" + job.id);
+
+        const failedConnection =
+          await resolveTenantConnection(
+            job.business_id,
+            job.channel,
+          );
+
+        if (failedConnection) {
+          await markConnectionHealth(
+            failedConnection.id,
+            attempts >= 3 ? "failing" : "degraded",
+            "Notification delivery failed.",
+          );
+        }
+
+        const candidates =
+          attempts < 5
+            ? await connectionCandidates(
+                job.business_id,
+                attempted,
+              )
+            : [];
+
+        const fallback = candidates[0] || null;
+
+        if (fallback) {
+          const nextMetadata = {
+            ...job.metadata,
+            delivery_idempotency_key: key,
+            idempotency_key: key,
+            delivery_attempt: attempts + 1,
+            attempted_channels: Array.from(
+              new Set([...attempted, fallback.channel]),
+            ),
+            connection_id: fallback.id,
+            provider: fallback.provider,
+          };
+
+          await admin
+            .from("notification_jobs")
+            .update({
+              channel: fallback.channel,
+              recipient:
+                fallback.default_recipient || job.recipient,
+              status: "queued",
+              scheduled_for: new Date().toISOString(),
+              last_error: message,
+              metadata: nextMetadata,
+              updated_at: new Date().toISOString(),
+            })
+            .eq("id", job.id)
+            .eq("business_id", job.business_id);
+
+          failedOver++;
+          continue;
+        }
+
+        const terminal = attempts >= 5;
+        await admin
+          .from("notification_jobs")
+          .update({
+            status: terminal ? "failed" : "queued",
+            scheduled_for: terminal
+              ? job.scheduled_for
+              : new Date(
+                  Date.now() + retryDelayMs(attempts),
+                ).toISOString(),
+            last_error: message,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", job.id)
+          .eq("business_id", job.business_id);
 
         failed++;
       }
     }
 
-    return json({ ok: true, claimed: (jobs || []).length, sent, failed });
+    return json({
+      ok: true,
+      claimed: (jobs || []).length,
+      sent,
+      failed,
+      failed_over: failedOver,
+    });
   } catch (error) {
-    return json({ error: error instanceof Error ? error.message : "Notification worker failed" }, 500);
+    return json(
+      {
+        error:
+          error instanceof Error
+            ? error.message
+            : "Notification worker failed.",
+      },
+      500,
+    );
   }
 });
