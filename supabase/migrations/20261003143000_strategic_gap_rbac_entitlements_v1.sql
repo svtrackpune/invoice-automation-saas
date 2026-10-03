@@ -52,22 +52,25 @@ CREATE OR REPLACE FUNCTION mm_private.has_business_permission(
   p_business_id uuid,p_permission text,p_user_id uuid DEFAULT auth.uid()
 ) RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path=public,mm_private AS $fn$
   SELECT EXISTS(
-    SELECT 1
-    FROM public.businesses b
-    JOIN public.organization_members om ON om.organization_id=b.organization_id
-    LEFT JOIN public.member_permissions mp ON mp.organization_id=om.organization_id AND mp.user_id=om.user_id AND mp.permission_key=p_permission
-    LEFT JOIN public.role_permissions rp ON rp.role=om.role AND rp.permission_key=p_permission
-    WHERE b.id=p_business_id AND om.user_id=p_user_id AND om.is_active
-      AND CASE
-        WHEN om.role='cashier' AND p_permission='sales.create' THEN
-          current_setting('moneymatters.pos_cash_bill',true)='1'
-          AND coalesce(mp.allowed,rp.allowed,false)=true
-          AND EXISTS (SELECT 1 FROM public.role_permissions rpx WHERE rpx.role='cashier' AND rpx.permission_key='pos.cash_bill.create' AND rpx.allowed)
-        ELSE coalesce(mp.allowed,rp.allowed,false)
-      END
+    SELECT 1 FROM public.businesses b
+    WHERE b.id=p_business_id
+      AND (
+        mm_private.has_permission(b.organization_id,p_permission,p_user_id)
+        OR (
+          p_permission='sales.create'
+          AND current_setting('moneymatters.pos_cash_bill',true)='1'
+          AND EXISTS(
+            SELECT 1 FROM public.organization_members om
+            WHERE om.organization_id=b.organization_id
+              AND om.user_id=p_user_id
+              AND om.is_active
+              AND om.role='cashier'
+          )
+          AND mm_private.has_permission(b.organization_id,'pos.cash_bill.create',p_user_id)
+        )
+      )
   );
 $fn$;
-
 REVOKE ALL ON FUNCTION mm_private.has_business_permission(uuid,text,uuid) FROM public,anon,authenticated;
 
 -- Permit a cashier to enter the existing Cash Bill financial RPC only through its own trusted POS context.
