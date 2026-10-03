@@ -38,7 +38,24 @@ type Job = {
   last_error: string | null;
 };
 
-const emptyWapi = {
+type WapiForm = {
+  id: string;
+  endpoint_url: string;
+  external_instance_id: string;
+  secret: string;
+  display_name: string;
+  enabled: boolean;
+};
+
+type TelegramForm = {
+  id: string;
+  secret: string;
+  default_recipient: string;
+  display_name: string;
+  enabled: boolean;
+};
+
+const emptyWapi: WapiForm = {
   id: '',
   endpoint_url: '',
   external_instance_id: '',
@@ -47,7 +64,7 @@ const emptyWapi = {
   enabled: true,
 };
 
-const emptyTelegram = {
+const emptyTelegram: TelegramForm = {
   id: '',
   secret: '',
   default_recipient: '',
@@ -155,20 +172,19 @@ export default function WhatsApp() {
     setMessage('');
 
     const isWapi = channel === 'wapi';
-    const current = isWapi ? wapi : telegram;
 
     if (
       isWapi &&
-      (!current.endpoint_url.trim() ||
-        !current.external_instance_id.trim() ||
-        (!current.secret.trim() && !current.id))
+      (!wapi.endpoint_url.trim() ||
+        !wapi.external_instance_id.trim() ||
+        (!wapi.secret.trim() && !wapi.id))
     ) {
       setMessage('Wapi requires API URL, Instance ID and API Key on first setup.');
       setSaving(null);
       return;
     }
 
-    if (!isWapi && !current.secret.trim() && !current.id) {
+    if (!isWapi && !telegram.secret.trim() && !telegram.id) {
       setMessage('Telegram Bot Token is required on first setup.');
       setSaving(null);
       return;
@@ -178,20 +194,24 @@ export default function WhatsApp() {
       p_business_id: ctx.business_id,
       p_channel: isWapi ? 'whatsapp' : 'telegram',
       p_provider: isWapi ? 'wapi' : 'telegram-bot',
-      p_display_name: current.display_name.trim(),
-      p_connection_id: current.id || null,
-      p_endpoint_url: isWapi ? current.endpoint_url.trim() : null,
+      p_display_name: isWapi
+        ? wapi.display_name.trim()
+        : telegram.display_name.trim(),
+      p_connection_id: isWapi ? wapi.id || null : telegram.id || null,
+      p_endpoint_url: isWapi ? wapi.endpoint_url.trim() : null,
       p_external_instance_id: isWapi
-        ? current.external_instance_id.trim()
+        ? wapi.external_instance_id.trim()
         : null,
-      p_secret: current.secret.trim() || null,
+      p_secret: isWapi
+        ? wapi.secret.trim() || null
+        : telegram.secret.trim() || null,
       p_sender: null,
       p_default_recipient: isWapi
         ? null
-        : current.default_recipient.trim() || null,
+        : telegram.default_recipient.trim() || null,
       p_priority: 1,
       p_failover_group: 'customer-delivery',
-      p_enabled: current.enabled,
+      p_enabled: isWapi ? wapi.enabled : telegram.enabled,
       p_config: {},
     });
 
