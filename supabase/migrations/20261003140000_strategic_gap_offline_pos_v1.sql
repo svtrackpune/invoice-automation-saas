@@ -46,4 +46,19 @@ END; $fn$;
 
 REVOKE EXECUTE ON FUNCTION public.create_cash_bill(uuid,text,date,jsonb,public.payment_method,uuid,text,numeric,text,text,uuid,text) FROM public,anon;
 GRANT EXECUTE ON FUNCTION public.create_cash_bill(uuid,text,date,jsonb,public.payment_method,uuid,text,numeric,text,text,uuid,text) TO authenticated;
+
+-- Offline sync uses a distinct overload so the entitlement applies only to replay,
+-- while ordinary online Cash Bills keep working without the Offline POS feature.
+CREATE OR REPLACE FUNCTION public.create_cash_bill(
+  p_business_id uuid,p_phone text,p_invoice_date date,p_items jsonb,p_payment_method public.payment_method,p_account_id uuid,
+  p_invoice_discount_type text,p_invoice_discount_value numeric,p_notes text,p_terms text,p_temp_pos_uuid uuid,p_offline_ticket_number text,p_offline_sync boolean
+) RETURNS uuid LANGUAGE plpgsql SECURITY DEFINER SET search_path=public,mm_private AS $fn$
+DECLARE v_enabled boolean;
+BEGIN
+  SELECT coalesce(offline_pos_enabled,false) INTO v_enabled FROM public.saas_entitlements WHERE business_id=p_business_id;
+  IF coalesce(p_offline_sync,false) AND NOT coalesce(v_enabled,false) THEN RAISE EXCEPTION 'Offline POS is not enabled for this business plan.'; END IF;
+  RETURN public.create_cash_bill(p_business_id,p_phone,p_invoice_date,p_items,p_payment_method,p_account_id,p_invoice_discount_type,p_invoice_discount_value,p_notes,p_terms,p_temp_pos_uuid,p_offline_ticket_number);
+END; $fn$;
+REVOKE EXECUTE ON FUNCTION public.create_cash_bill(uuid,text,date,jsonb,public.payment_method,uuid,text,numeric,text,text,uuid,text,boolean) FROM public,anon;
+GRANT EXECUTE ON FUNCTION public.create_cash_bill(uuid,text,date,jsonb,public.payment_method,uuid,text,numeric,text,text,uuid,text,boolean) TO authenticated;
 COMMIT;
