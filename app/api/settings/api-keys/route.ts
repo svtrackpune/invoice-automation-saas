@@ -20,7 +20,8 @@ async function actor(req:Request) {
   const {data:{user}}=await client.auth.getUser();
   if(!user)return null;
   const {data:ctx}=await client.rpc('get_my_business_context');
-  return {user,client,context:(ctx||[]).find((x:any)=>x.business_id)};
+  const rows = Array.isArray(ctx) ? ctx as Array<{ business_id: string }> : [];
+  return {user,client,context:rows.find((x)=>x.business_id)};
 }
 
 export async function GET(req:Request){
