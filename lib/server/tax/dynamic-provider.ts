@@ -4,7 +4,6 @@ import type { TaxCalculationParams, TaxCalculationResult, TaxDeterminationProvid
 
 const EU_MEMBER_STATES=new Set(['AT','BE','BG','HR','CY','CZ','DK','EE','FI','FR','DE','GR','HU','IE','IT','LV','LT','LU','MT','NL','PL','PT','RO','SK','SI','ES','SE']);
 const inferSystem=(buyer:string,seller:string,requested:TaxSystem|null|undefined):TaxSystem=>requested||((buyer==='IN'||seller==='IN')?'GST':(buyer==='US'||seller==='US'||buyer==='CA'||seller==='CA')?'SALES_TAX':'VAT');
-const round6=(v:number)=>Math.round(v*1_000_000)/1_000_000;
 const round2=(v:number)=>Math.round((v+Number.EPSILON)*100)/100;
 const asArray=(v:unknown):string[]=>Array.isArray(v)?v.map(String):[];
 const has=(v:unknown,expected:string)=>asArray(v).some(x=>x.toUpperCase()===expected.toUpperCase());
@@ -24,6 +23,8 @@ function ruleScore(rule:Rule,j:Jurisdiction,buyer:CanonicalAddress,seller:Canoni
   if(subs.length&&(!buyer.country_subdivision_code||!has(subs,buyer.country_subdivision_code)))return -Infinity;
   const postalPrefixes=asArray(m.postal_prefixes);
   if(postalPrefixes.length&&(!buyer.postal_code||!postalPrefixes.some(x=>buyer.postal_code!.toUpperCase().startsWith(x.toUpperCase()))))return -Infinity;
+  const localities=asArray(m.localities||m.cities||m.buyer_localities);
+  if(localities.length&&(!buyer.locality||!localities.some(x=>x.toUpperCase()===buyer.locality!.toUpperCase())))return -Infinity;
   const requiredBuyerTaxId=Boolean(m.requires_buyer_tax_id);
   if(requiredBuyerTaxId&&!buyerTaxId)return -Infinity;
   let score=rule.business_id?100:0;
