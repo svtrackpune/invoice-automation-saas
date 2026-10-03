@@ -27,6 +27,7 @@ const invoiceSchema = z.object({
   invoice_discount_value: z.number().nonnegative().optional(),
   notes: z.string().max(5000).optional().nullable(),
   terms: z.string().max(5000).optional().nullable(),
+  buyer_reference: z.string().trim().min(1).max(70).optional().nullable(),
   post: z.boolean().optional().default(false),
   tax_system: z.enum(['VAT','SALES_TAX','GST','CUSTOM']).optional().nullable(),
 }).strict();
@@ -46,7 +47,7 @@ export async function GET(req: Request) {
     const limit = parseLimit(url.searchParams.get('limit'));
     const status = url.searchParams.get('status')?.trim();
     let query = db.from('invoices')
-      .select('id,invoice_number,document_kind,invoice_date,due_date,status,customer_id,subtotal,discount_total,tax_total,total,amount_paid,balance_due,currency_code,journal_entry_id,created_at,updated_at')
+      .select('id,invoice_number,buyer_reference,document_kind,invoice_date,due_date,status,customer_id,subtotal,discount_total,tax_total,total,amount_paid,balance_due,currency_code,journal_entry_id,created_at,updated_at')
       .eq('business_id', key.businessId)
       .order('created_at', { ascending: false })
       .limit(limit);
@@ -74,10 +75,14 @@ export async function POST(req: Request) {
       const rpc=await db.rpc('api_create_invoice_with_dynamic_tax',{
         p_api_key_hash:createHash('sha256').update(extractApiKey(req),'utf8').digest('hex'),
         p_business_id:key.businessId,p_customer_id:body.customer_id,p_invoice_date:body.invoice_date,p_due_date:body.due_date??body.invoice_date,
-        p_items:dynamic.items,p_notes:body.notes??null,p_terms:body.terms??null,p_post:body.post??false,
+        p_items:dynamic.items,p_notes:body.notes??null,p_terms:body.terms??null,p_buyer_reference:body.buyer_reference??null,p_post:body.post??false,
       });
       if(rpc.error)throw rpc.error;
       const invoiceId=String(rpc.data);
+      if(body.buyer_reference){
+        const metaUpdate=await db.from('invoices').update({buyer_reference:body.buyer_reference.trim()}).eq('id',invoiceId).eq('business_id',key.businessId);
+        if(metaUpdate.error)throw metaUpdate.error;
+      }
       const {data:invoice,error:fetchError}=await db.from('invoices').select('id,invoice_number,document_kind,invoice_date,due_date,status,customer_id,subtotal,discount_total,tax_total,total,amount_paid,balance_due,currency_code,journal_entry_id,created_at,updated_at').eq('id',invoiceId).eq('business_id',key.businessId).single();
       if(fetchError||!invoice)return jsonError(fetchError?.message||'Invoice was created but could not be read back',500);
       return Response.json({success:true,data:invoice,tax:{provider:dynamic.provider,totalTax:dynamic.totalTax}}, {status:201});
