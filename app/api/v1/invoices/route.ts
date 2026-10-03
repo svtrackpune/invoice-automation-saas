@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import { createHash } from 'node:crypto';
 import { z } from 'zod';
 import { authenticatePublicApi, jsonError, parseLimit, extractApiKey } from '@/lib/server/api-key-auth';
 
@@ -64,7 +65,7 @@ export async function POST(req: Request) {
     const body = parsed.data;
     const db = getAdmin();
     const { data, error } = await db.rpc('api_create_invoice_from_items', {
-      p_api_key_hash: extractApiKey(req) && await import('node:crypto').then(({createHash}) => createHash('sha256').update(extractApiKey(req),'utf8').digest('hex')),
+      p_api_key_hash: createHash('sha256').update(extractApiKey(req),'utf8').digest('hex'),
       p_business_id: key.businessId,
       p_customer_id: body.customer_id,
       p_invoice_date: body.invoice_date,
