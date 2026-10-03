@@ -1,0 +1,10 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
+const root=new URL('../',import.meta.url);
+const migration=await readFile(new URL('supabase/migrations/20261003143000_strategic_gap_rbac_entitlements_v1.sql',root),'utf8');
+const guard=await readFile(new URL('components/RoleRouteGuard.tsx',root),'utf8');
+const rbac=await readFile(new URL('lib/rbac.ts',root),'utf8');
+test('RBAC adds cashier and auditor without changing ledger permission model',()=>{assert.match(migration,/member_role ADD VALUE IF NOT EXISTS 'cashier'/);assert.match(migration,/member_role ADD VALUE IF NOT EXISTS 'auditor'/);assert.match(migration,/pos\.cash_bill\.create/);assert.match(migration,/ownership\.manage/);});
+test('cashier cannot use generic sales.create',()=>{assert.match(migration,/DELETE FROM public\.role_permissions WHERE role='cashier'/);assert.match(migration,/moneymatters\.pos_cash_bill/);assert.match(migration,/pos\.cash_bill\.create/);});
+test('access helper and client route guard use database permissions',()=>{assert.match(migration,/get_my_business_access/);assert.match(guard,/get_my_business_access/);assert.match(guard,/Access restricted/);assert.match(rbac,/BusinessRole/);});
