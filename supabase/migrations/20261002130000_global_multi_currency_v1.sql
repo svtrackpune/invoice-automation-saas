@@ -47,7 +47,7 @@ RETURNS trigger
 LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path=public,mm_private
-AS $
+AS $$
 BEGIN
   IF NEW.base_currency_code IS DISTINCT FROM OLD.base_currency_code
      AND EXISTS (
@@ -59,7 +59,7 @@ BEGIN
   END IF;
   RETURN NEW;
 END;
-$;
+$$;
 
 DROP TRIGGER IF EXISTS trg_business_base_currency_change ON public.businesses;
 CREATE TRIGGER trg_business_base_currency_change
@@ -320,7 +320,7 @@ WHERE p.id=vpa.payment_id AND vpa.currency_code IS NULL;
 ALTER TABLE public.vendor_payment_allocations ALTER COLUMN currency_code SET NOT NULL;
 
 CREATE OR REPLACE FUNCTION public.guard_payment_allocation_currency()
-RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path=public,mm_private AS $
+RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path=public,mm_private A$$
 DECLARE
   p public.payments%rowtype;
   i public.invoices%rowtype;
@@ -377,7 +377,7 @@ BEGIN
 
   RETURN NEW;
 END;
-$;
+$$;
 
 DROP TRIGGER IF EXISTS trg_payment_allocation_currency_guard ON public.payment_allocations;
 CREATE TRIGGER trg_payment_allocation_currency_guard
