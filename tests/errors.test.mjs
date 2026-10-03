@@ -10,7 +10,7 @@ test('withErrorHandler sanitizes unexpected runtime errors and returns a request
   const request = new Request('https://app.example.com/api/test');
 
   const response = await withErrorHandler(request, async () => {
-    throw new Error('SQL connection failed: password=super-secret');
+    throw new Error('SQL connection failed: password=SYNTHETIC_TEST_FIXTURE_DO_NOT_USE');
   });
 
   const body = await response.json();
