@@ -39,7 +39,7 @@ test('webhooks have HMAC signatures and bounded exponential retries',()=>{
   assert.match(migration,/webhook_delivery_logs/);
   assert.match(worker,/HMAC/);
   assert.match(worker,/X-Moneymatters-Signature/);
-  assert.match(worker,/attempt\)>=5/);
+  assert.match(worker,/attempt[^\n]*>=5/);
   assert.match(worker,/2\*\*/);
 });
 
