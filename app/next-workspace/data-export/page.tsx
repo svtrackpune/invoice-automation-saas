@@ -163,7 +163,6 @@ export default function DataExportPage() {
         payroll_items: { parent: 'payroll_runs', childKey: 'payroll_run_id', parentKey: 'id' },
         bank_transactions: { parent: 'bank_accounts', childKey: 'bank_account_id', parentKey: 'id' },
         bank_reconciliation_items: { parent: 'bank_reconciliations', childKey: 'reconciliation_id', parentKey: 'id' },
-        reconciliation_items: { parent: 'reconciliations', childKey: 'reconciliation_id', parentKey: 'id' },
       };
 
       for (const table of CHILD_TABLES) {
