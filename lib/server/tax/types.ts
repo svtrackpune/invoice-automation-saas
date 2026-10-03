@@ -55,3 +55,46 @@ export interface TaxAdapter {
   readonly taxSystem: TaxSystem;
   snapshot(input: TaxSnapshotInput): TaxLineSnapshot[];
 }
+
+export interface TaxCalculationLineParam {
+  invoiceItemId: string;
+  taxCode?: string | null;
+  netAmount: number;
+}
+
+export interface TaxCalculationParams {
+  invoiceDate: string;
+  supplierAddress: CanonicalAddress;
+  buyerAddress: CanonicalAddress;
+  supplierTaxId?: string | null;
+  buyerTaxId?: string | null;
+  taxSystem?: TaxSystem | null;
+  currencyCode: string;
+  lines: TaxCalculationLineParam[];
+}
+
+export interface TaxCalculationLineResult {
+  invoiceItemId: string;
+  jurisdictionId: string;
+  taxRuleId: string;
+  taxComponentId: string | null;
+  taxCode: string;
+  taxCategory: TaxCategory;
+  rate: number;
+  taxableAmount: number;
+  taxAmount: number;
+  isReverseCharge: boolean;
+  componentSequence: number;
+  calculationBasis: 'net' | 'gross_plus_previous';
+  sourceProvider: string;
+}
+
+export interface TaxCalculationResult {
+  lines: TaxCalculationLineResult[];
+  totalTax: number;
+}
+
+export interface TaxDeterminationProvider {
+  readonly name: string;
+  calculateTaxes(params: TaxCalculationParams): Promise<TaxCalculationResult>;
+}
