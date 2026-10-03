@@ -59,7 +59,7 @@ export async function authenticatePublicApi(request: Request, requiredScope?: Pu
 
   const scopes = Array.isArray(data.scopes) ? data.scopes as PublicApiScope[] : [];
   if (requiredScope && !scopes.includes(requiredScope)) {
-    throw new Error(\`API key lacks required scope: \${requiredScope}\`);
+    throw new Error('API key lacks required scope: '+requiredScope);
   }
 
   void db
