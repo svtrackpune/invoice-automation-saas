@@ -225,6 +225,35 @@ CREATE INDEX IF NOT EXISTS bank_reconciliation_rules_route_idx
 
 ALTER TABLE public.bank_reconciliation_rules ENABLE ROW LEVEL SECURITY;
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.bank_reconciliation_rules TO authenticated;
+CREATE OR REPLACE FUNCTION public.guard_bank_reconciliation_rule_target_account()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, mm_private
+AS $fn$
+BEGIN
+  IF NEW.target_account_id IS NOT NULL
+     AND NOT EXISTS (
+       SELECT 1
+       FROM public.accounts
+       WHERE id=NEW.target_account_id
+         AND business_id=NEW.business_id
+         AND is_active
+     ) THEN
+    RAISE EXCEPTION 'Bank reconciliation rule target account is invalid for this business';
+  END IF;
+  RETURN NEW;
+END;
+$fn$;
+
+DROP TRIGGER IF EXISTS trg_guard_bank_reconciliation_rule_target_account
+ON public.bank_reconciliation_rules;
+CREATE TRIGGER trg_guard_bank_reconciliation_rule_target_account
+BEFORE INSERT OR UPDATE OF business_id,target_account_id
+ON public.bank_reconciliation_rules
+FOR EACH ROW
+EXECUTE FUNCTION public.guard_bank_reconciliation_rule_target_account();
+
 
 DROP POLICY IF EXISTS bank_reconciliation_rules_select ON public.bank_reconciliation_rules;
 CREATE POLICY bank_reconciliation_rules_select
