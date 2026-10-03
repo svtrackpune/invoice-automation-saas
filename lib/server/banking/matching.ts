@@ -49,8 +49,9 @@ export const matchInvoiceReference = (
   amountTolerance = DEFAULT_OPTIONS.amountTolerance,
 ): BankMatchSuggestion | null => {
   if (transaction.signedAmount <= 0) return null;
-  if (transaction.reference && !normalizedMatchText(transaction.reference + ' ' + transaction.description)
-    .includes(normalizedMatchText(invoice.invoiceNumber))) return null;
+  const invoiceReference = normalizedMatchText(invoice.invoiceNumber);
+  const transactionReference = normalizedMatchText(transaction.reference + ' ' + transaction.description);
+  if (!invoiceReference || !transactionReference.includes(invoiceReference)) return null;
 
   const difference = Math.abs(transaction.signedAmount - invoice.balanceDue);
   if (difference > amountTolerance) return null;
@@ -100,7 +101,7 @@ export const classifyExplicitDifference = (
 ): BankMatchSuggestion | null => {
   const text = transaction.reference + ' ' + transaction.description;
 
-  if ((options.gatewayFeePattern ?? /gateway|stripe|razorpay|payable|processing fee|merchant fee/i).test(text)) {
+  if ((options.gatewayFeePattern ?? /gateway\s*(?:payment\s*)?(?:fee|charge)|processing fee|merchant fee|stripe fee|razorpay fee|payable fee|payment processing charge|gateway commission/i).test(text)) {
     return {
       type: 'gateway_fee',
       recordId: null,
