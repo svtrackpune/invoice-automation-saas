@@ -13,6 +13,7 @@ export type PublicApiScope =
 export type AuthenticatedApiKey = {
   id: string;
   businessId: string;
+  createdBy: string;
   name: string;
   keyPrefix: string;
   scopes: PublicApiScope[];
@@ -41,7 +42,7 @@ export async function authenticatePublicApi(request: Request, requiredScope?: Pu
 
   const { data, error } = await db
     .from('api_keys')
-    .select('id,business_id,name,key_prefix,scopes,revoked_at,expires_at')
+    .select('id,business_id,created_by,name,key_prefix,scopes,revoked_at,expires_at')
     .eq('key_hash', keyHash)
     .is('revoked_at', null)
     .maybeSingle();
@@ -65,6 +66,7 @@ export async function authenticatePublicApi(request: Request, requiredScope?: Pu
   return {
     id: data.id,
     businessId: data.business_id,
+    createdBy: String(data.created_by),
     name: data.name,
     keyPrefix: data.key_prefix,
     scopes,
