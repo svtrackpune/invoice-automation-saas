@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Document xmlns="urn:iso:std:iso:20022:tech:xsd:camt.053.001.02">
+  <BkToCstmrStmt>
+    <Stmt>
+      <Id>STATEMENT-001</Id>
+      <Acct><Id><IBAN>LK123456</IBAN></Id></Acct>
+      <Bal><Tp><CdOrPrtry><Cd>OPBD</Cd></CdOrPrtry></Tp><Amt Ccy="INR">10000.00</Amt></Bal>
+      <Ntry>
+        <Amt Ccy="INR">2500.00</Amt>
+        <CdtDbtInd>CRDT</CdtDbtInd>
+        <BookgDt><Dt>2026-10-01</Dt></BookgDt>
+        <AcctSvcrRef>REF-001</AcctSvcrRef>
+        <NtryDtls><TxDtls><Refs><EndToEndId>INV-2026-001</EndToEndId></Refs><RmtInf><Ustrd>Customer payment INV-2026-001</Ustrd></RmtInf></TxDtls></NtryDtls>
+      </Ntry>
+      <Ntry>
+        <Amt Ccy="INR">100.00</Amt>
+        <CdtDbtInd>DBIT</CdtDbtInd>
+        <BookgDt><Dt>2026-10-01</Dt></BookgDt>
+        <AcctSvcrRef>FEE-001</AcctSvcrRef>
+        <NtryDtls><TxDtls><RmtInf><Ustrd>Bank service charge</Ustrd></RmtInf></TxDtls></NtryDtls>
+      </Ntry>
+      <Bal><Tp><CdOrPrtry><Cd>CLBD</Cd></CdOrPrtry></Tp><Amt Ccy="INR">12400.00</Amt></Bal>
+    </Stmt>
+  </BkToCstmrStmt>
+</Document>
