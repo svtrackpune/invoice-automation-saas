@@ -310,20 +310,36 @@ $$;
 ALTER TABLE public.payment_allocations
   ADD COLUMN IF NOT EXISTS currency_code char(3);
 
+-- Metadata-only backfill: suppress payment-allocation business-state triggers
+-- while the new currency column is populated from the linked payment.
+ALTER TABLE public.payment_allocations DISABLE TRIGGER trg_validate_payment_allocation;
+ALTER TABLE public.payment_allocations DISABLE TRIGGER trg_sync_document_payment_totals;
+
 UPDATE public.payment_allocations pa
 SET currency_code=upper(p.currency_code)
 FROM public.payments p
 WHERE p.id=pa.payment_id AND pa.currency_code IS NULL;
+
+ALTER TABLE public.payment_allocations ENABLE TRIGGER trg_validate_payment_allocation;
+ALTER TABLE public.payment_allocations ENABLE TRIGGER trg_sync_document_payment_totals;
 
 ALTER TABLE public.payment_allocations ALTER COLUMN currency_code SET NOT NULL;
 
 ALTER TABLE public.vendor_payment_allocations
   ADD COLUMN IF NOT EXISTS currency_code char(3);
 
+-- Metadata-only backfill: suppress vendor-settlement triggers while the
+-- new currency column is populated from the linked payment.
+ALTER TABLE public.vendor_payment_allocations DISABLE TRIGGER trg_vendor_payment_allocation_net_guard;
+ALTER TABLE public.vendor_payment_allocations DISABLE TRIGGER trg_vendor_payment_allocation_settlement_sync;
+
 UPDATE public.vendor_payment_allocations vpa
 SET currency_code=upper(p.currency_code)
 FROM public.payments p
 WHERE p.id=vpa.payment_id AND vpa.currency_code IS NULL;
+
+ALTER TABLE public.vendor_payment_allocations ENABLE TRIGGER trg_vendor_payment_allocation_net_guard;
+ALTER TABLE public.vendor_payment_allocations ENABLE TRIGGER trg_vendor_payment_allocation_settlement_sync;
 
 ALTER TABLE public.vendor_payment_allocations ALTER COLUMN currency_code SET NOT NULL;
 
