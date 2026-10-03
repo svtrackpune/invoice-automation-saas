@@ -14,7 +14,7 @@ const DIRECT_BUSINESS_TABLES = [
   'tcs_rules','tcs_transactions','tax_transaction_lines','report_snapshots','ca_exports','notification_jobs',
   'notification_delivery_evidence','business_whatsapp_connections','whatsapp_templates','whatsapp_notification_queue',
   'vendor_purchase_items','ai_agent_preferences','ai_insight_events','ai_action_requests','document_render_jobs',
-  'recurring_invoice_runs','fx_rates','bank_reconciliations','reconciliations','year_end_closings',
+  'recurring_invoice_runs','fx_rates','bank_reconciliations','year_end_closings',
 ] as const;
 
 const CHILD_TABLES = [
