@@ -91,7 +91,8 @@ export function parseLimit(value: string | null, fallback = 50, max = 100): numb
 
 export async function requireBusinessEntitlement(businessId: string, feature: 'e_invoicing_enabled' | 'offline_pos_enabled') {
   const db=getAdmin();
-  const {data,error}=await db.from('saas_entitlements').select(feature).eq('business_id',businessId).maybeSingle();
+  const column = feature === 'e_invoicing_enabled' ? 'e_invoicing_enabled' : 'offline_pos_enabled';
+  const {data,error}=await db.from('saas_entitlements').select('e_invoicing_enabled,offline_pos_enabled').eq('business_id',businessId).maybeSingle();
   if(error) throw new Error('Unable to verify SaaS entitlement.');
-  if(data?.[feature]!==true) throw new Error('This feature is not enabled for the business plan.');
+  if(data?.[column]!==true) throw new Error('This feature is not enabled for the business plan.');
 }
