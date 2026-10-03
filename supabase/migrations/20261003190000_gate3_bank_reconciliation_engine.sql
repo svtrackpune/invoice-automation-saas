@@ -23,8 +23,7 @@ BEGIN
 END $$;
 
 ALTER TABLE public.bank_transactions
-  ALTER COLUMN business_id SET NOT NULL,
-  ALTER COLUMN fingerprint SET NOT NULL;
+  ALTER COLUMN business_id SET NOT NULL;
 
 ALTER TABLE public.bank_transactions
   DROP CONSTRAINT IF EXISTS bank_transactions_business_id_fkey;
@@ -137,7 +136,7 @@ SET fingerprint = public.bank_transaction_fingerprint(
   bt.reference
 );
 
-DO $$
+DO $
 BEGIN
   IF EXISTS (
     SELECT business_id, bank_account_id, fingerprint
@@ -147,7 +146,10 @@ BEGIN
   ) THEN
     RAISE EXCEPTION 'Gate 3 found duplicate historical bank transaction fingerprints; resolve them before enabling the unique constraint';
   END IF;
-END $$;
+END $;
+
+ALTER TABLE public.bank_transactions
+  ALTER COLUMN fingerprint SET NOT NULL;
 
 ALTER TABLE public.bank_transactions
   DROP CONSTRAINT IF EXISTS bank_transactions_business_bank_fingerprint_key;
@@ -222,6 +224,7 @@ CREATE INDEX IF NOT EXISTS bank_reconciliation_rules_route_idx
   ON public.bank_reconciliation_rules(business_id, enabled, priority);
 
 ALTER TABLE public.bank_reconciliation_rules ENABLE ROW LEVEL SECURITY;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.bank_reconciliation_rules TO authenticated;
 
 DROP POLICY IF EXISTS bank_reconciliation_rules_select ON public.bank_reconciliation_rules;
 CREATE POLICY bank_reconciliation_rules_select
@@ -826,6 +829,8 @@ BEGIN
     RAISE EXCEPTION 'Bank transaction not found';
   END IF;
 
+  PERFORM public.assert_accounting_period_open(v_rec.business_id, v_tx.transaction_date);
+
   v_old_item := to_jsonb(v_item);
   v_old_tx := to_jsonb(v_tx);
 
@@ -1124,6 +1129,7 @@ BEGIN
       balance_after,
       external_transaction_id,
       raw_data,
+      suggested_account_id,
       status
     )
     VALUES(
@@ -1141,6 +1147,7 @@ BEGIN
       END,
       v_external,
       coalesce(v_row->'raw_data','{}'::jsonb),
+      nullif(v_row->>'suggested_account_id','')::uuid,
       'unreviewed'::bank_txn_status
     )
     ON CONFLICT (business_id, bank_account_id, fingerprint) DO NOTHING;
