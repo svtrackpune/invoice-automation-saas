@@ -22,6 +22,7 @@ BEGIN
   VALUES(p_business_id,p_customer_id,v_number,coalesce(p_invoice_date,current_date),coalesce(p_due_date,coalesce(p_invoice_date,current_date)),'draft',v_currency,0,0,0,0,0,0,p_notes,p_terms,NULL,0,true,k.created_by) RETURNING id INTO v_invoice;
 
   FOR v_item IN SELECT * FROM jsonb_array_elements(p_items) LOOP
+    v_tax_rate:=NULL;
     v_product:=nullif(v_item->>'product_service_id','')::uuid;
     v_qty:=coalesce((v_item->>'quantity')::numeric,0);
     v_price:=coalesce((v_item->>'unit_price')::numeric,0);
@@ -46,10 +47,8 @@ BEGIN
       SELECT CASE WHEN count(*) FILTER (WHERE upper(coalesce(x->>'taxCategory','STANDARD'))='REVERSE_CHARGE')>0 THEN 'REVERSE_CHARGE' ELSE coalesce(max(upper(x->>'taxCategory')),'STANDARD') END
       INTO v_tax_category FROM jsonb_array_elements(v_meta) x;
     END IF;
-    IF v_tax_rate IS NULL THEN
-      INSERT INTO public.tax_rates(business_id,name,rate,tax_kind,component_code,is_compound,is_active,metadata)
+    INSERT INTO public.tax_rates(business_id,name,rate,tax_kind,component_code,is_compound,is_active,metadata)
       VALUES(p_business_id,coalesce(nullif(v_item->>'tax_name',''),'Dynamic tax'),v_effective_rate,'sales',null,false,true,jsonb_build_object('dynamic_provider',true,'snapshot',v_meta,'jurisdiction_id',v_item->>'jurisdiction_id','tax_rule_id',v_item->>'tax_rule_id','source_provider',coalesce(v_item->>'source_provider','moneymatters.dynamic-tax-v1'))) RETURNING id INTO v_tax_rate;
-    END IF;
     INSERT INTO public.invoice_items(invoice_id,product_service_id,description,quantity,unit_price,discount,discount_type,discount_value,unit_price_before_discount,tax_rate_id,tax_amount,line_total,sort_order,hsn_sac)
     VALUES(v_invoice,v_product,coalesce(nullif(v_item->>'description',''),(SELECT name FROM public.products_services WHERE id=v_product)),v_qty,v_price,v_discount,case when v_discount>0 then 'fixed' else null end,v_discount,v_price,v_tax_rate,v_tax,round(v_taxable+v_tax,2),(SELECT coalesce(max(sort_order),-1)+1 FROM public.invoice_items WHERE invoice_id=v_invoice),v_hsn);
   END LOOP;
@@ -96,6 +95,5 @@ BEGIN
 END; $fn$;
 
 REVOKE ALL ON FUNCTION public.snapshot_dynamic_invoice_tax(uuid) FROM public,anon,authenticated;
-REVOKE ALL ON FUNCTION public.trigger_snapshot_posted_invoice_tax_dynamic() FROM public,anon,authenticated;
 GRANT EXECUTE ON FUNCTION public.snapshot_dynamic_invoice_tax(uuid) TO service_role;
 COMMIT;
