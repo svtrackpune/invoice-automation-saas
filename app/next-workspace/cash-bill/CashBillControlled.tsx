@@ -25,7 +25,7 @@ export default function CashBillControlled(p:Props){
  const search=useRef<HTMLInputElement>(null); const [query,setQuery]=useState(''); const [row,setRow]=useState(0); const [hold,setHold]=useState(false); const [discountOpen,setDiscountOpen]=useState(false);
  const matches=useMemo(()=>{const q=query.trim().toLowerCase();return (q?p.products.filter(x=>x.name.toLowerCase().includes(q)||(x.sku||'').toLowerCase().includes(q)):p.products).slice(0,8)},[p.products,query]);
  const change=p.tender==='cash'?Math.max(p.amountReceived-p.totals.total,0):0;
- const short=p.tender==='cash'&&p.amountReceived>0&&p.amountReceived<p.totals.total;
+ const short=p.tender==='cash'&&p.amountReceived<p.totals.total;
  useEffect(()=>{const h=(e:KeyboardEvent)=>{if(e.key==='F2'){e.preventDefault();search.current?.focus();search.current?.select()}else if(e.key==='F4'){e.preventDefault();setDiscountOpen(true)}else if(e.key==='F8'){e.preventDefault();setHold(v=>!v)}else if(e.key==='F10'){e.preventDefault();document.getElementById('tender-button')?.focus()}else if(e.altKey&&e.key.toLowerCase()==='d'){e.preventDefault();if(p.lines[row])p.remove(row)}};window.addEventListener('keydown',h);return()=>window.removeEventListener('keydown',h)},[row,p]);
  const addQuery=()=>{const x=matches[row]||matches[0];if(!x)return;const m=query.match(/^(\d+(?:\.\d+)?)\s*[x*]\s*(.+)$/i);p.searchAndAdd(x.sku||x.name,m?Number(m[1]):1);setQuery('');setRow(0);search.current?.focus()};
  return <main className="min-h-[calc(100vh-100px)] bg-slate-50 p-2 text-slate-950 sm:p-3"><div className="mx-auto max-w-[1500px]">
