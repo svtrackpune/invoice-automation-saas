@@ -5,6 +5,7 @@ import { supabase, type BusinessContext } from '@/lib/supabase';
 import { Button, Card, EmptyState, PageHeader, StatusBadge } from '@/components/moneymatters';
 import CustomerCreditApplyModal from './CustomerCreditApplyModal';
 import CustomerRefundModal from './CustomerRefundModal';
+import CollectionDrawer, { type CollectionInvoice } from '../invoices/CollectionDrawer';
 
 type Params = { params: Promise<{ id: string }> };
 type Customer = {
@@ -66,6 +67,9 @@ type InvoiceTarget = {
   invoice_number: string;
   balance_due: number;
   status: string;
+  total: number;
+  due_date: string;
+  currency_code: string;
 };
 type Row = Record<string, string>;
 
@@ -79,6 +83,7 @@ const money = (n: number) =>
 export default function Customer360Controlled({ params }: Params) {
   const [id, setId] = useState('');
   const [businessId, setBusinessId] = useState('');
+  const [businessRole, setBusinessRole] = useState('');
   const [customer, setCustomer] = useState<Customer | null>(null);
   const [summary, setSummary] = useState<Summary | null>(null);
   const [entries, setEntries] = useState<Entry[]>([]);
@@ -94,6 +99,7 @@ export default function Customer360Controlled({ params }: Params) {
   const [refundCreditOpen, setRefundCreditOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [collectionInvoice, setCollectionInvoice] = useState<CollectionInvoice | null>(null);
 
   useEffect(() => {
     params.then((p) => setId(p.id));
@@ -115,6 +121,7 @@ export default function Customer360Controlled({ params }: Params) {
     }
 
     setBusinessId(b.business_id);
+    setBusinessRole(b.role || '');
 
     const [cu, su, st, iv, qu, pa, re, cl, rf] = await Promise.all([
       supabase
@@ -139,7 +146,7 @@ export default function Customer360Controlled({ params }: Params) {
         .order('entry_date'),
       supabase
         .from('invoices')
-        .select('id,invoice_number,invoice_date,due_date,status,total,balance_due')
+        .select('id,invoice_number,invoice_date,due_date,status,total,balance_due,currency_code')
         .eq('customer_id', id)
         .eq('business_id', b.business_id)
         .order('invoice_date', { ascending: false }),
@@ -191,6 +198,9 @@ export default function Customer360Controlled({ params }: Params) {
         invoice_number: x.invoice_number,
         balance_due: Number(x.balance_due || 0),
         status: x.status,
+        total: Number(x.total || 0),
+        due_date: x.due_date,
+        currency_code: x.currency_code || 'INR',
       }))
     );
     setQuotes((qu.data || []) as Row[]);
@@ -404,18 +414,13 @@ export default function Customer360Controlled({ params }: Params) {
         )}
 
         {tab === 'invoices' && (
-          <DataTable
-            headers={['Invoice', 'Date', 'Due', 'Status', 'Total', 'Balance']}
-            rows={invoices.map((x) => [
-              x.invoice_number,
-              x.invoice_date,
-              x.due_date,
-              x.status,
-              money(Number(x.total)),
-              money(Number(x.balance_due)),
-            ])}
-            empty="No invoices yet."
-          />
+          <Card className="mt-5 overflow-hidden">
+            <div className="border-b border-slate-100 px-5 py-4"><h2 className="font-semibold">Invoices & collections</h2><p className="mt-1 text-xs text-slate-500">Open a single invoice directly into the collection workflow.</p></div>
+            <div className="overflow-x-auto"><table className="min-w-[920px] w-full text-left text-xs">
+              <thead><tr className="border-b border-slate-100 bg-slate-50 text-[10px] font-bold uppercase tracking-wider text-slate-500"><th className="px-4 py-3">Invoice</th><th className="px-4 py-3">Date</th><th className="px-4 py-3">Due</th><th className="px-4 py-3">Status</th><th className="px-4 py-3 text-right">Total</th><th className="px-4 py-3 text-right">Balance</th><th className="px-4 py-3 text-right">Action</th></tr></thead>
+              <tbody>{invoices.map((x) => { const balance=Number(x.balance_due||0); const currentStatus=balance<=0?'Paid':x.status==='draft'?'Draft':new Date(x.due_date+'T23:59:59')<new Date()?'Overdue':'Unpaid'; return <tr key={x.id||x.invoice_number} className="border-b border-slate-100 hover:bg-slate-50"><td className="px-4 py-3 font-mono font-medium">{x.invoice_number}</td><td className="px-4 py-3 text-slate-500">{x.invoice_date}</td><td className="px-4 py-3 text-slate-500">{x.due_date}</td><td className="px-4 py-3"><span className="rounded-full bg-slate-100 px-2 py-1 text-[10px] font-bold">{currentStatus}</span></td><td className="px-4 py-3 text-right font-mono tabular-nums">{money(Number(x.total||0))}</td><td className="px-4 py-3 text-right font-mono font-semibold tabular-nums">{money(balance)}</td><td className="px-4 py-3 text-right">{currentStatus!=='Paid'&&currentStatus!=='Draft'?<button type="button" onClick={()=>setCollectionInvoice({id:x.id,invoice_number:x.invoice_number,customer_id:id,customer_name:customer.display_name,balance_due:balance,total:Number(x.total||0),status:x.status,due_date:x.due_date,currency_code:x.currency_code||'INR'})} className="rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-indigo-700">Collect</button>:<span className="text-[10px] text-slate-400">—</span>}</td></tr>; })}</tbody>
+            </table></div>
+          </Card>
         )}
 
         {tab === 'payments' && (
@@ -496,6 +501,8 @@ export default function Customer360Controlled({ params }: Params) {
           onSaved={load}
         />
       )}
+
+      {collectionInvoice && businessId && <CollectionDrawer businessId={businessId} invoice={collectionInvoice} canWriteOff={/owner|accountant/.test(businessRole.toLowerCase())} onClose={()=>setCollectionInvoice(null)} onUpdated={load} />}
 
       {refundCreditOpen && (
         <CustomerRefundModal

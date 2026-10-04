@@ -3,7 +3,7 @@ import {useEffect} from 'react';
 import {supabase} from '@/lib/supabase';
 import {listQueuedCashBills,syncOfflineCashBills,type OfflineCashBill} from '@/lib/client/offline-cash-bills';
 
-async function submitRecord(record:OfflineCashBill){
+export async function submitOfflineCashBill(record:OfflineCashBill){
   const {data,error}=await supabase.rpc('sync_offline_cash_bill',{
     p_business_id:record.payload.businessId,p_phone:record.payload.phone,p_invoice_date:record.payload.invoiceDate,
     p_items:record.payload.items,p_payment_method:record.payload.paymentMethod,p_account_id:record.payload.accountId,
@@ -15,12 +15,15 @@ async function submitRecord(record:OfflineCashBill){
   return {invoiceId:String(data),deduplicated:false};
 }
 
+const syncLocks=new Map<string,Promise<{synced:number;remaining:number}>>();
+export async function syncOfflineCashBillsNow(businessId:string){const existing=syncLocks.get(businessId);if(existing)return existing;const task=syncOfflineCashBills(submitOfflineCashBill,businessId).finally(()=>syncLocks.delete(businessId));syncLocks.set(businessId,task);return task;}
+
 export default function OfflineCashBillSync({businessId}:{businessId:string}){
   useEffect(()=>{
     let active=true;
     const run=async()=>{
       if(!active||!navigator.onLine)return;
-      const result=await syncOfflineCashBills(submitRecord,businessId);
+      const result=await syncOfflineCashBillsNow(businessId);
       if(active&&result.synced>0)window.dispatchEvent(new CustomEvent('moneymatters:offline-pos-synced',{detail:result}));
     };
     const onOnline=()=>{void run();};
