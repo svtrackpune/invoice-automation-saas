@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 
 export type FinOpsIconName =
-  | 'dashboard' | 'cash' | 'invoice' | 'quote' | 'customer' | 'expense' | 'vendor'
+  | 'dashboard' | 'cash' | 'import' | 'invoice' | 'quote' | 'customer' | 'expense' | 'vendor'
   | 'bank' | 'reconcile' | 'statement' | 'tax' | 'report' | 'audit' | 'settings'
   | 'integration' | 'profile' | 'plus' | 'search' | 'bell' | 'chevron' | 'refresh'
   | 'download' | 'arrow';
@@ -10,6 +10,7 @@ export function FinOpsIcon({ name, className = 'h-4 w-4' }: { name: FinOpsIconNa
   const common = { viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 1.8, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const };
   const paths: Record<FinOpsIconName, ReactNode> = {
     dashboard: <><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></>,
+    import: <><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 20h14"/></>,
     cash: <><rect x="3.5" y="6" width="17" height="12" rx="2"/><path d="M3.5 10h17"/><path d="M8 14h3"/></>,
     invoice: <><path d="M6 3.75h8l4 4v12.5H6z"/><path d="M14 3.75v4h4"/><path d="M9 12h6M9 15.5h4"/></>,
     quote: <><path d="M7 4h10v4H7z"/><path d="M5 8h14v12H5z"/><path d="M9 13h6M9 16h4"/></>,
