@@ -40,7 +40,7 @@ function InvoicePreview({ type, templateKey, brand, pref }: { type: 'invoice' | 
 function ReceiptPreview({ templateKey, brand, pref }: { templateKey: TemplateKey; brand: Brand; pref: Pref }) {
   const primary = pref.primary_color || brand.brand_primary_color || '#111827';
   const accent = pref.accent_color || brand.brand_accent_color || '#4f46e5';
-  const dark = templateKey === 'bold' || templateKey === 'compact';
+  const dark = templateKey === 'classic' || templateKey === 'professional';
   const minimal = templateKey === 'minimal';
   const modern = templateKey === 'modern';
   const shell = dark ? 'text-white' : modern ? 'bg-indigo-50/40' : minimal ? 'border border-slate-200' : 'border border-slate-200';
