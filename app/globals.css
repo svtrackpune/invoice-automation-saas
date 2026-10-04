@@ -1,32 +1,30 @@
 @import "tailwindcss";
 
-:root{--background:#f7f7fb;--foreground:#202034;--violet:#6d4aff;--violet-dark:#5633d8;--violet-soft:#f2efff;--violet-line:#e4ddff;--surface:#fff;--surface-muted:#f8f8fc;--border:#e6e5ed;--text-muted:#6d6b7c;--success:#059669;--warning:#d97706;--danger:#dc2626;--info:#2563eb}
+:root{--background:#f8fafc;--foreground:#0f172a;--surface:#fff;--surface-muted:#f8fafc;--border:#e2e8f0;--text-muted:#64748b;--brand:#4f46e5;--brand-dark:#4338ca;--success:#047857;--warning:#b45309;--danger:#be123c;--info:#475569}
 @theme inline{--color-background:var(--background);--color-foreground:var(--foreground);--font-sans:var(--font-geist-sans);--font-mono:var(--font-geist-mono)}
 html{background:var(--background);scroll-behavior:smooth}body{margin:0;background:var(--background);color:var(--foreground);font-family:var(--font-geist-sans),Arial,Helvetica,sans-serif}button,input,select,textarea{font:inherit}button{cursor:pointer}::selection{background:#ddd5ff;color:#202034}
 .input{width:100%;border:1px solid #dedde7;border-radius:.7rem;background:#fff;padding:.6rem .75rem;font-size:.875rem;outline:none}.input:disabled{opacity:.6;cursor:not-allowed}.label{font-size:.75rem;font-weight:600;color:#6d6b7c}
 #main-content>main>div.mx-auto,#main-content .mx-auto[class~="max-w-[1250px]"]{width:100%;max-width:none}
 @media (min-width:1024px){#main-content>main{padding-top:.75rem;padding-bottom:1.25rem}#main-content>main>div.mx-auto{max-width:none}}
 
-/* Production workspace visual system: compact, colorful, interactive, and space-efficient. */
-#main-content>main{background:linear-gradient(180deg,#fbfaff 0%,#f7f7fb 100%)}
-#main-content>main [class*="rounded-2xl"][class*="border-slate-200"][class*="bg-white"],#main-content>main [class*="rounded-xl"][class*="border-slate-200"][class*="bg-white"]{box-shadow:0 2px 12px rgba(35,25,80,.045);transition:box-shadow .18s ease,border-color .18s ease,transform .18s ease}
-#main-content>main [class*="rounded-2xl"][class*="border-slate-200"][class*="bg-white"]:hover,#main-content>main [class*="rounded-xl"][class*="border-slate-200"][class*="bg-white"]:hover{border-color:#d9d0ff;box-shadow:0 8px 24px rgba(72,47,150,.075)}
-#main-content>main h1{letter-spacing:-.025em}#main-content>main h2{letter-spacing:-.015em}
-#main-content>main [class*="grid"][class*="gap-3"]>button[class*="bg-white"],#main-content>main [class*="grid"][class*="gap-3"]>section[class*="bg-white"]{position:relative;overflow:hidden}
-#main-content>main [class*="grid"][class*="gap-3"]>button[class*="bg-white"]:before,#main-content>main [class*="grid"][class*="gap-3"]>section[class*="bg-white"]:before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;background:linear-gradient(180deg,#7c3aed,#a855f7);opacity:.9}
-#main-content>main table thead{position:sticky;top:0;z-index:5;background:#f8f7ff}#main-content>main table tbody tr{transition:background .14s ease,box-shadow .14s ease}#main-content>main table tbody tr:hover{background:#f7f3ff;box-shadow:inset 3px 0 0 #8b5cf6}
-#main-content>main table th button{cursor:pointer}#main-content>main table th button:hover{color:#6d28d9}
-#main-content>main input,#main-content>main select{transition:border-color .15s ease,box-shadow .15s ease}#main-content>main input:focus,#main-content>main select:focus{box-shadow:0 0 0 3px rgba(124,58,237,.10)}
-#main-content>main button:not([disabled]){transition:transform .14s ease,box-shadow .14s ease,background-color .14s ease}#main-content>main button:not([disabled]):active{transform:translateY(1px)}
-.workspace-card{border:1px solid var(--border);border-radius:1rem;background:var(--surface);box-shadow:0 2px 12px rgba(25,20,55,.045)}
-.workspace-kpi{min-height:96px;border:1px solid var(--border);border-radius:1rem;padding:.9rem 1rem;background:var(--surface);transition:transform .16s ease,box-shadow .16s ease,border-color .16s ease}.workspace-kpi[data-tone="brand"]{background:linear-gradient(135deg,#efeaff,#fff)}.workspace-kpi[data-tone="success"]{background:linear-gradient(135deg,#e9fbf3,#fff)}.workspace-kpi[data-tone="warning"]{background:linear-gradient(135deg,#fff8df,#fff)}.workspace-kpi[data-tone="danger"]{background:linear-gradient(135deg,#ffedf0,#fff)}.workspace-kpi[data-tone="info"]{background:linear-gradient(135deg,#edf5ff,#fff)}.workspace-kpi[data-tone="neutral"]{background:linear-gradient(135deg,#f6f8fb,#fff)}.workspace-kpi[data-clickable="true"]:hover{transform:translateY(-2px);box-shadow:0 10px 24px rgba(35,25,80,.08)}
-.status-success{background:#ecfdf5;color:#047857}.status-warning{background:#fffbeb;color:#b45309}.status-danger{background:#fff1f2;color:#be123c}.status-info{background:#eff6ff;color:#1d4ed8}.status-neutral{background:#f1f5f9;color:#475569}.workspace-density{gap:.75rem}.workspace-density>section{border-radius:1rem}
-@media(max-width:767px){#main-content>main{padding-top:.5rem;padding-bottom:.75rem}.workspace-kpi{min-height:82px}}
-.document-preview{background:#fff;color:#24213a;padding:42px;min-height:720px;box-shadow:0 8px 30px rgba(70,60,120,.08)}.template-2{border-top:12px solid var(--brand)}.template-3{border-left:10px solid var(--brand)}.template-4{padding:28px;font-size:.92rem}.template-4 table th,.template-4 table td{padding:.55rem}.template-5{border:1px solid #ddd7f0;box-shadow:none}.receipt-paper{width:380px;max-width:calc(100vw - 24px);margin-left:auto;margin-right:auto}
-@media(max-width:640px){.document-preview{padding:22px;min-height:0}.document-preview table{font-size:12px}}
-@media(max-width:420px){.receipt-paper{width:100%;max-width:calc(100vw - 16px)}.receipt-paper .receipt-head,.receipt-paper .receipt-title{padding-left:24px;padding-right:24px}.receipt-paper .receipt-customer,.receipt-paper .payment-detail,.receipt-paper .receipt-totals,.receipt-paper .receipt-thanks,.receipt-paper .receipt-footer{margin-left:24px;margin-right:24px}.receipt-paper .receipt-items{margin-left:24px;margin-right:24px;width:calc(100% - 48px);font-size:9px}.receipt-paper .receipt-items th,.receipt-paper .receipt-items td{padding:7px 5px}.receipt-paper .receipt-title h1{font-size:21px}.receipt-paper .receipt-business{font-size:17px}}
-.paper{font-size:10px}.paper .business-identity span,.paper .parties span,.paper .items td,.paper .receipt-title div,.paper .receipt-head>span,.paper .receipt-customer>span,.paper .payment-detail span,.paper .receipt-footer span{font-size:10px}.paper .items th,.paper .parties label,.paper .receipt-customer .label{font-size:9px}.receipt-paper .receipt-items{font-size:10px}@media(max-width:420px){.receipt-paper .receipt-items{font-size:9px}}
-/* FinOps command-center primitives. */
+/* FinOps enterprise design system. */
 .finops-drawer-enter{animation:finops-drawer-enter .18s ease-out}
 @keyframes finops-drawer-enter{from{transform:translateX(16px);opacity:.96}to{transform:translateX(0);opacity:1}}
 .finops-ledger-amount{font-variant-numeric:tabular-nums;font-family:var(--font-geist-mono),ui-monospace,SFMono-Regular,Menlo,monospace}
+
+.finops-page{min-height:calc(100vh - 64px);background:#f8fafc;padding:1.25rem}
+.finops-page-inner{width:100%;max-width:1480px;margin:0 auto}
+.finops-data-canvas{min-width:0}
+.finops-amount{font-family:var(--font-geist-mono),ui-monospace,SFMono-Regular,Menlo,monospace;font-variant-numeric:tabular-nums;letter-spacing:-.025em}
+.finops-micro{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.14em;color:#94a3b8}
+.finops-primary{background:#4f46e5;color:#fff;border:1px solid #4f46e5;border-radius:.5rem;box-shadow:0 1px 2px rgba(15,23,42,.08);transition:background-color .15s ease,transform .15s ease}
+.finops-primary:hover{background:#4338ca}.finops-primary:active{transform:translateY(1px)}
+.finops-secondary{background:#fff;color:#334155;border:1px solid rgba(226,232,240,.9);border-radius:.5rem;box-shadow:0 1px 2px rgba(15,23,42,.03)}
+.finops-card{border:1px solid rgba(226,232,240,.8);background:#fff;border-radius:.75rem;box-shadow:0 1px 2px rgba(15,23,42,.03)}
+.finops-control{border:1px solid rgba(226,232,240,.8);background:#fff;border-radius:.75rem}
+.finops-table{width:100%;border-collapse:separate;border-spacing:0}
+.finops-table thead{position:sticky;top:0;z-index:5;background:#f8fafc}
+.finops-table th{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#94a3b8;padding:.625rem 1rem;border-bottom:1px solid #e2e8f0}
+.finops-table td{padding:.625rem 1rem;border-bottom:1px solid #f1f5f9}
+.finops-table tbody tr{transition:background-color .12s ease}.finops-table tbody tr:hover{background:#f8fafc}
+@media(max-width:767px){.finops-page{padding:.75rem}.finops-page-inner{max-width:none}}
