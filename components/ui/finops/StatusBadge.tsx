@@ -3,13 +3,13 @@ import type { ReactNode } from 'react';
 export type FinOpsStatus = 'draft' | 'void' | 'paid' | 'pending' | 'overdue' | 'reconciled' | 'locked';
 
 const styles: Record<FinOpsStatus, string> = {
-  draft: 'bg-slate-100 text-slate-600',
-  void: 'bg-slate-100 text-slate-600',
-  paid: 'bg-emerald-50 text-emerald-700',
-  pending: 'bg-amber-50 text-amber-700',
-  overdue: 'bg-rose-50 text-rose-700',
-  reconciled: 'bg-indigo-50 text-indigo-700',
-  locked: 'bg-slate-900 text-white',
+  draft: 'border border-slate-300 bg-slate-100 text-slate-700',
+  void: 'border border-slate-300 bg-slate-100 text-slate-700',
+  paid: 'border border-emerald-200 bg-emerald-50 text-emerald-700',
+  pending: 'border border-amber-200 bg-amber-50 text-amber-700',
+  overdue: 'border border-rose-200 bg-rose-50 text-rose-700',
+  reconciled: 'border border-slate-300 bg-slate-100 text-slate-700',
+  locked: 'border border-slate-300 bg-slate-100 text-slate-700',
 };
 
 export default function StatusBadge({ status }: { status: FinOpsStatus }) {
