@@ -11,7 +11,6 @@ import { StatCardSkeleton, TableRowsSkeleton } from '@/components/ui/finops/Skel
 type Customer = { id: string; display_name: string };
 type Invoice = { id: string; invoice_number: string; invoice_date: string; status: string; total: number; balance_due: number; customer_id: string };
 type Payment = { id: string; payment_date: string; amount: number; direction: string; method: string; reference: string | null; invoice_id: string | null; customer_id: string | null };
-type Expense = { id: string; expense_date: string; amount: number; description: string | null };
 type Bank = { id: string; name: string; account_last4: string | null };
 type Rec = { id: string; bank_account_id: string; period_end: string; status: string };
 type BankTx = { id: string; bank_account_id: string; transaction_date: string; description: string | null; amount: number; direction: string; status: string };
@@ -62,7 +61,6 @@ export default function NextWorkspace() {
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [payments, setPayments] = useState<Payment[]>([]);
-  const [expenses, setExpenses] = useState<Expense[]>([]);
   const [banks, setBanks] = useState<Bank[]>([]);
   const [reconciliations, setReconciliations] = useState<Rec[]>([]);
   const [bankTransactions, setBankTransactions] = useState<BankTx[]>([]);
@@ -127,22 +125,21 @@ export default function NextWorkspace() {
     (async () => {
       setError('');
       const start = monthStart();
-      const [customersResult, invoicesResult, paymentsResult, expensesResult, banksResult, recResult, txResult] = await Promise.all([
+      const [customersResult, invoicesResult, paymentsResult, banksResult, recResult] = await Promise.all([
         supabase.from('customers').select('id,display_name').eq('business_id', ctx.business_id).eq('is_active', true).order('created_at', { ascending: false }).limit(200),
         supabase.from('invoices').select('id,invoice_number,invoice_date,status,total,balance_due,customer_id').eq('business_id', ctx.business_id).order('invoice_date', { ascending: false }).limit(200),
         supabase.from('payments').select('id,payment_date,amount,direction,method,reference,invoice_id,customer_id').eq('business_id', ctx.business_id).gte('payment_date', start).order('payment_date', { ascending: false }).limit(500),
-        supabase.from('expenses').select('id,expense_date,amount,description').eq('business_id', ctx.business_id).gte('expense_date', start).order('expense_date', { ascending: false }).limit(500),
         supabase.from('bank_accounts').select('id,name,account_last4').eq('business_id', ctx.business_id).eq('is_active', true).order('name'),
         supabase.from('bank_reconciliations').select('id,bank_account_id,period_end,status').eq('business_id', ctx.business_id).order('period_end', { ascending: false }).limit(100),
-        supabase.from('bank_transactions').select('id,bank_account_id,transaction_date,description,amount,direction,status').in('bank_account_id', (banksResult.data || []).map((b) => b.id)).order('transaction_date', { ascending: false }).limit(500),
       ]);
       if (!alive) return;
-      const firstError = customersResult.error || invoicesResult.error || paymentsResult.error || expensesResult.error || banksResult.error || recResult.error || txResult.error;
+      const bankIds = (banksResult.data || []).map((bank) => bank.id);
+      const txResult = bankIds.length ? await supabase.from('bank_transactions').select('id,bank_account_id,transaction_date,description,amount,direction,status').in('bank_account_id', bankIds).order('transaction_date', { ascending: false }).limit(500) : { data: [], error: null };
+      const firstError = customersResult.error || invoicesResult.error || paymentsResult.error || banksResult.error || recResult.error || txResult.error;
       if (firstError) setError(firstError.message);
       setCustomers((customersResult.data || []) as Customer[]);
       setInvoices((invoicesResult.data || []) as Invoice[]);
       setPayments((paymentsResult.data || []) as Payment[]);
-      setExpenses((expensesResult.data || []) as Expense[]);
       setBanks((banksResult.data || []) as Bank[]);
       setReconciliations((recResult.data || []) as Rec[]);
       setBankTransactions((txResult.data || []) as BankTx[]);
