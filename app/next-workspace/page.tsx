@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { supabase, type BusinessContext } from '@/lib/supabase';
 import StatusBadge, { normalizeFinOpsStatus } from '@/components/ui/finops/StatusBadge';
 import DetailDrawer from '@/components/ui/finops/DetailDrawer';
