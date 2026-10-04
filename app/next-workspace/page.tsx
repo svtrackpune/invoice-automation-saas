@@ -44,7 +44,7 @@ function Sparkline({ values }: { values: number[] }) {
   return <svg viewBox="0 0 72 24" className="h-7 w-20 text-indigo-500" aria-hidden="true"><polyline points={points} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>;
 }
 
-function KpiCard({ label, value, children, sparkline }: { label: string; value: string; children?: React.ReactNode; sparkline?: React.ReactNode }) {
+function KpiCard({ label, value, children, sparkline }: { label: string; value: string; children?: ReactNode; sparkline?: ReactNode }) {
   return <FinOpsCard className="min-h-[128px] p-4"><div className="flex items-start justify-between gap-3"><div className="min-w-0"><FinOpsSectionLabel>{label}</FinOpsSectionLabel><div className="mt-2 font-mono tabular-nums text-2xl font-bold tracking-tight text-slate-900">{value}</div></div>{sparkline}</div>{children ? <div className="mt-3">{children}</div> : null}</FinOpsCard>;
 }
 
