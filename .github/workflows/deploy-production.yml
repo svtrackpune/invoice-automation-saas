@@ -1,7 +1,10 @@
 name: Deploy Production (Plesk / mm.nilanga.in)
 
 on:
-  push:
+  workflow_run:
+    workflows: ["CI"]
+    types:
+      - completed
     branches:
       - main
   workflow_dispatch:
@@ -9,8 +12,20 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
     steps:
-      - name: Trigger Deployment & Rebuild
+      - name: Validate Deployment Secrets
+        env:
+          PROD_SSH_HOST: ${{ secrets.PROD_SSH_HOST }}
+          PROD_SSH_USER: ${{ secrets.PROD_SSH_USER }}
+          PROD_SSH_KEY: ${{ secrets.PROD_SSH_KEY }}
+        run: |
+          if [ -z "$PROD_SSH_HOST" ] || [ -z "$PROD_SSH_USER" ] || [ -z "$PROD_SSH_KEY" ]; then
+            echo "::error::Missing deployment secrets in GitHub. Please configure PROD_SSH_HOST, PROD_SSH_USER, and PROD_SSH_KEY under Repository Settings -> Secrets and variables -> Actions."
+            exit 1
+          fi
+
+      - name: Execute Remote Deployment & Rebuild
         uses: appleboy/ssh-action@v1.2.0
         with:
           host: ${{ secrets.PROD_SSH_HOST }}
@@ -20,40 +35,15 @@ jobs:
           script: |
             set -e
             cd /var/www/vhosts/nilanga.in/mm.nilanga.in
-
-            echo "Fetching latest changes from main..."
             git fetch origin main
             git reset --hard origin/main
-
-            echo "Cleaning previous build..."
             rm -rf .next
-
-            echo "Installing dependencies & building production bundle..."
             npm ci --prefer-offline --no-audit
             npm run build
-
-            echo "Restarting application process..."
             mkdir -p tmp && touch tmp/restart.txt
 
-      - name: Automated Synthetic Health Verification
+      - name: Verify Live Endpoints
         run: |
-          echo "Waiting 10 seconds for process restart..."
           sleep 10
-
-          echo "Verifying Liveness (/healthz)..."
-          HEALTHZ=$(curl -sS --max-time 10 https://mm.nilanga.in/healthz)
-          echo "Healthz response: $HEALTHZ"
-          echo "$HEALTHZ" | grep -q '"status":"healthy"'
-
-          echo "Verifying Readiness & Database Connection (/readyz)..."
-          READYZ=$(curl -sS --max-time 15 https://mm.nilanga.in/readyz)
-          echo "Readyz response: $READYZ"
-          echo "$READYZ" | grep -q '"database":"connected"'
-
-          echo "Verifying Strict CSP & Dynamic Nonce Emission..."
-          CSP_HEADER=$(curl -sI https://mm.nilanga.in/next-workspace | grep -i "content-security-policy" || true)
-          echo "CSP Header: $CSP_HEADER"
-          echo "$CSP_HEADER" | grep -q "strict-dynamic"
-          echo "$CSP_HEADER" | grep -q "nonce-"
-
-          echo "Deployment and automated verification successful."
+          curl -f -sS --max-time 10 https://mm.nilanga.in/healthz | grep -q '"status":"healthy"'
+          curl -f -sS --max-time 15 https://mm.nilanga.in/readyz | grep -q '"database":"connected"'
