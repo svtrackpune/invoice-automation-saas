@@ -19,10 +19,10 @@ const deltaCopy: Record<StatCardDelta, string> = {
 
 export default function StatCard({ title, value, delta, periodLabel, badge, sparkline }: StatCardProps) {
   return (
-    <section className="border border-slate-200/90 bg-white p-4 shadow-xs">
+    <section className="rounded-xl border border-slate-200/80 bg-white p-4 shadow-[0_1px_2px_rgba(15,23,42,.03)]">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="truncate text-[10px] font-bold uppercase tracking-[.14em] text-slate-500">{title}</p>
+          <p className="truncate text-[11px] font-bold uppercase tracking-wider text-slate-400">{title}</p>
           <div className="mt-2 flex items-center gap-2">
             <strong className="font-mono tabular-nums text-2xl font-bold text-slate-900">{value}</strong>
             {badge}
