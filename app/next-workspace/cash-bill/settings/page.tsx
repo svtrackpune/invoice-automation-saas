@@ -17,6 +17,7 @@ export default function CashCarrySettings(){
   const [saving,setSaving]=useState(false);
   const [message,setMessage]=useState('');
   const [error,setError]=useState('');
+  const [receiptFormat,setReceiptFormat]=useState<'thermal80'|'a4'|'a5'>('thermal80');
 
   useEffect(()=>{(async()=>{
     const c=await supabase.rpc('get_my_business_context');
@@ -33,6 +34,8 @@ export default function CashCarrySettings(){
     setBankId(mapped);
     setUpiEnabled(Boolean(mapped));
     setBanks((bankRows.data||[]) as Bank[]);
+    const savedReceipt=window.localStorage.getItem('moneymatters.cashBillReceiptFormat');
+    if(savedReceipt==='thermal80'||savedReceipt==='a4'||savedReceipt==='a5') setReceiptFormat(savedReceipt);
     setLoading(false);
   })();},[]);
 
@@ -42,6 +45,7 @@ export default function CashCarrySettings(){
     setSaving(true);setError('');setMessage('');
     const r=await supabase.rpc('configure_cash_and_carry',{p_business_id:business.business_id,p_enabled:enabled,p_upi_bank_account_id:upiEnabled?bankId:null});
     if(r.error){setError(r.error.message);setSaving(false);return}
+    window.localStorage.setItem('moneymatters.cashBillReceiptFormat',receiptFormat);
     setMessage('Cash & Carry settings saved.');
     setSaving(false);
   };
@@ -53,10 +57,10 @@ export default function CashCarrySettings(){
     {message&&<div className="mb-5 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">{message}</div>}
     <section className="rounded-3xl border border-violet-100 bg-white p-6 shadow-[0_18px_60px_rgba(70,60,120,.07)] sm:p-8">
       <div className="rounded-2xl border border-violet-100 bg-violet-50/60 p-5"><p className="text-xs font-bold uppercase tracking-[.14em] text-violet-700">Current workspace</p><h2 className="mt-2 text-lg font-semibold">{business?.business_name}</h2><p className="mt-1 text-xs text-slate-500">Cash & Carry uses this workspace's accounting, tax treatment and inventory. GST and Non-GST remain separate workspaces.</p></div>
-      <div className="mt-6 rounded-2xl border border-slate-200 p-5"><label className="flex cursor-pointer items-start gap-3"><input type="checkbox" checked={enabled} onChange={e=>setEnabled(e.target.checked)} className="mt-1 h-4 w-4 accent-violet-600"/><span><b className="block text-sm">Enable Cash & Carry</b><span className="mt-1 block text-xs leading-5 text-slate-500">Allow fast counter billing in this workspace. Every Cash & Carry bill requires the customer's mobile number.</span></span></label></div>
+      <div className="mt-6 rounded-2xl border border-slate-200 p-5"><label className="flex cursor-pointer items-start gap-3"><input type="checkbox" checked={enabled} onChange={e=>setEnabled(e.target.checked)} className="mt-1 h-4 w-4 accent-violet-600"/><span><b className="block text-sm">Enable Cash & Carry</b><span className="mt-1 block text-xs leading-5 text-slate-500">Allow fast counter billing in this workspace. Customer mobile remains optional for walk-in bills; the workspace can use its generic Cash Customer.</span></span></label></div>
       {enabled&&<div className="mt-5 rounded-2xl border border-slate-200 p-5"><div className="flex items-start gap-3"><input type="checkbox" id="upi" checked={upiEnabled} onChange={e=>setUpiEnabled(e.target.checked)} className="mt-1 h-4 w-4 accent-violet-600"/><div className="flex-1"><label htmlFor="upi" className="block cursor-pointer text-sm font-semibold">Accept UPI at counter</label><p className="mt-1 text-xs leading-5 text-slate-500">Choose any active bank account in this workspace. It can be a current or savings account; Moneymatters does not assume a particular account type.</p>{upiEnabled&&<div className="mt-4"><label className="mb-1.5 block text-xs font-semibold text-slate-600">UPI settlement account *</label><select className={input} value={bankId} onChange={e=>setBankId(e.target.value)}><option value="">Select bank account…</option>{banks.map(b=><option key={b.id} value={b.id}>{b.name} · {b.institution_name||'Bank'}{b.account_last4?` · ••••${b.account_last4}`:''}{b.account_type?` · ${b.account_type}`:''}</option>)}</select>{!banks.length&&<p className="mt-2 text-xs text-rose-600">No active bank account exists in this workspace. Add/import a bank account first.</p>}</div>}</div></div></div>}
       <div className="mt-5 rounded-2xl border border-slate-200 bg-slate-50 p-5"><p className="text-sm font-semibold">Payment routing</p><div className="mt-3 grid gap-3 sm:grid-cols-2"><div className="rounded-xl bg-white p-4"><b className="block text-sm">Cash</b><span className="mt-1 block text-xs text-slate-500">Posts to this workspace's Cash ledger.</span></div><div className="rounded-xl bg-white p-4"><b className="block text-sm">UPI</b><span className="mt-1 block text-xs text-slate-500">Posts to the bank account selected above through its linked bank ledger.</span></div></div></div>
-      <div className="mt-7 flex flex-wrap justify-end gap-2"><button type="button" onClick={()=>location.href='/next-workspace/cash-bill'} className="rounded-xl border border-slate-200 bg-white px-5 py-2.5 text-sm font-semibold text-slate-700">Cancel</button><button type="button" onClick={save} disabled={saving||(upiEnabled&&!bankId)} className="rounded-xl bg-violet-600 px-5 py-2.5 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50">{saving?'Saving…':'Save Cash & Carry settings'}</button></div>
+      {enabled&&<div className="mt-5 rounded-2xl border border-slate-200 p-5"><p className="text-sm font-semibold">Counter shortcuts</p><div className="mt-3 grid grid-cols-2 gap-2 text-xs text-slate-600 sm:grid-cols-5"><span><b>F2</b> Search</span><span><b>F4</b> Discount</span><span><b>F8</b> Hold</span><span><b>F10</b> Tender</span><span><b>Alt+D</b> Delete</span></div></div>}\n      <div className="mt-7 flex flex-wrap justify-end gap-2"><button type="button" onClick={()=>location.href='/next-workspace/cash-bill'} className="rounded-xl border border-slate-200 bg-white px-5 py-2.5 text-sm font-semibold text-slate-700">Cancel</button><button type="button" onClick={save} disabled={saving||(upiEnabled&&!bankId)} className="rounded-xl bg-violet-600 px-5 py-2.5 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50">{saving?'Saving…':'Save Cash & Carry settings'}</button></div>
     </section>
   </div></main>;
 }
