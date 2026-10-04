@@ -1,6 +1,6 @@
 export function StatCardSkeleton() {
   return (
-    <div className="animate-pulse border border-slate-200/90 bg-white p-4 shadow-xs" aria-hidden="true">
+    <div className="animate-pulse rounded-xl border border-slate-200/80 bg-white p-4 shadow-xs" aria-hidden="true">
       <div className="h-3 w-28 rounded bg-slate-200" />
       <div className="mt-3 h-8 w-32 rounded bg-slate-200" />
       <div className="mt-4 h-3 w-full rounded bg-slate-100" />
