@@ -19,8 +19,13 @@ const baseGroups: NavGroup[] = [
     { label: 'Cash Bill (POS)', href: '/next-workspace/cash-bill', icon: 'cash' },
     { label: 'Invoices', href: '/next-workspace/invoices', icon: 'invoice' },
     { label: 'Quotations', href: '/next-workspace/quotation', icon: 'quote' },
+    { label: 'Receipts', href: '/next-workspace/receipts', icon: 'cash' },
     { label: 'Customers', href: '/next-workspace/customers', icon: 'customer' },
     { label: 'Products & Services', href: '/next-workspace/items', icon: 'invoice' },
+  ]},
+  { name: 'Documents', items: [
+    { label: 'Document Library', href: '/next-workspace/documents/library', icon: 'invoice' },
+    { label: 'Templates & Branding', href: '/next-workspace/brand', icon: 'settings' },
   ]},
   { name: 'Purchases & Expenses', items: [
     { label: 'Expenses', href: '/next-workspace/expenses', icon: 'expense' },
@@ -61,6 +66,9 @@ const titles: Record<string, string> = {
   '/next-workspace/tax': 'Tax & Compliance',
   '/next-workspace/reports': 'Reports & P&L',
   '/next-workspace/business-settings': 'Business Settings',
+  '/next-workspace/brand': 'Templates & Branding',
+  '/next-workspace/documents': 'Document Viewer',
+  '/next-workspace/documents/library': 'Document Library',
   '/next-workspace/data-migration': 'Integrations & Data',
   '/next-workspace/profile': 'Profile',
   '/next-workspace/cash-bill': 'Cash Bill',
