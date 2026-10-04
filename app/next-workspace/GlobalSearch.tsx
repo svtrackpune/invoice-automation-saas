@@ -243,22 +243,25 @@ export default function GlobalSearch() {
 
   return (
     <div ref={root} className="relative w-full">
-      <SearchInput
-        value={q}
-        onChange={e => { setQ(e.target.value); setOpen(true); }}
-        onFocus={() => setOpen(true)}
-        placeholder="Search anything: customers, invoices, estimates, products, vendors…"
-        aria-label="Global search"
-      />
+      <div className="relative">
+        <SearchInput
+          value={q}
+          onChange={e => { setQ(e.target.value); setOpen(true); }}
+          onFocus={() => setOpen(true)}
+          placeholder="Search customers, invoices, transactions or settings…"
+          aria-label="Global search"
+        />
+        <kbd className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 rounded-md border border-slate-200 bg-slate-50 px-1.5 py-0.5 text-[10px] font-semibold text-slate-400">⌘K</kbd>
+      </div>
       {open && (
-        <div className="absolute left-0 right-0 top-[calc(100%+8px)] z-[80] overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl">
+        <div className="absolute left-0 right-0 top-[calc(100%+8px)] z-[80] overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xl">
           <div className="flex items-center justify-between border-b border-slate-100 px-4 py-2.5"><span className="text-[10px] font-bold uppercase tracking-[.16em] text-slate-400">Global search</span><kbd className="rounded-md border border-slate-200 bg-slate-50 px-1.5 py-0.5 text-[10px] text-slate-400">Esc</kbd></div>
           {!term ? (
-            <div className="p-2"><div className="px-3 pb-1.5 pt-2 text-[10px] font-bold uppercase tracking-[.16em] text-slate-400">Quick access</div>{navToShow.map(r => <button key={r.id} type="button" onClick={() => go(r.href)} className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left hover:bg-violet-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-200"><span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-violet-50 text-xs font-bold text-violet-700">→</span><span className="min-w-0 flex-1"><b className="block text-sm text-slate-800">{r.title}</b><span className="block truncate text-xs text-slate-400">{r.subtitle}</span></span><span className="text-[10px] font-semibold text-slate-400">Open</span></button>)}</div>
+            <div className="p-2"><div className="px-3 pb-1.5 pt-2 text-[10px] font-bold uppercase tracking-[.16em] text-slate-400">Quick access</div>{navToShow.map(r => <button key={r.id} type="button" onClick={() => go(r.href)} className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-200"><span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-violet-50 text-xs font-bold text-indigo-700">→</span><span className="min-w-0 flex-1"><b className="block text-sm text-slate-800">{r.title}</b><span className="block truncate text-xs text-slate-400">{r.subtitle}</span></span><span className="text-[10px] font-semibold text-slate-400">Open</span></button>)}</div>
           ) : (
             <div className="max-h-[520px] overflow-y-auto p-2">
-              {navToShow.length > 0 && <><div className="px-3 pb-1.5 pt-2 text-[10px] font-bold uppercase tracking-[.16em] text-slate-400">Pages & actions</div>{navToShow.map(r => <button key={`nav-${r.id}`} type="button" onClick={() => go(r.href)} className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left hover:bg-violet-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-200"><span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-violet-50 text-xs font-bold text-violet-700">→</span><span className="min-w-0 flex-1"><b className="block text-sm text-slate-800">{r.title}</b><span className="block truncate text-xs text-slate-400">{r.subtitle}</span></span><span className="text-[10px] font-semibold text-violet-600">Open</span></button>)}</>}
-              {recordToShow.length > 0 && <><div className="px-3 pb-1.5 pt-3 text-[10px] font-bold uppercase tracking-[.16em] text-slate-400">Records</div>{recordToShow.map((r, i) => <button key={`${r.kind}-${r.id}-${i}`} type="button" onClick={() => go(r.href)} className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left hover:bg-violet-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-200"><span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-violet-50 text-xs font-bold text-violet-700">{kindLabel[r.kind].slice(0, 1)}</span><span className="min-w-0 flex-1"><b className="block truncate text-sm text-slate-800">{r.title}</b><span className="block truncate text-xs text-slate-400">{r.subtitle}</span></span><span className="text-[10px] font-semibold text-slate-400">{kindLabel[r.kind]}</span></button>)}</>}
+              {navToShow.length > 0 && <><div className="px-3 pb-1.5 pt-2 text-[10px] font-bold uppercase tracking-[.16em] text-slate-400">Pages & actions</div>{navToShow.map(r => <button key={`nav-${r.id}`} type="button" onClick={() => go(r.href)} className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-200"><span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-violet-50 text-xs font-bold text-indigo-700">→</span><span className="min-w-0 flex-1"><b className="block text-sm text-slate-800">{r.title}</b><span className="block truncate text-xs text-slate-400">{r.subtitle}</span></span><span className="text-[10px] font-semibold text-indigo-600">Open</span></button>)}</>}
+              {recordToShow.length > 0 && <><div className="px-3 pb-1.5 pt-3 text-[10px] font-bold uppercase tracking-[.16em] text-slate-400">Records</div>{recordToShow.map((r, i) => <button key={`${r.kind}-${r.id}-${i}`} type="button" onClick={() => go(r.href)} className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-200"><span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-violet-50 text-xs font-bold text-indigo-700">{kindLabel[r.kind].slice(0, 1)}</span><span className="min-w-0 flex-1"><b className="block truncate text-sm text-slate-800">{r.title}</b><span className="block truncate text-xs text-slate-400">{r.subtitle}</span></span><span className="text-[10px] font-semibold text-slate-400">{kindLabel[r.kind]}</span></button>)}</>}
               {loading && <div className="p-4 text-sm text-slate-400">Searching workspace records…</div>}
               {!loading && !navToShow.length && !recordToShow.length && <div className="p-5 text-sm text-slate-400">No matching pages or records found.</div>}
             </div>
