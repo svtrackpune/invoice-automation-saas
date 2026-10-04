@@ -35,8 +35,10 @@ jobs:
           script: |
             set -e
             cd /var/www/vhosts/nilanga.in/mm.nilanga.in
-            git fetch origin main
-            git reset --hard origin/main
+            TARGET_SHA="${{ github.event.workflow_run.head_sha || github.sha }}"
+            echo "Deploying verified commit: $TARGET_SHA"
+            git fetch origin "$TARGET_SHA"
+            git reset --hard "$TARGET_SHA"
             rm -rf .next
             npm ci --prefer-offline --no-audit
             npm run build
