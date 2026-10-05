@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import ReportViewerControlled from './ReportViewerControlled';
 import { REPORT_TEMPLATE_MAP, REPORT_TEMPLATES } from '@/lib/reports/report-definitions-catalog';
 import type { GroupKey, ReportId, StatusKey } from '@/lib/reports/report-definitions';
@@ -21,7 +21,7 @@ export default function ReportsHub(){
  const openReport=(id:ReportId,preset?:SavedPreset)=>{const params=new URLSearchParams();params.set('report',id);if(preset){params.set('from',preset.from);params.set('to',preset.to);params.set('group',preset.groupBy);params.set('status',preset.status);params.set('q',preset.q)}history.pushState({},'',location.pathname+'?'+params.toString());setSelectedPreset(preset||null);setReportId(id)};
  const back=()=>{history.pushState({},'',location.pathname);setReportId(null);setSelectedPreset(null)};
  if(reportId)return <ReportViewerControlled reportId={reportId} initialFrom={selectedPreset?.from} initialTo={selectedPreset?.to} initialGroup={selectedPreset?.groupBy} initialStatus={selectedPreset?.status} initialQuery={selectedPreset?.q} onBack={back}/>;
- const groups=useMemo(()=>categories.map(category=>({...category,reports:REPORT_TEMPLATES.filter(x=>x.category===category.key)})),[]);
+ const groups=categories.map(category=>({...category,reports:REPORT_TEMPLATES.filter(x=>x.category===category.key)}));
  return <main className="min-h-[calc(100vh-100px)] bg-slate-50 p-4 sm:p-6 lg:p-8"><div className="mx-auto max-w-[1500px]">
   <header className="flex flex-col gap-4 border-b border-slate-200/80 pb-5 lg:flex-row lg:items-end lg:justify-between"><div><p className="text-[10px] font-bold uppercase tracking-[.18em] text-slate-400">Business intelligence</p><h1 className="mt-1 text-3xl font-semibold tracking-tight text-slate-950">FinOps Report Studio</h1><p className="mt-1 max-w-3xl text-sm text-slate-500">Pre-built statutory and operational reports with live filtering, grouping, subtotals and export.</p></div><button type="button" onClick={()=>location.href='/next-workspace'} className="rounded-lg border border-slate-200 bg-white px-3.5 py-2.5 text-xs font-semibold text-slate-700">← Dashboard</button></header>
   <div className="mt-5 grid gap-5 xl:grid-cols-[230px_minmax(0,1fr)]">
