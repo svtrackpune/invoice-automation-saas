@@ -15,11 +15,12 @@ type TaxRate={id:string;name:string;rate:number};
 type Product={id:string;name:string;sku:string|null;hsn_sac:string|null};
 type Period={period_start:string;period_end:string;status:string};
 
-const today=()=>new Date().toISOString().slice(0,10);
-const startOfWeek=()=>{const d=new Date();const day=(d.getDay()+6)%7;d.setDate(d.getDate()-day);return d.toISOString().slice(0,10)};
-const startOfMonth=()=>{const d=new Date();return new Date(d.getFullYear(),d.getMonth(),1).toISOString().slice(0,10)};
-const startOfQuarter=()=>{const d=new Date();const fiscalMonth=(d.getMonth()+9)%12;const quarterStart=(Math.floor(fiscalMonth/3)*3+3)%12;const year=d.getMonth()>=3?d.getFullYear():d.getFullYear()-1;return new Date(year+(quarterStart===0&&d.getMonth()<3?1:0),quarterStart,1).toISOString().slice(0,10)};
-const toDate=(d:Date)=>d.toISOString().slice(0,10);
+const pad=(value:number)=>String(value).padStart(2,'0');
+const toDate=(d:Date)=>d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());
+const today=()=>toDate(new Date());
+const startOfWeek=()=>{const d=new Date();const day=(d.getDay()+6)%7;d.setDate(d.getDate()-day);return toDate(d)};
+const startOfMonth=()=>{const d=new Date();return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-01'};
+const startOfQuarter=()=>{const d=new Date();const fiscalMonth=(d.getMonth()+9)%12;const quarterStart=(Math.floor(fiscalMonth/3)*3+3)%12;const year=d.getMonth()>=3?d.getFullYear():d.getFullYear()-1;const actualYear=year+(quarterStart===0&&d.getMonth()<3?1:0);return actualYear+'-'+pad(quarterStart+1)+'-01'};
 const startFor=(range:RangeKey)=>{const d=new Date();if(range==='today')return toDate(d);if(range==='week')return startOfWeek();if(range==='mtd')return startOfMonth();if(range==='qtd')return startOfQuarter();if(range==='fytd')return toDate(fiscalYearStart(d));return startOfMonth()};
 const customersMap=(rows:Customer[])=>new Map(rows.map(x=>[x.id,x.display_name]));
 const taxesMap=(rows:TaxRate[])=>new Map(rows.map(x=>[x.id,x]));
@@ -53,7 +54,7 @@ export default function ReportViewerControlled(p:Props){
  const filtered=useMemo(()=>{const query=q.trim().toLowerCase();return rows.filter(row=>{const data=row.data;const statusValue=String(data.status_key||data.status||data.direction||data.type||'');return (status==='all'||statusValue===status)&&(!query||row.searchText.includes(query));})},[rows,q,status]);
  const grouped=useMemo(()=>{
    if(groupBy==='none'||!groupSupported.has(groupBy))return[{key:'__all',label:'All records',rows:filtered}];
-   const field=groupField(groupBy,template.columns);if(!field)return[{key:'__all',label:'All records',rows:filtered}];
+   const field=groupField(groupBy,template);if(!field)return[{key:'__all',label:'All records',rows:filtered}];
    const map=new Map<string,ReportDataRow[]>();filtered.forEach(row=>{const label=String(row.data[field]??'Unassigned')||'Unassigned';if(!map.has(label))map.set(label,[]);map.get(label)!.push(row)});
    return [...map.entries()].sort((a,b)=>a[0].localeCompare(b[0],undefined,{numeric:true,sensitivity:'base'})).map(([label,groupRows])=>({key:label,label,rows:groupRows}));
  },[filtered,groupBy,groupSupported,template]);
@@ -137,7 +138,7 @@ async function fetchRows(template:ReportTemplate,businessId:string,from:string,t
  return itemRows.flatMap(item=>{const inv:any=invById.get(item.invoice_id);if(!inv||inv.currency_code!==currency||inv.invoice_date<from||inv.invoice_date>to||['draft','void'].includes(inv.status))return[];const product=productById.get(item.product_service_id||'');const tax=taxById.get(item.tax_rate_id||'');const taxValue=Number(item.tax_amount||0);const gross=Number(item.line_total||0);const taxable=Math.max(0,gross-taxValue);const slab=Number(tax?.rate||0)?Number(tax?.rate)+'%':'Exempt/0%';const data={invoice_date:inv.invoice_date,invoice_number:inv.invoice_number,item:product?.name||item.description,sku:product?.sku||'—',customer:customersById.get(inv.customer_id)||'Unknown customer',quantity:Number(item.quantity||0),net:taxable,taxable,tax:taxValue,total:gross,tax_slab:slab,tax_name:tax?.name||'No tax',hsn_sac:item.hsn_sac||product?.hsn_sac||'—',status:'posted',status_key:'posted'};return[{id:item.id,data,searchText:searchText(data)}]});
 }
 
-function groupField(group:GroupKey,columns:ReportColumn[]){const map:Record<string,string>={customer:'customer',date:'date',payment_mode:'method',tax_slab:'tax_slab'};const preferred=map[group];return preferred&&columns.some(c=>c.key===preferred)?preferred:columns.find(c=>c.groupKey===group)?.key}
+function groupField(group:GroupKey,template:ReportTemplate){const map:Record<string,string|undefined>={customer:'customer',date:template.dateField,payment_mode:'method',tax_slab:'tax_slab'};const preferred=map[group];return preferred&&template.columns.some(c=>c.key===preferred)?preferred:template.columns.find(c=>c.groupKey===group)?.key}
 function csvValue(value:unknown,kind:ReportColumn['kind']){if(value===null||value===undefined)return'';if(kind==='money'||kind==='number')return String(Number(value)||0);return String(value)}
 function cellClass(column:ReportColumn){return column.kind==='money'||column.kind==='number'?'font-mono tabular-nums text-right':column.kind==='date'?'font-mono text-[11px] text-slate-500':column.kind==='status'?'font-semibold text-slate-700':''}
 function renderCell(value:unknown,column:ReportColumn,currency:string){if(column.kind==='money')return money(Number(value||0),currency);if(column.kind==='number')return numberValue(Number(value||0));if(column.kind==='status')return statusLabel(String(value||'—'));return String(value??'—')}
