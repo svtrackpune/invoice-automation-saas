@@ -231,7 +231,7 @@ function round2(value: number): number {
 
 function isoDateToDmy(value: string): string {
   const [year, month, day] = String(value).slice(0, 10).split('-');
-  return year && month && day ? \`\${day}-\${month}-\${year}\` : '';
+  return year && month && day ? `${day}-${month}-${year}` : '';
 }
 
 function ymd(value: string): string {
@@ -242,7 +242,7 @@ function firstDayOfMonth(period: string): string {
   if (!/^\\d{4}-\\d{2}$/.test(period)) throw new Error('Reporting period must be YYYY-MM.');
   const [year, month] = period.split('-').map(Number);
   if (month < 1 || month > 12) throw new Error('Reporting month is invalid.');
-  return \`\${year}-\${String(month).padStart(2, '0')}-01\`;
+  return `${year}-${String(month).padStart(2, '0')}-01`;
 }
 
 function lastDayOfMonth(period: string): string {
@@ -253,17 +253,17 @@ function lastDayOfMonth(period: string): string {
 
 function financialYearStart(year: number, fiscalStartMonth: number): string {
   const fyYear = fiscalStartMonth > 1 ? year : year;
-  return \`\${fyYear}-\${String(fiscalStartMonth).padStart(2, '0')}-01\`;
+  return `${fyYear}-${String(fiscalStartMonth).padStart(2, '0')}-01`;
 }
 
 function previousFinancialYearStart(currentStart: string): string {
-  const date = new Date(\`\${currentStart}T00:00:00Z\`);
+  const date = new Date(`${currentStart}T00:00:00Z`);
   date.setUTCFullYear(date.getUTCFullYear() - 1);
   return date.toISOString().slice(0, 10);
 }
 
 function previousFinancialYearEnd(currentStart: string): string {
-  const date = new Date(\`\${currentStart}T00:00:00Z\`);
+  const date = new Date(`${currentStart}T00:00:00Z`);
   date.setUTCDate(date.getUTCDate() - 1);
   return date.toISOString().slice(0, 10);
 }
@@ -507,7 +507,7 @@ export async function buildGstr1Export(businessId: string, period: string): Prom
   for (const invoice of data.invoices) {
     const customer = customerMap.get(invoice.customer_id);
     if (!customer) {
-      warnings.push({code:'CUSTOMER_MISSING',message:\`Invoice \${invoice.invoice_number} has no matching customer record.\`});
+      warnings.push({code:'CUSTOMER_MISSING',message:`Invoice ${invoice.invoice_number} has no matching customer record.`});
       continue;
     }
 
@@ -515,7 +515,7 @@ export async function buildGstr1Export(businessId: string, period: string): Prom
     const pos = normaliseStateCode(invoice.place_of_supply_state_code) ?? addressState(customer.billing_address) ?? data.supplierState;
     if (!pos) {
       missingPos += 1;
-      warnings.push({code:'POS_MISSING',message:\`Invoice \${invoice.invoice_number} has no resolvable place-of-supply state code.\`});
+      warnings.push({code:'POS_MISSING',message:`Invoice ${invoice.invoice_number} has no resolvable place-of-supply state code.`});
       continue;
     }
 
@@ -527,7 +527,7 @@ export async function buildGstr1Export(businessId: string, period: string): Prom
     }));
 
     if (!items.length) {
-      warnings.push({code:'NO_ITEMS',message:\`Invoice \${invoice.invoice_number} has no item rows and was skipped.\`});
+      warnings.push({code:'NO_ITEMS',message:`Invoice ${invoice.invoice_number} has no item rows and was skipped.`});
       continue;
     }
 
@@ -697,7 +697,7 @@ export async function buildGstr1Export(businessId: string, period: string): Prom
 
   const payload: Gstr1Payload = {
     gstin: String(data.profile.gstin).trim().toUpperCase(),
-    fp: \`\${period.slice(5,7)}\${period.slice(0,4)}\`,
+    fp: `${period.slice(5,7)}${period.slice(0,4)}`,
     cur_gt: data.curGt,
     gt: data.gt,
     b2b: [...b2bMap.entries()].sort(([a],[b]) => a.localeCompare(b)).map(([ctin, inv]) => ({ctin, inv})),
@@ -720,7 +720,7 @@ function xmlEscape(value: unknown): string {
 
 function tallyAmount(value: number, debit: boolean): string {
   const amount = round2(Math.abs(value));
-  return \`\${debit ? '-' : ''}\${amount.toFixed(2)}\`;
+  return `${debit ? '-' : ''}${amount.toFixed(2)}`;
 }
 
 export interface TallyLedgerNames {
@@ -768,7 +768,7 @@ export async function buildTallyPrimeXml(
     const customer = customers.get(invoice.customer_id);
     const partyLedger = invoice.document_kind === 'cash_bill' ? mergedLedgers.cashLedger : (customer?.display_name || customer?.legal_name || 'Customer');
     if (!customer && invoice.document_kind !== 'cash_bill') {
-      warnings.push({code:'CUSTOMER_MISSING',message:\`Invoice \${invoice.invoice_number} has no customer master; voucher uses a placeholder ledger name.\`});
+      warnings.push({code:'CUSTOMER_MISSING',message:`Invoice ${invoice.invoice_number} has no customer master; voucher uses a placeholder ledger name.`});
     }
 
     const itemRows = itemsByInvoice.get(invoice.id) ?? [];
@@ -777,17 +777,17 @@ export async function buildTallyPrimeXml(
     const igst = numeric(invoice.igst_amount);
     const salesBase = round2(numeric(invoice.total) - numeric(invoice.tax_total));
     const lines: string[] = [];
-    lines.push(\`      <LEDGERENTRIES.LIST>\\n        <LEDGERNAME>\${xmlEscape(partyLedger)}</LEDGERNAME>\\n        <ISDEEMEDPOSITIVE>Yes</ISDEEMEDPOSITIVE>\\n        <ISPARTYLEDGER>\${invoice.document_kind === 'cash_bill' ? 'No' : 'Yes'}</ISPARTYLEDGER>\\n        <ISLASTDEEMEDPOSITIVE>Yes</ISLASTDEEMEDPOSITIVE>\\n        <AMOUNT>\${tallyAmount(numeric(invoice.total), true)}</AMOUNT>\${invoice.document_kind === 'cash_bill' ? '' : \`\\n        <BILLALLOCATIONS.LIST>\\n          <NAME>\${xmlEscape(invoice.invoice_number)}</NAME>\\n          <BILLTYPE>New Ref</BILLTYPE>\\n          <AMOUNT>\${tallyAmount(numeric(invoice.total), true)}</AMOUNT>\\n        </BILLALLOCATIONS.LIST>\`}\\n      </LEDGERENTRIES.LIST>\`);
-    if (salesBase !== 0) lines.push(\`      <LEDGERENTRIES.LIST>\\n        <LEDGERNAME>\${xmlEscape(mergedLedgers.salesLedger)}</LEDGERNAME>\\n        <ISDEEMEDPOSITIVE>No</ISDEEMEDPOSITIVE>\\n        <AMOUNT>\${tallyAmount(salesBase, false)}</AMOUNT>\\n      </LEDGERENTRIES.LIST>\`);
-    if (cgst !== 0) lines.push(\`      <LEDGERENTRIES.LIST>\\n        <LEDGERNAME>\${xmlEscape(mergedLedgers.cgstLedger)}</LEDGERNAME>\\n        <ISDEEMEDPOSITIVE>No</ISDEEMEDPOSITIVE>\\n        <AMOUNT>\${tallyAmount(cgst, false)}</AMOUNT>\\n      </LEDGERENTRIES.LIST>\`);
-    if (sgst !== 0) lines.push(\`      <LEDGERENTRIES.LIST>\\n        <LEDGERNAME>\${xmlEscape(mergedLedgers.sgstLedger)}</LEDGERNAME>\\n        <ISDEEMEDPOSITIVE>No</ISDEEMEDPOSITIVE>\\n        <AMOUNT>\${tallyAmount(sgst, false)}</AMOUNT>\\n      </LEDGERENTRIES.LIST>\`);
-    if (igst !== 0) lines.push(\`      <LEDGERENTRIES.LIST>\\n        <LEDGERNAME>\${xmlEscape(mergedLedgers.igstLedger)}</LEDGERNAME>\\n        <ISDEEMEDPOSITIVE>No</ISDEEMEDPOSITIVE>\\n        <AMOUNT>\${tallyAmount(igst, false)}</AMOUNT>\\n      </LEDGERENTRIES.LIST>\`);
+    lines.push(`      <LEDGERENTRIES.LIST>\\n        <LEDGERNAME>${xmlEscape(partyLedger)}</LEDGERNAME>\\n        <ISDEEMEDPOSITIVE>Yes</ISDEEMEDPOSITIVE>\\n        <ISPARTYLEDGER>${invoice.document_kind === 'cash_bill' ? 'No' : 'Yes'}</ISPARTYLEDGER>\\n        <ISLASTDEEMEDPOSITIVE>Yes</ISLASTDEEMEDPOSITIVE>\\n        <AMOUNT>${tallyAmount(numeric(invoice.total), true)}</AMOUNT>${invoice.document_kind === 'cash_bill' ? '' : `\\n        <BILLALLOCATIONS.LIST>\\n          <NAME>${xmlEscape(invoice.invoice_number)}</NAME>\\n          <BILLTYPE>New Ref</BILLTYPE>\\n          <AMOUNT>${tallyAmount(numeric(invoice.total), true)}</AMOUNT>\\n        </BILLALLOCATIONS.LIST>`}\\n      </LEDGERENTRIES.LIST>`);
+    if (salesBase !== 0) lines.push(`      <LEDGERENTRIES.LIST>\\n        <LEDGERNAME>${xmlEscape(mergedLedgers.salesLedger)}</LEDGERNAME>\\n        <ISDEEMEDPOSITIVE>No</ISDEEMEDPOSITIVE>\\n        <AMOUNT>${tallyAmount(salesBase, false)}</AMOUNT>\\n      </LEDGERENTRIES.LIST>`);
+    if (cgst !== 0) lines.push(`      <LEDGERENTRIES.LIST>\\n        <LEDGERNAME>${xmlEscape(mergedLedgers.cgstLedger)}</LEDGERNAME>\\n        <ISDEEMEDPOSITIVE>No</ISDEEMEDPOSITIVE>\\n        <AMOUNT>${tallyAmount(cgst, false)}</AMOUNT>\\n      </LEDGERENTRIES.LIST>`);
+    if (sgst !== 0) lines.push(`      <LEDGERENTRIES.LIST>\\n        <LEDGERNAME>${xmlEscape(mergedLedgers.sgstLedger)}</LEDGERNAME>\\n        <ISDEEMEDPOSITIVE>No</ISDEEMEDPOSITIVE>\\n        <AMOUNT>${tallyAmount(sgst, false)}</AMOUNT>\\n      </LEDGERENTRIES.LIST>`);
+    if (igst !== 0) lines.push(`      <LEDGERENTRIES.LIST>\\n        <LEDGERNAME>${xmlEscape(mergedLedgers.igstLedger)}</LEDGERNAME>\\n        <ISDEEMEDPOSITIVE>No</ISDEEMEDPOSITIVE>\\n        <AMOUNT>${tallyAmount(igst, false)}</AMOUNT>\\n      </LEDGERENTRIES.LIST>`);
 
-    if (!itemRows.length) warnings.push({code:'NO_ITEMS',message:\`Voucher \${invoice.invoice_number} has no item rows; exported as accounting-only sales voucher.\`});
-    return \`    <TALLYMESSAGE>\\n      <VOUCHER VCHTYPE="Sales" ACTION="Create">\\n        <DATE>\${ymd(invoice.invoice_date)}</DATE>\\n        <VOUCHERTYPENAME>Sales</VOUCHERTYPENAME>\\n        <VOUCHERNUMBER>\${xmlEscape(invoice.invoice_number)}</VOUCHERNUMBER>\\n        <PERSISTEDVIEW>Accounting Voucher View</PERSISTEDVIEW>\\n        <ISINVOICE>No</ISINVOICE>\\n        <OBJVIEW>Accounting Voucher View</OBJVIEW>\\n\${lines.join('\\n')}\\n      </VOUCHER>\\n    </TALLYMESSAGE>\`;
+    if (!itemRows.length) warnings.push({code:'NO_ITEMS',message:`Voucher ${invoice.invoice_number} has no item rows; exported as accounting-only sales voucher.`});
+    return `    <TALLYMESSAGE>\\n      <VOUCHER VCHTYPE="Sales" ACTION="Create">\\n        <DATE>${ymd(invoice.invoice_date)}</DATE>\\n        <VOUCHERTYPENAME>Sales</VOUCHERTYPENAME>\\n        <VOUCHERNUMBER>${xmlEscape(invoice.invoice_number)}</VOUCHERNUMBER>\\n        <PERSISTEDVIEW>Accounting Voucher View</PERSISTEDVIEW>\\n        <ISINVOICE>No</ISINVOICE>\\n        <OBJVIEW>Accounting Voucher View</OBJVIEW>\\n${lines.join('\\n')}\\n      </VOUCHER>\\n    </TALLYMESSAGE>`;
   });
 
-  const xml = \`<?xml version="1.0" encoding="UTF-8"?>\\n<ENVELOPE>\\n  <HEADER>\\n    <VERSION>1</VERSION>\\n    <TALLYREQUEST>Import</TALLYREQUEST>\\n    <TYPE>Data</TYPE>\\n    <ID>Vouchers</ID>\\n  </HEADER>\\n  <BODY>\\n    <DESC></DESC>\\n    <DATA>\\n\${vouchers.join('\\n')}\\n    </DATA>\\n  </BODY>\\n</ENVELOPE>\\n\`;
+  const xml = `<?xml version="1.0" encoding="UTF-8"?>\\n<ENVELOPE>\\n  <HEADER>\\n    <VERSION>1</VERSION>\\n    <TALLYREQUEST>Import</TALLYREQUEST>\\n    <TYPE>Data</TYPE>\\n    <ID>Vouchers</ID>\\n  </HEADER>\\n  <BODY>\\n    <DESC></DESC>\\n    <DATA>\\n${vouchers.join('\\n')}\\n    </DATA>\\n  </BODY>\\n</ENVELOPE>\\n`;
 
   return {xml,warnings,periodStart:from,periodEnd:to,voucherCount:vouchers.length};
 }
