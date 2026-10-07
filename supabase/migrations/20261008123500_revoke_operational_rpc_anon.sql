@@ -1,0 +1,10 @@
+BEGIN;
+REVOKE EXECUTE ON FUNCTION public.commit_stock_audit_adjustment(UUID,UUID,JSONB) FROM anon, PUBLIC;
+REVOKE EXECUTE ON FUNCTION public.create_delivery_challan(UUID,UUID,DATE,UUID,JSONB,TEXT,TEXT,TEXT,TEXT,TEXT) FROM anon, PUBLIC;
+REVOKE EXECUTE ON FUNCTION public.get_day_book(UUID,DATE) FROM anon, PUBLIC;
+REVOKE EXECUTE ON FUNCTION public.set_delivery_challan_status(UUID,UUID,TEXT) FROM anon, PUBLIC;
+GRANT EXECUTE ON FUNCTION public.commit_stock_audit_adjustment(UUID,UUID,JSONB) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.create_delivery_challan(UUID,UUID,DATE,UUID,JSONB,TEXT,TEXT,TEXT,TEXT,TEXT) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.get_day_book(UUID,DATE) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.set_delivery_challan_status(UUID,UUID,TEXT) TO authenticated;
+COMMIT;
