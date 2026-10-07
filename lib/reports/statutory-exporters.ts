@@ -445,23 +445,6 @@ async function loadData(businessId: string, periodStart: string, periodEnd: stri
   };
 }
 
-function lineTaxDetail(
-  taxAmount: number,
-  taxRate: number,
-  isInterState: boolean
-): Gstr1Payload['b2b'][number]['inv'][number]['itms'][number]['itm_det'] {
-  const tax = round2(Math.max(0, taxAmount));
-  const taxable = taxRate > 0 ? round2(Math.max(0, taxAmount === 0 ? 0 : 0)) : 0;
-  return {
-    rt: round2(Math.max(0, taxRate)),
-    txval: taxable,
-    iamt: isInterState ? tax : 0,
-    camt: isInterState ? 0 : round2(tax / 2),
-    samt: isInterState ? 0 : round2(tax - round2(tax / 2)),
-    csamt: 0,
-  };
-}
-
 function itemTaxable(item: InvoiceItemRow): number {
   return round2(Math.max(0, numeric(item.line_total) - numeric(item.tax_amount)));
 }
@@ -567,7 +550,7 @@ export async function buildGstr1Export(businessId: string, period: string): Prom
         const rate = itemRate(item, taxMap);
         const key = [pos, isInterState ? 'INTER' : 'INTRA', rate.toFixed(2)].join('|');
         const current = b2csMap.get(key) ?? {
-          sply_ty: isInterState ? 'INTER' : 'INTRA' as 'INTER'|'INTRA',
+          sply_ty: (isInterState ? 'INTER' : 'INTRA') as 'INTER'|'INTRA',
           pos,
           rt: rate,
           txval: 0,
@@ -642,7 +625,6 @@ export async function buildGstr1Export(businessId: string, period: string): Prom
     const ctin = customer && validGstin(customer.tax_id) ? String(customer.tax_id).trim().toUpperCase() : null;
     if (!ctin) continue;
     const original = note.invoice_id ? data.invoices.find(x => x.id === note.invoice_id) : undefined;
-    const originalCustomer = original ? customerMap.get(original.customer_id) : customer;
     const pos = normaliseStateCode(original?.place_of_supply_state_code) ?? addressState(customer.billing_address) ?? data.supplierState;
     if (!pos) continue;
     const interState = pos !== data.supplierState || ['EXPORT','SEZ'].includes(String(original?.supply_type).toUpperCase());
@@ -670,7 +652,6 @@ export async function buildGstr1Export(businessId: string, period: string): Prom
       itms:noteItems,
     });
     cdnrMap.set(ctin,list);
-    void originalCustomer;
   }
 
   for (const note of data.debitNotes) {
