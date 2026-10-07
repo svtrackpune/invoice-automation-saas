@@ -18,6 +18,8 @@ const PREFERRED_FORMATS = [
 ];
 
 export default function CameraBarcodeScanner({ onDetected, label = 'Scan Barcode', compact = false }: Props) {
+  const onDetectedRef = useRef(onDetected);
+  onDetectedRef.current = onDetected;
   const [open, setOpen] = useState(false);
   const [starting, setStarting] = useState(false);
   const [error, setError] = useState('');
@@ -49,7 +51,7 @@ export default function CameraBarcodeScanner({ onDetected, label = 'Scan Barcode
       const code = results.find(item => String(item.rawValue ?? '').trim())?.rawValue?.trim();
       if (code) {
         if ('vibrate' in navigator && typeof navigator.vibrate === 'function') navigator.vibrate(80);
-        onDetected(code);
+        onDetectedRef.current(code);
         setOpen(false);
         stop();
         return;
@@ -62,7 +64,7 @@ export default function CameraBarcodeScanner({ onDetected, label = 'Scan Barcode
     if (streamRef.current && open) {
       timerRef.current = window.setTimeout(() => void detectLoop(detector), 140);
     }
-  }, [onDetected, open, stop]);
+  }, [open, stop]);
 
   useEffect(() => {
     if (!open) {
