@@ -1,10 +1,7 @@
 'use client';
-import UnifiedDocumentSettings from './UnifiedDocumentSettings';
-import DocumentBankAccountsPanel from './DocumentBankAccountsPanel';
+
+import DocumentThemeStudio from './DocumentThemeStudio';
 
 export default function BrandPage(){
-  return <main className="document-settings-shell"><div className="document-settings-inner">
-    <UnifiedDocumentSettings />
-    <DocumentBankAccountsPanel />
-  </div></main>;
+  return <DocumentThemeStudio />;
 }
