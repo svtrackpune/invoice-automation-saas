@@ -7,7 +7,7 @@ export const runtime = 'nodejs';
 const schema = z.object({
   business_id: z.string().uuid(),
   name: z.string().trim().min(1).max(100),
-  scopes: z.array(z.enum(['invoices:read','invoices:write','customers:read','customers:write','inventory:read'])).min(1),
+  scopes: z.array(z.enum(['invoices:read','invoices:write','customers:read','customers:write','inventory:read','inventory:write','reports:read'])).min(1),
 }).strict();
 
 const getAdmin=()=>createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!,process.env.SUPABASE_SERVICE_ROLE_KEY!,{auth:{autoRefreshToken:false,persistSession:false}});
