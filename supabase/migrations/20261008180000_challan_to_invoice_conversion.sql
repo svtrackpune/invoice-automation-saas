@@ -19,7 +19,7 @@ CREATE OR REPLACE FUNCTION public.convert_delivery_challan_to_invoice(
 LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = public,mm_private,pg_temp
-AS $$
+AS $
 DECLARE
   v_user_id UUID := auth.uid();
   v_challan public.delivery_challans%rowtype;
@@ -43,7 +43,7 @@ BEGIN
     RAISE EXCEPTION 'Not authenticated';
   END IF;
 
-  IF NOT mm_private.has_business_permission(p_business_id,'invoices.create',v_user_id) THEN
+  IF NOT (mm_private.has_business_permission(p_business_id,'sales.create',v_user_id) OR mm_private.has_business_permission(p_business_id,'invoices.create',v_user_id)) THEN
     RAISE EXCEPTION 'Access denied: invoices.create permission required';
   END IF;
 
@@ -303,7 +303,7 @@ BEGIN
     'inventory_rededucted',false
   );
 END;
-$$;
+$;
 
 REVOKE ALL ON FUNCTION public.convert_delivery_challan_to_invoice(UUID,UUID,TEXT) FROM PUBLIC,anon;
 GRANT EXECUTE ON FUNCTION public.convert_delivery_challan_to_invoice(UUID,UUID,TEXT) TO authenticated;
