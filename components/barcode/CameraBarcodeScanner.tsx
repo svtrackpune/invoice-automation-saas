@@ -25,13 +25,13 @@ export default function CameraBarcodeScanner({ onDetected, label = 'Scan Barcode
   const [supportsCamera, setSupportsCamera] = useState(true);
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
-  const frameRef = useRef<number | null>(null);
+  const timerRef = useRef<number | null>(null);
   const detectingRef = useRef(false);
 
   const stop = useCallback(() => {
-    if (frameRef.current !== null) {
-      window.cancelAnimationFrame(frameRef.current);
-      frameRef.current = null;
+    if (timerRef.current !== null) {
+      window.clearTimeout(timerRef.current);
+      timerRef.current = null;
     }
     const stream = streamRef.current;
     if (stream) stream.getTracks().forEach(track => track.stop());
@@ -60,7 +60,7 @@ export default function CameraBarcodeScanner({ onDetected, label = 'Scan Barcode
       detectingRef.current = false;
     }
     if (streamRef.current && open) {
-      frameRef.current = window.setTimeout(() => void detectLoop(detector), 140) as unknown as number;
+      timerRef.current = window.setTimeout(() => void detectLoop(detector), 140);
     }
   }, [onDetected, open, stop]);
 
