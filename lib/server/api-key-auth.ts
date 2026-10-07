@@ -8,7 +8,9 @@ export type PublicApiScope =
   | 'invoices:write'
   | 'customers:read'
   | 'customers:write'
-  | 'inventory:read';
+  | 'inventory:read'
+  | 'inventory:write'
+  | 'reports:read';
 
 export type AuthenticatedApiKey = {
   id: string;
