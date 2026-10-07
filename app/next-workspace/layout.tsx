@@ -46,6 +46,8 @@ const baseGroups: NavGroup[] = [
     { label: 'Audit Trails', href: '/next-workspace/accounting', icon: 'audit' },
     { label: 'Day Book', href: '/next-workspace/day-book', icon: 'statement' },
     { label: 'Stock Audit', href: '/next-workspace/stock-audit', icon: 'audit' },
+    { label: 'Daily Cash Book', href: '/next-workspace/reports/daily-cash-book', icon: 'cash' },
+    { label: 'Statutory Hub', href: '/next-workspace/reports/statutory-hub', icon: 'tax' },
   ]},
   { name: 'System', items: [
     { label: 'Business Settings', href: '/next-workspace/business-settings', icon: 'settings' },
@@ -65,6 +67,8 @@ const titles: Record<string, string> = {
   '/next-workspace/barcodes': 'Barcode Printing',
   '/next-workspace/day-book': 'Day Book',
   '/next-workspace/stock-audit': 'Stock Audit',
+  '/next-workspace/reports/daily-cash-book': 'Daily Cash Book',
+  '/next-workspace/reports/statutory-hub': 'Statutory Hub',
   '/next-workspace/purchases': 'Vendor Bills',
   '/next-workspace/expenses': 'Expenses',
   '/next-workspace/banking': 'Banking & Reconciliation',
