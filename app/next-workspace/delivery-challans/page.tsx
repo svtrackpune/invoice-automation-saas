@@ -117,7 +117,7 @@ export default function DeliveryChallans() {
     setCustomers(cu.data || []);
     setProducts(pr.data || []);
     setLocations(lo.data || []);
-    setRows((dc.data || []) as ChallanRow[]);
+    setRows((dc.data || []) as unknown as ChallanRow[]);
 
     if (!locationId && lo.data?.length) {
       setLocationId((lo.data.find((x) => x.is_default) || lo.data[0]).id);

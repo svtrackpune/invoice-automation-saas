@@ -13,8 +13,7 @@ type Item = {
   category_id: string | null;
 };
 
-type BarcodeTemplate = {
-  id: string;
+type DBTemplateConfig = {
   name: string;
   media_type: 'thermal_roll' | 'sheet_a4';
   label_width_mm: number;
@@ -36,7 +35,8 @@ type BarcodeTemplate = {
 
 type PresetKey = 'thermal-50x25' | 'thermal-38x25' | 'a4-24-up' | 'a4-40-up';
 
-type Preset = BarcodeTemplate & {
+type BarcodeTemplate = DBTemplateConfig & { id: string };
+type Preset = DBTemplateConfig & {
   key: PresetKey;
   description: string;
   page_width_mm: number;

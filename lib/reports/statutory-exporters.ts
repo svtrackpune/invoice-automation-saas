@@ -111,6 +111,7 @@ type BusinessRow = {
 type TaxProfile = {
   gstin: string | null;
   tax_state: string | null;
+  financial_year_start_month: number;
   tax_regime: string;
   gst_registration_type: string | null;
 };
@@ -370,7 +371,7 @@ async function loadData(businessId: string, periodStart: string, periodEnd: stri
   if (businessResult.error) throw new Error(businessResult.error.message);
   const profileResult = await supabase
     .from('business_tax_profiles')
-    .select('gstin,tax_state,tax_regime,gst_registration_type')
+    .select('gstin,tax_state,financial_year_start_month,tax_regime,gst_registration_type')
     .eq('business_id', businessId)
     .maybeSingle();
   if (profileResult.error) throw new Error(profileResult.error.message);
@@ -379,6 +380,7 @@ async function loadData(businessId: string, periodStart: string, periodEnd: stri
   const profile = (profileResult.data ?? {
     gstin: null,
     tax_state: null,
+    financial_year_start_month: 4,
     tax_regime: 'NONE',
     gst_registration_type: null,
   }) as TaxProfile;
@@ -622,7 +624,8 @@ export async function buildGstr1Export(businessId: string, period: string): Prom
 
   for (const note of data.creditNotes) {
     const customer = noteCustomerMap.get(note.customer_id);
-    const ctin = customer && validGstin(customer.tax_id) ? String(customer.tax_id).trim().toUpperCase() : null;
+    if (!customer) continue;
+    const ctin = validGstin(customer.tax_id) ? String(customer.tax_id).trim().toUpperCase() : null;
     if (!ctin) continue;
     const original = note.invoice_id ? data.invoices.find(x => x.id === note.invoice_id) : undefined;
     const pos = normaliseStateCode(original?.place_of_supply_state_code) ?? addressState(customer.billing_address) ?? data.supplierState;
@@ -656,7 +659,8 @@ export async function buildGstr1Export(businessId: string, period: string): Prom
 
   for (const note of data.debitNotes) {
     const customer = noteCustomerMap.get(note.customer_id);
-    const ctin = customer && validGstin(customer.tax_id) ? String(customer.tax_id).trim().toUpperCase() : null;
+    if (!customer) continue;
+    const ctin = validGstin(customer.tax_id) ? String(customer.tax_id).trim().toUpperCase() : null;
     if (!ctin) continue;
     const original = note.invoice_id ? data.invoices.find(x => x.id === note.invoice_id) : undefined;
     const pos = normaliseStateCode(original?.place_of_supply_state_code) ?? addressState(customer.billing_address) ?? data.supplierState;

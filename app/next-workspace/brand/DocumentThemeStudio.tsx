@@ -85,7 +85,7 @@ function Logo({ brand, width }: { brand: Brand; width: number }) {
   return <img src={url} alt={brand.name || 'Business logo'} style={{ width: Math.min(width, 180), maxHeight: width * .62 }} className="shrink-0 rounded-lg object-contain" />;
 }
 
-function PreviewCanvas({ type, templateKey, brand, pref, customer, balance, upiQr }: { type: DocType; templateKey: TemplateKey; brand: Brand; pref: Pref; customer: SampleCustomer; balance: number; upiQr: string }) {
+function PreviewCanvas({ type, templateKey, brand, pref, customer, balance, upiQr, payment }: { type: DocType; templateKey: TemplateKey; brand: Brand; pref: Pref; customer: SampleCustomer; balance: number; upiQr: string; payment: PaymentSettings }) {
   const config = configOf(pref);
   const colors = presetColors(templateKey);
   const primary = pref.primary_color || colors.primary;
@@ -323,7 +323,7 @@ export default function DocumentThemeStudio() {
           <p className="text-[9px] font-black uppercase tracking-[.18em] text-indigo-300">Visual identity</p>
           <div className="mt-3 grid grid-cols-2 gap-3">{[
             ['Primary', 'primary_color'], ['Secondary', 'secondary_color'], ['Accent', 'accent_color'], ['Text', 'text_color'], ['Background', 'background_color'],
-          ].map(([label, key]) => <label key={key} className="text-[9px] font-bold uppercase tracking-wider text-slate-400">{label}<input type="color" value={(currentPref as Record<string, string>)[key]} onChange={event => updatePref({ [key]: event.target.value } as Partial<Pref>)} className="mt-1 h-9 w-full cursor-pointer rounded-lg border border-white/10 bg-slate-900 p-1" /></label>)}</div>
+          ].map(([label, key]) => <label key={key} className="text-[9px] font-bold uppercase tracking-wider text-slate-400">{label}<input type="color" value={(currentPref as unknown as Record<string, string>)[key]} onChange={event => updatePref({ [key]: event.target.value } as Partial<Pref>)} className="mt-1 h-9 w-full cursor-pointer rounded-lg border border-white/10 bg-slate-900 p-1" /></label>)}</div>
           <label className="mt-3 block text-[9px] font-bold uppercase tracking-wider text-slate-400">Font family<select value={currentPref.font_family} onChange={event => updatePref({ font_family: event.target.value })} className="mt-1 h-9 w-full rounded-lg border border-white/10 bg-slate-900 px-2 text-xs text-white">{FONT_OPTIONS.map(font => <option key={font} value={font}>{font}</option>)}</select></label>
           <label className="mt-3 block text-[9px] font-bold uppercase tracking-wider text-slate-400">Document title override<input value={currentPref.document_title_override || ''} onChange={event => updatePref({ document_title_override: event.target.value || null })} placeholder={DOC_TITLE[type]} className="mt-1 h-9 w-full rounded-lg border border-white/10 bg-slate-900 px-3 text-xs text-white placeholder:text-slate-600" /></label>
         </section>
@@ -351,7 +351,7 @@ export default function DocumentThemeStudio() {
             ['show_payment_link', 'Payment link', 'Online payment CTA'],
             ['show_payment_qr', 'Dynamic UPI QR', 'QR code'],
             ['prefill_upi_amount', 'Prefill UPI amount', payment.upi_id ? payment.upi_id : 'Configure UPI ID in Payment Settings'],
-          ].map(([key, label, description]) => <label key={key} className="flex items-center justify-between gap-3 rounded-xl border border-white/10 px-3 py-2.5"><span><b className="block text-[10px] text-slate-200">{label}</b><small className="text-[9px] text-slate-500">{description}</small></span><input type="checkbox" checked={Boolean((currentPref as Record<string, boolean>)[key])} onChange={event => updatePref({ [key]: event.target.checked } as Partial<Pref>)} className="h-4 w-4 accent-indigo-500" /></label>)}</div>
+          ].map(([key, label, description]) => <label key={key} className="flex items-center justify-between gap-3 rounded-xl border border-white/10 px-3 py-2.5"><span><b className="block text-[10px] text-slate-200">{label}</b><small className="text-[9px] text-slate-500">{description}</small></span><input type="checkbox" checked={Boolean((currentPref as unknown as Record<string, boolean>)[key])} onChange={event => updatePref({ [key]: event.target.checked } as Partial<Pref>)} className="h-4 w-4 accent-indigo-500" /></label>)}</div>
         </section>
 
         <section className="mt-3 rounded-2xl border border-white/10 bg-slate-950/50 p-4">
@@ -369,7 +369,7 @@ export default function DocumentThemeStudio() {
 
       <section className="min-w-0 bg-slate-800">
         <div className="flex items-center justify-between border-b border-white/10 bg-slate-900 px-4 py-3 text-[10px] text-slate-400 sm:px-6"><span><b className="text-white">{DOC_TITLE[type]}</b> · {templateKey} · live print canvas</span><span>{DOCS.find(x => x.key === type)?.kind === 'receipt' ? 'Receipt / Cash Bill' : 'A4 / A5-style page'}</span></div>
-        <div className="h-[calc(100vh-190px)] min-h-[760px] overflow-auto"><PreviewCanvas type={type} templateKey={templateKey} brand={brand} pref={currentPref} customer={customer} balance={balance} upiQr={upiQr} /></div>
+        <div className="h-[calc(100vh-190px)] min-h-[760px] overflow-auto"><PreviewCanvas type={type} templateKey={templateKey} brand={brand} pref={currentPref} customer={customer} balance={balance} upiQr={upiQr} payment={payment} /></div>
       </section>
     </div>
   </main>;
