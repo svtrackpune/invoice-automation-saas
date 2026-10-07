@@ -4,7 +4,6 @@ import {supabase,type BusinessContext} from '@/lib/supabase';
 import CashBillControlled from './CashBillControlled';
 import OfflineCashBillSync,{getOfflineCashBillCount,syncOfflineCashBillsNow} from '@/components/OfflineCashBillSync';
 import PosServiceWorker from '@/components/PosServiceWorker';
-import CameraBarcodeScanner from '@/components/barcode/CameraBarcodeScanner';
 import {queueOfflineCashBill,nextOfflineTicketNumber} from '@/lib/client/offline-cash-bills';
 type Product={id:string;name:string;sku:string|null;barcode:string|null;sales_price:number;default_tax_rate_id:string|null;inventory_tracked:boolean;reorder_level:number};
 type Tax={id:string;name:string;rate:number};
