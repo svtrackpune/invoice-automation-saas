@@ -517,7 +517,7 @@ export default function Barcodes() {
         }
         .barcode-svg-wrap { width: 100%; margin: 1mm 0; }
         .barcode-svg-wrap svg { width: 100%; max-height: 12mm; }
-        .thermal-preview-label { width: `${preset.label_width_mm}mm`; height: `${preset.label_height_mm}mm`; }
+        .thermal-preview-label { width: ${preset.label_width_mm}mm; height: ${preset.label_height_mm}mm; }
         .thermal-preview-stack { display: flex; flex-direction: column; gap: 6px; align-items: flex-start; }
         @media print {
           @page { size: ${preset.page_width_mm}mm ${preset.page_height_mm}mm; margin: 0; }
