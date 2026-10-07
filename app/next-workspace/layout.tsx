@@ -22,6 +22,8 @@ const baseGroups: NavGroup[] = [
     { label: 'Receipts', href: '/next-workspace/receipts', icon: 'cash' },
     { label: 'Customers', href: '/next-workspace/customers', icon: 'customer' },
     { label: 'Products & Services', href: '/next-workspace/items', icon: 'invoice' },
+    { label: 'Delivery Challans', href: '/next-workspace/delivery-challans', icon: 'statement' },
+    { label: 'Barcode Printing', href: '/next-workspace/barcodes', icon: 'invoice' },
   ]},
   { name: 'Documents', items: [
     { label: 'Document Library', href: '/next-workspace/documents/library', icon: 'invoice' },
@@ -42,6 +44,8 @@ const baseGroups: NavGroup[] = [
     { label: 'Tax (GST / VAT)', href: '/next-workspace/tax', icon: 'tax' },
     { label: 'P&L & Reports', href: '/next-workspace/reports', icon: 'report' },
     { label: 'Audit Trails', href: '/next-workspace/accounting', icon: 'audit' },
+    { label: 'Day Book', href: '/next-workspace/day-book', icon: 'statement' },
+    { label: 'Stock Audit', href: '/next-workspace/stock-audit', icon: 'audit' },
   ]},
   { name: 'System', items: [
     { label: 'Business Settings', href: '/next-workspace/business-settings', icon: 'settings' },
@@ -57,6 +61,10 @@ const titles: Record<string, string> = {
   '/next-workspace/customers': 'Customers',
   '/next-workspace/vendors': 'Vendors',
   '/next-workspace/items': 'Products & Services',
+  '/next-workspace/delivery-challans': 'Delivery Challans',
+  '/next-workspace/barcodes': 'Barcode Printing',
+  '/next-workspace/day-book': 'Day Book',
+  '/next-workspace/stock-audit': 'Stock Audit',
   '/next-workspace/purchases': 'Vendor Bills',
   '/next-workspace/expenses': 'Expenses',
   '/next-workspace/banking': 'Banking & Reconciliation',
