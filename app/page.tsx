@@ -1,5 +1,6 @@
 'use client';
 
+import type { Session } from '@supabase/supabase-js';
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 
@@ -55,7 +56,6 @@ function Auth({onReady}:{onReady:()=>void}){
 </div></div></div></div></main>
 }
 
-import type { Session } from '@supabase/supabase-js';
 
 export default function Page(){
   const[session,setSession]=useState<Session|null>(null);
