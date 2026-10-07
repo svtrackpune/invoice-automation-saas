@@ -67,7 +67,7 @@ export default function OnboardingPage() {
   const [gstin, setGstin] = useState('');
   const [taxState, setTaxState] = useState('Maharashtra');
   const [termsMode, setTermsMode] = useState('standard');
-  const [terms, setTerms] = useState(termsPresets[0][1]);
+  const [terms, setTerms] = useState<string>(termsPresets[0][1]);
   const [brandColor, setBrandColor] = useState('#4f46e5');
   const [invoicePrefix, setInvoicePrefix] = useState('INV-');
   const [categories, setCategories] = useState<Category[]>([]);
