@@ -210,7 +210,7 @@ export default function DailyCashBookPage() {
         <section className="mt-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           <article className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-[0_1px_2px_rgba(15,23,42,.03)]">
             <p className="text-[9px] font-bold uppercase tracking-[.14em] text-slate-400">Opening Float</p>
-            <input type="number" min="0" step="0.01" value={openingFloat} readOnly={closed} onChange={event => setOpeningFloat(event.target.value)} className="mt-3 h-11 w-full rounded-lg border border-slate-200 bg-white px-3 text-right font-mono text-lg font-bold tabular-nums outline-none focus:border-indigo-400 read-only:bg-slate-50" />
+            <input type="number" min="0" step="0.01" value={openingFloat} readOnly={closed} onChange={event => setOpeningFloat(event.target.value)} onBlur={() => void refresh()} className="mt-3 h-11 w-full rounded-lg border border-slate-200 bg-white px-3 text-right font-mono text-lg font-bold tabular-nums outline-none focus:border-indigo-400 read-only:bg-slate-50" />
           </article>
           <article className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-[0_1px_2px_rgba(15,23,42,.03)]">
             <p className="text-[9px] font-bold uppercase tracking-[.14em] text-slate-400">Total Inflow</p>
