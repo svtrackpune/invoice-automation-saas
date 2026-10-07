@@ -380,8 +380,8 @@ export default function DocumentViewer({ type, id }: { type: string; id: string 
     <Paper type={type} payload={model} business={mergedBusiness} customer={customer} items={items} theme={theme} fields={fields} logoUrl={logoUrl} paymentSelection={paymentSelection} paymentQrDataUrl={paymentQrDataUrl}
       showLogo={preferences?.show_logo !== false} showBusinessAddress={preferences?.show_business_address !== false} showTaxDetails={preferences?.show_tax_details !== false}
       showBankDetails={paymentSelection?.payment_display_mode === 'bank' || preferences?.show_bank_details === true}
-      showPaymentLink={paymentSelection?.payment_display_mode === 'online' && preferences?.show_payment_link !== false}
-      showPaymentQr={paymentSelection?.payment_display_mode === 'online' && preferences?.show_payment_qr !== false}
+      showPaymentLink={preferences?.show_payment_link !== false && (paymentSelection?.payment_display_mode === 'online' || paymentSettings?.payment_link_enabled === true)}
+      showPaymentQr={preferences?.show_payment_qr !== false && (paymentSelection?.payment_display_mode === 'online' || paymentSettings?.payment_qr_enabled !== false)}
       showSignature={preferences?.show_signature === true || preferences?.show_authorized_signatory === true} showTerms={preferences?.show_terms !== false}
       showCustomerBalance={preferences?.show_customer_balance !== false} customerBalance={customerBalance} showAuthorizedSignatory={preferences?.show_authorized_signatory === true}
       minItemRows={Number(preferences?.min_item_rows || 0)} showSerialNumbers={preferences?.show_serial_numbers === true} documentTitleOverride={documentTitleOverride} studioTheme={studioTheme} />
