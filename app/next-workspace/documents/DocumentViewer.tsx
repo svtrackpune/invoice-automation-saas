@@ -176,7 +176,7 @@ function PaymentSection({ paymentMode, paymentLink, paymentSelection, balance, c
   </section>;
 }
 
-function Paper({ type, payload, business, customer, items, theme, fields, logoUrl, paymentSelection, paymentQrDataUrl, showLogo=true, showBusinessAddress=true, showTaxDetails=true, showBankDetails=false, showPaymentLink=false, showPaymentQr=false, showSignature=false, showTerms=true, showCustomerBalance=false, customerBalance=0, showAuthorizedSignatory=false, minItemRows=0, showSerialNumbers=false, documentTitleOverride='', studioTheme={} }: any) {
+function Paper({ type, payload, business, customer, items, theme, fields, logoUrl, paymentSelection, paymentQrDataUrl, showLogo=true, showBusinessAddress=true, showTaxDetails=true, showBankDetails=false, showPaymentLink=false, showPaymentQr=false, showSignature=false, showTerms=true, showCustomerBalance=false, customerBalance=0, showAuthorizedSignatory=false, minItemRows=0, showSerialNumbers=false, documentTitleOverride='', studioTheme={}, taxLines=[], receiptAllocations=[], originalInvoice={number:'',date:''}, cashBillFormat='a4' }: any) {
   const receipt=type==='receipt', cashBill=type==='cash_bill'||payload.document_kind==='cash_bill', taxInvoice=type==='tax_invoice'||payload.document_kind==='tax_invoice', currency=text(payload.currency_code||business.currency_code||'INR').trim()||'INR';
   const studio=studioTheme||{};
   const accentColor=text(studio.accent_color||'').trim()||theme.accent;
