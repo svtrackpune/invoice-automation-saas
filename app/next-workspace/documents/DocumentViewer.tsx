@@ -219,7 +219,7 @@ function Paper({ type, payload, business, customer, items, theme, fields, logoUr
           {businessEmail&&<span>{businessEmail}</span>}
           {businessWebsite&&<span>{businessWebsite}</span>}
         </div>
-        <div className='receipt-date'>{formatDate(payload.receipt_date||payload.created_at||payload.payment_date)}</div>
+        <div className='receipt-date'><strong>PAYMENT RECEIPT / VOUCHER</strong><span>{formatDate(payload.receipt_date||payload.created_at||payload.payment_date)} · Receipt {documentNumber||'—'}</span></div>
       </header>
       <section className='receipt-status'>
         <div className={`receipt-status-badge ${status.toLowerCase().replace(' ','-')}`}>{status}</div>
@@ -230,11 +230,12 @@ function Paper({ type, payload, business, customer, items, theme, fields, logoUr
         <strong>{customerName}</strong>
         {phone&&<div>{phone}</div>}
       </section>
+      <ReceiptSettlement receiptNumber={documentNumber} date={formatDate(payload.receipt_date||payload.created_at||payload.payment_date)} method={text(payload.payment_method||payload.payment?.method||'')} reference={text(payload.reference_number||payload.payment_reference||payload.payment?.reference||payload.payment?.gateway_transaction_id||'')} customerName={customerName} outstanding={Number(customerBalance)} allocations={receiptAllocations}/>
       <section className='receipt-items-section'>
         <LineItems items={items} payload={{...payload,total:referenceTotal}} receipt minRows={minItemRows} showSerialNumbers={showSerialNumbers}/>
       </section>
       <div className='receipt-total'><span>Total Amount</span><strong>{money(referenceTotal,currency)}</strong></div>
-      <div className='receipt-thanks'>Thanks for visit</div>
+      <div className='receipt-thanks'>Received with thanks · retain this voucher for your records</div>
       <footer className='receipt-footer'><div className='platform'><span className='platform-mark' aria-hidden='true'>M</span><span>Powered by <strong>Moneymatters</strong></span></div></footer>
     </article>;
   }
