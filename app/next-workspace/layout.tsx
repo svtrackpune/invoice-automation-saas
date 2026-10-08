@@ -31,7 +31,7 @@ const baseGroups: NavGroup[] = [
   ]},
   { name: 'Purchases & Expenses', items: [
     { label: 'Expenses', href: '/next-workspace/expenses', icon: 'expense' },
-    { label: 'Vendor Bills', href: '/next-workspace/purchases', icon: 'statement' },
+    { label: 'Bills & Purchase Orders', href: '/next-workspace/bills', icon: 'statement' },
     { label: 'Vendors', href: '/next-workspace/vendors', icon: 'vendor' },
   ]},
   { name: 'Treasury & Banking', items: [
@@ -71,6 +71,7 @@ const titles: Record<string, string> = {
   '/next-workspace/reports/daily-cash-book': 'Daily Cash Book',
   '/next-workspace/reports/statutory-hub': 'Statutory Hub',
   '/next-workspace/purchases': 'Vendor Bills',
+  '/next-workspace/bills': 'Bills & Purchase Orders',
   '/next-workspace/expenses': 'Expenses',
   '/next-workspace/banking': 'Banking & Reconciliation',
   '/next-workspace/payments': 'Payments',
