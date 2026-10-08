@@ -85,7 +85,7 @@ android {
             if (releaseSigningAvailable) {
                 signingConfig signingConfigs.release
             }
-            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.txt'
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }
     }
 }
