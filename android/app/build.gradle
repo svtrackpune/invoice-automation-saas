@@ -19,7 +19,7 @@ def releaseStoreFilePath = signingValue('storeFile', 'ANDROID_KEYSTORE_PATH')
 def releaseStorePassword = signingValue('storePassword', 'ANDROID_KEYSTORE_PASSWORD')
 def releaseKeyAlias = signingValue('keyAlias', 'ANDROID_KEY_ALIAS')
 def releaseKeyPassword = signingValue('keyPassword', 'ANDROID_KEY_PASSWORD')
-def releaseStoreFile = releaseStoreFilePath ? file(releaseStoreFilePath) : null
+def releaseStoreFile = releaseStoreFilePath ? rootProject.file(releaseStoreFilePath) : null
 
 def releaseSigningInputsPresent = [
     releaseStoreFilePath,
@@ -50,8 +50,8 @@ if (releaseSigningAvailable) {
     if (!releaseStorePassword) missing << 'store password (storePassword / ANDROID_KEYSTORE_PASSWORD)'
     if (!releaseKeyAlias) missing << 'key alias (keyAlias / ANDROID_KEY_ALIAS)'
     if (!releaseKeyPassword) missing << 'key password (keyPassword / ANDROID_KEY_PASSWORD)'
-    if (releaseStoreFilePath && !file(releaseStoreFilePath).isFile()) {
-        missing << 'configured keystore file is not readable: ' + file(releaseStoreFilePath).absolutePath
+    if (releaseStoreFilePath && !rootProject.file(releaseStoreFilePath).isFile()) {
+        missing << 'configured keystore file is not readable: ' + rootProject.file(releaseStoreFilePath).absolutePath
     }
     throw new GradleException(
         "Release signing is required but unavailable. Configure android/key.properties locally " +
