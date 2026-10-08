@@ -19,12 +19,12 @@
     "test": "npm run test:financial && node --test tests/*.test.mjs",
     "test:financial": "node --test tests/financial-invariants.test.mjs",
     "test:production-smoke": "node --test tests/production-smoke.test.mjs",
-    "cap:prepare": "npm install --save-exact @capacitor/core@8.5.2 @capacitor/android@8.5.2 && npm install --save-dev --save-exact @capacitor/cli@8.5.2",
+    "cap:prepare": "npm install --no-save --ignore-scripts --save-exact @capacitor/core@8.5.2 @capacitor/android@8.5.2 && npx -y @capacitor/cli@8.5.2",
     "cap:doctor": "npx -y @capacitor/cli@8.5.2 doctor",
-    "cap:add:android": "npm run cap:prepare && npx cap add android",
-    "cap:sync": "npx cap sync",
-    "cap:open:android": "npx cap open android",
-    "cap:build:android": "npx cap sync android && cd android && (gradlew.bat assembleDebug || ./gradlew assembleDebug)"
+    "cap:add:android": "npm run cap:prepare && npx -y @capacitor/cli@8.5.2 add android",
+    "cap:sync": "npx -y @capacitor/cli@8.5.2 sync",
+    "cap:open:android": "npx -y @capacitor/cli@8.5.2 open android",
+    "cap:build:android": "npx -y @capacitor/cli@8.5.2 sync android && cd android && (gradlew.bat assembleDebug || ./gradlew assembleDebug)"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.117.2",
