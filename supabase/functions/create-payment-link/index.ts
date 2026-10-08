@@ -7,6 +7,7 @@ const json=(body:unknown,status=200)=>new Response(JSON.stringify(body),{status,
 Deno.serve(async(req)=>{
   if(req.method==="OPTIONS")return new Response("ok",{headers:cors});
   let reservationId:string|null=null;
+  let businessIdForCleanup:string|null=null;
   let admin:ReturnType<typeof createClient>|null=null;
   try{
     const auth=req.headers.get("Authorization");if(!auth)return json({error:"Authorization required"},401);
@@ -17,7 +18,7 @@ Deno.serve(async(req)=>{
     const input=await req.json(),invoiceId=String(input.invoice_id||""),requestedProvider=String(input.provider||"").trim().toLowerCase();
     if(!invoiceId)return json({error:"invoice_id is required"},400);
     const {data:contexts}=await userClient.rpc("get_my_business_context");const context=contexts?.[0];if(!context)return json({error:"Business context not found"},403);
-    admin=createClient(supabaseUrl,serviceKey);const businessId=context.business_id;
+    admin=createClient(supabaseUrl,serviceKey);const businessId=context.business_id;businessIdForCleanup=businessId;
     const {data:invoice,error:invoiceError}=await admin.from("invoices").select("id,invoice_number,customer_id,balance_due,currency_code,status,journal_entry_id").eq("id",invoiceId).eq("business_id",businessId).single();
     if(invoiceError||!invoice)return json({error:"Invoice not found"},404);
     if(!["sent","posted","partially_paid","overdue"].includes(String(invoice.status))||!invoice.journal_entry_id)return json({error:"Invoice must be posted before creating a payment link"},409);
@@ -67,7 +68,7 @@ Deno.serve(async(req)=>{
     return json({payment_link:link});
   }catch(error){
     if(admin&&reservationId){
-      await admin.from("payment_links").update({status:"failed",metadata:{state:"failed",error:error instanceof Error?error.message:"Unexpected error"},updated_at:new Date().toISOString()}).eq("id",reservationId).eq("business_id",String((error as {business_id?:string})?.business_id||""));
+      await admin.from("payment_links").update({status:"failed",metadata:{state:"failed",error:error instanceof Error?error.message:"Unexpected error"},updated_at:new Date().toISOString()}).eq("id",reservationId).eq("business_id",businessIdForCleanup);
     }
     return json({error:error instanceof Error?error.message:"Unexpected error"},500);
   }
