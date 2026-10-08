@@ -51,6 +51,7 @@ const navigation: NavResult[] = [
   { id: 'vendors', title: 'Vendors', subtitle: 'Suppliers and vendor records', kind: 'navigation', href: '/next-workspace/vendors', keywords: 'vendor vendors supplier suppliers purchase' },
   { id: 'purchases', title: 'Purchases & Bills', subtitle: 'Purchase bills and suppliers', kind: 'navigation', href: '/next-workspace/purchases', keywords: 'purchase purchases bill bills vendor suppliers' },
   { id: 'payments', title: 'Payments', subtitle: 'Customer payments and collection', kind: 'navigation', href: '/next-workspace/payments', keywords: 'payment payments collection collections received' },
+  { id: 'payment-settings', title: 'Payments & Banking', subtitle: 'UPI VPA, settlement bank and tender policies', kind: 'navigation', href: '/next-workspace/settings/payments', keywords: 'payments banking upi vpa qr merchant settlement bank tender settings' },
   { id: 'receipts', title: 'Receipts', subtitle: 'Payment receipts', kind: 'navigation', href: '/next-workspace/receipts', keywords: 'receipt receipts payment voucher' },
   { id: 'banking', title: 'Banking', subtitle: 'Bank accounts and reconciliation', kind: 'navigation', href: '/next-workspace/banking', keywords: 'bank banking account accounts reconciliation transaction transactions' },
   { id: 'cash-bill', title: 'Cash Bill', subtitle: 'Counter sale / cash and UPI billing', kind: 'navigation', href: '/next-workspace/cash-bill', keywords: 'cash cash bill counter carry upi counter sale' },
