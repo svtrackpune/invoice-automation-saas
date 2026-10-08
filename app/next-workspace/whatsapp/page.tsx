@@ -55,7 +55,7 @@ type TelegramForm = {
   display_name: string;
   enabled: boolean;
 };
-type SmsForm={id:string;provider:'fast2sms'|'msg91'|'textlocal'|'generic_http';endpoint_url:string;sender:string;secret:string;template_id:string;display_name:string;enabled:boolean};
+type SmsForm={id:string;provider:'fast2sms'|'msg91'|'textlocal'|'generic_http';endpoint_url:string;sender:string;secret:string;template_id:string;invoice_template_id:string;reminder_template_id:string;display_name:string;enabled:boolean};
 type SmtpForm={id:string;provider:'smtp'|'resend'|'sendgrid';host:string;port:string;username:string;from_email:string;from_name:string;password:string;secure:boolean;display_name:string;enabled:boolean};
 
 const emptyWapi: WapiForm = {
@@ -74,7 +74,7 @@ const emptyTelegram: TelegramForm = {
   display_name: 'Business Telegram',
   enabled: true,
 };
-const emptySms:SmsForm={id:'',provider:'fast2sms',endpoint_url:'',sender:'',secret:'',template_id:'',display_name:'Business SMS',enabled:true};
+const emptySms:SmsForm={id:'',provider:'fast2sms',endpoint_url:'',sender:'',secret:'',template_id:'',invoice_template_id:'',reminder_template_id:'',display_name:'Business SMS',enabled:true};
 const emptySmtp:SmtpForm={id:'',provider:'smtp',host:'',port:'465',username:'',from_email:'',from_name:'',password:'',secure:true,display_name:'Business Email',enabled:true};
 
 export default function WhatsApp() {
@@ -89,6 +89,8 @@ export default function WhatsApp() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState<'wapi' | 'telegram' | 'sms' | 'smtp' | null>(null);
   const [message, setMessage] = useState('');
+  const [testingChannel, setTestingChannel] = useState('');
+  const [testTargets, setTestTargets] = useState<Record<string,string>>({ whatsapp:'', sms:'', telegram:'', email:'' });
 
   const load = useCallback(async () => {
     const c = await supabase.rpc('get_my_business_context');
@@ -166,7 +168,7 @@ export default function WhatsApp() {
     }
 
     const sc=rows.find((row)=>row.channel==='sms'&&['fast2sms','msg91','textlocal','generic_http'].includes(row.provider));
-    if(sc)setSms({id:sc.id,provider:sc.provider as SmsForm['provider'],endpoint_url:sc.endpoint_url||'',sender:sc.sender||'',secret:'',template_id:typeof sc.config?.template_id==='string'?sc.config.template_id:'',display_name:sc.display_name,enabled:sc.enabled});
+    if(sc)setSms({id:sc.id,provider:sc.provider as SmsForm['provider'],endpoint_url:sc.endpoint_url||'',sender:sc.sender||'',secret:'',template_id:typeof sc.config?.template_id==='string'?sc.config.template_id:'',invoice_template_id:typeof sc.config?.invoice_template_id==='string'?sc.config.invoice_template_id:'',reminder_template_id:typeof sc.config?.reminder_template_id==='string'?sc.config.reminder_template_id:'',display_name:sc.display_name,enabled:sc.enabled});
     const ec=rows.find((row)=>row.channel==='email'&&['smtp','resend','sendgrid'].includes(row.provider));
     if(ec)setSmtp({id:ec.id,provider:ec.provider as SmtpForm['provider'],host:ec.endpoint_url||'',port:String(ec.config?.port||465),username:typeof ec.config?.username==='string'?ec.config.username:'',from_email:ec.sender||'',from_name:typeof ec.config?.from_name==='string'?ec.config.from_name:'',password:'',secure:typeof ec.config?.secure==='boolean'?ec.config.secure:true,display_name:ec.display_name,enabled:ec.enabled});
     setLoading(false);
@@ -176,11 +178,36 @@ export default function WhatsApp() {
     load();
   }, [load]);
 
+  const sendTest = async (channel: 'whatsapp' | 'telegram' | 'sms' | 'email') => {
+    if (!ctx) return;
+    const recipient = String(testTargets[channel] || '').trim();
+    if (!recipient) { setMessage('Enter a test recipient first.'); return; }
+    setTestingChannel(channel); setMessage('');
+    const queued = await supabase.rpc('queue_notification_test', {
+      p_business_id: ctx.business_id,
+      p_channel: channel,
+      p_recipient: recipient,
+      p_subject: 'Moneymatters connectivity test',
+      p_message: 'This is a test notification from Moneymatters.',
+    });
+    if (queued.error) {
+      setMessage(queued.error.message);
+      setTestingChannel('');
+      return;
+    }
+    const dispatched = await supabase.functions.invoke('process-notifications', { body: { job_id: queued.data } });
+    setMessage(dispatched.error
+      ? 'Test queued. The notification worker will retry automatically.'
+      : 'Test notification dispatched to the provider.');
+    setTestingChannel('');
+    await load();
+  };
+
   const save = async (channel: 'wapi' | 'telegram' | 'sms' | 'smtp') => {
     if(!ctx)return;setSaving(channel);setMessage('');
     if(channel==='wapi'&&(!wapi.endpoint_url.trim()||!wapi.external_instance_id.trim()||(!wapi.secret.trim()&&!wapi.id))){setMessage('Wapi requires API URL, Instance ID and API Key on first setup.');setSaving(null);return;}
     if(channel==='telegram'&&!telegram.secret.trim()&&!telegram.id){setMessage('Telegram Bot Token is required on first setup.');setSaving(null);return;}
-    if(channel==='sms'&&!sms.secret.trim()&&!sms.id){setMessage('SMS API key is required on first setup.');setSaving(null);return;}
+    if(channel==='sms'&&sms.sender.trim().length!==6){setMessage('SMS Sender ID must be exactly 6 characters.');setSaving(null);return;}
     if(channel==='smtp'&&(!smtp.from_email.trim()||(!smtp.password.trim()&&!smtp.id)|| (smtp.provider==='smtp'&&!smtp.host.trim()))){setMessage(smtp.provider==='smtp'?'SMTP host, From email and password are required on first setup.':'Email sender and API key are required on first setup.');setSaving(null);return;}
     const isWapi=channel==='wapi',isTelegram=channel==='telegram',isSms=channel==='sms';
     const result=await supabase.rpc('save_business_notification_connection',{
@@ -194,7 +221,7 @@ export default function WhatsApp() {
       p_sender:isSms?sms.sender.trim()||null:channel==='smtp'?smtp.from_email.trim():null,
       p_default_recipient:isTelegram?telegram.default_recipient.trim()||null:null,
       p_priority:1,p_failover_group:'customer-delivery',p_enabled:isWapi?wapi.enabled:isTelegram?telegram.enabled:isSms?sms.enabled:smtp.enabled,
-      p_config:isSms?{template_id:sms.template_id.trim()||undefined}:channel==='smtp'&&smtp.provider==='smtp'?{port:Number(smtp.port)||465,secure:smtp.secure,username:smtp.username.trim()||smtp.from_email.trim(),from_name:smtp.from_name.trim()||undefined}:{},
+      p_config:isSms?{template_id:sms.template_id.trim()||undefined,invoice_template_id:sms.invoice_template_id.trim()||undefined,reminder_template_id:sms.reminder_template_id.trim()||undefined}:channel==='smtp'&&smtp.provider==='smtp'?{port:465,secure:true,username:smtp.username.trim()||smtp.from_email.trim(),from_name:smtp.from_name.trim()||undefined}:{},
     });
     setMessage(result.error?result.error.message:'Connection saved securely in Supabase Vault.');setSaving(null);
     if(!result.error){if(isWapi)setWapi(v=>({...v,secret:''}));else if(isTelegram)setTelegram(v=>({...v,secret:''}));else if(isSms)setSms(v=>({...v,secret:''}));else setSmtp(v=>({...v,password:''}));await load();}
@@ -232,12 +259,10 @@ export default function WhatsApp() {
             Automation
           </p>
           <h1 className="mt-1 text-3xl font-semibold tracking-tight">
-            WhatsApp & Telegram
+            Communications & Alerts
           </h1>
           <p className="mt-2 max-w-2xl text-sm text-slate-500">
-            Configure tenant-specific messaging connections. Credentials are
-            sent to a Vault RPC and are never stored in application columns or
-            returned to this page.
+            Configure WAPI WhatsApp, transactional SMS, Telegram and outgoing email. Credentials stay in Supabase Vault and are never returned here.
           </p>
         </header>
 
@@ -247,16 +272,16 @@ export default function WhatsApp() {
           </div>
         )}
 
-<div className="mt-6 grid gap-6 lg:grid-cols-2"><section className="rounded-2xl border border-slate-200 bg-white p-5"><h2 className="font-semibold">Bulk SMS</h2><p className="mt-1 text-xs text-slate-500">Fast2SMS, MSG91, Textlocal or Generic HTTPS. Configure the merchant-approved DLT/Flow template ID where required.</p><div className="mt-4 grid gap-3"><select value={sms.provider} onChange={e=>setSms(v=>({...v,provider:e.target.value as SmsForm['provider']}))} className="rounded-xl border border-slate-200 px-3 py-2.5 text-sm"><option value="fast2sms">Fast2SMS</option><option value="msg91">MSG91</option><option value="textlocal">Textlocal</option><option value="generic_http">Generic HTTP</option></select><input value={sms.sender} onChange={e=>setSms(v=>({...v,sender:e.target.value}))} placeholder="Sender ID" className="rounded-xl border border-slate-200 px-3 py-2.5"/><input value={sms.endpoint_url} onChange={e=>setSms(v=>({...v,endpoint_url:e.target.value}))} placeholder="Endpoint (optional)" className="rounded-xl border border-slate-200 px-3 py-2.5"/><input value={sms.template_id} onChange={e=>setSms(v=>({...v,template_id:e.target.value}))} placeholder="DLT / Flow template ID" className="rounded-xl border border-slate-200 px-3 py-2.5"/><input type="password" value={sms.secret} onChange={e=>setSms(v=>({...v,secret:e.target.value}))} placeholder="API key / auth secret" className="rounded-xl border border-slate-200 px-3 py-2.5" autoComplete="new-password"/><button type="button" disabled={saving==='sms'} onClick={()=>save('sms')} className="rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white">{saving==='sms'?'Saving…':'Save SMS gateway'}</button></div></section><section className="rounded-2xl border border-slate-200 bg-white p-5"><h2 className="font-semibold">Email transport</h2><p className="mt-1 text-xs text-slate-500">Use merchant SMTP or an API transport. Credentials remain in Supabase Vault.</p><div className="mt-4 grid gap-3"><select value={smtp.provider} onChange={e=>setSmtp(v=>({...v,provider:e.target.value as SmtpForm['provider']}))} className="rounded-xl border border-slate-200 px-3 py-2.5 text-sm"><option value="smtp">Custom SMTP</option><option value="resend">Resend API</option><option value="sendgrid">SendGrid API</option></select>{smtp.provider==='smtp'&&<><div className="grid grid-cols-2 gap-3"><input value={smtp.host} onChange={e=>setSmtp(v=>({...v,host:e.target.value}))} placeholder="SMTP host" className="rounded-xl border border-slate-200 px-3 py-2.5"/><input type="number" value={smtp.port} onChange={e=>setSmtp(v=>({...v,port:e.target.value}))} placeholder="465" className="rounded-xl border border-slate-200 px-3 py-2.5"/></div><input value={smtp.username} onChange={e=>setSmtp(v=>({...v,username:e.target.value}))} placeholder="Username" className="rounded-xl border border-slate-200 px-3 py-2.5"/><label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={smtp.secure} onChange={e=>setSmtp(v=>({...v,secure:e.target.checked}))}/> Secure TLS transport</label></>}{smtp.provider!=='smtp'&&<p className="rounded-xl bg-slate-50 p-3 text-xs text-slate-600">The API endpoint uses the provider default transport. For SendGrid or Resend, enter the API key below.</p>}<input value={smtp.from_email} onChange={e=>setSmtp(v=>({...v,from_email:e.target.value}))} placeholder="From email" className="rounded-xl border border-slate-200 px-3 py-2.5"/><input value={smtp.from_name} onChange={e=>setSmtp(v=>({...v,from_name:e.target.value}))} placeholder="From name" className="rounded-xl border border-slate-200 px-3 py-2.5"/><input type="password" value={smtp.password} onChange={e=>setSmtp(v=>({...v,password:e.target.value}))} placeholder={connections.some(r=>r.channel==='email'&&r.provider===smtp.provider)?'Leave blank to keep existing credential':'API key / SMTP password'} className="rounded-xl border border-slate-200 px-3 py-2.5" autoComplete="new-password"/><button type="button" disabled={saving==='smtp'} onClick={()=>save('smtp')} className="rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white">{saving==='smtp'?'Saving…':'Save email transport'}</button></div></section></div>        <div className="grid gap-6 lg:grid-cols-2">
+<div className="mt-6 grid gap-6 lg:grid-cols-2"><section className="rounded-2xl border border-slate-200 bg-white p-5"><div className="flex items-start justify-between gap-3"><div><h2 className="font-semibold">Transactional Bulk SMS</h2><p className="mt-1 text-xs text-slate-500">DLT templates for invoices and overdue reminders.</p></div><label className="flex items-center gap-2 text-xs font-semibold"><input type="checkbox" checked={sms.enabled} onChange={e=>setSms(v=>({...v,enabled:e.target.checked}))}/> Enabled</label></div><p className="mt-1 text-xs text-slate-500">Fast2SMS, MSG91, Textlocal or Generic HTTPS. Configure the merchant-approved DLT/Flow template ID where required.</p><div className="mt-4 grid gap-3"><select value={sms.provider} onChange={e=>setSms(v=>({...v,provider:e.target.value as SmsForm['provider']}))} className="rounded-xl border border-slate-200 px-3 py-2.5 text-sm"><option value="fast2sms">Fast2SMS</option><option value="msg91">MSG91</option><option value="textlocal">Textlocal</option><option value="generic_http">Generic HTTP</option></select><input value={sms.sender} maxLength={6} onChange={e=>setSms(v=>({...v,sender:e.target.value.toUpperCase().replace(/[^A-Z0-9]/g,'')}))} placeholder="6-character Sender ID" className="rounded-xl border border-slate-200 px-3 py-2.5"/><input value={sms.endpoint_url} onChange={e=>setSms(v=>({...v,endpoint_url:e.target.value}))} placeholder="Endpoint (optional)" className="rounded-xl border border-slate-200 px-3 py-2.5"/><div className="grid gap-3 md:grid-cols-2"><input value={sms.invoice_template_id} onChange={e=>setSms(v=>({...v,invoice_template_id:e.target.value}))} placeholder="DLT invoice template ID" className="rounded-xl border border-slate-200 px-3 py-2.5"/><input value={sms.reminder_template_id} onChange={e=>setSms(v=>({...v,reminder_template_id:e.target.value}))} placeholder="DLT overdue template ID" className="rounded-xl border border-slate-200 px-3 py-2.5"/></div><input value={sms.template_id} onChange={e=>setSms(v=>({...v,template_id:e.target.value}))} placeholder="Fallback / legacy template ID (optional)" className="rounded-xl border border-slate-200 px-3 py-2.5"/><input type="password" value={sms.secret} onChange={e=>setSms(v=>({...v,secret:e.target.value}))} placeholder="API key / auth secret" className="rounded-xl border border-slate-200 px-3 py-2.5" autoComplete="new-password"/><div className="flex gap-2"><button type="button" disabled={saving==='sms'} onClick={()=>save('sms')} className="rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white">{saving==='sms'?'Saving…':'Save SMS gateway'}</button><input value={testTargets.sms} onChange={e=>setTestTargets(v=>({...v,sms:e.target.value}))} placeholder="Test mobile" className="min-w-0 flex-1 rounded-xl border border-slate-200 px-3 py-2.5 text-sm"/><button type="button" disabled={testingChannel==='sms'} onClick={()=>void sendTest('sms')} className="rounded-xl border border-slate-200 px-3 py-2.5 text-sm font-semibold">{testingChannel==='sms'?'Testing…':'Send Test SMS'}</button></div></div></section><section className="rounded-2xl border border-slate-200 bg-white p-5"><div className="flex items-start justify-between gap-3"><div><h2 className="font-semibold">Outgoing Email</h2><p className="mt-1 text-xs text-slate-500">Custom SMTP on SSL 465, Resend or SendGrid.</p></div><label className="flex items-center gap-2 text-xs font-semibold"><input type="checkbox" checked={smtp.enabled} onChange={e=>setSmtp(v=>({...v,enabled:e.target.checked}))}/> Enabled</label></div><p className="mt-1 text-xs text-slate-500">Use merchant SMTP or an API transport. Credentials remain in Supabase Vault.</p><div className="mt-4 grid gap-3"><select value={smtp.provider} onChange={e=>setSmtp(v=>({...v,provider:e.target.value as SmtpForm['provider']}))} className="rounded-xl border border-slate-200 px-3 py-2.5 text-sm"><option value="smtp">Custom SMTP</option><option value="resend">Resend API</option><option value="sendgrid">SendGrid API</option></select>{smtp.provider==='smtp'&&<><div className="grid grid-cols-2 gap-3"><input value={smtp.host} onChange={e=>setSmtp(v=>({...v,host:e.target.value}))} placeholder="SMTP host" className="rounded-xl border border-slate-200 px-3 py-2.5"/><input type="number" value={smtp.port} readOnly={smtp.provider==='smtp'} onChange={e=>setSmtp(v=>({...v,port:e.target.value}))} placeholder="465" className="rounded-xl border border-slate-200 px-3 py-2.5"/></div><input value={smtp.username} onChange={e=>setSmtp(v=>({...v,username:e.target.value}))} placeholder="Username" className="rounded-xl border border-slate-200 px-3 py-2.5"/><label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={smtp.secure} onChange={e=>setSmtp(v=>({...v,secure:e.target.checked}))}/> Secure TLS transport</label></>}{smtp.provider!=='smtp'&&<p className="rounded-xl bg-slate-50 p-3 text-xs text-slate-600">The API endpoint uses the provider default transport. For SendGrid or Resend, enter the API key below.</p>}<input value={smtp.from_email} onChange={e=>setSmtp(v=>({...v,from_email:e.target.value}))} placeholder="From email" className="rounded-xl border border-slate-200 px-3 py-2.5"/><input value={smtp.from_name} onChange={e=>setSmtp(v=>({...v,from_name:e.target.value}))} placeholder="From name" className="rounded-xl border border-slate-200 px-3 py-2.5"/><input type="password" value={smtp.password} onChange={e=>setSmtp(v=>({...v,password:e.target.value}))} placeholder={connections.some(r=>r.channel==='email'&&r.provider===smtp.provider)?'Leave blank to keep existing credential':'API key / SMTP password'} className="rounded-xl border border-slate-200 px-3 py-2.5" autoComplete="new-password"/><div className="flex gap-2"><button type="button" disabled={saving==='smtp'} onClick={()=>save('smtp')} className="rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white">{saving==='smtp'?'Saving…':'Save email transport'}</button><input value={testTargets.email} onChange={e=>setTestTargets(v=>({...v,email:e.target.value}))} placeholder="Test recipient email" className="min-w-0 flex-1 rounded-xl border border-slate-200 px-3 py-2.5 text-sm"/><button type="button" disabled={testingChannel==='email'} onClick={()=>void sendTest('email')} className="rounded-xl border border-slate-200 px-3 py-2.5 text-sm font-semibold">{testingChannel==='email'?'Testing…':'Send Test Email'}</button></div></div></section></div>        <div className="grid gap-6 lg:grid-cols-2">
           <section className="rounded-2xl border border-slate-200 bg-white p-5">
             <div className="flex items-center justify-between">
               <div>
-                <h2 className="font-semibold">Wapi WhatsApp</h2>
+                <h2 className="font-semibold">WhatsApp (WAPI)</h2>
                 <p className="mt-1 text-xs text-slate-500">
                   One Wapi instance per business.
                 </p>
               </div>
-              <span
+              <label className="mr-2 flex items-center gap-2 text-xs font-semibold"><input type="checkbox" checked={wapi.enabled} onChange={e=>setWapi(v=>({...v,enabled:e.target.checked}))}/> Enabled</label><label className="mr-2 flex items-center gap-2 text-xs font-semibold"><input type="checkbox" checked={telegram.enabled} onChange={e=>setTelegram(v=>({...v,enabled:e.target.checked}))}/> Enabled</label><span
                 className={
                   'rounded-full px-3 py-1 text-xs font-semibold ' +
                   (wapiConnection?.health_status === 'healthy'
@@ -320,6 +345,7 @@ export default function WhatsApp() {
                   ? 'Saving securely…'
                   : 'Save Wapi connection'}
               </button>
+              <div className="flex gap-2"><input value={testTargets.whatsapp} onChange={e=>setTestTargets(v=>({...v,whatsapp:e.target.value}))} placeholder="Test mobile" className="min-w-0 flex-1 rounded-xl border border-slate-200 px-3 py-2.5 text-sm"/><button type="button" disabled={testingChannel==='whatsapp'} onClick={()=>void sendTest('whatsapp')} className="rounded-xl border border-slate-200 px-3 py-2.5 text-sm font-semibold">{testingChannel==='whatsapp'?'Testing…':'Send Test WhatsApp Message'}</button></div>
             </div>
             {wapiConnection?.last_error && (
               <p className="mt-3 rounded-xl bg-rose-50 p-3 text-xs text-rose-700">
@@ -331,7 +357,7 @@ export default function WhatsApp() {
           <section className="rounded-2xl border border-slate-200 bg-white p-5">
             <div className="flex items-center justify-between">
               <div>
-                <h2 className="font-semibold">Telegram Bot</h2>
+                <h2 className="font-semibold">Telegram Channel & Bot</h2>
                 <p className="mt-1 text-xs text-slate-500">
                   Bot token stays in Vault; Chat ID is non-secret routing metadata.
                 </p>
@@ -389,6 +415,7 @@ export default function WhatsApp() {
                   ? 'Saving securely…'
                   : 'Save Telegram connection'}
               </button>
+              <div className="flex gap-2"><input value={testTargets.telegram} onChange={e=>setTestTargets(v=>({...v,telegram:e.target.value}))} placeholder="Test chat / group ID" className="min-w-0 flex-1 rounded-xl border border-slate-200 px-3 py-2.5 text-sm"/><button type="button" disabled={testingChannel==='telegram'} onClick={()=>void sendTest('telegram')} className="rounded-xl border border-slate-200 px-3 py-2.5 text-sm font-semibold">{testingChannel==='telegram'?'Testing…':'Send Test Bot Message'}</button></div>
             </div>
             {telegramConnection?.last_error && (
               <p className="mt-3 rounded-xl bg-rose-50 p-3 text-xs text-rose-700">
