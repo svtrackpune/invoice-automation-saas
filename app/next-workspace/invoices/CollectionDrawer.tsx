@@ -60,7 +60,7 @@ export default function CollectionDrawer({businessId,invoice,canWriteOff,onClose
   if(!accountId||!selectedAccount||!['cash','bank'].includes(String(selectedAccount.account_subtype))){setError('Select an active Cash or Bank settlement account.');return}
   if(!paymentDate){setError('Select the payment date.');return}
   setBusy('payment');setError('');setSuccess('');setReceiptId('');
-  const r=await supabase.rpc('record_customer_payment',{p_business_id:businessId,p_customer_id:invoice.customer_id,p_invoice_id:invoice.id,p_amount:amount,p_method:paymentMethod,p_account_id:accountId,p_reference:reference.trim()||null,p_gateway_transaction_id:null,p_payment_date:paymentDate,p_notes:'Recorded from Collection Drawer'});
+  const r=await supabase.rpc('record_customer_payment',{p_business_id:businessId,p_customer_id:invoice.customer_id,p_invoice_id:invoice.id,p_amount:amount,p_method:paymentMethod,p_account_id:accountId,p_reference:reference.trim()||null,p_gateway_transaction_id:null,p_payment_date:paymentDate,p_notes:'Recorded from Collection Drawer',p_currency_code:businessCurrency||'INR'});
   if(r.error)setError(r.error.message);else{setReceiptId(typeof r.data==='string'?r.data:'');setSuccess('Payment recorded and receipt generated for '+invoice.invoice_number+'.');await onUpdated();setPaymentAmount(String(Math.max(0,openBalance-amount)));setReference('')}setBusy('');
  };
  const writeOff=async()=>{
