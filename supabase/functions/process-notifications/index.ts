@@ -233,6 +233,91 @@ async function send(
     return typeof sid === "string" ? sid : null;
   }
 
+
+  if (connection.provider === "fast2sms") {
+    const endpoint = connection.endpoint_url?.trim() || "https://www.fast2sms.com/dev/bulkV2";
+    const templateId = typeof connection.config.template_id === "string"
+      ? connection.config.template_id
+      : typeof connection.config.invoice_template_id === "string" && job.notification_type === "invoice"
+        ? connection.config.invoice_template_id
+        : typeof connection.config.reminder_template_id === "string" && ["due_soon","overdue","reminder"].includes(job.notification_type)
+          ? connection.config.reminder_template_id : null;
+    if (!connection.secret || !connection.sender || !templateId) throw new Error("Fast2SMS DLT configuration is incomplete.");
+    const variables = typeof connection.config.variables_values === "string"
+      ? connection.config.variables_values.replaceAll("{message}", job.message).replaceAll("{action_url}", actionUrl || "").replaceAll("{recipient}", job.recipient)
+      : job.message;
+    const response = await fetch(endpoint, { method:"POST", headers:{Authorization:connection.secret,"Content-Type":"application/json"},
+      body:JSON.stringify({route:"dlt",sender_id:connection.sender,message:templateId,variables_values:variables,numbers:job.recipient.replace(/\D/g,"").slice(-15)}) });
+    const payload:unknown=await response.json().catch(()=>null);
+    if(!response.ok)throw new Error("Fast2SMS delivery failed.");
+    const record=payload&&typeof payload==="object"?payload as Record<string,unknown>:{};
+    return typeof record.request_id==="string"?record.request_id:null;
+  }
+
+  if (connection.provider === "msg91") {
+    const endpoint=connection.endpoint_url?.trim()||"https://control.msg91.com/api/v5/flow/";
+    const templateId=typeof connection.config.template_id==="string"?connection.config.template_id
+      : typeof connection.config.invoice_template_id==="string"&&job.notification_type==="invoice"?connection.config.invoice_template_id
+      : typeof connection.config.reminder_template_id==="string"&&["due_soon","overdue","reminder"].includes(job.notification_type)?connection.config.reminder_template_id:null;
+    if(!connection.secret||!templateId)throw new Error("MSG91 flow configuration is incomplete.");
+    const response=await fetch(endpoint,{method:"POST",headers:{authkey:connection.secret,"Content-Type":"application/json"},
+      body:JSON.stringify({template_id:templateId,recipients:[{mobiles:job.recipient.replace(/\D/g,""),VAR1:job.message,...(actionUrl?{VAR2:actionUrl}:{})}]})});
+    const payload:unknown=await response.json().catch(()=>null);
+    if(!response.ok)throw new Error("MSG91 delivery failed.");
+    const record=payload&&typeof payload==="object"?payload as Record<string,unknown>:{};
+    return typeof record.request_id==="string"?record.request_id:null;
+  }
+
+  if (connection.provider === "textlocal") {
+    const endpoint=connection.endpoint_url?.trim()||"https://api.textlocal.in/send/";
+    if(!connection.secret||!connection.sender)throw new Error("Textlocal configuration is incomplete.");
+    const body=new URLSearchParams({apiKey:connection.secret,numbers:job.recipient.replace(/\D/g,""),sender:connection.sender,message:actionUrl?job.message+" "+actionUrl:job.message});
+    const response=await fetch(endpoint,{method:"POST",headers:{"Content-Type":"application/x-www-form-urlencoded"},body});
+    const payload:unknown=await response.json().catch(()=>null);
+    if(!response.ok)throw new Error("Textlocal delivery failed.");
+    const record=payload&&typeof payload==="object"?payload as Record<string,unknown>:{},messages=record.messages;
+    if(Array.isArray(messages)&&messages[0]&&typeof messages[0]==="object"){const id=(messages[0] as Record<string,unknown>).id;return typeof id==="string"?id:null;}
+    return null;
+  }
+
+  if (connection.provider === "generic_http") {
+    const endpoint=connection.endpoint_url?.trim();
+    if(!endpoint||!/^https:\/\//i.test(endpoint))throw new Error("Generic HTTP gateway requires an HTTPS endpoint.");
+    if(!connection.secret)throw new Error("Generic HTTP gateway secret is missing.");
+    const headerName=typeof connection.config.auth_header_name==="string"?connection.config.auth_header_name:"Authorization";
+    const authPrefix=typeof connection.config.auth_prefix==="string"?connection.config.auth_prefix:"Bearer ";
+    const response=await fetch(endpoint,{method:"POST",headers:{"Content-Type":"application/json",[headerName]:authPrefix+connection.secret},
+      body:JSON.stringify({phone:job.recipient,message:actionUrl?job.message+" "+actionUrl:job.message,sender_id:connection.sender||null,notification_type:job.notification_type})});
+    if(!response.ok)throw new Error("Generic SMS gateway delivery failed.");
+    const payload:unknown=await response.json().catch(()=>null);
+    if(payload&&typeof payload==="object"){const record=payload as Record<string,unknown>,id=record.message_id??record.id??record.request_id;return typeof id==="string"||typeof id==="number"?String(id):null;}
+    return null;
+  }
+
+  if (connection.provider === "smtp") {
+    const host=connection.endpoint_url?.trim();
+    if(!host||!connection.secret||!connection.sender)throw new Error("SMTP connection is incomplete.");
+    const {default:nodemailer}=await import("npm:nodemailer");
+    const port=Number(connection.config.port||587),secure=typeof connection.config.secure==="boolean"?connection.config.secure:true;
+    const username=typeof connection.config.username==="string"?connection.config.username:connection.sender;
+    const fromName=typeof connection.config.from_name==="string"?connection.config.from_name:"";
+    const transporter=nodemailer.createTransport({host,port,secure,auth:{user:username,pass:connection.secret}});
+    const result=await transporter.sendMail({from:fromName?fromName+" <"+connection.sender+">":connection.sender,to:job.recipient,subject:job.subject||"Notification",text:actionUrl?job.message+"\n\n"+actionUrl:job.message,headers:job.delivery_idempotency_key?{"X-Moneymatters-Delivery-Key":job.delivery_idempotency_key}:undefined});
+    return typeof result.messageId==="string"?result.messageId:null;
+  }
+
+  if (connection.provider === "sendgrid") {
+    if (!connection.secret || !connection.sender) throw new Error("SendGrid connection is incomplete.");
+    const response=await fetch(connection.endpoint_url?.trim()||"https://api.sendgrid.com/v3/mail/send",{
+      method:"POST",
+      headers:{Authorization:"Bearer "+connection.secret,"Content-Type":"application/json"},
+      body:JSON.stringify({personalizations:[{to:[{email:job.recipient}]}],from:{email:connection.sender},subject:job.subject||"Notification",
+        content:[{type:"text/plain",value:actionUrl?job.message+"\n\n"+actionUrl:job.message}]}),
+    });
+    if(!response.ok)throw new Error("SendGrid delivery failed.");
+    return response.headers.get("x-message-id");
+  }
+
   throw new Error("Notification provider is not supported by this worker.");
 }
 
@@ -310,6 +395,7 @@ Deno.serve(async (req) => {
           .eq("business_id", job.business_id);
 
         await markConnectionHealth(connection.id, "healthy", null);
+        await admin.rpc("record_communication_dispatch_log",{p_business_id:job.business_id,p_document_type:String(job.metadata.document_type||job.notification_type||"invoice"),p_document_id:typeof job.metadata.document_id==="string"?job.metadata.document_id:job.invoice_id,p_customer_id:job.customer_id,p_channel:job.channel,p_recipient_target:job.recipient,p_payload_content:job.message,p_dispatch_status:"sent",p_error_message:null});
         sent++;
       } catch (deliveryError) {
         const message =
@@ -351,6 +437,8 @@ Deno.serve(async (req) => {
             : [];
 
         const fallback = candidates[0] || null;
+
+        await admin.rpc("record_communication_dispatch_log",{p_business_id:job.business_id,p_document_type:String(job.metadata.document_type||job.notification_type||"invoice"),p_document_id:typeof job.metadata.document_id==="string"?job.metadata.document_id:job.invoice_id,p_customer_id:job.customer_id,p_channel:job.channel,p_recipient_target:job.recipient,p_payload_content:job.message,p_dispatch_status:"failed",p_error_message:message});
 
         if (fallback) {
           const nextMetadata = {
