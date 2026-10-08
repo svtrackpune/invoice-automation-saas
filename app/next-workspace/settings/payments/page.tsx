@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import QRCode from 'qrcode';
 import { supabase } from '@/lib/supabase';
 
@@ -45,7 +45,7 @@ export default function PaymentsSettingsPage() {
       + '&am=' + testAmount.toFixed(2) + '&cu=INR&tn=Test%20Verification';
   }, [settings?.upi_id, settings?.merchant_name, testAmount]);
 
-  const load = async () => {
+  const load = useCallback(async () => {
     setLoading(true); setError('');
     const context = await supabase.rpc('get_my_business_context');
     const rows = (context.data || []) as Array<{ business_id: string }>;
@@ -62,9 +62,9 @@ export default function PaymentsSettingsPage() {
     if (banksResult.error) setError(banksResult.error.message);
     else setBanks((banksResult.data || []) as BankAccount[]);
     setLoading(false);
-  };
+  }, []);
 
-  useEffect(() => { void load(); }, []);
+  useEffect(() => { void load(); }, [load]);
 
   useEffect(() => {
     let cancelled = false;
@@ -75,8 +75,9 @@ export default function PaymentsSettingsPage() {
     return () => { cancelled = true; };
   }, [testLink, validVpa]);
 
-  const patch = <K extends keyof PaymentSettings>(key: K, value: PaymentSettings[K]) =>
+  function patch<K extends keyof PaymentSettings>(key: K, value: PaymentSettings[K]) {
     setSettings(current => current ? { ...current, [key]: value } : current);
+  }
 
   const save = async () => {
     if (!settings) return;
