@@ -6,7 +6,7 @@ export type TenantNotificationConnection = {
   id: string;
   business_id: string;
   channel: NotificationChannel;
-  provider: "wapi" | "telegram-bot" | "resend" | "smtp" | "twilio";
+  provider: "wapi" | "telegram-bot" | "resend" | "smtp" | "sendgrid" | "twilio" | "fast2sms" | "msg91" | "textlocal" | "generic_http";
   display_name: string;
   endpoint_url: string | null;
   external_instance_id: string | null;
