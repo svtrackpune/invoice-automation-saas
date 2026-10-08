@@ -40,6 +40,7 @@ const baseGroups: NavGroup[] = [
     { label: 'Statements', href: '/next-workspace/banking', icon: 'statement' },
     { label: 'Payments', href: '/next-workspace/payments', icon: 'cash' },
     { label: 'Payments & Banking', href: '/next-workspace/settings/payments', icon: 'bank' },
+      { label: 'System Diagnostics', href: '/next-workspace/settings/diagnostics', icon: 'settings' },
   ]},
   { name: 'Reports & Compliance', items: [
     { label: 'Tax (GST / VAT)', href: '/next-workspace/tax', icon: 'tax' },
@@ -76,6 +77,7 @@ const titles: Record<string, string> = {
   '/next-workspace/banking': 'Banking & Reconciliation',
   '/next-workspace/payments': 'Payments',
   '/next-workspace/settings/payments': 'Payments & Banking',
+  '/next-workspace/settings/diagnostics': 'System Health & Integrity',
   '/next-workspace/receipts': 'Receipts',
   '/next-workspace/accounting': 'Accounting & Audit',
   '/next-workspace/tax': 'Tax & Compliance',
