@@ -118,7 +118,7 @@ export function DeliveryChallanCompliance({ payload, customer }: { payload: Gene
         <div><span>Vehicle Number</span><strong>{value(payload, 'vehicle_number') || '—'}</strong></div>
         <div><span>Transporter</span><strong>{value(payload, 'transporter_name') || '—'}</strong></div>
         <div><span>Mode</span><strong>{value(payload, 'transport_mode', 'transport_mode_name') || '—'}</strong></div>
-        <div><span>E-Way Bill</span><strong>{value(payload, 'eway_bill_number', 'ewb_number') || '—'}</strong></div>
+        <div><span>E-Way Bill</span><strong>{value(payload, 'eway_bill_number', 'ewb_number') || '—'}</strong></div><div><span>Number of Packages</span><strong>{value(payload, 'number_of_packages', 'packages') || '—'}</strong></div>
       </section>
       <section className="delivery-address-grid">
         <div><label>Billing Address (Buyer)</label><p>{billing || '—'}</p></div>
@@ -193,7 +193,7 @@ export function TaxSummaryGrid({
   for (const item of items) {
     const key = String(item.hsn_sac || item.description || item.name || 'Unclassified');
     const itemTaxLines = linesByItem.get(String(item.id || item.invoice_item_id || item.product_service_id || '')) || [];
-    const current = grouped.get(key) || { taxable: Math.max(0, Number(item.line_total || item.amount || 0) - Number(item.tax_amount || 0)), cgstRate: 0, cgst: 0, sgstRate: 0, sgst: 0, igstRate: 0, igst: 0, totalTax: Number(item.tax_amount || 0) };
+    const current = grouped.get(key) || { taxable: Math.max(0, Number(item.line_total || item.amount || 0) - Number(item.tax_amount || 0)), cgstRate: 0, cgst: 0, sgstRate: 0, sgst: 0, igstRate: 0, igst: 0, totalTax: itemTaxLines.length ? 0 : Number(item.tax_amount || 0) };
     for (const tax of itemTaxLines) {
       const category = String(tax.tax_category || tax.tax_code || '').toUpperCase();
       const amount = Number(tax.tax_amount || 0);
