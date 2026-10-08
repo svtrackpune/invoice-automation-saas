@@ -429,7 +429,7 @@ export class ThermalPrinterService {
       throw new Error('WebUSB is not supported in this browser. Use Chrome/Edge with a compatible USB printer.');
     }
 
-    const device = await manager.requestDevice({ filters: [] });
+    const device = await manager.requestDevice({ filters: [{}] });
     await device.open();
 
     const configurations = device.configurations ?? [];

@@ -10,16 +10,10 @@
   "orientation": "any",
   "icons": [
     {
-      "src": "/icons/moneymatters-192.png",
-      "sizes": "192x192",
-      "type": "image/png",
-      "purpose": "any maskable"
-    },
-    {
-      "src": "/icons/moneymatters-512.png",
-      "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "any maskable"
+      "src": "/icons/moneymatters.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
     }
   ],
   "shortcuts": [
@@ -29,8 +23,9 @@
       "url": "/next-workspace/cash-bill",
       "icons": [
         {
-          "src": "/icons/moneymatters-192.png",
-          "sizes": "192x192"
+          "src": "/icons/moneymatters.svg",
+          "sizes": "any",
+          "type": "image/svg+xml"
         }
       ]
     }
