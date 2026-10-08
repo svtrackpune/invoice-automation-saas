@@ -174,7 +174,7 @@ function PaymentSection({ paymentMode, paymentLink, paymentSelection, balance, c
 }
 
 function Paper({ type, payload, business, customer, items, theme, fields, logoUrl, paymentSelection, paymentQrDataUrl, showLogo=true, showBusinessAddress=true, showTaxDetails=true, showBankDetails=false, showPaymentLink=false, showPaymentQr=false, showSignature=false, showTerms=true, showCustomerBalance=false, customerBalance=0, showAuthorizedSignatory=false, minItemRows=0, showSerialNumbers=false, documentTitleOverride='', studioTheme={} }: any) {
-  const receipt=type==='receipt', currency=text(payload.currency_code||business.currency_code||'INR').trim()||'INR';
+  const receipt=type==='receipt', cashBill=type==='cash_bill'||payload.document_kind==='cash_bill', taxInvoice=type==='tax_invoice'||payload.document_kind==='tax_invoice', currency=text(payload.currency_code||business.currency_code||'INR').trim()||'INR';
   const studio=studioTheme||{};
   const accentColor=text(studio.accent_color||'').trim()||theme.accent;
   const primaryColor=text(studio.primary_color||'').trim()||theme.table;
@@ -184,9 +184,9 @@ function Paper({ type, payload, business, customer, items, theme, fields, logoUr
   const rowPadding=Math.min(16,Math.max(4,Number(studio.row_padding||9)));
   const radius=Math.min(24,Math.max(0,Number(studio.corner_radius??14)));
   const resolvedLogoUrl=text(logoUrl||business.logo_url||(business.logo_storage_path?supabase.storage.from('business-branding-public').getPublicUrl(business.logo_storage_path).data.publicUrl:''));
-  const taxRegistered=isTaxRegistered(business), systemTitle=receipt?'Payment Receipt':type==='quotation'?'Estimate':type==='delivery_challan'?'Delivery Challan':type==='purchase_order'?'Purchase Order':type==='credit_note'?'Credit Note':type==='debit_note'?'Debit Note':(Number(payload.tax_total||0)>0||taxRegistered)?'Tax Invoice':'Invoice';
+  const taxRegistered=isTaxRegistered(business), systemTitle=receipt?'Payment Receipt':cashBill?'CASH BILL':taxInvoice?'TAX INVOICE':type==='quotation'?'ESTIMATE / QUOTATION':type==='delivery_challan'?'DELIVERY CHALLAN':type==='purchase_order'?'PURCHASE ORDER':type==='credit_note'?'CREDIT NOTE':type==='debit_note'?'DEBIT NOTE':(Number(payload.tax_total||0)>0||taxRegistered)?'TAX INVOICE':'INVOICE';
   const title=text(payload.title||fields.title||documentTitleOverride||systemTitle);
-  const notes=text(payload.notes||fields.notes||''),terms=text(payload.terms||fields.terms||''),paymentMode=paymentSelection?.payment_display_mode||'none',paymentLink=text(payload.payment_link||paymentSelection?.payment_link||''),isGstDocument=['invoice','purchase_order','credit_note','debit_note'].includes(type)&&(taxRegistered||Number(payload.tax_total||0)>0||text(business.tax_registration_number).trim()),buyerTaxId=taxValue(customer);
+  const notes=text(payload.notes||fields.notes||''),terms=text(payload.terms||fields.terms||''),paymentMode=paymentSelection?.payment_display_mode||'none',paymentLink=text(payload.payment_link||paymentSelection?.payment_link||''),isGstDocument=taxInvoice||type==='credit_note'||type==='debit_note'||(type==='invoice'&&(taxRegistered||Number(payload.tax_total||0)>0||text(business.tax_registration_number).trim())),buyerTaxId=taxValue(customer),jurisdictionClause=text(payload.jurisdiction_clause||business.jurisdiction_clause||fields.jurisdiction_clause||'');
   const documentNumber=text(payload.document_number||payload.challan_number||payload.bill_number||payload.invoice_number||payload.quotation_number||payload.receipt_number||payload.number||'');
   const documentDate=payload.document_date||payload.challan_date||payload.bill_date||payload.invoice_date||payload.quotation_date||payload.receipt_date||payload.credit_date||payload.debit_date||payload.created_at;
   const numberLabel=type==='delivery_challan'?'Challan No.':type==='purchase_order'?'PO / Bill No.':type==='quotation'?'Quotation No.':type==='receipt'?'Receipt No.':type==='credit_note'?'Credit Note No.':type==='debit_note'?'Debit Note No.':'Invoice No.';
