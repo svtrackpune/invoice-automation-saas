@@ -243,17 +243,17 @@ BEGIN
   IF bank_id IS NOT NULL AND NOT EXISTS(SELECT 1 FROM public.bank_accounts WHERE id=bank_id AND business_id=p_business_id AND is_active) THEN RAISE EXCEPTION 'invalid settlement bank account' USING errcode='23503'; END IF;
   SELECT * INTO s FROM public.document_payment_settings WHERE business_id=p_business_id FOR UPDATE;
 
-  secret:=nullif(btrim(coalesce(p_payload->>'razorpay_key_secret','')),'');ref_id=s.razorpay_secret_ref;
+  secret:=nullif(btrim(coalesce(p_payload->>'razorpay_key_secret','')),'');ref_id:=s.razorpay_secret_ref;
   IF secret IS NOT NULL THEN IF ref_id IS NULL THEN ref_id:=vault.create_secret(secret,'moneymatters-gateway-razorpay-'||p_business_id::text,'Razorpay API secret');ELSE PERFORM vault.update_secret(ref_id,secret,'moneymatters-gateway-razorpay-'||p_business_id::text,'Razorpay API secret');END IF;END IF;s.razorpay_secret_ref:=ref_id;
-  secret:=nullif(btrim(coalesce(p_payload->>'razorpay_webhook_secret','')),'');ref_id=s.razorpay_webhook_secret_ref;
+  secret:=nullif(btrim(coalesce(p_payload->>'razorpay_webhook_secret','')),'');ref_id:=s.razorpay_webhook_secret_ref;
   IF secret IS NOT NULL THEN IF ref_id IS NULL THEN ref_id:=vault.create_secret(secret,'moneymatters-gateway-razorpay-webhook-'||p_business_id::text,'Razorpay webhook secret');ELSE PERFORM vault.update_secret(ref_id,secret,'moneymatters-gateway-razorpay-webhook-'||p_business_id::text,'Razorpay webhook secret');END IF;END IF;s.razorpay_webhook_secret_ref:=ref_id;
-  secret:=nullif(btrim(coalesce(p_payload->>'cashfree_secret_key','')),'');ref_id=s.cashfree_secret_ref;
+  secret:=nullif(btrim(coalesce(p_payload->>'cashfree_secret_key','')),'');ref_id:=s.cashfree_secret_ref;
   IF secret IS NOT NULL THEN IF ref_id IS NULL THEN ref_id:=vault.create_secret(secret,'moneymatters-gateway-cashfree-'||p_business_id::text,'Cashfree API secret');ELSE PERFORM vault.update_secret(ref_id,secret,'moneymatters-gateway-cashfree-'||p_business_id::text,'Cashfree API secret');END IF;END IF;s.cashfree_secret_ref:=ref_id;
-  secret:=nullif(btrim(coalesce(p_payload->>'cashfree_webhook_secret','')),'');ref_id=s.cashfree_webhook_secret_ref;
+  secret:=nullif(btrim(coalesce(p_payload->>'cashfree_webhook_secret','')),'');ref_id:=s.cashfree_webhook_secret_ref;
   IF secret IS NOT NULL THEN IF ref_id IS NULL THEN ref_id:=vault.create_secret(secret,'moneymatters-gateway-cashfree-webhook-'||p_business_id::text,'Cashfree webhook secret');ELSE PERFORM vault.update_secret(ref_id,secret,'moneymatters-gateway-cashfree-webhook-'||p_business_id::text,'Cashfree webhook secret');END IF;END IF;s.cashfree_webhook_secret_ref:=ref_id;
-  secret:=nullif(btrim(coalesce(p_payload->>'stripe_secret_key','')),'');ref_id=s.stripe_secret_ref;
+  secret:=nullif(btrim(coalesce(p_payload->>'stripe_secret_key','')),'');ref_id:=s.stripe_secret_ref;
   IF secret IS NOT NULL THEN IF ref_id IS NULL THEN ref_id:=vault.create_secret(secret,'moneymatters-gateway-stripe-'||p_business_id::text,'Stripe API secret');ELSE PERFORM vault.update_secret(ref_id,secret,'moneymatters-gateway-stripe-'||p_business_id::text,'Stripe API secret');END IF;END IF;s.stripe_secret_ref:=ref_id;
-  secret:=nullif(btrim(coalesce(p_payload->>'stripe_webhook_secret','')),'');ref_id=s.stripe_webhook_secret_ref;
+  secret:=nullif(btrim(coalesce(p_payload->>'stripe_webhook_secret','')),'');ref_id:=s.stripe_webhook_secret_ref;
   IF secret IS NOT NULL THEN IF ref_id IS NULL THEN ref_id:=vault.create_secret(secret,'moneymatters-gateway-stripe-webhook-'||p_business_id::text,'Stripe webhook secret');ELSE PERFORM vault.update_secret(ref_id,secret,'moneymatters-gateway-stripe-webhook-'||p_business_id::text,'Stripe webhook secret');END IF;END IF;s.stripe_webhook_secret_ref:=ref_id;
 
   INSERT INTO public.document_payment_settings(
