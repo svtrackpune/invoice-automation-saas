@@ -20,6 +20,8 @@ DECLARE
   routes text[];
   conn boolean;
   biz_ok boolean;
+  fallback_channel text;
+  fallback_target text;
 BEGIN
   IF auth.role() NOT IN ('service_role','postgres')
      AND NOT mm_private.has_business_permission(p_business_id,'sales.create',auth.uid())
@@ -44,10 +46,14 @@ BEGIN
   routes := ARRAY[pref,'whatsapp','email','sms','telegram'];
 
   FOREACH ch IN ARRAY routes LOOP
-    IF ch='whatsapp' THEN target := nullif(btrim(coalesce(c.phone,'')),'');
-    ELSIF ch='sms' THEN target := nullif(btrim(coalesce(c.alternate_phone,c.phone,'')),'');
-    ELSIF ch='email' THEN target := nullif(btrim(coalesce(c.email,'')),'');
-    ELSE target := nullif(btrim(coalesce(c.telegram_chat_id,'')),'');
+    IF ch='whatsapp' THEN
+      target:=nullif(btrim(coalesce(c.phone,'')),'');
+    ELSIF ch='sms' THEN
+      target:=nullif(btrim(coalesce(c.alternate_phone,c.phone,'')),'');
+    ELSIF ch='email' THEN
+      target:=nullif(btrim(coalesce(c.email,'')),'');
+    ELSE
+      target:=nullif(btrim(coalesce(c.telegram_chat_id,'')),'');
     END IF;
 
     IF target IS NULL THEN CONTINUE; END IF;
@@ -61,6 +67,11 @@ BEGIN
     END;
 
     IF NOT biz_ok THEN CONTINUE; END IF;
+
+    IF fallback_target IS NULL THEN
+      fallback_channel := ch;
+      fallback_target := target;
+    END IF;
 
     SELECT EXISTS(
       SELECT 1
@@ -77,30 +88,14 @@ BEGIN
     END IF;
   END LOOP;
 
-  target := CASE pref
-    WHEN 'whatsapp' THEN nullif(btrim(coalesce(c.phone,'')),'')
-    WHEN 'sms' THEN nullif(btrim(coalesce(c.alternate_phone,c.phone,'')),'')
-    WHEN 'email' THEN nullif(btrim(coalesce(c.email,'')),'')
-    ELSE nullif(btrim(coalesce(c.telegram_chat_id,'')),'')
-  END;
-
-  IF target IS NULL THEN
-    target := coalesce(
-      nullif(btrim(coalesce(c.phone,'')),''),
-      nullif(btrim(coalesce(c.email,'')),''),
-      nullif(btrim(coalesce(c.telegram_chat_id,'')),'')
-    );
-  END IF;
-
   RETURN jsonb_build_object(
     'automated',false,
-    'fallback_available',target IS NOT NULL,
-    'channel',pref,
-    'recipient',target
+    'fallback_available',fallback_target IS NOT NULL,
+    'channel',coalesce(fallback_channel,pref),
+    'recipient',fallback_target
   );
 END;
 $function$;
-
 REVOKE ALL ON FUNCTION mm_private.resolve_customer_notification_route(uuid,uuid)
   FROM PUBLIC,anon,authenticated;
 GRANT EXECUTE ON FUNCTION mm_private.resolve_customer_notification_route(uuid,uuid)
