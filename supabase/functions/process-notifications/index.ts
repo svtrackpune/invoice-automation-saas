@@ -298,7 +298,7 @@ async function send(
     const host=connection.endpoint_url?.trim();
     if(!host||!connection.secret||!connection.sender)throw new Error("SMTP connection is incomplete.");
     const {default:nodemailer}=await import("npm:nodemailer");
-    const port=Number(connection.config.port||587),secure=typeof connection.config.secure==="boolean"?connection.config.secure:true;
+    const port=Number(connection.config.port||465),secure=typeof connection.config.secure==="boolean"?connection.config.secure:true;
     const username=typeof connection.config.username==="string"?connection.config.username:connection.sender;
     const fromName=typeof connection.config.from_name==="string"?connection.config.from_name:"";
     const transporter=nodemailer.createTransport({host,port,secure,auth:{user:username,pass:connection.secret}});
