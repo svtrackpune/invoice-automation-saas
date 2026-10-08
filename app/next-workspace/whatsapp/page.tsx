@@ -184,7 +184,7 @@ export default function WhatsApp() {
     const isWapi=channel==='wapi',isTelegram=channel==='telegram',isSms=channel==='sms';
     const result=await supabase.rpc('save_business_notification_connection',{
       p_business_id:ctx.business_id,p_channel:isWapi?'whatsapp':isTelegram?'telegram':isSms?'sms':'email',
-      p_provider:isWapi?'wapi':isTelegram?'telegram-bot':isSms?sms.provider:'smtp',
+      p_provider:isWapi?'wapi':isTelegram?'telegram-bot':isSms?sms.provider:smtp.provider,
       p_display_name:isWapi?wapi.display_name:isTelegram?telegram.display_name:isSms?sms.display_name:smtp.display_name,
       p_connection_id:isWapi?wapi.id||null:isTelegram?telegram.id||null:isSms?sms.id||null:smtp.id||null,
       p_endpoint_url:isWapi?wapi.endpoint_url.trim():isSms?sms.endpoint_url.trim()||null:smtp.provider==='smtp'?smtp.host.trim():null,
