@@ -61,16 +61,8 @@ export default function CashBillPage(){
     const queued=await queueOfflineCashBill(payload,{tempPosUuid,offlineTicketNumber});
     setSuccess(`Offline mode: Cash & Carry bill ${queued.offlineTicketNumber} queued and will sync automatically when connectivity returns.`);setBusy(false);return
   }
-  const bill=await supabase.rpc('create_cash_bill',{p_business_id:payload.businessId,p_phone:payload.phone,p_invoice_date:payload.invoiceDate,p_items:payload.items,p_payment_method:payload.paymentMethod,p_account_id:payload.accountId,p_invoice_discount_type:discountType||null,p_invoice_discount_value:discountValue,p_notes:payload.notes,p_terms:payload.terms,p_temp_pos_uuid:tempPosUuid,p_offline_ticket_number:offlineTicketNumber});
-  if(bill.error){
-    const msg=bill.error.message||'Cash Bill could not be saved.';
-    if(!navigator.onLine||/fetch|network|offline|failed to send|connection|timeout/i.test(msg)){
-      if(!offlinePosEnabled){setError('Connection was lost and Offline POS is not enabled for this business plan. The Cash Bill was not queued.');setBusy(false);return}
-      const queued=await queueOfflineCashBill(payload,{tempPosUuid,offlineTicketNumber});
-      setSuccess(`Connection lost: Cash & Carry bill ${queued.offlineTicketNumber} queued for automatic sync. The server idempotency key prevents duplicate accounting or inventory posting.`);setBusy(false);return
-    }
-    setError(msg);setBusy(false);return
-  }
+  const bill=await supabase.rpc('create_cash_bill',{p_business_id:payload.businessId,p_phone:payload.phone||null,p_invoice_date:payload.invoiceDate,p_items:payload.items,p_payment_method:payload.paymentMethod,p_account_id:payload.accountId,p_invoice_discount_type:discountType||null,p_invoice_discount_value:discountValue,p_notes:payload.notes,p_terms:payload.terms});
+  if(bill.error){setError(bill.error.message||'Cash Bill could not be saved.');setBusy(false);return}
   setSuccess('Cash & Carry bill created, posted and marked paid via '+(paymentMethod==='cash'?'Cash':'UPI')+'. Receipt format: '+receiptFormat+'.');setCreatedInvoiceId(String(bill.data));setLines([]);await refreshInventory();setOfflineQueuedCount(await getOfflineCashBillCount(ctx.business_id));setStockWarning('');setCustomerPhone('');setDate(today());setPaymentMethod('cash');setAmountReceived(0);setDiscountType('');setDiscountValue(0);setUpiReference('POS-'+crypto.randomUUID());setUpiQrSvg('');setUpiQrError('');setBusy(false);
  };
  const instantThermalBill=async()=>{
@@ -80,7 +72,7 @@ export default function CashBillPage(){
   if(!navigator.onLine){setError('Instant thermal billing requires an online connection so the posted invoice number is available.');setInstantThermalBusy(false);return}
   const tempPosUuid=crypto.randomUUID();const offlineTicketNumber=nextOfflineTicketNumber(ctx.business_id);
   const payload={businessId:ctx.business_id,phone:customerPhone.trim(),invoiceDate:date,items:lines.map(l=>taxRegistered?l:{...l,tax_rate_id:''}),paymentMethod,accountId:settlementAccount.id,invoiceDiscountType:discountType||null,invoiceDiscountValue:discountValue,notes:'Cash & Carry',terms:'Paid in full at counter.'} as const;
-  const bill=await supabase.rpc('create_cash_bill',{p_business_id:payload.businessId,p_phone:payload.phone,p_invoice_date:payload.invoiceDate,p_items:payload.items,p_payment_method:payload.paymentMethod,p_account_id:payload.accountId,p_invoice_discount_type:discountType||null,p_invoice_discount_value:discountValue,p_notes:payload.notes,p_terms:payload.terms,p_temp_pos_uuid:tempPosUuid,p_offline_ticket_number:offlineTicketNumber});
+  const bill=await supabase.rpc('create_cash_bill',{p_business_id:payload.businessId,p_phone:payload.phone||null,p_invoice_date:payload.invoiceDate,p_items:payload.items,p_payment_method:payload.paymentMethod,p_account_id:payload.accountId,p_invoice_discount_type:discountType||null,p_invoice_discount_value:discountValue,p_notes:payload.notes,p_terms:payload.terms});
   if(bill.error){setError(bill.error.message||'Cash Bill could not be saved.');setInstantThermalBusy(false);return}
   const invoiceId=String(bill.data);const invoiceLookup=await supabase.from('invoices').select('invoice_number').eq('id',invoiceId).maybeSingle();const invoiceNumber=String(invoiceLookup.data?.invoice_number||invoiceId);
   const upiLink=paymentMethod==='upi'&&upiId?'upi://pay?pa='+encodeURIComponent(upiId)+'&pn='+encodeURIComponent(businessName)+'&am='+totals.total.toFixed(2)+'&cu=INR&tr='+encodeURIComponent(invoiceNumber)+'&tn='+encodeURIComponent('Bill '+invoiceNumber):null;
