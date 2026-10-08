@@ -136,7 +136,9 @@ test('customer routing uses business_preferences and protects the hosted SMTP bo
   assert.match(migration, /bp\.notification_whatsapp_enabled/);
   assert.doesNotMatch(migration, /b\.notification_(whatsapp|email|sms|telegram)_enabled/);
   assert.match(migration, /trg_guard_hosted_smtp_port/);
+  assert.match(migration, /REVOKE ALL ON FUNCTION mm_private.guard_hosted_smtp_port/);
   assert.match(migration, /port 465 or another permitted relay port/);
+  assert.match(migration, /fallback_channel/);
   assert.match(settings, /value="resend"/);
   assert.match(settings, /value="sendgrid"/);
   assert.match(settings, /provider:smtp\.provider/);
