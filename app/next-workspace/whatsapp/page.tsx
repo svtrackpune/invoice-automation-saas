@@ -17,6 +17,7 @@ type Connection = {
   last_health_check_at: string | null;
   last_error: string | null;
   secret_ref: string | null;
+  config: Record<string, unknown>;
 };
 
 type Template = {
