@@ -16,8 +16,6 @@ jobs:
   initialize:
     runs-on: ubuntu-latest
     steps:
-      - name: Guard against an existing native project
-        run: test ! -d android
       - name: Checkout
         uses: actions/checkout@v4
         with:
