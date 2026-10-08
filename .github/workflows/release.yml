@@ -61,8 +61,9 @@ jobs:
           fi
 
           if git rev-parse "$TAG" >/dev/null 2>&1; then
-            echo "Tag $TAG already exists without a GitHub Release."
-            exit 1
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+            echo "Tag $TAG already exists; release creation is skipped."
+            exit 0
           fi
 
           echo "exists=false" >> "$GITHUB_OUTPUT"
