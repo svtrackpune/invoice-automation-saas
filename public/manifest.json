@@ -1,0 +1,38 @@
+{
+  "name": "Moneymatters — Business finance, simplified",
+  "short_name": "Moneymatters",
+  "description": "Accounting, invoicing, banking, payroll and counter operations in one workspace.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#f8fafc",
+  "theme_color": "#4f46e5",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "/icons/moneymatters-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icons/moneymatters-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Cash Bill",
+      "short_name": "Cash Bill",
+      "url": "/next-workspace/cash-bill",
+      "icons": [
+        {
+          "src": "/icons/moneymatters-192.png",
+          "sizes": "192x192"
+        }
+      ]
+    }
+  ]
+}
