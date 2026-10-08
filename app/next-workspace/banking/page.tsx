@@ -151,7 +151,7 @@ export default function Banking(){
     const r=await supabase.rpc('record_customer_payment',{
       p_business_id:ctx.business_id,p_customer_id:invoice.customer_id,p_invoice_id:invoice.id,p_amount:Number(invoice.balance_due),
       p_method:'bank_transfer',p_account_id:accountId,p_reference:txRow.reference||txRow.external_transaction_id||null,p_gateway_transaction_id:txRow.external_transaction_id||null,
-      p_payment_date:txRow.value_date||txRow.transaction_date,p_notes:'Created from Bank Reconciliation Console'
+      p_payment_date:txRow.value_date||txRow.transaction_date,p_notes:'Created from Bank Reconciliation Console',p_currency_code:ctx.currency_code||'INR'
     });
     if(r.error){setError(r.error.message);return;}
     const paymentId=typeof r.data==='string'?r.data:null;
@@ -168,7 +168,7 @@ export default function Banking(){
     const r=await supabase.rpc('record_vendor_payment',{
       p_business_id:ctx.business_id,p_vendor_id:bill.vendor_id,p_bill_id:bill.id,p_amount:Number(bill.balance_due),p_method:'bank_transfer',
       p_account_id:accountId,p_reference:txRow.reference||txRow.external_transaction_id||null,p_payment_date:txRow.value_date||txRow.transaction_date,
-      p_notes:'Created from Bank Reconciliation Console'
+      p_notes:'Created from Bank Reconciliation Console',p_currency_code:ctx.currency_code||'INR'
     });
     if(r.error){setError(r.error.message);return;}
     const paymentId=typeof r.data==='string'?r.data:null;
