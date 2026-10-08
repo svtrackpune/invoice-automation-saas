@@ -245,6 +245,9 @@ BEGIN
 END;
 $function$;
 
+REVOKE ALL ON FUNCTION mm_private.guard_hosted_smtp_port() FROM PUBLIC,anon,authenticated;
+GRANT EXECUTE ON FUNCTION mm_private.guard_hosted_smtp_port() TO service_role;
+
 DROP TRIGGER IF EXISTS trg_guard_hosted_smtp_port
   ON public.business_notification_connections;
 CREATE TRIGGER trg_guard_hosted_smtp_port
