@@ -24,8 +24,10 @@
     "cap:add:android": "npm run cap:prepare && npx cap add android",
     "cap:sync": "npm run cap:prepare && npx cap sync android",
     "cap:open:android": "npm run cap:prepare && npx cap open android",
-    "cap:build:android:debug": "npm run cap:sync && cd android && (gradlew.bat assembleDebug || ./gradlew assembleDebug)",
-    "cap:build:android:release": "npm run cap:sync && cd android && (gradlew.bat assembleRelease || ./gradlew assembleRelease)"
+    "cap:build:android:debug": "npm run cap:sync && cd android && (gradlew.bat bundleDebug || ./gradlew bundleDebug)",
+    "cap:build:android:release": "npm run cap:sync && cd android && (gradlew.bat bundleRelease -PrequireReleaseSigning=true || ./gradlew bundleRelease -PrequireReleaseSigning=true)",
+    "android:aab:debug": "npm run cap:build:android:debug",
+    "android:aab:release": "npm run cap:build:android:release"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.117.2",
