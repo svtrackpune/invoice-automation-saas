@@ -12,7 +12,7 @@ test('settings destinations are discoverable',()=>{
   assert.match(layout,/\/next-workspace\/settings\/payments/);
   assert.match(search,/communication-settings/);
   assert.match(search,/razorpay cashfree stripe/);
-  assert.match(search,/WhatsApp WAPI SMS Telegram SMTP/);
+  for (const keyword of ['WhatsApp','WAPI','SMS','Telegram','SMTP','Email Settings','Gateways','Razorpay','Cashfree','Stripe']) assert.match(search, new RegExp(keyword, 'i'));
   assert.match(communications,/Communications & Alerts/);
 });
 
