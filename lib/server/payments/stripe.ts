@@ -11,8 +11,8 @@ import type {
 const STRIPE_API = 'https://api.stripe.com/v1';
 const WEBHOOK_TOLERANCE_SECONDS = 300;
 
-const getSecret = () => {
-  const secret = process.env.STRIPE_SECRET_KEY;
+const getSecret = (override?: string) => {
+  const secret = override || process.env.STRIPE_SECRET_KEY;
   if (!secret) throw new Error('Stripe secret key is not configured');
   return secret;
 };
@@ -47,11 +47,11 @@ const metadataToStrings = (value: unknown): Record<string, string> =>
       .map(([key, item]) => [key, String(item)]),
   );
 
-const postStripe = async (path: string, body: URLSearchParams) => {
+const postStripe = async (path: string, body: URLSearchParams, secretOverride?: string) => {
   const response = await fetch(`${STRIPE_API}${path}`, {
     method: 'POST',
     headers: {
-      Authorization: `Bearer ${getSecret()}`,
+      Authorization: `Bearer ${getSecret(secretOverride)}`,
       'Content-Type': 'application/x-www-form-urlencoded',
     },
     body,
@@ -68,6 +68,7 @@ const postStripe = async (path: string, body: URLSearchParams) => {
 
 export class StripePaymentAdapter implements PaymentProviderAdapter {
   readonly provider = 'stripe';
+  constructor(private readonly secretOverride?: string) {}
 
   async createPaymentSession(params: CreatePaymentSessionParams): Promise<PaymentSession> {
     const currency = params.currency.trim().toLowerCase();
@@ -87,7 +88,7 @@ export class StripePaymentAdapter implements PaymentProviderAdapter {
       Object.entries(metadata).forEach(([key, value]) => {
         if (value !== undefined && value !== null) body.set(`metadata[${key}]`, String(value));
       });
-      const intent = await postStripe('/payment_intents', body);
+      const intent = await postStripe('/payment_intents', body, this.secretOverride);
       return {
         provider: this.provider,
         providerReference: String(intent.id),
@@ -113,7 +114,7 @@ export class StripePaymentAdapter implements PaymentProviderAdapter {
       if (value !== undefined && value !== null) body.set(`metadata[${key}]`, String(value));
     });
 
-    const session = await postStripe('/checkout/sessions', body);
+    const session = await postStripe('/checkout/sessions', body, this.secretOverride);
     if (typeof session.url !== 'string') throw new Error('Stripe Checkout session did not return a URL');
 
     return {
@@ -131,7 +132,7 @@ export class StripePaymentAdapter implements PaymentProviderAdapter {
   async verifyWebhook(req: Request): Promise<VerifiedWebhook> {
     const rawBody = await req.text();
     const signature = req.headers.get('stripe-signature') ?? '';
-    const secret = process.env.STRIPE_WEBHOOK_SECRET;
+    const secret = this.secretOverride || process.env.STRIPE_WEBHOOK_SECRET;
     if (!secret || !signature) throw new Error('Stripe webhook configuration/headers missing');
 
     const parts: Record<string, string> = {};
