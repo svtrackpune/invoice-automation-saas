@@ -241,26 +241,23 @@ function Paper({ type, payload, business, customer, items, theme, fields, logoUr
   }
   return <article className={`paper ${theme.className} ${theme.dark?'theme-dark':''}`} style={{'--accent':theme.accent,'--table':theme.table,'--line':theme.line} as React.CSSProperties}>
     <header className='document-header'><div className='identity-column'><BusinessIdentity business={business} logoUrl={resolvedLogoUrl} fields={fields} showLogo={showLogo} showAddress={showBusinessAddress}/></div><div className='invoice-heading'><div className='document-title'>{text(fields.title||title)}</div><div className='document-meta'>{meta.map(([label,value]:any)=><div className='meta-row' key={label}><span>{label}</span><strong>{text(value)||'—'}</strong></div>)}</div></div></header>
+    {taxInvoice && <TaxInvoiceCompliance payload={payload} business={business} customer={customer}/>}
+    {type==='credit_note' && <CreditNoteCompliance payload={payload} originalInvoiceNumber={originalInvoice.number || text(payload.original_invoice_number)} originalInvoiceDate={formatDate(originalInvoice.date || payload.original_invoice_date)}/>}
+    {type==='delivery_challan' && <DeliveryChallanCompliance payload={payload} customer={customer}/>}
+    {type==='purchase_order' && <PurchaseOrderCompliance payload={payload} business={business} vendor={customer}/>}
+
     <section className='parties-grid'><div className='party-card'><label>{partyLabel}</label><strong>{text(customer.display_name||customer.legal_name||'Customer')}</strong>{customer.legal_name&&customer.legal_name!==customer.display_name&&<div>{text(customer.legal_name)}</div>}{buyerTaxId&&<div className='party-highlight'>GSTIN / Tax ID: {buyerTaxId}</div>}{customer.phone&&<div>{text(customer.phone)}</div>}{customer.email&&<div>{text(customer.email)}</div>}{addressLines(customer.billing_address||customer.address||customer.address_line1||customer.address_line).map((l:string,i:number)=><div key={i}>{l}</div>)}</div>
       {customer.shipping_address&&<div className='party-card'><label>SHIP TO</label>{addressLines(customer.shipping_address).map((l:string,i:number)=><div key={i}>{l}</div>)}</div>}
       {isGstDocument&&<div className='tax-context'>{payload.place_of_supply_state_code&&<div><span>Place of Supply</span><strong>{text(payload.place_of_supply_state_code)}</strong></div>}{payload.supply_type&&<div><span>Supply Type</span><strong>{text(payload.supply_type)}</strong></div>}{payload.tax_inclusive!==undefined&&<div><span>Tax</span><strong>{payload.tax_inclusive?'Inclusive':'Exclusive'}</strong></div>}{payload.reverse_charge&&<div><span>Reverse Charge</span><strong>Yes</strong></div>}</div>}
     </section>
-    {(type==='delivery_challan'||type==='purchase_order')&&<section className='document-notes'>
-      <label>{type==='delivery_challan'?'DISPATCH DETAILS':'PURCHASE DETAILS'}</label>
-      {type==='delivery_challan'?<p>{[
-        payload.transporter_name&&`Transporter: ${text(payload.transporter_name)}`,
-        payload.vehicle_number&&`Vehicle: ${text(payload.vehicle_number)}`,
-        payload.eway_bill_number&&`E-way Bill: ${text(payload.eway_bill_number)}`
-      ].filter(Boolean).join(' · ')||'No dispatch details recorded.'}</p>:<p>{[
-        payload.supply_type&&`Supply: ${text(payload.supply_type).replaceAll('_',' ')}`,
-        payload.tax_inclusive!==undefined&&`Tax: ${payload.tax_inclusive?'Inclusive':'Exclusive'}`,
-        payload.reverse_charge&&'Reverse charge'
-      ].filter(Boolean).join(' · ')||'Purchase order terms and commercial details.'}</p>}
-    </section>}
-    <LineItems items={items} payload={payload} receipt={false} showTaxDetails={showTaxDetails} minRows={minItemRows} showSerialNumbers={showSerialNumbers}/>
+
+    <LineItems items={items} payload={payload} receipt={false} showTaxDetails={showTaxDetails} minRows={minItemRows} showSerialNumbers={showSerialNumbers} showPackages={type==='delivery_challan'}/>
+    {(taxInvoice || type==='credit_note') && <TaxSummaryGrid items={items} taxLines={taxLines} money={(v:number)=>money(v,currency)}/>} 
     <div className='post-table-grid'><div className='invoice-notes-area'>{notes&&<section className='document-notes'><label>NOTES</label><p>{notes}</p></section>}{showTerms&&terms&&<section className='document-terms'><label>TERMS & CONDITIONS</label><p>{terms}</p></section>}{isGstDocument&&<div className='compliance-note'><span>{payload.reverse_charge?'Reverse charge applicable.':'Tax calculated based on the selected tax profile and invoice items.'}</span></div>}</div><DocumentTotals payload={payload} currency={currency} showTaxDetails={showTaxDetails}/></div>
-    {(type==='invoice'||paymentSelection?.bank)&&<PaymentSection paymentMode={type==='invoice'?paymentMode:'bank'} paymentLink={paymentLink} paymentSelection={paymentSelection} balance={Number(payload.balance_due??0)} currency={currency} premium={false} showBankDetails={showBankDetails} showPaymentLink={showPaymentLink} showPaymentQr={showPaymentQr} qrDataUrl={paymentQrDataUrl}/>} 
+    {(type==='invoice'||taxInvoice||cashBill||paymentSelection?.bank)&&<PaymentSection paymentMode={paymentMode} paymentLink={paymentLink} paymentSelection={paymentSelection} balance={Number(payload.balance_due??0)} currency={currency} premium={false} showBankDetails={showBankDetails} showPaymentLink={showPaymentLink} showPaymentQr={showPaymentQr} qrDataUrl={paymentQrDataUrl}/>} 
     {showSignature&&<div className='signature-row'><div/><div className='signature-box'><span>{showAuthorizedSignatory?'Authorized Signatory':'Signature'}</span>{fields.signature_label&&<em>{text(fields.signature_label)}</em>}</div></div>}
+    {type==='delivery_challan' && <div className='signature-row'><div className='receiver-note'>Receiver's Acknowledgment</div><div className='signature-box'><span>Receiver Signature</span></div></div>}
+    {jurisdictionClause && <div className='jurisdiction-clause'><strong>Jurisdiction</strong><span>{jurisdictionClause}</span></div>}
     {showCustomerBalance&&<div className='customer-balance-footer'><span>Customer ledger balance</span><strong>{money(customerBalance,currency)} {Number(customerBalance)>0?'outstanding':'clear'}</strong></div>}
     <footer><span>{text(business.name||business.legal_name||'Business')}</span><span>{text(fields.footer||'This is a computer generated document.')}</span></footer><div className='platform'><span className='platform-mark' aria-hidden='true'>M</span><span>Powered by <strong>Moneymatters</strong></span></div>
   </article>;
