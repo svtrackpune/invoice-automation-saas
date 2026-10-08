@@ -281,6 +281,16 @@ export default function DocumentViewer({ type, id }: { type: string; id: string 
       if (taxIds.length) { const taxRows = await supabase.from('tax_rates').select('id,name,rate,metadata').in('id', taxIds); if (!taxRows.error) payload.items = (payload.items || []).map((x:any)=>{ const tr = (taxRows.data||[]).find((t:any)=>t.id===x.tax_rate_id); return tr?{...x,tax_rate:tr.rate}:x }); }
       const productIds = Array.from(new Set((payload.items || []).map((x:any) => x.product_service_id).filter(Boolean)));
       if (productIds.length) { const productRows = await supabase.from('products_services').select('id,name,sku,item_type,unit,hsn_sac').in('id', productIds).eq('business_id', businessId); if (!productRows.error) payload.items = (payload.items || []).map((x:any)=>{ const p=(productRows.data||[]).find((row:any)=>row.id===x.product_service_id); return p?{...x,name:p.name,sku:p.sku,item_type:p.item_type,unit:p.unit,hsn_sac:p.hsn_sac}:x; }); }
+      const sourceInvoiceId = payload.invoice_id || payload.invoice?.id || payload.source_invoice_id || payload.payment?.invoice_id || (renderType === 'invoice' ? id : null);
+      if (sourceInvoiceId && ['invoice','tax_invoice','cash_bill','credit_note'].includes(type)) {
+        const taxResult = await supabase.from('invoice_tax_lines').select('invoice_item_id,tax_code,tax_category,rate,taxable_amount,tax_amount').eq('invoice_id', sourceInvoiceId).order('invoice_item_id');
+        if (!taxResult.error) setTaxLines((taxResult.data || []) as TaxLine[]);
+      }
+      if (type === 'credit_note' && payload.invoice_id) {
+        const source = await supabase.from('invoices').select('invoice_number,invoice_date').eq('id', payload.invoice_id).eq('business_id', businessId).maybeSingle();
+        if (!source.error && source.data) setOriginalInvoice({ number:String(source.data.invoice_number || ''), date:String(source.data.invoice_date || '') });
+      }
+
       const [templateResult, preferenceResult, businessResult, paymentSettingsResult] = await Promise.all([
         loaded.data?.template_id ? supabase.from('document_templates').select('template_key,template_name').eq('id', loaded.data.template_id).maybeSingle() : Promise.resolve({ data: null } as any),
         businessId ? supabase.from('business_document_preferences').select('custom_fields,show_logo,show_business_address,show_tax_details,show_payment_qr,show_payment_link,show_signature,show_terms,show_bank_details,document_title_override,min_item_rows,prefill_upi_amount,show_customer_balance,show_authorized_signatory,show_serial_numbers').eq('business_id', businessId).eq('document_type', renderType).maybeSingle() : Promise.resolve({ data: null } as any),
@@ -318,6 +328,24 @@ export default function DocumentViewer({ type, id }: { type: string; id: string 
         const lineItems = await supabase.from('invoice_items').select('description,quantity,unit_price,line_total,product_service_id').eq('invoice_id', invoiceId).order('sort_order');
         if (!lineItems.error) setReceiptItems(lineItems.data || []);
         else if (active) setError(lineItems.error.message);
+        const paymentId = payload.payment_id || payload.payment?.id;
+        if (paymentId) {
+          const allocations = await supabase.from('payment_allocations').select('invoice_id,amount').eq('business_id', businessId).eq('payment_id', paymentId);
+          if (!allocations.error && allocations.data?.length) {
+            const invoiceIds = Array.from(new Set(allocations.data.map((row:any) => row.invoice_id).filter(Boolean)));
+            const invoiceRows = invoiceIds.length ? await supabase.from('invoices').select('id,invoice_number,total,balance_due').in('id', invoiceIds).eq('business_id', businessId) : { data: [] } as any;
+            const allocationRows = (allocations.data || []).map((row:any) => {
+              const source = (invoiceRows.data || []).find((inv:any) => inv.id === row.invoice_id);
+              return {
+                invoiceNumber:String(source?.invoice_number || row.invoice_id || '—'),
+                totalDue:Number(source?.total || 0),
+                amountApplied:Number(row.amount || 0),
+                remainingBalance:Math.max(0, Number(source?.balance_due || 0)),
+              };
+            });
+            if (active) setReceiptAllocations(allocationRows);
+          }
+        }
       }
       setLoading(false);
     })();
