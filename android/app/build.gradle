@@ -1,5 +1,70 @@
 apply plugin: 'com.android.application'
 
+def releaseSigningProperties = new Properties()
+def releaseSigningPropertiesFile = rootProject.file('key.properties')
+if (releaseSigningPropertiesFile.isFile()) {
+    releaseSigningPropertiesFile.withInputStream { releaseSigningProperties.load(it) }
+}
+
+def signingValue = { String propertyName, String environmentName ->
+    def fileValue = releaseSigningProperties.getProperty(propertyName)
+    if (fileValue != null && fileValue.trim()) {
+        return fileValue.trim()
+    }
+    def environmentValue = System.getenv(environmentName)
+    return environmentValue != null && environmentValue.trim() ? environmentValue.trim() : null
+}
+
+def releaseStoreFilePath = signingValue('storeFile', 'ANDROID_KEYSTORE_PATH')
+def releaseStorePassword = signingValue('storePassword', 'ANDROID_KEYSTORE_PASSWORD')
+def releaseKeyAlias = signingValue('keyAlias', 'ANDROID_KEY_ALIAS')
+def releaseKeyPassword = signingValue('keyPassword', 'ANDROID_KEY_PASSWORD')
+def releaseStoreFile = releaseStoreFilePath ? file(releaseStoreFilePath) : null
+
+def releaseSigningInputsPresent = [
+    releaseStoreFilePath,
+    releaseStorePassword,
+    releaseKeyAlias,
+    releaseKeyPassword
+].every { it != null && it.toString().trim() }
+
+def releaseSigningAvailable = releaseSigningInputsPresent &&
+        releaseStoreFile != null &&
+        releaseStoreFile.isFile()
+
+def requireReleaseSigning = project.hasProperty('requireReleaseSigning') &&
+        project.property('requireReleaseSigning').toString().toBoolean()
+
+if (releaseSigningAvailable) {
+    signingConfigs {
+        release {
+            storeFile releaseStoreFile
+            storePassword releaseStorePassword
+            keyAlias releaseKeyAlias
+            keyPassword releaseKeyPassword
+        }
+    }
+} else if (requireReleaseSigning) {
+    def missing = []
+    if (!releaseStoreFilePath) missing << 'keystore path (storeFile / ANDROID_KEYSTORE_PATH)'
+    if (!releaseStorePassword) missing << 'store password (storePassword / ANDROID_KEYSTORE_PASSWORD)'
+    if (!releaseKeyAlias) missing << 'key alias (keyAlias / ANDROID_KEY_ALIAS)'
+    if (!releaseKeyPassword) missing << 'key password (keyPassword / ANDROID_KEY_PASSWORD)'
+    if (releaseStoreFilePath && !file(releaseStoreFilePath).isFile()) {
+        missing << 'configured keystore file is not readable: ' + file(releaseStoreFilePath).absolutePath
+    }
+    throw new GradleException(
+        "Release signing is required but unavailable. Configure android/key.properties locally " +
+        "or ANDROID_KEYSTORE_PATH, ANDROID_KEYSTORE_PASSWORD, ANDROID_KEY_ALIAS, ANDROID_KEY_PASSWORD in CI. " +
+        "Missing: " + missing.join(', ') + "."
+    )
+} else {
+    logger.lifecycle(
+        "Release signing credentials not found. Local release bundles may be generated unsigned for validation. " +
+        "Use -PrequireReleaseSigning=true (the production npm release script does this) to enforce signing."
+    )
+}
+
 android {
     namespace "in.nilanga.moneymatters"
     compileSdk rootProject.ext.compileSdkVersion
@@ -11,15 +76,16 @@ android {
         versionName "1.0"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
-             // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
-             // Default: https://android.googlesource.com/platform/frameworks/base/+/282e181b58cf72b6ca770dc7ca5f91f135444502/tools/aapt/AaptAssets.cpp#61
             ignoreAssetsPattern '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
     buildTypes {
         release {
             minifyEnabled false
-            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+            if (releaseSigningAvailable) {
+                signingConfig signingConfigs.release
+            }
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.txt'
         }
     }
 }
