@@ -22,6 +22,8 @@ type PdfData = {
   customer: { display_name: string | null; legal_name: string | null; phone: string | null; email: string | null } | null;
   business: { name: string | null; legal_name: string | null; address: any; phone: string | null; email: string | null; website: string | null; tax_registration_number: string | null } | null;
   items: Array<{ name: string; sku: string | null; quantity: number; unit_price: number; line_total: number }>;
+  allocations: Array<{ invoice_number: string; total_due: number; amount_applied: number; remaining_balance: number }>;
+  customer_outstanding: number;
 };
 
 const cleanText = (value: unknown) => String(value ?? '').replace(/[\\()\r\n\u0000-\u001f]/g, (ch) => {
@@ -136,7 +138,24 @@ const buildReceiptPdf = (data: PdfData) => {
   textLine(page, left + 92, y + 22, customerName, 10, true);
   if (data.customer?.phone) textLine(page, left + 92, y + 8, plain(data.customer.phone), 8.5);
   if (data.customer?.email) textLine(page, left + 265, y + 8, plain(data.customer.email), 8.5);
-  y -= 68;
+  y -= 54;
+  rect(page, left, y - 8, usableWidth, 40);
+  textLine(page, left + 12, y + 17, `Received with thanks from ${customerName}`, 9.5, true);
+  textLine(page, left + 12, y + 3, `Current customer ledger outstanding: ${money(data.customer_outstanding, currency)}`, 8.5);
+  y -= 56;
+
+  if (data.allocations.length) {
+    textLine(page, left, y, 'Invoice Allocation', 9, true);
+    y -= 8;
+    line(page, left, y, pageWidth - right, y);
+    y -= 16;
+    for (const allocation of data.allocations) {
+      const label = `${plain(allocation.invoice_number)} · Applied ${money(allocation.amount_applied, currency)} · Balance ${money(allocation.remaining_balance, currency)}`;
+      textLine(page, left, y, label, 8.2);
+      y -= 14;
+    }
+    y -= 4;
+  }
 
   textLine(page, left, y, 'Items', 9, true);
   textLine(page, left + 365, y, 'Qty', 9, true);
@@ -268,6 +287,30 @@ export async function loadReceiptPdfData(db: SupabaseClient, receiptId: string):
   ]);
 
   const invoiceId = paymentResult.data?.invoice_id || null;
+  const [allocationResult, invoiceBalanceResult] = await Promise.all([
+    receipt.payment_id
+      ? db.from('payment_allocations').select('invoice_id,amount').eq('business_id', receipt.business_id).eq('payment_id', receipt.payment_id)
+      : Promise.resolve({ data: [] } as any),
+    receipt.customer_id
+      ? db.from('invoices').select('balance_due,status').eq('business_id', receipt.business_id).eq('customer_id', receipt.customer_id).in('status', ['sent','posted','partially_paid','overdue'])
+      : Promise.resolve({ data: [] } as any),
+  ]);
+
+  const allocationInvoiceIds = Array.from(new Set((allocationResult.data || []).map((row: any) => row.invoice_id).filter(Boolean)));
+  const allocationInvoiceResult = allocationInvoiceIds.length
+    ? await db.from('invoices').select('id,invoice_number,total,balance_due').in('id', allocationInvoiceIds).eq('business_id', receipt.business_id)
+    : { data: [] } as any;
+  const allocations = (allocationResult.data || []).map((row: any) => {
+    const source = (allocationInvoiceResult.data || []).find((invoice: any) => invoice.id === row.invoice_id);
+    return {
+      invoice_number: plain(source?.invoice_number || row.invoice_id || '—'),
+      total_due: Number(source?.total || 0),
+      amount_applied: Number(row.amount || 0),
+      remaining_balance: Math.max(0, Number(source?.balance_due || 0)),
+    };
+  });
+  const customerOutstanding = (invoiceBalanceResult.data || []).reduce((sum: number, row: any) => sum + Math.max(0, Number(row.balance_due || 0)), 0);
+
   const [invoiceResult, itemsResult] = await Promise.all([
     invoiceId
       ? db.from('invoices').select('invoice_number,invoice_date,total,amount_paid,balance_due,document_kind').eq('id', invoiceId).eq('business_id', receipt.business_id).maybeSingle()
@@ -301,6 +344,8 @@ export async function loadReceiptPdfData(db: SupabaseClient, receiptId: string):
     customer: customerResult.data || null,
     business: businessResult.data || null,
     items,
+    allocations,
+    customer_outstanding: customerOutstanding,
   };
 }
 
