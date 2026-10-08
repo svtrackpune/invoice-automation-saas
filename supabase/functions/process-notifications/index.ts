@@ -343,10 +343,13 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { data: jobs, error } = await admin.rpc(
-      "claim_notification_jobs",
-      { p_limit: 20 },
-    );
+    const body = (await req.json().catch(() => ({}))) as Record<string, unknown>;
+    const requestedJobId = typeof body.job_id === "string" && body.job_id.trim()
+      ? body.job_id.trim()
+      : null;
+    const { data: jobs, error } = requestedJobId
+      ? await admin.rpc("claim_notification_job", { p_job_id: requestedJobId })
+      : await admin.rpc("claim_notification_jobs", { p_limit: 20 });
 
     if (error) throw error;
 
