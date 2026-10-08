@@ -111,14 +111,18 @@ export default function PaymentsSettingsPage() {
     const accountNumber = bankForm.account_number.trim();
     if (!businessId || !bankForm.name.trim() || !accountNumber || !bankForm.ifsc_code.trim()) { setError('Bank name, account number, and IFSC are required.'); return; }
     setBankSaving(true); setError('');
-    const result = await supabase.from('bank_accounts').insert({
-      business_id: businessId, name: bankForm.name.trim(),
-      institution_name: bankForm.institution_name.trim() || bankForm.name.trim(),
-      account_number: accountNumber, account_last4: accountNumber.slice(-4),
-      account_holder_name: bankForm.account_holder_name.trim() || null,
-      ifsc_code: bankForm.ifsc_code.trim().toUpperCase(), branch_name: bankForm.branch_name.trim() || null,
-      linked_account_id: bankForm.linked_account_id || null, is_active: true,
-    }).select('id,name,institution_name,account_last4,account_number,ifsc_code,branch_name,account_holder_name,linked_account_id,is_active').single();
+    const result = await supabase.rpc('create_payment_bank_account', {
+      p_business_id: businessId,
+      p_payload: {
+        name: bankForm.name.trim(),
+        institution_name: bankForm.institution_name.trim(),
+        account_number: accountNumber,
+        account_holder_name: bankForm.account_holder_name.trim(),
+        ifsc_code: bankForm.ifsc_code.trim().toUpperCase(),
+        branch_name: bankForm.branch_name.trim(),
+        linked_account_id: bankForm.linked_account_id,
+      },
+    });
     if (result.error) setError(result.error.message);
     else {
       const bank = result.data as BankAccount;
