@@ -6,7 +6,7 @@ import { supabase, type BusinessContext } from '@/lib/supabase';
 type Connection = {
   id: string;
   channel: 'whatsapp' | 'telegram' | 'email' | 'sms';
-  provider: 'wapi' | 'telegram-bot' | 'resend' | 'smtp' | 'twilio';
+  provider: 'wapi' | 'telegram-bot' | 'resend' | 'smtp' | 'sendgrid' | 'twilio' | 'fast2sms' | 'msg91' | 'textlocal' | 'generic_http';
   display_name: string;
   endpoint_url: string | null;
   external_instance_id: string | null;
@@ -54,6 +54,8 @@ type TelegramForm = {
   display_name: string;
   enabled: boolean;
 };
+type SmsForm={id:string;provider:'fast2sms'|'msg91'|'textlocal'|'generic_http';endpoint_url:string;sender:string;secret:string;template_id:string;display_name:string;enabled:boolean};
+type SmtpForm={id:string;host:string;port:string;username:string;from_email:string;from_name:string;password:string;secure:boolean;display_name:string;enabled:boolean};
 
 const emptyWapi: WapiForm = {
   id: '',
@@ -71,6 +73,8 @@ const emptyTelegram: TelegramForm = {
   display_name: 'Business Telegram',
   enabled: true,
 };
+const emptySms:SmsForm={id:'',provider:'fast2sms',endpoint_url:'',sender:'',secret:'',template_id:'',display_name:'Business SMS',enabled:true};
+const emptySmtp:SmtpForm={id:'',host:'',port:'587',username:'',from_email:'',from_name:'',password:'',secure:true,display_name:'Business SMTP',enabled:true};
 
 export default function WhatsApp() {
   const [ctx, setCtx] = useState<BusinessContext | null>(null);
@@ -79,8 +83,10 @@ export default function WhatsApp() {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [wapi, setWapi] = useState(emptyWapi);
   const [telegram, setTelegram] = useState(emptyTelegram);
+  const [sms,setSms]=useState(emptySms);
+  const [smtp,setSmtp]=useState(emptySmtp);
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState<'wapi' | 'telegram' | null>(null);
+  const [saving, setSaving] = useState<'wapi' | 'telegram' | 'sms' | 'smtp' | null>(null);
   const [message, setMessage] = useState('');
 
   const load = useCallback(async () => {
@@ -158,6 +164,10 @@ export default function WhatsApp() {
       });
     }
 
+    const sc=rows.find((row)=>row.channel==='sms'&&['fast2sms','msg91','textlocal','generic_http'].includes(row.provider));
+    if(sc)setSms({id:sc.id,provider:sc.provider as SmsForm['provider'],endpoint_url:sc.endpoint_url||'',sender:sc.sender||'',secret:'',template_id:typeof sc.config?.template_id==='string'?sc.config.template_id:'',display_name:sc.display_name,enabled:sc.enabled});
+    const ec=rows.find((row)=>row.channel==='email'&&row.provider==='smtp');
+    if(ec)setSmtp({id:ec.id,host:ec.endpoint_url||'',port:String(ec.config?.port||587),username:typeof ec.config?.username==='string'?ec.config.username:'',from_email:ec.sender||'',from_name:typeof ec.config?.from_name==='string'?ec.config.from_name:'',password:'',secure:typeof ec.config?.secure==='boolean'?ec.config.secure:true,display_name:ec.display_name,enabled:ec.enabled});
     setLoading(false);
   }, []);
 
@@ -165,73 +175,28 @@ export default function WhatsApp() {
     load();
   }, [load]);
 
-  const save = async (channel: 'wapi' | 'telegram') => {
-    if (!ctx) return;
-
-    setSaving(channel);
-    setMessage('');
-
-    const isWapi = channel === 'wapi';
-
-    if (
-      isWapi &&
-      (!wapi.endpoint_url.trim() ||
-        !wapi.external_instance_id.trim() ||
-        (!wapi.secret.trim() && !wapi.id))
-    ) {
-      setMessage('Wapi requires API URL, Instance ID and API Key on first setup.');
-      setSaving(null);
-      return;
-    }
-
-    if (!isWapi && !telegram.secret.trim() && !telegram.id) {
-      setMessage('Telegram Bot Token is required on first setup.');
-      setSaving(null);
-      return;
-    }
-
-    const result = await supabase.rpc('save_business_notification_connection', {
-      p_business_id: ctx.business_id,
-      p_channel: isWapi ? 'whatsapp' : 'telegram',
-      p_provider: isWapi ? 'wapi' : 'telegram-bot',
-      p_display_name: isWapi
-        ? wapi.display_name.trim()
-        : telegram.display_name.trim(),
-      p_connection_id: isWapi ? wapi.id || null : telegram.id || null,
-      p_endpoint_url: isWapi ? wapi.endpoint_url.trim() : null,
-      p_external_instance_id: isWapi
-        ? wapi.external_instance_id.trim()
-        : null,
-      p_secret: isWapi
-        ? wapi.secret.trim() || null
-        : telegram.secret.trim() || null,
-      p_sender: null,
-      p_default_recipient: isWapi
-        ? null
-        : telegram.default_recipient.trim() || null,
-      p_priority: 1,
-      p_failover_group: 'customer-delivery',
-      p_enabled: isWapi ? wapi.enabled : telegram.enabled,
-      p_config: {},
+  const save = async (channel: 'wapi' | 'telegram' | 'sms' | 'smtp') => {
+    if(!ctx)return;setSaving(channel);setMessage('');
+    if(channel==='wapi'&&(!wapi.endpoint_url.trim()||!wapi.external_instance_id.trim()||(!wapi.secret.trim()&&!wapi.id))){setMessage('Wapi requires API URL, Instance ID and API Key on first setup.');setSaving(null);return;}
+    if(channel==='telegram'&&!telegram.secret.trim()&&!telegram.id){setMessage('Telegram Bot Token is required on first setup.');setSaving(null);return;}
+    if(channel==='sms'&&!sms.secret.trim()&&!sms.id){setMessage('SMS API key is required on first setup.');setSaving(null);return;}
+    if(channel==='smtp'&&(!smtp.host.trim()||!smtp.from_email.trim()||(!smtp.password.trim()&&!smtp.id))){setMessage('SMTP host, From email and password are required on first setup.');setSaving(null);return;}
+    const isWapi=channel==='wapi',isTelegram=channel==='telegram',isSms=channel==='sms';
+    const result=await supabase.rpc('save_business_notification_connection',{
+      p_business_id:ctx.business_id,p_channel:isWapi?'whatsapp':isTelegram?'telegram':isSms?'sms':'email',
+      p_provider:isWapi?'wapi':isTelegram?'telegram-bot':isSms?sms.provider:'smtp',
+      p_display_name:isWapi?wapi.display_name:isTelegram?telegram.display_name:isSms?sms.display_name:smtp.display_name,
+      p_connection_id:isWapi?wapi.id||null:isTelegram?telegram.id||null:isSms?sms.id||null:smtp.id||null,
+      p_endpoint_url:isWapi?wapi.endpoint_url.trim():isSms?sms.endpoint_url.trim()||null:smtp.host.trim(),
+      p_external_instance_id:isWapi?wapi.external_instance_id.trim():null,
+      p_secret:isWapi?wapi.secret.trim()||null:isTelegram?telegram.secret.trim()||null:isSms?sms.secret.trim()||null:smtp.password.trim()||null,
+      p_sender:isSms?sms.sender.trim()||null:channel==='smtp'?smtp.from_email.trim():null,
+      p_default_recipient:isTelegram?telegram.default_recipient.trim()||null:null,
+      p_priority:1,p_failover_group:'customer-delivery',p_enabled:isWapi?wapi.enabled:isTelegram?telegram.enabled:isSms?sms.enabled:smtp.enabled,
+      p_config:isSms?{template_id:sms.template_id.trim()||undefined}:channel==='smtp'?{port:Number(smtp.port)||587,secure:smtp.secure,username:smtp.username.trim()||smtp.from_email.trim(),from_name:smtp.from_name.trim()||undefined}:{},
     });
-
-    setMessage(
-      result.error
-        ? result.error.message
-        : isWapi
-          ? 'Wapi connection saved securely.'
-          : 'Telegram connection saved securely.',
-    );
-    setSaving(null);
-
-    if (!result.error) {
-      if (isWapi) {
-        setWapi((value) => ({ ...value, secret: '' }));
-      } else {
-        setTelegram((value) => ({ ...value, secret: '' }));
-      }
-      await load();
-    }
+    setMessage(result.error?result.error.message:'Connection saved securely in Supabase Vault.');setSaving(null);
+    if(!result.error){if(isWapi)setWapi(v=>({...v,secret:''}));else if(isTelegram)setTelegram(v=>({...v,secret:''}));else if(isSms)setSms(v=>({...v,secret:''}));else setSmtp(v=>({...v,password:''}));await load();}
   };
 
   const wapiConnection = useMemo(
@@ -281,7 +246,7 @@ export default function WhatsApp() {
           </div>
         )}
 
-        <div className="grid gap-6 lg:grid-cols-2">
+<div className="mt-6 grid gap-6 lg:grid-cols-2"><section className="rounded-2xl border border-slate-200 bg-white p-5"><h2 className="font-semibold">Bulk SMS</h2><p className="mt-1 text-xs text-slate-500">Fast2SMS, MSG91, Textlocal or Generic HTTPS. Configure the merchant-approved DLT/Flow template ID where required.</p><div className="mt-4 grid gap-3"><select value={sms.provider} onChange={e=>setSms(v=>({...v,provider:e.target.value as SmsForm['provider']}))} className="rounded-xl border border-slate-200 px-3 py-2.5 text-sm"><option value="fast2sms">Fast2SMS</option><option value="msg91">MSG91</option><option value="textlocal">Textlocal</option><option value="generic_http">Generic HTTP</option></select><input value={sms.sender} onChange={e=>setSms(v=>({...v,sender:e.target.value}))} placeholder="Sender ID" className="rounded-xl border border-slate-200 px-3 py-2.5"/><input value={sms.endpoint_url} onChange={e=>setSms(v=>({...v,endpoint_url:e.target.value}))} placeholder="Endpoint (optional)" className="rounded-xl border border-slate-200 px-3 py-2.5"/><input value={sms.template_id} onChange={e=>setSms(v=>({...v,template_id:e.target.value}))} placeholder="DLT / Flow template ID" className="rounded-xl border border-slate-200 px-3 py-2.5"/><input type="password" value={sms.secret} onChange={e=>setSms(v=>({...v,secret:e.target.value}))} placeholder="API key / auth secret" className="rounded-xl border border-slate-200 px-3 py-2.5" autoComplete="new-password"/><button type="button" disabled={saving==='sms'} onClick={()=>save('sms')} className="rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white">{saving==='sms'?'Saving…':'Save SMS gateway'}</button></div></section><section className="rounded-2xl border border-slate-200 bg-white p-5"><h2 className="font-semibold">Custom SMTP</h2><p className="mt-1 text-xs text-slate-500">Merchant-owned outbound SMTP. Password is stored in Vault.</p><div className="mt-4 grid gap-3"><div className="grid grid-cols-2 gap-3"><input value={smtp.host} onChange={e=>setSmtp(v=>({...v,host:e.target.value}))} placeholder="SMTP host" className="rounded-xl border border-slate-200 px-3 py-2.5"/><input type="number" value={smtp.port} onChange={e=>setSmtp(v=>({...v,port:e.target.value}))} placeholder="587" className="rounded-xl border border-slate-200 px-3 py-2.5"/></div><input value={smtp.username} onChange={e=>setSmtp(v=>({...v,username:e.target.value}))} placeholder="Username" className="rounded-xl border border-slate-200 px-3 py-2.5"/><input value={smtp.from_email} onChange={e=>setSmtp(v=>({...v,from_email:e.target.value}))} placeholder="From email" className="rounded-xl border border-slate-200 px-3 py-2.5"/><input value={smtp.from_name} onChange={e=>setSmtp(v=>({...v,from_name:e.target.value}))} placeholder="From name" className="rounded-xl border border-slate-200 px-3 py-2.5"/><input type="password" value={smtp.password} onChange={e=>setSmtp(v=>({...v,password:e.target.value}))} placeholder={connections.some(r=>r.channel==='email'&&r.provider==='smtp')?'Leave blank to keep existing password':'SMTP password'} className="rounded-xl border border-slate-200 px-3 py-2.5" autoComplete="new-password"/><label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={smtp.secure} onChange={e=>setSmtp(v=>({...v,secure:e.target.checked}))}/> Secure TLS transport</label><button type="button" disabled={saving==='smtp'} onClick={()=>save('smtp')} className="rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white">{saving==='smtp'?'Saving…':'Save SMTP connection'}</button></div></section></div>        <div className="grid gap-6 lg:grid-cols-2">
           <section className="rounded-2xl border border-slate-200 bg-white p-5">
             <div className="flex items-center justify-between">
               <div>
