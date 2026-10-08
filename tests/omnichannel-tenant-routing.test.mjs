@@ -124,3 +124,21 @@ test('Wapi and Telegram adapters use tenant Vault secrets without logging them',
   assert.match(telegram, /type: 'text_link'/);
   assert.doesNotMatch(worker, /WHATSAPP_ACCESS_TOKEN|TELEGRAM_BOT_TOKEN|RESEND_API_KEY|TWILIO_AUTH_TOKEN/);
 });
+
+test('customer routing uses business_preferences and protects the hosted SMTP boundary', async () => {
+  const migration = await read(
+    'supabase/migrations/20261008252000_harden_communications_runtime.sql',
+  );
+  const settings = await read('app/next-workspace/whatsapp/page.tsx');
+  const worker = await read('supabase/functions/process-notifications/index.ts');
+
+  assert.match(migration, /public\.business_preferences%rowtype/);
+  assert.match(migration, /bp\.notification_whatsapp_enabled/);
+  assert.doesNotMatch(migration, /b\.notification_(whatsapp|email|sms|telegram)_enabled/);
+  assert.match(migration, /trg_guard_hosted_smtp_port/);
+  assert.match(migration, /port 465 or another permitted relay port/);
+  assert.match(settings, /value="resend"/);
+  assert.match(settings, /value="sendgrid"/);
+  assert.match(settings, /provider:smtp\.provider/);
+  assert.match(worker, /connection\.config\.port\|\|465/);
+});
