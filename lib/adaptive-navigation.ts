@@ -32,7 +32,7 @@ const NAVIGATION: AdaptiveNavGroup[] = [
   {
     name: 'Money out',
     items: [
-      { label: 'Purchases & Bills', href: '/next-workspace/purchases', requiredAny: ['has_physical_inventory', 'has_manufacturing', 'is_b2b'] },
+      { label: 'Bills & Purchase Orders', href: '/next-workspace/bills', requiredAny: ['has_physical_inventory', 'has_manufacturing', 'is_b2b'] },
       { label: 'Expenses', href: '/next-workspace/expenses', always: true },
       { label: 'Vendors', href: '/next-workspace/vendors', requiredAny: ['has_physical_inventory', 'has_manufacturing', 'is_b2b'] },
     ],
