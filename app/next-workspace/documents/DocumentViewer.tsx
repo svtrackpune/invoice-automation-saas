@@ -117,6 +117,8 @@ function DocumentTotals({ payload, currency='INR', receipt=false, showTaxDetails
   const discount = Number(payload.discount_total ?? 0);
   const tax = Number(payload.tax_total ?? 0);
   const total = Number(payload.total ?? 0);
+  const calculatedNet = subtotal - discount + tax;
+  const roundOff = Number(payload.round_off_amount ?? payload.round_off ?? (total - calculatedNet));
   const balance = Number(payload.balance_due ?? 0);
   const paid = Number(payload.amount_paid ?? payload.amount_received ?? 0);
   const cgst = Number(payload.cgst_amount ?? 0);
@@ -141,7 +143,8 @@ function DocumentTotals({ payload, currency='INR', receipt=false, showTaxDetails
     {showComponents && cgst !== 0 && <div><span>CGST</span><strong>{money(cgst,currency)}</strong></div>}
     {showComponents && sgst !== 0 && <div><span>SGST</span><strong>{money(sgst,currency)}</strong></div>}
     {showComponents && igst !== 0 && <div><span>IGST</span><strong>{money(igst,currency)}</strong></div>}
-    <div className="summary-total"><span>Total</span><strong>{money(total,currency)}</strong></div>
+    <div className="summary-total"><span>Net Payable</span><strong>{money(total,currency)}</strong></div>
+    {Math.abs(roundOff) >= 0.005 && <div><span>Round-Off</span><strong>{roundOff > 0 ? '+' : ''}{money(roundOff,currency)}</strong></div>}
     {paid > 0 && <div><span>Amount Paid</span><strong>{money(paid,currency)}</strong></div>}
     <div className={balance > 0 ? 'balance-due' : 'balance-paid'}>
       <span>{balance > 0 ? 'Balance Due' : 'Paid in Full'}</span>
@@ -196,6 +199,40 @@ function Paper({ type, payload, business, customer, items, theme, fields, logoUr
   if(payload.due_date)meta.push(['Due Date',formatDate(payload.due_date)]);
   if(isGstDocument&&payload.place_of_supply_state_code)meta.push(['Place of Supply',payload.place_of_supply_state_code]);
   if(isGstDocument&&payload.supply_type)meta.push(['Supply Type',payload.supply_type]); if(isGstDocument&&payload.reverse_charge)meta.push(['Reverse Charge','Yes']);
+  if(cashBill){
+    const cashierName=text(payload.cashier_name||payload.cashier||fields.cashier_name||'Counter Cashier');
+    const paymentReference=text(payload.upi_reference||payload.payment_reference||payload.payment?.reference||payload.payment?.gateway_transaction_id||'');
+    const paymentMethod=text(payload.payment_method||payload.payment?.method||'Cash');
+    const cashTendered=Number(payload.cash_tendered||payload.amount_received||payload.amount_paid||payload.total||0);
+    const changeReturned=Math.max(0,cashTendered-Number(payload.total||0));
+    const thermal=cashBillFormat==='thermal80'||cashBillFormat==='thermal58';
+    const paperClass=thermal?'cash-bill-thermal':'cash-bill-modern';
+    return <article className={`paper cash-bill-paper ${paperClass} cash-bill-${cashBillFormat} ${theme.dark?'theme-dark':''}`} style={{'--accent':theme.accent,'--table':theme.table,'--line':theme.line} as React.CSSProperties}>
+      {thermal ? <div className="cash-thermal">
+        <div className="cash-thermal-brand">{business.name||business.legal_name||'Business'}</div>
+        {addressLines(business.address).map((line:string,i:number)=><div key={i}>{line}</div>)}
+        {taxValue(business)&&<div>GSTIN: {taxValue(business)}</div>}
+        <div className="cash-thermal-rule"/>
+        <strong>CASH BILL / POS RECEIPT</strong>
+        <div>{documentNumber||'—'} · {formatDate(documentDate)}</div>
+        <div className="cash-thermal-rule"/>
+        {items.map((it:any,i:number)=><div className="cash-item" key={it?.id||i}><span>{text(it?.name||it?.description||'Item')}</span><span>{Number(it?.quantity||1)} × {money(Number(it?.unit_price||it?.rate||0),currency)}</span><strong>{money(Number(it?.line_total||it?.amount||0),currency)}</strong></div>)}
+        <div className="cash-thermal-total"><span>Total</span><strong>{money(Number(payload.total||0),currency)}</strong></div>
+        <div>Payment: {paymentMethod}</div>
+        {paymentMethod.toLowerCase().includes('upi')&&<div>UPI Ref: {paymentReference||'—'}</div>}
+        {paymentMethod.toLowerCase().includes('cash')&&<><div>Cash Tendered: {money(cashTendered,currency)}</div><div>Change Returned: {money(changeReturned,currency)}</div></>}
+        {showPaymentQr&&paymentQrDataUrl&&<img className="cash-thermal-qr" src={paymentQrDataUrl} alt="UPI payment QR"/>}
+        <div className="cash-thermal-thanks">Thank You — Visit Again</div>
+      </div> : <><div className="cash-bill-watermark">PAID IN FULL</div>
+        <header className="document-header"><div className="identity-column"><BusinessIdentity business={business} logoUrl={resolvedLogoUrl} fields={fields} showLogo={showLogo} showAddress={showBusinessAddress}/></div><div className="invoice-heading"><div className="document-title">CASH BILL / POS RECEIPT</div><div className="document-meta">{meta.map(([label,value]:any)=><div className="meta-row" key={label}><span>{label}</span><strong>{text(value)||'—'}</strong></div>)}</div></div></header>
+        <CashBillCompliance payload={payload} cashierName={cashierName} paymentReference={paymentReference}/>
+        <LineItems items={items} payload={payload} receipt={false} showTaxDetails={showTaxDetails} minRows={minItemRows} showSerialNumbers={showSerialNumbers}/>
+        <div className="post-table-grid"><div className="invoice-notes-area">{notes&&<section className="document-notes"><label>NOTES</label><p>{notes}</p></section>}{showTerms&&terms&&<section className="document-terms"><label>TERMS & CONDITIONS</label><p>{terms}</p></section>}</div><DocumentTotals payload={payload} currency={currency} showTaxDetails={false}/></div>
+        <PaymentSection paymentMode={paymentMode} paymentLink="" paymentSelection={paymentSelection} balance={0} currency={currency} showBankDetails={false} showPaymentLink={false} showPaymentQr={showPaymentQr} qrDataUrl={paymentQrDataUrl}/>
+        <div className="cash-bill-footer"><strong>Thank You — Visit Again</strong><span>Cashier: {cashierName}</span>{paymentReference&&<span>UPI / Transaction Ref: {paymentReference}</span>}</div>
+      </>}
+    </article>;
+  }
   if(receipt){
     const invoiceTotal=Number(payload.invoice_total ?? 0);
     const receiptAmount=Number(payload.amount ?? payload.amount_received ?? payload.amount_paid ?? 0);
