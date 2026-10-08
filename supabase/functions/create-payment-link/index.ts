@@ -26,7 +26,7 @@ Deno.serve(async(req)=>{
     const {data:existing}=await admin.from("payment_links").select("*").eq("business_id",businessId).eq("invoice_id",invoice.id).in("status",["creating","created","paid","partially_paid"]).order("created_at",{ascending:false}).limit(1).maybeSingle();
     if(existing?.short_url)return json({payment_link:existing});
     if(existing?.status==="creating")return json({error:"Payment link creation is already in progress. Please retry shortly."},409);
-    const {data:settings}=await admin.from("document_payment_settings").select("payment_gateway_provider,payment_link_enabled").eq("business_id",businessId).maybeSingle();
+    const {data:settings}=await admin.from("document_payment_settings").select("payment_gateway_provider,payment_link_enabled,cashfree_environment").eq("business_id",businessId).maybeSingle();
     const provider=requestedProvider||String(settings?.payment_gateway_provider||"").toLowerCase();
     if(!["razorpay","cashfree","stripe"].includes(provider))return json({error:"Select a payment gateway in Payment Settings before generating a payment link."},409);
     if(settings?.payment_link_enabled!==true)return json({error:"Payment link generation is disabled in Payment Settings."},409);
