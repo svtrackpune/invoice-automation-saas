@@ -2,6 +2,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import QRCode from 'qrcode';
+import { CashBillCompliance, CreditNoteCompliance, DeliveryChallanCompliance, PurchaseOrderCompliance, ReceiptSettlement, TaxInvoiceCompliance, TaxSummaryGrid, type ReceiptAllocation, type TaxLine } from '@/components/documents/PrintCompliance';
 
 type Theme = { accent: string; table: string; line: string; dark: boolean; className: string; label: string };
 const THEMES: Record<string, Theme> = {
@@ -66,7 +67,7 @@ function BusinessIdentity({ business, logoUrl, fields, showLogo = true, showAddr
   </div>;
 }
 
-function LineItems({ items, payload, receipt, showTaxDetails = true, minRows = 0, showSerialNumbers = false }: { items: any[]; payload: any; receipt: boolean; showTaxDetails?: boolean; minRows?: number; showSerialNumbers?: boolean }) {
+function LineItems({ items, payload, receipt, showTaxDetails = true, minRows = 0, showSerialNumbers = false, showPackages = false }: { items: any[]; payload: any; receipt: boolean; showTaxDetails?: boolean; minRows?: number; showSerialNumbers?: boolean; showPackages?: boolean }) {
   const currency = text(payload.currency_code || 'INR');
   const taxed = !receipt && showTaxDetails && Number(payload.tax_total || 0) > 0;
   const hasHsn = taxed && (items || []).some((it: any) => text(it.hsn_sac).trim());
@@ -76,7 +77,7 @@ function LineItems({ items, payload, receipt, showTaxDetails = true, minRows = 0
   const rows = sourceRows.concat(Array.from({ length: fillerCount }, () => null));
   return <table className={`items ${receiptClass} ${taxed ? 'tax-aware-items' : ''}`}><thead><tr>
     {!receipt && <th className='col-no'>#</th>}<th>{receipt ? 'Item' : 'Item / Description'}</th>
-    {!receipt && taxed && hasHsn && <th>HSN / SAC</th>}{!receipt && <th className='col-type'>Type</th>}
+    {!receipt && taxed && hasHsn && <th>HSN / SAC</th>}{!receipt && <th className='col-type'>Type</th>}{!receipt && showPackages && <th className='col-packages'>Packages</th>}
     <th className='col-qty'>Qty</th>{!receipt && <th className='col-rate'>Rate</th>}{taxed && <th className='col-taxable'>Taxable</th>}{taxed && <th className='col-tax'>GST</th>}<th className='col-amount'>Amount</th>
   </tr></thead><tbody>{rows.map((it:any, idx:number) => {
     const quantity=Number(it?.quantity ?? it?.qty ?? 1);
@@ -91,7 +92,7 @@ function LineItems({ items, payload, receipt, showTaxDetails = true, minRows = 0
     return <tr key={it?.id || `filler-${idx}`}>
       {!receipt && <td className='col-no'>{it ? idx+1 : ''}</td>}
       <td><strong>{name}</strong>{description&&<div className='muted'>{description}</div>}{it?.sku&&<div className='item-meta'>SKU: {text(it.sku)}</div>}{showSerialNumbers&&serial&&<div className='item-meta'>Serial: {serial}</div>}</td>
-      {!receipt && taxed && hasHsn && <td>{text(it?.hsn_sac)||'—'}</td>}{!receipt && <td className='col-type'>{text(it?.item_type||it?.type||'')}</td>}
+      {!receipt && taxed && hasHsn && <td>{text(it?.hsn_sac)||'—'}</td>}{!receipt && <td className='col-type'>{text(it?.item_type||it?.type||'')}</td>}{!receipt && showPackages && <td className='col-packages'>{it ? text(it?.packages || it?.number_of_packages || '—') : ''}</td>}
       <td className='col-qty'><span>{it ? quantity : ''}</span>{it?.unit&&<small className='qty-unit'>{text(it.unit)}</small>}</td>
       {!receipt&&<td className='col-rate'>{it ? money(rate,currency) : ''}{it&&Number(it.discount||0)>0&&<small className='line-discount'>Disc. −{money(it.discount,currency)}</small>}</td>}
       {taxed&&<td className='col-taxable'>{it ? money(taxable,currency) : ''}</td>}
@@ -265,12 +266,13 @@ function Paper({ type, payload, business, customer, items, theme, fields, logoUr
 }
 
 export default function DocumentViewer({ type, id }: { type: string; id: string }) {
-  const [job, setJob] = useState<any>(null), [template, setTemplate] = useState<any>(null), [preferences, setPreferences] = useState<any>(null), [business, setBusiness] = useState<any>(null), [receiptItems, setReceiptItems] = useState<any[]>([]), [paymentSelection, setPaymentSelection] = useState<any>(null), [paymentSettings, setPaymentSettings] = useState<any>(null), [customerBalance, setCustomerBalance] = useState(0), [paymentQrDataUrl, setPaymentQrDataUrl] = useState<string>(''), [loading, setLoading] = useState(true), [error, setError] = useState(''), [notice, setNotice] = useState('');
+  const [job, setJob] = useState<any>(null), [template, setTemplate] = useState<any>(null), [preferences, setPreferences] = useState<any>(null), [business, setBusiness] = useState<any>(null), [receiptItems, setReceiptItems] = useState<any[]>([]), [receiptAllocations, setReceiptAllocations] = useState<ReceiptAllocation[]>([]), [taxLines, setTaxLines] = useState<TaxLine[]>([]), [originalInvoice, setOriginalInvoice] = useState({ number:'', date:'' }), [cashBillFormat, setCashBillFormat] = useState<'a4'|'a5'|'thermal80'|'thermal58'>('a4'), [paymentSelection, setPaymentSelection] = useState<any>(null), [paymentSettings, setPaymentSettings] = useState<any>(null), [customerBalance, setCustomerBalance] = useState(0), [paymentQrDataUrl, setPaymentQrDataUrl] = useState<string>(''), [loading, setLoading] = useState(true), [error, setError] = useState(''), [notice, setNotice] = useState('');
 
   useEffect(() => {
     let active = true;
     (async () => {
-      const render = await supabase.rpc('prepare_document_render', { p_document_type: type, p_document_id: id, p_template_id: null });
+      const renderType = type === 'tax_invoice' || type === 'cash_bill' ? 'invoice' : type;
+      const render = await supabase.rpc('prepare_document_render', { p_document_type: renderType, p_document_id: id, p_template_id: null });
       if (render.error) { if (active) { setError(render.error.message); setLoading(false); } return; }
       const loaded = await supabase.from('document_render_jobs').select('payload,template_id,template_version').eq('id', render.data).single();
       if (loaded.error) { if (active) { setError(loaded.error.message); setLoading(false); } return; }
@@ -281,7 +283,7 @@ export default function DocumentViewer({ type, id }: { type: string; id: string 
       if (productIds.length) { const productRows = await supabase.from('products_services').select('id,name,sku,item_type,unit,hsn_sac').in('id', productIds).eq('business_id', businessId); if (!productRows.error) payload.items = (payload.items || []).map((x:any)=>{ const p=(productRows.data||[]).find((row:any)=>row.id===x.product_service_id); return p?{...x,name:p.name,sku:p.sku,item_type:p.item_type,unit:p.unit,hsn_sac:p.hsn_sac}:x; }); }
       const [templateResult, preferenceResult, businessResult, paymentSettingsResult] = await Promise.all([
         loaded.data?.template_id ? supabase.from('document_templates').select('template_key,template_name').eq('id', loaded.data.template_id).maybeSingle() : Promise.resolve({ data: null } as any),
-        businessId ? supabase.from('business_document_preferences').select('custom_fields,show_logo,show_business_address,show_tax_details,show_payment_qr,show_payment_link,show_signature,show_terms,show_bank_details,document_title_override,min_item_rows,prefill_upi_amount,show_customer_balance,show_authorized_signatory,show_serial_numbers').eq('business_id', businessId).eq('document_type', type).maybeSingle() : Promise.resolve({ data: null } as any),
+        businessId ? supabase.from('business_document_preferences').select('custom_fields,show_logo,show_business_address,show_tax_details,show_payment_qr,show_payment_link,show_signature,show_terms,show_bank_details,document_title_override,min_item_rows,prefill_upi_amount,show_customer_balance,show_authorized_signatory,show_serial_numbers').eq('business_id', businessId).eq('document_type', renderType).maybeSingle() : Promise.resolve({ data: null } as any),
         businessId ? supabase.from('businesses').select('id,name,legal_name,registration_number,tax_registration_number,tax_enabled,tax_mode,tax_type,currency_code,address,phone,alternate_phone,contact_person_name,contact_person_designation,email,alternate_email,website,google_location_link,logo_storage_path,logo_url').eq('id', businessId).maybeSingle() : Promise.resolve({ data: null } as any),
         businessId ? supabase.from('document_payment_settings').select('upi_id,payment_qr_enabled,payment_link_enabled,payment_instructions').eq('business_id', businessId).maybeSingle() : Promise.resolve({ data: null } as any),
       ]);
