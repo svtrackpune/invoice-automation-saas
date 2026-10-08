@@ -22,7 +22,7 @@ test('all seven document classes have explicit print contracts',()=>{
     'Not a Tax Invoice','Receiver Signature',
     'formal procurement order subject to supplier acceptance',
     'Original Invoice Number','Section 34',
-    'PAID IN FULL','Thank You — Visit Again',
+    'PAID IN FULL','Thank You — Visit Again','Number of Packages',
   ]) assert.ok(compliance.includes(marker) || viewer.includes(marker), marker);
 });
 
