@@ -106,7 +106,7 @@ export default function WhatsApp() {
       supabase
         .from('business_notification_connections')
         .select(
-          'id,channel,provider,display_name,endpoint_url,external_instance_id,sender,default_recipient,enabled,health_status,last_health_check_at,last_error,secret_ref',
+          'id,channel,provider,display_name,endpoint_url,external_instance_id,sender,default_recipient,enabled,health_status,last_health_check_at,last_error,secret_ref,config',
         )
         .eq('business_id', business.business_id)
         .order('channel')
