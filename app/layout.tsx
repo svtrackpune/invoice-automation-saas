@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { headers } from "next/headers";
 import "./globals.css";
@@ -13,9 +13,13 @@ const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"]
 
 export const dynamic = "force-dynamic";
 
+export const viewport: Viewport = { width: "device-width", initialScale: 1, viewportFit: "cover", themeColor: "#4f46e5" };
+
 export const metadata: Metadata = {
   title: "Moneymatters — Business finance, simplified",
   description: "Accounting, invoicing, banking, payroll and automation in one simple workspace.",
+  manifest: "/manifest.json",
+  appleWebApp: { capable: true, statusBarStyle: "default", title: "Moneymatters" },
 };
 
 export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
@@ -67,8 +71,10 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
         ` }} />
       </head>
       <body nonce={nonce} className="min-h-full flex flex-col">
+        <div id="mobile-safe-frame" className="min-h-full flex-1">
         <ModalPersistenceGuard />
         {children}
+        </div>
       </body>
     </html>
   );

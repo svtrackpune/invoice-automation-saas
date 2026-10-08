@@ -61,6 +61,7 @@ interface BluetoothServiceLike {
 
 interface BluetoothGattServerLike {
   connected: boolean;
+  connect?: () => Promise<BluetoothGattServerLike>;
   getPrimaryServices(): Promise<BluetoothServiceLike[]>;
   getPrimaryService?: (service: string) => Promise<BluetoothServiceLike>;
 }
@@ -417,9 +418,9 @@ export class ThermalPrinterService {
 
   private async connectGatt(device: BluetoothDeviceLike): Promise<BluetoothGattServerLike> {
     if (!device.gatt) throw new Error('Bluetooth GATT is unavailable.');
-    const connected = device.gatt;
-    const result = await Promise.resolve(connected);
-    return result;
+    if (device.gatt.connected) return device.gatt;
+    if (!device.gatt.connect) throw new Error('This browser does not expose Bluetooth GATT connect().');
+    return device.gatt.connect();
   }
 
   async connectUsb(): Promise<PrinterConnectionStatus> {
@@ -436,14 +437,13 @@ export class ThermalPrinterService {
     let endpoint: { configurationValue: number; interfaceNumber: number; endpointNumber: number } | null = null;
 
     for (const configuration of configurations) {
+      const configurationValue = (configuration as UsbConfigurationLike & { configurationValue?: number }).configurationValue ?? 1;
       for (const iface of configuration.interfaces) {
         const alternate = iface.alternates[0];
         const outEndpoint = alternate?.endpoints?.find((candidate) => candidate.direction === 'out');
         if (outEndpoint) {
           endpoint = {
-            configurationValue: configuration.interfaces.length > 0
-              ? (device.configuration?.configurationValue ?? 1)
-              : 1,
+            configurationValue,
             interfaceNumber: iface.interfaceNumber,
             endpointNumber: outEndpoint.endpointNumber,
           };
