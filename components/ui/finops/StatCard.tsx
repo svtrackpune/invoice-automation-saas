@@ -22,7 +22,7 @@ const deltaCopy: Record<StatCardDelta, string> = {
   neutral: '• Stable',
 };
 
-export default function StatCard({
+export function StatCard({
   title,
   value,
   delta,
@@ -65,3 +65,5 @@ export default function StatCard({
     </section>
   );
 }
+
+export default StatCard;
