@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { supabase, type BusinessContext } from '@/lib/supabase';
+import { PageHeader } from '@/components/ui/finops/PageHeader';
 import {
   buildGstr1Export,
   buildTallyPrimeXml,
@@ -141,17 +142,16 @@ export default function StatutoryHubPage() {
   return (
     <main className="min-h-[calc(100vh-100px)] bg-slate-50 p-4 sm:p-6 lg:p-8">
       <div className="mx-auto max-w-7xl">
-        <header className="flex flex-col gap-4 border-b border-slate-200/80 pb-5 lg:flex-row lg:items-end lg:justify-between">
-          <div>
-            <p className="text-[10px] font-bold uppercase tracking-[.18em] text-slate-400">Tax · Compliance · CA handoff</p>
-            <h1 className="mt-1 text-3xl font-semibold tracking-tight text-slate-950">Statutory Hub</h1>
-            <p className="mt-1 max-w-3xl text-sm text-slate-500">Compile filing-ready GSTR-1 JSON for GST Portal offline upload and TallyPrime-compatible XML for your Chartered Accountant or books team.</p>
-          </div>
-          <div className="flex items-center gap-2">
+        <PageHeader
+          breadcrumbs={[{ label: 'Workspace', href: '/next-workspace' }, { label: 'Reports & compliance' }, { label: 'Statutory Hub' }]}
+          title="Statutory Hub"
+          subtitle="Compile filing-ready GSTR-1 JSON for GST Portal offline upload and TallyPrime-compatible XML for your Chartered Accountant or books team."
+          badge={{ label: 'Tax · Compliance · CA handoff', variant: 'statutory' }}
+          actions={<div className="flex items-center gap-2">
             <a href="https://www.gst.gov.in/" target="_blank" rel="noreferrer" className="rounded-lg border border-slate-200 bg-white px-3.5 py-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-50">Open GST Portal ↗</a>
             <button type="button" onClick={() => window.print()} className="rounded-lg border border-slate-200 bg-white px-3.5 py-2.5 text-xs font-semibold text-slate-700">Print</button>
-          </div>
-        </header>
+          </div>}
+        />
 
         {error ? <div className="mt-4 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-xs font-semibold text-rose-800">{error}</div> : null}
         {notice ? <div className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-xs font-semibold text-emerald-800">{notice}</div> : null}
