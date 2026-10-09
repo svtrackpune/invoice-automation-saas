@@ -146,3 +146,19 @@ test('financial summary-card migrations use the shared StatCard primitive', () =
   });
   assert.deepEqual(missing, [], `summary-card routes missing shared StatCard: ${missing.join(', ')}`);
 });
+
+test('invoice and purchase entry/detail routes retain their finance workflows and page wrappers', () => {
+  const invoiceEditor = readFileSync('app/next-workspace/invoices/new/page.tsx', 'utf8');
+  const purchaseEntry = readFileSync('app/next-workspace/purchases/new/page.tsx', 'utf8');
+  const purchaseDetail = readFileSync('app/next-workspace/purchases/[id]/page.tsx', 'utf8');
+  const dashboard = readFileSync('app/next-workspace/page.tsx', 'utf8');
+
+  assert.match(invoiceEditor, /return <main className="min-h-screen/);
+  assert.match(invoiceEditor, /onClick={saveInvoice}/);
+  assert.match(invoiceEditor, /update_cash_bill_any_state/);
+  assert.match(purchaseEntry, /supabase\.rpc\('post_bill'/);
+  assert.match(purchaseEntry, /is_purchase_order:isPO/);
+  assert.match(purchaseDetail, /onClick={recordPayment}/);
+  assert.match(purchaseDetail, /Receive Goods & Convert to Bill/);
+  assert.doesNotMatch(dashboard, /\/>\}\s+description=/);
+});
