@@ -11,8 +11,8 @@ test('SECURITY DEFINER search paths are pinned with pg_temp last and existing sc
   assert.match(migration, /n\.nspname IN \('public', 'mm_private'\)/);
   assert.match(migration, /p\.prosecdef/);
   assert.match(migration, /p\.prokind IN \('f', 'p'\)/);
-  assert.match(migration, /ALTER FUNCTION %I\.%I\(%s\) SET search_path TO %L/);
-  assert.match(migration, /ALTER PROCEDURE %I\.%I\(%s\) SET search_path TO %L/);
+  assert.match(migration, /ALTER FUNCTION %I\.%I\(%s\) SET search_path TO %s/);
+  assert.match(migration, /ALTER PROCEDURE %I\.%I\(%s\) SET search_path TO %s/);
   assert.match(migration, /rtrim\(v_current_path\) \|\| ', pg_temp'/);
   assert.match(migration, /v_new_path := 'public, pg_temp'/);
   assert.match(migration, /v_new_path := 'public, mm_private, pg_temp'/);
