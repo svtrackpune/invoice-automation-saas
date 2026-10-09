@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { PageHeader } from '@/components/ui/finops/PageHeader';
 
 const settingsCards = [
   {
@@ -16,13 +17,12 @@ const settingsCards = [
 export default function SettingsDashboardPage() {
   return (
     <main className="mx-auto max-w-6xl px-6 py-8">
-      <header>
-        <p className="text-xs font-bold uppercase tracking-[0.16em] text-indigo-600">Settings & Configuration</p>
-        <h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-950">Workspace configuration</h1>
-        <p className="mt-2 max-w-2xl text-sm text-slate-500">
-          Central access to operational integrations and payment configuration. Sensitive provider credentials remain protected by the server-side Vault/RPC contracts.
-        </p>
-      </header>
+      <PageHeader
+        breadcrumbs={[{label:'Workspace',href:'/next-workspace'},{label:'Settings & configuration'}]}
+        title="Workspace configuration"
+        subtitle="Central access to operational integrations and payment configuration. Sensitive provider credentials remain protected by the server-side Vault/RPC contracts."
+        badge={{label:'Settings & Configuration',variant:'neutral'}}
+      />
       <section className="mt-8 grid gap-5 md:grid-cols-2">
         {settingsCards.map((card) => (
           <Link
