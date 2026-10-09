@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { supabase, type BusinessContext } from '@/lib/supabase';
+import { PageHeader } from '@/components/ui/finops/PageHeader';
 
 type Customer = { id: string; display_name: string };
 type Product = {
@@ -224,24 +225,7 @@ export default function DeliveryChallans() {
   return (
     <main className="min-h-screen bg-slate-50 p-4 sm:p-7">
       <div className="mx-auto max-w-7xl">
-        <header className="mb-5 flex items-end justify-between">
-          <div>
-            <p className="text-[10px] font-bold uppercase tracking-widest text-indigo-600">Physical operations</p>
-            <h1 className="mt-1 text-3xl font-semibold">Delivery Challans</h1>
-            <p className="mt-1 text-sm text-slate-500">
-              Dispatch physical stock without creating tax liability.
-            </p>
-          </div>
-          <button
-            type="button"
-            className="rounded-xl border bg-white px-4 py-2 text-sm"
-            onClick={() => {
-              window.location.href = '/next-workspace';
-            }}
-          >
-            Back
-          </button>
-        </header>
+        <PageHeader breadcrumbs={[{label:'Workspace',href:'/next-workspace'},{label:'Sales & billing'},{label:'Delivery Challans'}]} title="Delivery Challans" subtitle="Dispatch physical stock without creating tax liability." badge={{label:'Physical operations',variant:'treasury'}} actions={<button type="button" className="rounded-xl border border-finops-neutral-border bg-white px-4 py-2 text-sm" onClick={() => { window.location.href = '/next-workspace'; }}>Back</button>}/>
 
         {error && <div className="mb-4 rounded-xl bg-rose-50 p-3 text-sm text-rose-700">{error}</div>}
         {notice.text && (
