@@ -239,11 +239,10 @@ BEGIN
     RETURN NEW;
   END IF;
 
-  v_unit_cost := coalesce(
-    nullif(NEW.opening_stock_cost, 0) / nullif(NEW.opening_stock, 0),
-    NEW.purchase_price,
-    0
-  );
+  -- opening_stock_cost is the authoritative total valuation; an explicit zero
+  -- stays zero rather than inventing a cost from the current purchase price.
+  v_unit_cost := coalesce(NEW.opening_stock_cost, 0) / nullif(NEW.opening_stock, 0);
+  v_unit_cost := greatest(coalesce(v_unit_cost, 0), 0);
 
   INSERT INTO public.inventory_movements (
     business_id, location_id, product_service_id, movement_type,
@@ -318,7 +317,7 @@ SELECT
   ps.id,
   'opening_stock',
   ps.opening_stock,
-  greatest(coalesce(nullif(ps.opening_stock_cost, 0) / nullif(ps.opening_stock, 0), ps.purchase_price, 0), 0),
+  greatest(coalesce(ps.opening_stock_cost, 0) / nullif(ps.opening_stock, 0), 0),
   'opening_stock',
   ps.id,
   'Opening stock initialized from existing product master data'
