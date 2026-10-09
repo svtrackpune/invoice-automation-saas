@@ -2,6 +2,9 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { supabase, type BusinessContext } from '@/lib/supabase';
+import { PageHeader } from '@/components/ui/finops/PageHeader';
+import { StatCard } from '@/components/ui/finops/StatCard';
+import type { FinOpsSemanticTone } from '@/components/ui/finops/semantic';
 import VendorCreditApplyModal from './VendorCreditApplyModal';
 import VendorPaymentAllocationModal from '../payments/VendorPaymentAllocationModal';
 
@@ -83,17 +86,14 @@ export default function Vendor360Controlled({params}:{params:Promise<{id:string}
 
  return <main className="min-h-screen bg-[#f7f6fb] p-4 sm:p-7">
    <div className="mx-auto max-w-7xl">
-     <header className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-       <div><p className="text-xs font-bold uppercase tracking-[.18em] text-violet-600">Supplier 360</p><h1 className="mt-1 text-3xl font-bold">{vendor.display_name}</h1><p className="mt-1 text-sm text-slate-500">{vendor.contact_person_name||'No contact person'} · {vendor.phone||'No phone'} · {vendor.email||'No email'}</p></div>
-       <div className="flex gap-2"><button type="button" onClick={()=>location.href='/next-workspace/vendors'} className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold">← Vendors</button><button type="button" onClick={()=>location.href='/next-workspace/purchases/new'} className="rounded-xl bg-violet-600 px-4 py-2.5 text-sm font-semibold text-white">＋ Purchase bill</button></div>
-     </header>
+     <PageHeader breadcrumbs={[{label:'Workspace',href:'/next-workspace'},{label:'Purchases & expenses',href:'/next-workspace/vendors'},{label:'Supplier 360'}]} title={vendor.display_name} subtitle={`{vendor.contact_person_name||'No contact person'} · {vendor.phone||'No phone'} · {vendor.email||'No email'}`} badge={{label:'Supplier 360',variant:'outflow'}} actions={<div className="flex gap-2"><button type="button" onClick={()=>location.href='/next-workspace/vendors'} className="rounded-xl border border-finops-neutral-border bg-white px-4 py-2.5 text-sm font-semibold">← Vendors</button><button type="button" onClick={()=>location.href='/next-workspace/purchases/new'} className="rounded-xl bg-violet-600 px-4 py-2.5 text-sm font-semibold text-white">＋ Purchase bill</button></div>} className="mb-5"/>
 
      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
-       <Metric label="Billed" value={money(balance.billed)}/>
-       <Metric label="Paid" value={money(balance.paid)}/>
-       <Metric label="Outstanding" value={money(balance.balance_due)}/>
-       <Metric label="Overdue" value={money(overdue)}/>
-       <Metric label="Available credit" value={money(availableCredit)}/>
+       <Metric label="Billed" value={money(balance.billed)} tone="outflow"/>
+       <Metric label="Paid" value={money(balance.paid)} tone="outflow"/>
+       <Metric label="Outstanding" value={money(balance.balance_due)} tone="pending"/>
+       <Metric label="Overdue" value={money(overdue)} tone="outflow"/>
+       <Metric label="Available credit" value={money(availableCredit)} tone="treasury"/>
      </div>
 
      <Card title="Supplier profile"><p className="text-sm">{vendor.legal_name||'Legal name not set'}</p><p className="mt-2 text-sm text-slate-500">{vendor.tax_type||'N/A'}{vendor.tax_id?' · '+vendor.tax_id:''}</p><p className="mt-2 text-sm text-slate-500">{vendor.payment_terms_days?'Net '+vendor.payment_terms_days:'Due on receipt'}</p>{vendor.notes&&<p className="mt-3 rounded-xl bg-slate-50 p-3 text-sm text-slate-600">{vendor.notes}</p>}</Card>
@@ -120,6 +120,6 @@ export default function Vendor360Controlled({params}:{params:Promise<{id:string}
  </main>;
 }
 
-function Metric({label,value}:{label:string;value:string}){return <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"><span className="text-xs text-slate-400">{label}</span><b className="mt-1 block text-2xl">{value}</b></div>}
+function Metric({label,value,tone='neutral'}:{label:string;value:string;tone:FinOpsSemanticTone}){return <StatCard title={label} value={value} tone={tone} className="min-h-[100px] p-4"/>}
 function Card({title,children}:{title:string;children:React.ReactNode}){return <section className="mt-5 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm"><div className="border-b border-slate-100 p-5"><h2 className="font-semibold">{title}</h2></div><div className="p-5">{children}</div></section>}
 function Table({headers,rows}:{headers:string[];rows:string[][]}){return <div className="overflow-x-auto"><table className="w-full min-w-[650px] text-left text-sm"><thead className="bg-slate-50 text-xs text-slate-500"><tr>{headers.map(h=><th key={h} className="px-4 py-3">{h}</th>)}</tr></thead><tbody>{rows.map((r,i)=><tr key={i} className="border-t border-slate-100">{r.map((v,j)=><td key={j} className="px-4 py-3">{v}</td>)}</tr>)}</tbody></table></div>}
