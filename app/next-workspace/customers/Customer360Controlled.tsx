@@ -2,7 +2,10 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { supabase, type BusinessContext } from '@/lib/supabase';
-import { Button, Card, EmptyState, PageHeader, StatusBadge } from '@/components/moneymatters';
+import { Button, Card, EmptyState, StatusBadge } from '@/components/moneymatters';
+import { PageHeader } from '@/components/ui/finops/PageHeader';
+import { StatCard } from '@/components/ui/finops/StatCard';
+import type { FinOpsSemanticTone } from '@/components/ui/finops/semantic';
 import CustomerCreditApplyModal from './CustomerCreditApplyModal';
 import CustomerRefundModal from './CustomerRefundModal';
 import CollectionDrawer, { type CollectionInvoice } from '../invoices/CollectionDrawer';
@@ -266,9 +269,10 @@ export default function Customer360Controlled({ params }: Params) {
     <main className="min-h-screen bg-[#f7f6fb] p-4 sm:p-7">
       <div className="mx-auto max-w-7xl">
         <PageHeader
-          eyebrow="Customer 360"
+          breadcrumbs={[{label:'Workspace',href:'/next-workspace'},{label:'Sales & billing',href:'/next-workspace/customers'},{label:'Customer 360'}]}
           title={customer.display_name}
-          description={`${customer.phone || 'No phone'} · ${customer.email || 'No email'}${customer.tax_id ? ` · ${customer.tax_id}` : ''}`}
+          subtitle={`${customer.phone || 'No phone'} · ${customer.email || 'No email'}${customer.tax_id ? ` · ${customer.tax_id}` : ''}`}
+          badge={{label:'Customer 360',variant:'inflow'}}
           actions={
             <>
               <Button onClick={() => (location.href = '/next-workspace/sales')}>＋ Invoice</Button>
@@ -296,11 +300,11 @@ export default function Customer360Controlled({ params }: Params) {
         />
 
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
-          <Metric label="Outstanding" value={money(Number(summary?.outstanding || 0))} />
-          <Metric label="Overdue" value={money(Number(summary?.overdue || 0))} />
-          <Metric label="Lifetime sales" value={money(Number(summary?.lifetime_invoiced || 0))} />
-          <Metric label="Last payment" value={summary?.last_payment_date || '—'} />
-          <Metric label="Available credit" value={money(availableCredit)} />
+          <Metric label="Outstanding" value={money(Number(summary?.outstanding || 0))} tone="inflow" />
+          <Metric label="Overdue" value={money(Number(summary?.overdue || 0))} tone="pending" />
+          <Metric label="Lifetime sales" value={money(Number(summary?.lifetime_invoiced || 0))} tone="inflow" />
+          <Metric label="Last payment" value={summary?.last_payment_date || '—'} tone="neutral" />
+          <Metric label="Available credit" value={money(availableCredit)} tone="treasury" />
         </div>
 
         <div className="mt-5 flex gap-1 overflow-x-auto border-b border-slate-200">
@@ -518,13 +522,8 @@ export default function Customer360Controlled({ params }: Params) {
   );
 }
 
-function Metric({ label, value }: { label: string; value: string }) {
-  return (
-    <Card className="p-4">
-      <span className="text-xs text-slate-400">{label}</span>
-      <b className="mt-1 block text-2xl">{value}</b>
-    </Card>
-  );
+function Metric({ label, value, tone }: { label: string; value: string; tone: FinOpsSemanticTone }) {
+  return <StatCard title={label} value={value} tone={tone} className="min-h-[100px] p-4"/>;
 }
 
 function Stat({ label, value }: { label: string; value: string }) {
