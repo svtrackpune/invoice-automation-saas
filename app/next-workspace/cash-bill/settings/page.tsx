@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { supabase, type BusinessContext } from '@/lib/supabase';
+import { PageHeader } from '@/components/ui/finops/PageHeader';
 
 const input='w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-100';
 
@@ -52,7 +53,7 @@ export default function CashCarrySettings(){
 
   if(loading)return <div className="grid min-h-[70vh] place-items-center text-sm text-slate-500">Loading Cash & Carry settings…</div>;
   return <main className="min-h-[calc(100vh-100px)] bg-[#fbfaff] p-4 sm:p-7"><div className="mx-auto max-w-3xl">
-    <div className="mb-6 flex items-center justify-between gap-4"><div><p className="text-[10px] font-bold uppercase tracking-[.18em] text-violet-600">Sales setup</p><h1 className="mt-1 text-3xl font-semibold tracking-tight">Cash & Carry</h1><p className="mt-2 text-sm text-slate-500">Configure counter sales for this workspace. The workspace accounting type remains unchanged.</p></div><button type="button" onClick={()=>location.href='/next-workspace/cash-bill'} className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700">Back</button></div>
+    <PageHeader breadcrumbs={[{label:'Workspace',href:'/next-workspace'},{label:'Sales & billing'},{label:'Cash & Carry settings'}]} title="Cash & Carry" subtitle="Configure counter sales for this workspace. The workspace accounting type remains unchanged." badge={{label:'Sales setup',variant:'treasury'}} actions={<button type="button" onClick={()=>location.href='/next-workspace/cash-bill'} className="rounded-xl border border-finops-neutral-border bg-white px-4 py-2.5 text-sm font-semibold text-slate-700">Back</button>} className="mb-6"/>
     {error&&<div className="mb-5 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">{error}</div>}
     {message&&<div className="mb-5 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">{message}</div>}
     <section className="rounded-3xl border border-violet-100 bg-white p-6 shadow-[0_18px_60px_rgba(70,60,120,.07)] sm:p-8">
