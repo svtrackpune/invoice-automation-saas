@@ -108,7 +108,8 @@ if(buyerReferenceResult.error){setError(buyerReferenceResult.error.message);setB
 if(embedded&&editId)window.parent.postMessage({type:'moneymatters:transaction-updated',id:invoiceId,documentKind:'invoice'},window.location.origin);else location.href=`/next-workspace/documents?type=invoice&id=${invoiceId}`};
  if(!ctx||!editLoaded)return <div className="grid min-h-screen place-items-center text-sm text-slate-500">Loading invoice editor…</div>;
  const ruleLabel=composition?'Composition GST: tax is not charged separately':taxEligible?`${taxRegime==='GST'?'GST registered':`${taxRegime} enabled`} · Tax profiles apply per item`:'No tax regime configured';
-<PageHeader
+ return <main className="min-h-screen bg-[#fbfaff] p-4 text-slate-950 sm:p-7"><div className="mx-auto max-w-7xl">
+  <PageHeader
     breadcrumbs={[{label:'Workspace',href:'/next-workspace'},{label:'Sales & billing',href:'/next-workspace/invoices'},{label:cashBillEdit?'Correct Cash Bill':editId?'Edit invoice':'New invoice'}]}
     title={cashBillEdit?'Correct Cash Bill':editId?'Edit invoice':'Create an invoice'}
     subtitle={ruleLabel}
