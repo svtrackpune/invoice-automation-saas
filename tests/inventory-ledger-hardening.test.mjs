@@ -47,6 +47,8 @@ test('opening stock initialization is idempotent and uses only products with no 
   assert.match(migration, /NOT EXISTS \(\s*SELECT 1 FROM public\.inventory_movements im/s);
   assert.match(migration, /NOT EXISTS \(\s*SELECT 1 FROM public\.inventory_balances ib/s);
   assert.match(migration, /Opening stock initialized from existing product master data/);
+  assert.match(migration, /CROSS JOIN LATERAL \([\s\S]*FROM public\.inventory_locations il[\s\S]*LIMIT 1/);
+  assert.doesNotMatch(migration, /Cannot initialize opening stock: at least one business has no active inventory location/);
 });
 
 test('invoice amendments preserve the dispatch-first challan inventory invariant', () => {

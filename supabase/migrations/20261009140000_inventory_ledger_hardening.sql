@@ -243,33 +243,10 @@ WHERE movement_type = 'opening_stock'
 -- One-time, non-destructive initialization: only products with positive
 -- opening metadata and no existing movement or balance are seeded. This avoids
 -- replaying opening stock for any item whose ledger is already active.
-DO $opening_stock_preflight$
-BEGIN
-  IF EXISTS (
-    SELECT 1
-    FROM public.products_services ps
-    WHERE ps.inventory_tracked
-      AND coalesce(ps.opening_stock, 0) > 0
-      AND NOT EXISTS (
-        SELECT 1 FROM public.inventory_movements im
-        WHERE im.business_id = ps.business_id
-          AND im.product_service_id = ps.id
-      )
-      AND NOT EXISTS (
-        SELECT 1 FROM public.inventory_balances ib
-        WHERE ib.business_id = ps.business_id
-          AND ib.product_service_id = ps.id
-      )
-      AND NOT EXISTS (
-        SELECT 1 FROM public.inventory_locations il
-        WHERE il.business_id = ps.business_id
-          AND il.is_active
-      )
-  ) THEN
-    RAISE EXCEPTION 'Cannot initialize opening stock: at least one business has no active inventory location';
-  END IF;
-END;
-$opening_stock_preflight$;
+-- Existing products whose business has no active location are deliberately
+-- deferred. Their opening-stock metadata remains untouched; the backfill below
+-- only creates movements for businesses with a real active location and never
+-- guesses a location or creates one implicitly.
 
 INSERT INTO public.inventory_movements (
   business_id, location_id, product_service_id, movement_type,
