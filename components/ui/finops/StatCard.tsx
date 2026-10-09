@@ -6,11 +6,13 @@ export type StatCardDelta = 'up' | 'down' | 'neutral';
 export type StatCardProps = {
   title: string;
   value: string;
-  delta: StatCardDelta;
-  periodLabel: string;
+  delta?: StatCardDelta;
+  periodLabel?: string;
   badge?: ReactNode;
   sparkline?: ReactNode;
-  /** Explicit financial meaning; neutral keeps the historical default appearance. */
+  children?: ReactNode;
+  className?: string;
+  /** Explicit financial meaning; neutral preserves the safe default. */
   tone?: FinOpsSemanticTone;
 };
 
@@ -27,6 +29,8 @@ export default function StatCard({
   periodLabel,
   badge,
   sparkline,
+  children,
+  className = '',
   tone = 'neutral',
 }: StatCardProps) {
   const palette = finOpsToneClasses[tone];
@@ -37,7 +41,7 @@ export default function StatCard({
       : finOpsToneClasses.neutral.muted;
 
   return (
-    <section className={`finops-metric-tile ${palette.border} ${palette.tint}`}>
+    <section className={`finops-metric-tile ${className} ${palette.border} ${palette.tint}`}>
       <span aria-hidden="true" className={`absolute inset-y-0 left-0 w-1 ${palette.rail}`} />
       <div className="flex items-start justify-between gap-3 pl-1">
         <div className="min-w-0">
@@ -49,10 +53,15 @@ export default function StatCard({
         </div>
         {sparkline ? <div className="shrink-0 pt-1">{sparkline}</div> : null}
       </div>
-      <div className="mt-3 flex items-center justify-between gap-2 pl-1 text-[10px]">
-        <span className={`font-semibold ${deltaTone}`}>{deltaCopy[delta]}</span>
-        <span className="truncate text-finops-neutral-muted">{periodLabel}</span>
-      </div>
+
+      {children ? <div className="mt-3 pl-1">{children}</div> : null}
+
+      {delta || periodLabel ? (
+        <div className="mt-3 flex items-center justify-between gap-2 pl-1 text-[10px]">
+          {delta ? <span className={`font-semibold ${deltaTone}`}>{deltaCopy[delta]}</span> : <span />}
+          {periodLabel ? <span className="truncate text-finops-neutral-muted">{periodLabel}</span> : null}
+        </div>
+      ) : null}
     </section>
   );
 }
