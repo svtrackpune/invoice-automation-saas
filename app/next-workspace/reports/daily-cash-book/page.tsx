@@ -2,6 +2,8 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { supabase, type BusinessContext } from '@/lib/supabase';
+import { PageHeader } from '@/components/ui/finops/PageHeader';
+import { StatCard } from '@/components/ui/finops/StatCard';
 
 type Summary = {
   shift_date: string;
@@ -184,25 +186,13 @@ export default function DailyCashBookPage() {
   return (
     <main className="min-h-[calc(100vh-100px)] bg-slate-50 p-4 sm:p-6 lg:p-8">
       <div className="mx-auto max-w-7xl">
-        <header className="flex flex-col gap-4 border-b border-slate-200/80 pb-5 lg:flex-row lg:items-end lg:justify-between">
-          <div>
-            <p className="text-[10px] font-bold uppercase tracking-[.18em] text-slate-400">POS · Cash Control</p>
-            <h1 className="mt-1 text-3xl font-semibold tracking-tight text-slate-950">Daily Cash Book</h1>
-            <p className="mt-1 max-w-3xl text-sm text-slate-500">Reconcile the physical cash drawer against posted Cash Bills, cash collections, cash expenses and bank deposits.</p>
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <label className="text-[9px] font-bold uppercase tracking-wider text-slate-400">
-              Date
-              <input type="date" value={date} onChange={event => setDate(event.target.value)} className="mt-1 block h-10 rounded-lg border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-800" />
-            </label>
-            <span className={closed
-              ? 'mt-5 inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-2 text-[10px] font-bold text-slate-700 ring-1 ring-slate-200'
-              : 'mt-5 inline-flex items-center gap-2 rounded-full bg-emerald-50 px-3 py-2 text-[10px] font-bold text-emerald-700 ring-1 ring-emerald-200'}>
-              <span className={closed ? 'h-2 w-2 rounded-full bg-slate-500' : 'h-2 w-2 rounded-full bg-emerald-500'} />
-              {closed ? 'Shift Closed & Locked' : 'Open'}
-            </span>
-          </div>
-        </header>
+        <PageHeader
+          breadcrumbs={[{ label: 'Workspace', href: '/next-workspace' }, { label: 'Reports & compliance' }, { label: 'Daily Cash Book' }]}
+          title="Daily Cash Book"
+          subtitle="Reconcile the physical cash drawer against posted Cash Bills, cash collections, cash expenses and bank deposits."
+          badge={{ label: closed ? 'Shift Closed & Locked' : 'Open', variant: closed ? 'statutory' : 'treasury' }}
+          actions={<label className="text-[9px] font-bold uppercase tracking-wider text-finops-neutral-muted">Date<input type="date" value={date} onChange={event => setDate(event.target.value)} className="mt-1 block h-10 rounded-lg border border-finops-neutral-border bg-white px-3 text-xs font-semibold text-finops-neutral-text" /></label>}
+        />
 
         {error ? <div className="mt-4 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-xs font-semibold text-rose-800">{error}</div> : null}
         {notice ? <div className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-xs font-semibold text-emerald-800">{notice}</div> : null}
@@ -212,27 +202,9 @@ export default function DailyCashBookPage() {
             <p className="text-[9px] font-bold uppercase tracking-[.14em] text-slate-400">Opening Float</p>
             <input type="number" min="0" step="0.01" value={openingFloat} readOnly={closed} onChange={event => setOpeningFloat(event.target.value)} onBlur={() => void refresh()} className="mt-3 h-11 w-full rounded-lg border border-slate-200 bg-white px-3 text-right font-mono text-lg font-bold tabular-nums outline-none focus:border-indigo-400 read-only:bg-slate-50" />
           </article>
-          <article className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-[0_1px_2px_rgba(15,23,42,.03)]">
-            <p className="text-[9px] font-bold uppercase tracking-[.14em] text-slate-400">Total Inflow</p>
-            <p className="mt-3 font-mono text-xl font-bold tabular-nums text-slate-950">{money(num(summary?.cash_sales) + num(summary?.cash_inflow), currency)}</p>
-            <div className="mt-2 space-y-1 text-[10px] text-slate-500">
-              <div className="flex justify-between"><span>Cash Bills</span><b>{money(num(summary?.cash_sales), currency)}</b></div>
-              <div className="flex justify-between"><span>Invoice collections</span><b>{money(num(summary?.cash_inflow), currency)}</b></div>
-            </div>
-          </article>
-          <article className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-[0_1px_2px_rgba(15,23,42,.03)]">
-            <p className="text-[9px] font-bold uppercase tracking-[.14em] text-slate-400">Total Outflow</p>
-            <p className="mt-3 font-mono text-xl font-bold tabular-nums text-slate-950">{money(num(summary?.cash_expenses) + num(summary?.bank_deposits), currency)}</p>
-            <div className="mt-2 space-y-1 text-[10px] text-slate-500">
-              <div className="flex justify-between"><span>Cash expenses</span><b>{money(num(summary?.cash_expenses), currency)}</b></div>
-              <div className="flex justify-between"><span>Bank deposits</span><b>{money(num(summary?.bank_deposits), currency)}</b></div>
-            </div>
-          </article>
-          <article className="rounded-2xl border border-slate-900 bg-slate-950 p-5 text-white shadow-[0_1px_2px_rgba(15,23,42,.08)]">
-            <p className="text-[9px] font-bold uppercase tracking-[.14em] text-slate-400">Expected Closing Drawer</p>
-            <p className="mt-3 font-mono text-2xl font-black tabular-nums">{money(expected, currency)}</p>
-            <p className="mt-2 text-[10px] text-slate-400">Opening + inflow − outflow</p>
-          </article>
+          <StatCard title="Total Inflow" value={money(num(summary?.cash_sales) + num(summary?.cash_inflow), currency)} tone="inflow" className="min-h-[124px] p-4"><div className="mt-2 space-y-1 text-[10px] text-finops-neutral-muted"><div className="flex justify-between"><span>Cash Bills</span><b>{money(num(summary?.cash_sales), currency)}</b></div><div className="flex justify-between"><span>Invoice collections</span><b>{money(num(summary?.cash_inflow), currency)}</b></div></div></StatCard>
+          <StatCard title="Total Outflow" value={money(num(summary?.cash_expenses) + num(summary?.bank_deposits), currency)} tone="outflow" className="min-h-[124px] p-4"><div className="mt-2 space-y-1 text-[10px] text-finops-neutral-muted"><div className="flex justify-between"><span>Cash expenses</span><b>{money(num(summary?.cash_expenses), currency)}</b></div><div className="flex justify-between"><span>Bank deposits</span><b>{money(num(summary?.bank_deposits), currency)}</b></div></div></StatCard>
+          <StatCard title="Expected Closing Drawer" value={money(expected, currency)} tone="treasury" className="min-h-[124px] p-4"><span className="text-[10px] text-finops-neutral-muted">Opening + inflow − outflow</span></StatCard>
         </section>
 
         <section className="mt-5 rounded-2xl border border-slate-200/80 bg-white p-5 shadow-[0_1px_2px_rgba(15,23,42,.03)] sm:p-6">
