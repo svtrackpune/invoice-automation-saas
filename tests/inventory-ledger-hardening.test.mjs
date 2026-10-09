@@ -18,6 +18,8 @@ test('inventory movement trigger classifies all required inbound and outbound al
   assert.match(migration, /Unsupported inventory movement type/);
   assert.match(migration, /Insufficient stock for product/);
   assert.match(migration, /allow_negative_stock/);
+  assert.match(migration, /ADD CONSTRAINT inventory_movements_movement_type_check/);
+  assert.match(migration, /'opening_stock'[\s\S]*'purchase_in'[\s\S]*'pos_sale'[\s\S]*'delivery_challan_out'[\s\S]*'stock_adjustment_in'[\s\S]*'return_to_vendor'[\s\S]*'damaged'/);
 });
 
 test('balance mutations in existing inventory RPCs are removed in favor of movements', () => {

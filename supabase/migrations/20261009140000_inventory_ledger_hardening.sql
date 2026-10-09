@@ -1,5 +1,37 @@
 BEGIN;
 
+-- Expand the existing check constraint before adding new ledger movement types.
+-- Keep legacy types accepted while allowing the canonical aliases used by the
+-- trigger, stock audit, POS, challan dispatch, and vendor return workflows.
+ALTER TABLE public.inventory_movements
+  DROP CONSTRAINT IF EXISTS inventory_movements_movement_type_check;
+
+ALTER TABLE public.inventory_movements
+  ADD CONSTRAINT inventory_movements_movement_type_check
+  CHECK (movement_type IN (
+    'opening',
+    'opening_stock',
+    'purchase',
+    'purchase_in',
+    'sale',
+    'pos_sale',
+    'sale_return',
+    'customer_return',
+    'purchase_return',
+    'return_to_vendor',
+    'adjustment_in',
+    'adjustment_out',
+    'stock_adjustment_in',
+    'stock_adjustment_out',
+    'transfer_in',
+    'transfer_out',
+    'delivery_challan_out',
+    'damage',
+    'damaged',
+    'writeoff',
+    'sale_reversal'
+  ));
+
 -- Inventory balances are a projection of the movement ledger. Every supported
 -- movement type is classified here; unknown types fail closed rather than
 -- silently changing a ledger without changing the balance.
