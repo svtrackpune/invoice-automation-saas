@@ -2,6 +2,8 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Button, Card, EmptyState, Input, Select } from '@/components/moneymatters';
+import { PageHeader } from '@/components/ui/finops/PageHeader';
+import { StatCard } from '@/components/ui/finops/StatCard';
 
 type Bank={id:string;name:string;institution_name:string|null;account_last4:string|null;currency_code:string;is_connected:boolean;linked_account_id:string|null};
 type Tx={id:string;bank_account_id:string;transaction_date:string;value_date:string|null;description:string|null;reference:string|null;amount:number;direction:string;status:string;balance_after:number|null;raw_data:Record<string,unknown>|null;external_transaction_id:string|null};
@@ -115,18 +117,21 @@ export default function BankingControlled(p:Props){
   const importedFormats='CSV · CAMT.053 · MT940 · OFX · QBO';
 
   return <main className="finops-page"><div className="finops-page-inner space-y-4">
-    <header className="mb-4 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-      <div><p className="text-[11px] font-bold uppercase tracking-wider text-slate-400">MoneyMatters · Treasury control</p><h1 className="mt-1 text-2xl font-bold tracking-tight">Bank Reconciliation</h1><p className="mt-1 max-w-3xl text-sm text-slate-500">High-density statement matching, confidence scoring and controlled period locking.</p></div>
-      <div className="flex flex-wrap items-center gap-2"><span className={'rounded-full border px-3 py-1.5 text-xs font-semibold '+(p.lockedPeriod||activeRecLocked?'border-rose-200 bg-rose-50 text-rose-700':'border-emerald-200 bg-emerald-50 text-emerald-700')}>{p.lockedPeriod||activeRecLocked?'● Period locked':'● Matching open'}</span><Button variant="secondary" onClick={()=>location.href='/next-workspace/accounting'}>Open GL</Button></div>
-    </header>
+    <PageHeader
+      breadcrumbs={[{ label: 'Workspace', href: '/next-workspace' }, { label: 'Treasury & banking' }, { label: 'Bank reconciliation' }]}
+      title="Bank Reconciliation"
+      subtitle="High-density statement matching, confidence scoring and controlled period locking."
+      badge={{ label: p.lockedPeriod || activeRecLocked ? 'Period locked' : 'Matching open', variant: p.lockedPeriod || activeRecLocked ? 'outflow' : 'treasury' }}
+      actions={<Button variant="secondary" onClick={()=>location.href='/next-workspace/accounting'}>Open GL</Button>}
+    />
 
     {(p.error||p.notice||p.importResult)&&<div className="mb-4 space-y-2">{p.error&&<div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-2.5 text-sm font-medium text-rose-800">{p.error}</div>}{p.notice&&<div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-sm font-medium text-emerald-800">{p.notice}</div>}{p.importResult&&<div className="rounded-xl border border-slate-200/80 bg-white px-4 py-2.5 text-xs text-slate-600">{p.importResult}</div>}</div>}
 
     <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
       <Card className="p-4"><p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Bank account</p><div className="mt-2 flex items-center gap-2"><Select value={p.selectedBank} onChange={e=>p.setSelectedBank(e.target.value)} className="min-w-0 flex-1">{p.banks.map(b=><option key={b.id} value={b.id}>{b.name+(b.account_last4?' ••'+b.account_last4:'')}</option>)}</Select><span className={'h-2.5 w-2.5 shrink-0 rounded-full '+(p.banks.find(b=>b.id===p.selectedBank)?.is_connected?'bg-emerald-500':'bg-slate-300')}/></div><p className="mt-2 text-xs text-slate-500">{p.selectedAccount?p.selectedAccount.code+' · '+p.selectedAccount.name:'GL 1010 · Bank'}</p></Card>
-      <Card className="p-4"><p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Live GL balance</p><p className="mt-2 font-mono text-2xl font-semibold tabular-nums">{money(p.selectedBankBalance,currency)}</p><p className="mt-1 text-xs text-slate-500">Posted journal balance for the selected bank ledger</p></Card>
+      <StatCard title="Live GL balance" value={money(p.selectedBankBalance,currency)} tone="treasury" className="min-h-[104px] p-3"><span className="text-[11px] text-finops-neutral-muted">Posted journal balance for the selected bank ledger</span></StatCard>
       <Card className="p-4"><p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Statement ending balance</p><Input inputMode="decimal" value={p.statementBalance} onChange={e=>p.setStatementBalance(e.target.value)} placeholder="0.00" className="mt-2 font-mono tabular-nums"/><p className="mt-1 text-xs text-slate-500">{p.currentReconciliation?'Saved for '+dateLabel(p.currentReconciliation.period_end):'Enter the bank statement closing figure'}</p></Card>
-      <Card className="p-4"><p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Unreconciled variance</p><p className={'mt-2 font-mono text-2xl font-semibold tabular-nums '+(Math.abs(Number(p.currentReconciliation?.difference||0))<=0.01?'text-emerald-700':'text-rose-700')}>{p.currentReconciliation?money(Number(p.currentReconciliation.difference||0),currency):'—'}</p><p className="mt-1 text-xs text-slate-500">Statement ending less book ending</p></Card>
+      <StatCard title="Unreconciled variance" value={p.currentReconciliation?money(Number(p.currentReconciliation.difference||0),currency):'—'} tone={Math.abs(Number(p.currentReconciliation?.difference||0))<=0.01?'inflow':'outflow'} className="min-h-[104px] p-3"><span className="text-[11px] text-finops-neutral-muted">Statement ending less book ending</span></StatCard>
     </section>
 
     <Card className="mb-4 p-4"><div className="grid gap-4 lg:grid-cols-[1fr_1fr_auto] lg:items-end"><div className="grid gap-3 sm:grid-cols-2"><div><label className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Period start</label><Input type="date" value={p.periodStart} onChange={e=>p.setPeriodStart(e.target.value)} className="mt-1" disabled={p.lockedPeriod||activeRecLocked}/></div><div><label className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Period end</label><Input type="date" value={p.periodEnd} onChange={e=>p.setPeriodEnd(e.target.value)} className="mt-1" disabled={p.lockedPeriod||activeRecLocked}/></div></div><div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5"><p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Lock state</p><p className={'mt-1 text-sm font-semibold '+(p.lockedPeriod||activeRecLocked?'text-rose-700':'text-emerald-700')}>{p.lockedPeriod||activeRecLocked?'Closed / locked — matching disabled':'Open — eligible for matching'}</p></div><div className="flex flex-wrap gap-2"><Button disabled={p.busy||p.lockedPeriod||activeRecLocked||!p.selectedBank||!p.periodStart||!p.periodEnd} onClick={()=>void p.startOrUpdate()}>{p.currentReconciliation?'Save period':'Open reconciliation'}</Button>{p.currentReconciliation&&!p.lockedPeriod&&!activeRecLocked&&<Button variant="secondary" disabled={p.busy||p.unmatchedCount>0||Math.abs(Number(p.currentReconciliation.difference||0))>0.01} onClick={()=>void p.lock()}>Lock period</Button>}</div></div></Card>
@@ -149,5 +154,5 @@ export default function BankingControlled(p:Props){
   </div></main>;
 }
 
-function Metric({title,value,tone='normal'}:{title:string;value:string;tone?:'normal'|'good'|'warn'}){return <div className="rounded-xl border border-slate-200/80 bg-white px-3 py-2.5"><p className="text-[9px] font-bold uppercase tracking-wider text-slate-400">{title}</p><p className={'mt-1 font-mono font-mono text-sm font-semibold tabular-nums '+(tone==='good'?'text-emerald-700':tone==='warn'?'text-rose-700':'text-slate-900')}>{value}</p></div>;}
+function Metric({title,value,tone='normal'}:{title:string;value:string;tone?:'normal'|'good'|'warn'}){return <StatCard title={title} value={value} tone={tone==='good'?'treasury':tone==='warn'?'pending':'neutral'} className="min-h-[88px] p-2.5"/>;}
 function Readiness({label,value,ready}:{label:string;value:string;ready:boolean}){return <div className="flex items-center justify-between rounded-xl bg-white px-3 py-2.5"><span className="text-xs text-slate-600">{label}</span><span className={'rounded-full px-2 py-1 text-[10px] font-bold '+(ready?'bg-emerald-50 text-emerald-700':'bg-amber-50 text-amber-700')}>{value}</span></div>;}
