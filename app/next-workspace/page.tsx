@@ -6,6 +6,8 @@ import StatusBadge, { normalizeFinOpsStatus } from '@/components/ui/finops/Statu
 import DetailDrawer from '@/components/ui/finops/DetailDrawer';
 import { FinOpsCard, FinOpsIcon, FinOpsPageHeader, FinOpsPrimaryButton, FinOpsSectionLabel, FinOpsSecondaryButton, FinOpsStatusPill } from '@/components/ui/finops/FinOpsPrimitives';
 import { StatCardSkeleton, TableRowsSkeleton } from '@/components/ui/finops/Skeletons';
+import StatCard from '@/components/ui/finops/StatCard';
+import type { FinOpsSemanticTone } from '@/components/ui/finops/semantic';
 
 type Customer = { id: string; display_name: string };
 type Invoice = { id: string; invoice_number: string; invoice_date: string; status: string; total: number; balance_due: number; customer_id: string; document_kind?: string | null };
@@ -29,7 +31,7 @@ function Trend({ current, previous }: { current: number; previous: number }) {
   const pct = trendPercent(current, previous);
   if (pct === null) return <span className="rounded-full bg-slate-100 px-2 py-1 text-[10px] font-semibold text-slate-600">No prior baseline</span>;
   const positive = pct >= 0;
-  return <span className={`rounded-full px-2 py-1 text-[10px] font-semibold ${positive ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700'}`}>{positive ? '↑' : '↓'} {Math.abs(pct).toFixed(1)}% vs last month</span>;
+  return <span className={`rounded-full px-2 py-1 text-[10px] font-semibold ${positive ? 'bg-finops-inflow-tint text-finops-inflow' : 'bg-finops-outflow-tint text-finops-outflow'}`}>{positive ? '↑' : '↓'} {Math.abs(pct).toFixed(1)}% vs last month</span>;
 }
 
 function Sparkline({ values }: { values: number[] }) {
@@ -44,8 +46,8 @@ function Sparkline({ values }: { values: number[] }) {
   return <svg viewBox="0 0 72 24" className="h-7 w-20 text-indigo-500" aria-hidden="true"><polyline points={points} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>;
 }
 
-function KpiCard({ label, value, children, sparkline }: { label: string; value: string; children?: ReactNode; sparkline?: ReactNode }) {
-  return <FinOpsCard className="min-h-[128px] p-4"><div className="flex items-start justify-between gap-3"><div className="min-w-0"><FinOpsSectionLabel>{label}</FinOpsSectionLabel><div className="mt-2 font-mono tabular-nums text-2xl font-bold tracking-tight text-slate-900">{value}</div></div>{sparkline}</div>{children ? <div className="mt-3">{children}</div> : null}</FinOpsCard>;
+function KpiCard({ label, value, children, sparkline, tone = 'neutral' }: { label: string; value: string; children?: ReactNode; sparkline?: ReactNode; tone?: FinOpsSemanticTone }) {
+  return <StatCard title={label} value={value} className="min-h-[128px] p-4" tone={tone} sparkline={sparkline}>{children}</StatCard>;
 }
 
 export default function NextWorkspace() {
@@ -193,12 +195,12 @@ export default function NextWorkspace() {
         {error ? <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-2.5 text-xs text-amber-800">{error}</div> : null}
 
         <section aria-label="Executive KPIs" className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-          <KpiCard label="Net Cash Flow · MTD" value={money(metrics.netCash)} sparkline={<Sparkline values={[metrics.previousNetCash, metrics.netCash, metrics.netCash * 0.8, metrics.netCash * 1.04]}/>}>
+          <KpiCard label="Net Cash Flow · MTD" value={money(metrics.netCash)} tone="treasury" sparkline={<Sparkline values={[metrics.previousNetCash, metrics.netCash, metrics.netCash * 0.8, metrics.netCash * 1.04]}/>}>
             <div className="flex flex-wrap items-center gap-2"><span className="text-[11px] text-slate-500">Inflow {money(payments.filter(p => p.direction !== 'outbound').reduce((a,p)=>a+Number(p.amount||0),0))}</span><span className="text-slate-300">·</span><span className="text-[11px] text-slate-500">Outflow {money(payments.filter(p => p.direction === 'outbound').reduce((a,p)=>a+Number(p.amount||0),0))}</span><Trend current={metrics.netCash} previous={metrics.previousNetCash}/></div>
           </KpiCard>
-          <KpiCard label="Accounts Receivable" value={money(metrics.outstanding)}><div className="flex flex-wrap gap-1.5">{[['30d',metrics.aging.n30],['60d',metrics.aging.n60],['90d+',metrics.aging.n90]].map(([label,value]) => <span key={label} className="rounded-full border border-rose-200 bg-rose-50 px-2 py-1 text-[10px] font-semibold text-rose-700">{label} {money(Number(value))}</span>)}</div></KpiCard>
-          <KpiCard label="Bank Reconciliation" value={banks.length ? `${metrics.reconciledAccounts}/${banks.length}` : '—'}><div className="flex items-center justify-between gap-3"><span className="text-[11px] text-slate-500">{metrics.pendingLines} uncleared statement lines</span><span className="text-[11px] font-semibold text-slate-700">{banks.length ? Math.round((metrics.reconciledAccounts / banks.length) * 100) : 0}%</span></div><div className="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-100"><div className="h-full rounded-full bg-slate-700 transition-all" style={{ width: `${banks.length ? Math.round((metrics.reconciledAccounts / banks.length) * 100) : 0}%` }}/></div></KpiCard>
-          <KpiCard label="E-Invoicing Clearance" value={eInvoiceConfigured ? "Ready" : "—"}><div className="flex items-center gap-2">{eInvoiceConfigured ? <FinOpsStatusPill label="Endpoint configured" tone="success"/> : <FinOpsStatusPill label="Not configured" tone="warning"/>}</div><p className="mt-2 text-[11px] leading-4 text-slate-500">{eInvoiceConfigured ? 'PEPPOL endpoint identity is configured. Clearance/dispatch result is not stored in this dashboard.' : 'Configure the business endpoint to enable the existing e-invoicing document paths.'}</p></KpiCard>
+          <KpiCard label="Accounts Receivable" value={money(metrics.outstanding)} tone="inflow"><div className="flex flex-wrap gap-1.5">{[['30d',metrics.aging.n30],['60d',metrics.aging.n60],['90d+',metrics.aging.n90]].map(([label,value]) => <span key={label} className="rounded-full border border-finops-outflow-border bg-finops-outflow-tint px-2 py-1 text-[10px] font-semibold text-finops-outflow">{label} {money(Number(value))}</span>)}</div></KpiCard>
+          <KpiCard label="Bank Reconciliation" value={banks.length ? `${metrics.reconciledAccounts}/${banks.length}` : '—'} tone="treasury"><div className="flex items-center justify-between gap-3"><span className="text-[11px] text-slate-500">{metrics.pendingLines} uncleared statement lines</span><span className="text-[11px] font-semibold text-slate-700">{banks.length ? Math.round((metrics.reconciledAccounts / banks.length) * 100) : 0}%</span></div><div className="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-100"><div className="h-full rounded-full bg-slate-700 transition-all" style={{ width: `${banks.length ? Math.round((metrics.reconciledAccounts / banks.length) * 100) : 0}%` }}/></div></KpiCard>
+          <KpiCard label="E-Invoicing Clearance" value={eInvoiceConfigured ? "Ready" : "—"} tone="statutory"><div className="flex items-center gap-2">{eInvoiceConfigured ? <FinOpsStatusPill label="Endpoint configured" tone="success"/> : <FinOpsStatusPill label="Not configured" tone="warning"/>}</div><p className="mt-2 text-[11px] leading-4 text-slate-500">{eInvoiceConfigured ? 'PEPPOL endpoint identity is configured. Clearance/dispatch result is not stored in this dashboard.' : 'Configure the business endpoint to enable the existing e-invoicing document paths.'}</p></KpiCard>
         </section>
 
         <section className="grid gap-4 xl:grid-cols-[minmax(0,62fr)_minmax(280px,38fr)]">
