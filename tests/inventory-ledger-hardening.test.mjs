@@ -97,19 +97,19 @@ test('opening stock provisions a default location only when no locations or inve
 
 test('invoice and POS posting honor tracked products and resolve a same-business default location', () => {
   assert.match(trackedPostingMigration, /v_physical := true/);
-  assert.match(trackedPostingMigration, /ps\\.inventory_tracked/);
-  assert.match(trackedPostingMigration, /inv\\.inventory_location_id/);
+  assert.match(trackedPostingMigration, /ps\.inventory_tracked/);
+  assert.match(trackedPostingMigration, /inv\.inventory_location_id/);
   assert.match(trackedPostingMigration, /Inventory location is required before amending a tracked-item invoice/);
 });
 
 test('posted invoice amendments preserve challenged quantities and use tracked-item gates', () => {
-  assert.match(trackedPostingMigration, /inv\\.source_challan_id IS NOT NULL[\\s\\S]*?pg_temp\\.mm_invoice_amend_lines[\\s\\S]*?ps\\.inventory_tracked/);
-  assert.match(trackedPostingMigration, /inv\\.source_challan_id IS NULL[\\s\\S]*?pg_temp\\.mm_invoice_amend_lines[\\s\\S]*?ps\\.inventory_tracked/);
-  assert.doesNotMatch(trackedPostingMigration, /id=inv\\.business_id AND inventory_enabled/);
+  assert.match(trackedPostingMigration, /inv\.source_challan_id IS NOT NULL[\s\S]*?pg_temp\.mm_invoice_amend_lines[\s\S]*?ps\.inventory_tracked/);
+  assert.match(trackedPostingMigration, /inv\.source_challan_id IS NULL[\s\S]*?pg_temp\.mm_invoice_amend_lines[\s\S]*?ps\.inventory_tracked/);
+  assert.doesNotMatch(trackedPostingMigration, /id=inv\.business_id AND inventory_enabled/);
 });
 
 test('tracked-item credit notes require and resolve an active stock location', () => {
-  assert.match(trackedPostingMigration, /public\\.credit_note_items cni/);
+  assert.match(trackedPostingMigration, /public\.credit_note_items cni/);
   assert.match(trackedPostingMigration, /Inventory location is required to return tracked items on a credit note/);
-  assert.match(trackedPostingMigration, /ORDER BY il\\.is_default DESC, il\\.name, il\\.id/);
+  assert.match(trackedPostingMigration, /ORDER BY il\.is_default DESC, il\.name, il\.id/);
 });
