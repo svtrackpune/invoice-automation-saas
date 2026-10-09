@@ -10,7 +10,7 @@ export interface PageHeaderProps {
   breadcrumbs?: { label: string; href?: string }[];
 }
 
-export default function PageHeader({ title, subtitle, badge, actions, breadcrumbs }: PageHeaderProps) {
+export function PageHeader({ title, subtitle, badge, actions, breadcrumbs }: PageHeaderProps) {
   const badgeTone = badge ? finOpsToneClasses[badge.variant] : null;
 
   return (
@@ -56,3 +56,5 @@ export default function PageHeader({ title, subtitle, badge, actions, breadcrumb
     </header>
   );
 }
+
+export default PageHeader;
