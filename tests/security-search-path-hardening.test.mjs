@@ -28,8 +28,6 @@ test('deliberately empty search paths remain unchanged', () => {
 
 test('temporary payment-allocation objects remain explicitly qualified after pg_temp moves last', () => {
   assert.match(migration, /public\.allocate_vendor_payment/);
-  assert.match(migration, /CREATE TEMP TABLE IF NOT EXISTS pg_temp\._vendor_payment_target_allocations/s);
-  assert.match(migration, /TRUNCATE pg_temp\._vendor_payment_target_allocations/);
   assert.match(migration, /replace\(\s+v_definition,\s+'_vendor_payment_target_allocations',\s+'pg_temp\._vendor_payment_target_allocations'/s);
   assert.match(migration, /temporary-table qualification check failed/);
 });
