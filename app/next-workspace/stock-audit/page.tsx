@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { supabase, type BusinessContext } from '@/lib/supabase';
 import CameraBarcodeScanner from '@/components/barcode/CameraBarcodeScanner';
+import { PageHeader } from '@/components/ui/finops/PageHeader';
 
 type Item = {
   id: string;
@@ -189,13 +190,11 @@ export default function StockAudit() {
   return (
     <main className="min-h-screen bg-slate-50 p-4 sm:p-7">
       <div className="mx-auto max-w-6xl">
-        <header className="mb-5 flex flex-wrap items-end justify-between gap-4">
-          <div>
-            <p className="text-[10px] font-bold uppercase tracking-widest text-indigo-600">Physical operations</p>
-            <h1 className="mt-1 text-3xl font-semibold">Stock Audit</h1>
-            <p className="mt-1 text-sm text-slate-500">Compare recorded stock with the physical count and settle variance through inventory accounting.</p>
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
+        <PageHeader
+          breadcrumbs={[{ label: 'Workspace', href: '/next-workspace' }, { label: 'Inventory' }, { label: 'Stock Audit' }]}
+          title="Stock Audit"
+          subtitle="Compare recorded stock with the physical count and settle variance through inventory accounting."
+          actions={<div className="flex flex-wrap items-center gap-2">
             <CameraBarcodeScanner onDetected={scanItem} compact label="Camera Scan" />
             <select value={location} onChange={event => setLocation(event.target.value)} className="rounded-xl border border-slate-200 bg-white p-3 text-sm">
               <option value="">Select location…</option>
@@ -204,8 +203,8 @@ export default function StockAudit() {
             <button disabled={busy || !location || !items.length} onClick={() => void commit()} className="rounded-xl bg-indigo-600 px-5 py-3 text-sm font-semibold text-white disabled:opacity-50">
               {busy ? 'Posting…' : 'Commit audit'}
             </button>
-          </div>
-        </header>
+          </div>}
+        />
 
         {error ? <div className="mb-4 rounded-xl bg-rose-50 p-3 text-sm text-rose-700">{error}</div> : null}
         {notice ? <div className="mb-4 rounded-xl bg-emerald-50 p-3 text-sm text-emerald-700">{notice}</div> : null}
