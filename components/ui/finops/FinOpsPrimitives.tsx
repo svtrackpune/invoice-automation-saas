@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { finOpsToneClasses, type FinOpsSemanticTone } from './semantic';
 
 export type FinOpsIconName =
   | 'dashboard' | 'cash' | 'import' | 'invoice' | 'quote' | 'customer' | 'expense' | 'vendor'
@@ -42,7 +43,7 @@ export function FinOpsSectionLabel({ children }: { children: ReactNode }) {
 }
 
 export function FinOpsCard({ children, className = '' }: { children: ReactNode; className?: string }) {
-  return <section className={`rounded-xl border border-slate-200/80 bg-white shadow-[0_1px_2px_rgba(15,23,42,.03)] ${className}`}>{children}</section>;
+  return <section className={`finops-card rounded-xl border-finops-neutral-border bg-finops-neutral-surface shadow-[0_1px_2px_rgba(15,23,42,.03)] ${className}`}>{children}</section>;
 }
 
 export function FinOpsPrimaryButton({ children, className = '', ...props }: React.ButtonHTMLAttributes<HTMLButtonElement>) {
@@ -58,14 +59,15 @@ export function FinOpsFilterPill({ active = false, children, ...props }: React.B
 }
 
 export function FinOpsStatusPill({ label, tone }: { label: string; tone: 'success' | 'danger' | 'warning' | 'neutral' | 'indigo' }) {
-  const styles = {
-    success: 'border-emerald-200 bg-emerald-50 text-emerald-700',
-    danger: 'border-rose-200 bg-rose-50 text-rose-700',
-    warning: 'border-amber-200 bg-amber-50 text-amber-700',
-    neutral: 'border-slate-300 bg-slate-100 text-slate-700',
-    indigo: 'border-indigo-200 bg-indigo-50 text-indigo-700',
+  const semanticTone: Record<'success' | 'danger' | 'warning' | 'neutral' | 'indigo', FinOpsSemanticTone> = {
+    success: 'inflow',
+    danger: 'outflow',
+    warning: 'pending',
+    neutral: 'neutral',
+    indigo: 'statutory',
   };
-  return <span className={`inline-flex items-center gap-1.5 rounded-full border px-2 py-1 text-[10px] font-semibold capitalize ${styles[tone]}`}><span className="h-1.5 w-1.5 rounded-full bg-current opacity-70"/>{label}</span>;
+  const palette = finOpsToneClasses[semanticTone[tone]];
+  return <span className={`inline-flex items-center gap-1.5 rounded-full border px-2 py-1 text-[10px] font-semibold capitalize ${palette.border} ${palette.tint} ${palette.primary}`}><span className={`h-1.5 w-1.5 rounded-full ${palette.rail} opacity-80`} aria-hidden="true"/>{label}</span>;
 }
 
 export function FinOpsPageHeader({
@@ -84,14 +86,14 @@ export function FinOpsPageHeader({
   action?: ReactNode;
 }) {
   return (
-    <header className="flex flex-col gap-4 border-b border-slate-200/80 pb-4 lg:flex-row lg:items-end lg:justify-between">
+    <header className="finops-page-header">
       <div className="min-w-0">
-        <div className="flex flex-wrap items-center gap-2 text-xs text-slate-400"><span>{breadcrumb}</span>{context ? <><span>/</span>{context}</> : null}</div>
+        <div className="flex flex-wrap items-center gap-2 text-xs text-finops-neutral-muted"><span>{breadcrumb}</span>{context ? <><span>/</span>{context}</> : null}</div>
         <div className="mt-1 flex flex-wrap items-center gap-2">
-          <h1 className="text-2xl font-bold tracking-tight text-slate-950">{title}</h1>
+          <h1 className="text-2xl font-bold tracking-tight text-finops-neutral-text">{title}</h1>
           {status}
         </div>
-        {description ? <p className="mt-1 max-w-3xl text-sm text-slate-500">{description}</p> : null}
+        {description ? <p className="mt-1 max-w-3xl text-sm text-finops-neutral-muted">{description}</p> : null}
       </div>
       {action ? <div className="flex flex-wrap items-center gap-2">{action}</div> : null}
     </header>
