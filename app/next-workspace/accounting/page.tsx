@@ -2,6 +2,8 @@
 
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { supabase, type BusinessContext } from '@/lib/supabase';
+import { PageHeader } from '@/components/ui/finops/PageHeader';
+import { StatCard } from '@/components/ui/finops/StatCard';
 
 type Account = { id:string; code:string; name:string; account_type:string; normal_balance:string };
 type JournalEntry = { id:string; entry_number:number; entry_date:string; description:string; source_type:string; status:string; total_debit:number; total_credit:number };
@@ -109,16 +111,18 @@ export default function AccountingCockpit(){
  const activeLabel=tabs.find(x=>x.key===activeTab)?.label||'Accounting';
 
  return <main className="min-h-screen bg-slate-50 p-3 text-slate-950 sm:p-6"><div className="mx-auto max-w-[1480px]">
-  <header className="flex flex-col gap-4 border-b border-slate-200 pb-4 lg:flex-row lg:items-end lg:justify-between">
-   <div><p className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400">Finance control centre</p><h1 className="mt-1 text-3xl font-semibold tracking-tight">Accounting Command Center</h1><p className="mt-1 text-sm text-slate-500">Authoritative ledger, reporting, journals and period controls.</p></div>
-   <div className="flex flex-wrap items-center gap-2">
-    <div className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs"><span className="text-slate-400">Period</span><b className="ml-2">{periodRange}</b><span className={'ml-2 rounded-full px-2 py-0.5 text-[10px] font-bold '+(period?.status==='closed'?'bg-amber-50 text-amber-700':period?.status==='locked'?'bg-rose-50 text-rose-700':'bg-emerald-50 text-emerald-700')}>{period?.status||'none'}</span></div>
+  <PageHeader
+   breadcrumbs={[{label:'Workspace',href:'/next-workspace'},{label:'Reports & compliance'},{label:'Accounting'}]}
+   title="Accounting Command Center"
+   subtitle="Authoritative ledger, reporting, journals and period controls."
+   badge={{label:'Period '+periodRange+' · '+(period?.status||'none'),variant:period?.status==='locked'?'outflow':period?.status==='closed'?'pending':'treasury'}}
+   actions={<div className="flex flex-wrap items-center gap-2">
     {periodCanChange&&period?.status==='open'&&<button type="button" onClick={()=>void closePeriod(period)} className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5 text-xs font-semibold text-amber-800">Close period</button>}
     {periodCanChange&&period?.status==='closed'&&<button type="button" onClick={()=>void reopenPeriod(period)} className="rounded-xl border border-indigo-200 bg-indigo-50 px-3 py-2.5 text-xs font-semibold text-indigo-700">Reopen period</button>}
     <button type="button" onClick={()=>setDrawerOpen(true)} className="rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-indigo-700">＋ New Journal Entry</button>
     <button type="button" onClick={()=>location.href='/next-workspace'} className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-semibold">← Cockpit</button>
-   </div>
-  </header>
+   </div>}
+  />
   {error&&<div className="mt-4 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">{error}</div>}
   {successFlash&&<div className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">{successFlash}</div>}
   <nav className="mt-5 flex overflow-x-auto rounded-xl border border-slate-200 bg-white p-1 shadow-sm" aria-label="Accounting reports">{tabs.map(t=><button key={t.key} type="button" onClick={()=>{setActiveTab(t.key);setError('');setSuccessFlash('')}} className={'whitespace-nowrap rounded-lg px-4 py-2.5 text-xs font-semibold '+(activeTab===t.key?'bg-slate-900 text-white':'text-slate-500 hover:bg-slate-50 hover:text-slate-900')}>{t.label}</button>)}</nav>
@@ -154,4 +158,4 @@ export default function AccountingCockpit(){
 
 function ReportCard({title,note,loading=false,children}:{title:string;note:string;loading?:boolean;children:ReactNode}){return <section className="mt-4 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm"><header className="flex items-center justify-between gap-3 border-b border-slate-100 px-5 py-4"><div><h2 className="font-semibold">{title}</h2><p className="mt-1 text-xs text-slate-500">{note}</p></div>{loading&&<span className="text-[10px] font-semibold text-indigo-600">Loading…</span>}</header>{children}</section>}
 function DataGrid({headers,rows}:{headers:string[];rows:string[][]}){return <div className="overflow-x-auto"><table className="min-w-[820px] w-full text-left text-xs"><thead><tr className="border-b border-slate-100 bg-slate-50 text-[10px] font-bold uppercase tracking-wider text-slate-500">{headers.map(h=><th key={h} className="px-4 py-3">{h}</th>)}</tr></thead><tbody>{rows.map((row,i)=><tr key={String(i)} className="border-b border-slate-100 hover:bg-slate-50">{row.map((cell,j)=><td key={String(j)} className={'px-4 py-3 '+(j>=3?'font-mono tabular-nums':'')}>{cell}</td>)}</tr>)}{!rows.length&&<tr><td colSpan={headers.length} className="p-12 text-center text-sm text-slate-500">No records for this view.</td></tr>}</tbody></table></div>}
-function Metric({title,value,tone='neutral'}:{title:string;value:string;tone?:'neutral'|'good'|'warn'}){return <section className="rounded-xl border border-slate-100 bg-slate-50 p-4"><span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">{title}</span><b className={'mt-2 block text-xl font-semibold '+(tone==='good'?'text-emerald-700':tone==='warn'?'text-amber-700':'text-slate-950')}>{value}</b></section>}
+function Metric({title,value,tone='neutral'}:{title:string;value:string;tone?:'neutral'|'good'|'warn'}){return <StatCard title={title} value={value} tone={tone==='good'?'treasury':tone==='warn'?'pending':'neutral'} className="min-h-[96px] p-3"/>}
