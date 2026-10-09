@@ -1,22 +1,23 @@
-import type { ReactNode } from 'react';
+import { finOpsToneClasses, type FinOpsSemanticTone } from './semantic';
 
 export type FinOpsStatus = 'draft' | 'void' | 'paid' | 'pending' | 'overdue' | 'reconciled' | 'locked';
 
-const styles: Record<FinOpsStatus, string> = {
-  draft: 'border border-slate-300 bg-slate-100 text-slate-700',
-  void: 'border border-slate-300 bg-slate-100 text-slate-700',
-  paid: 'border border-emerald-200 bg-emerald-50 text-emerald-700',
-  pending: 'border border-amber-200 bg-amber-50 text-amber-700',
-  overdue: 'border border-rose-200 bg-rose-50 text-rose-700',
-  reconciled: 'border border-slate-300 bg-slate-100 text-slate-700',
-  locked: 'border border-slate-300 bg-slate-100 text-slate-700',
+const statusTones: Record<FinOpsStatus, FinOpsSemanticTone> = {
+  draft: 'neutral',
+  void: 'outflow',
+  paid: 'inflow',
+  pending: 'pending',
+  overdue: 'outflow',
+  reconciled: 'treasury',
+  locked: 'statutory',
 };
 
 export default function StatusBadge({ status }: { status: FinOpsStatus }) {
   const label = status.replaceAll('_', ' ');
+  const tone = finOpsToneClasses[statusTones[status]];
   return (
-    <span className={'inline-flex items-center gap-1.5 rounded-full px-2 py-1 text-[10px] font-bold capitalize ' + styles[status]}>
-      <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-current opacity-70" />
+    <span className={`inline-flex items-center gap-1.5 rounded-full border px-2 py-1 text-[10px] font-bold capitalize ${tone.border} ${tone.tint} ${tone.primary}`}>
+      <span aria-hidden="true" className={`h-1.5 w-1.5 rounded-full ${tone.rail} opacity-80`} />
       {label}
     </span>
   );
