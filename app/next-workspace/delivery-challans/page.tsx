@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { supabase, type BusinessContext } from '@/lib/supabase';
 import { PageHeader } from '@/components/ui/finops/PageHeader';
 import { StatCard } from '@/components/ui/finops/StatCard';
+import { formatMoney } from '@/lib/i18n';
 import ItemServiceModal from '../invoices/new/ItemServiceModal';
 
 type Customer = { id: string; display_name: string };
@@ -424,7 +425,7 @@ export default function DeliveryChallans() {
             </div>
 
             <div className="mt-5 flex items-center justify-between border-t pt-4">
-              <b>Total value ₹{total.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</b>
+              <b>Total value {formatMoney(total, ctx?.currency_code || 'INR')}</b>
               <button
                 type="button"
                 disabled={busy || !customer || !locationId}
@@ -487,6 +488,7 @@ export default function DeliveryChallans() {
         <ItemServiceModal
           open={showItemModal}
           businessId={ctx.business_id}
+          currencyCode={ctx.currency_code}
           initialItemType="product"
           productOnly
           onClose={() => setShowItemModal(false)}
