@@ -8,6 +8,7 @@ const header = readFileSync('components/ui/finops/PageHeader.tsx', 'utf8');
 const statCard = readFileSync('components/ui/finops/StatCard.tsx', 'utf8');
 const statusBadge = readFileSync('components/ui/finops/StatusBadge.tsx', 'utf8');
 const primitives = readFileSync('components/ui/finops/FinOpsPrimitives.tsx', 'utf8');
+const dashboard = readFileSync('app/next-workspace/page.tsx', 'utf8');
 
 test('FinOps theme defines the prescribed semantic palettes', () => {
   const expected = [
@@ -57,4 +58,11 @@ test('status and shared card primitives consume the central semantic map', () =>
   assert.match(statusBadge, /reconciled: 'treasury'/);
   assert.match(primitives, /finOpsToneClasses/);
   assert.match(primitives, /border-finops-neutral-border/);
+});
+
+test('executive workspace KPIs use the shared metric tile with explicit tones', () => {
+  assert.match(dashboard, /import StatCard from '@\/components\/ui\/finops\/StatCard'/);
+  assert.match(dashboard, /tone="treasury"/);
+  assert.match(dashboard, /tone="inflow"/);
+  assert.match(dashboard, /tone="statutory"/);
 });
