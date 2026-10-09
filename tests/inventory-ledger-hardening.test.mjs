@@ -41,6 +41,7 @@ test('balance mutations in existing inventory RPCs are removed in favor of movem
   }
   assert.match(migration, /AFTER INSERT ON public\.inventory_movements/);
   assert.match(migration, /REVOKE INSERT, UPDATE, DELETE, TRUNCATE/);
+  assert.match(migration, /UPDATE public\.inventory_balances SET quantity_on_hand=quantity_on_hand-v_product_row\.quantity/);
 });
 
 test('opening stock initialization is idempotent and uses only products with no current ledger', () => {

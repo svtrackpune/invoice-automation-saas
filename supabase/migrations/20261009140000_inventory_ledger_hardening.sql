@@ -580,6 +580,12 @@ SELECT mm_private._inventory_ledger_patch(
 
 SELECT mm_private._inventory_ledger_patch(
   'public.update_invoice_any_state(uuid,uuid,date,date,jsonb,text,numeric,text,text,uuid,date,uuid,text,uuid)'::regprocedure,
+  $old$        UPDATE public.inventory_balances SET quantity_on_hand=quantity_on_hand-v_product_row.quantity,updated_at=now() WHERE business_id=inv.business_id AND location_id=v_location AND product_service_id=v_product_row.product_service_id;$old$,
+  ''
+);
+
+SELECT mm_private._inventory_ledger_patch(
+  'public.update_invoice_any_state(uuid,uuid,date,date,jsonb,text,numeric,text,text,uuid,date,uuid,text,uuid)'::regprocedure,
   $old$  CREATE TEMP TABLE IF NOT EXISTS pg_temp.mm_invoice_amend_totals(subtotal numeric,discount numeric,tax numeric,total numeric) ON COMMIT DROP;$old$,
   $new$  IF inv.source_challan_id IS NOT NULL THEN
     IF NOT EXISTS (
