@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import JsBarcode from 'jsbarcode';
 import { supabase, type BusinessContext } from '@/lib/supabase';
+import { PageHeader } from '@/components/ui/finops/PageHeader';
 
 type Item = {
   id: string;
@@ -318,43 +319,11 @@ export default function Barcodes() {
   return (
     <main className="min-h-screen bg-slate-50 p-4 sm:p-7">
       <div className="mx-auto max-w-7xl">
-        <header className="mb-5 flex flex-wrap items-end justify-between gap-3">
-          <div>
-            <p className="text-[10px] font-bold uppercase tracking-widest text-indigo-600">
-              Physical operations
-            </p>
-            <h1 className="mt-1 text-3xl font-semibold">Barcode Printing</h1>
-            <p className="mt-1 text-sm text-slate-500">
-              Optical-grade SVG barcodes with exact thermal and A4 sticker-sheet geometry.
-            </p>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <button
-              type="button"
-              className="rounded-xl border bg-white px-4 py-2 text-sm"
-              onClick={() => void savePreset()}
-              disabled={busy}
-            >
-              {existingTemplate ? 'Save preset' : '+ Save preset'}
-            </button>
-            <button
-              type="button"
-              className="rounded-xl border bg-white px-4 py-2 text-sm"
-              onClick={() => void saveAllPresets()}
-              disabled={busy}
-            >
-              Sync 4 presets
-            </button>
-            <button
-              type="button"
-              className="rounded-xl bg-indigo-600 px-4 py-2 text-sm font-semibold text-white"
-              onClick={print}
-              disabled={!selectedCopies.length}
-            >
-              Print labels
-            </button>
-          </div>
-        </header>
+        <PageHeader breadcrumbs={[{label:'Workspace',href:'/next-workspace'},{label:'Documents'},{label:'Barcode Printing'}]} title="Barcode Printing" subtitle="Optical-grade SVG barcodes with exact thermal and A4 sticker-sheet geometry." badge={{label:'Physical operations',variant:'treasury'}} actions={<div className="flex flex-wrap gap-2">
+            <button type="button" className="rounded-xl border border-finops-neutral-border bg-white px-4 py-2 text-sm" onClick={() => void savePreset()} disabled={busy}>{existingTemplate ? 'Save preset' : '+ Save preset'}</button>
+            <button type="button" className="rounded-xl border border-finops-neutral-border bg-white px-4 py-2 text-sm" onClick={() => void saveAllPresets()} disabled={busy}>Sync 4 presets</button>
+            <button type="button" className="rounded-xl bg-indigo-600 px-4 py-2 text-sm font-semibold text-white" onClick={print} disabled={!selectedCopies.length}>Print labels</button>
+          </div>}/>
 
         {error && <div className="mb-3 rounded-xl bg-rose-50 p-3 text-sm text-rose-700">{error}</div>}
         {notice && (
