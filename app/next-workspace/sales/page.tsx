@@ -1,6 +1,7 @@
 'use client';
 
-import { Button, Card, PageHeader } from '@/components/moneymatters';
+import { Button, Card } from '@/components/moneymatters';
+import { PageHeader } from '@/components/ui/finops/PageHeader';
 import { useBusinessDNA } from '@/lib/use-business-dna';
 
 const actions = [
@@ -26,9 +27,10 @@ export default function SalesPage() {
     <main className="min-h-screen bg-[#fbfaff] p-4 sm:p-6 lg:p-8">
       <div className="mx-auto max-w-6xl">
         <PageHeader
-          eyebrow="Order to cash"
+          breadcrumbs={[{label:'Workspace',href:'/next-workspace'},{label:'Sales & billing'},{label:'Sales'}]}
           title="Sales"
-          description={salesDescription}
+          subtitle={salesDescription}
+          badge={{label:'Order to cash',variant:'inflow'}}
           actions={<Button variant="secondary" onClick={() => { location.href = '/next-workspace'; }}>Dashboard</Button>}
         />
         <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
