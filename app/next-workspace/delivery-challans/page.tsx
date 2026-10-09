@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { supabase, type BusinessContext } from '@/lib/supabase';
 import { PageHeader } from '@/components/ui/finops/PageHeader';
 import { StatCard } from '@/components/ui/finops/StatCard';
+import ItemServiceModal from '../invoices/new/ItemServiceModal';
 
 type Customer = { id: string; display_name: string };
 type Product = {
@@ -62,6 +63,8 @@ export default function DeliveryChallans() {
   const [rows, setRows] = useState<ChallanRow[]>([]);
   const [customer, setCustomer] = useState('');
   const [locationId, setLocationId] = useState('');
+  const [showItemModal, setShowItemModal] = useState(false);
+  const [locationBusy, setLocationBusy] = useState(false);
   const [date, setDate] = useState(today());
   const [transporter, setTransporter] = useState('');
   const [vehicle, setVehicle] = useState('');
@@ -104,7 +107,7 @@ export default function DeliveryChallans() {
       supabase
         .from('delivery_challans')
         .select(
-          'id,challan_number,challan_date,status,total,customer_id,converted_invoice_id,customers(display_name)'
+          'id,challan_number,challan_date,status,total,customer_id,converted_invoice_id,customers!delivery_challans_customer_id_fkey(display_name)'
         )
         .eq('business_id', b.business_id)
         .order('challan_date', { ascending: false })
@@ -123,6 +126,32 @@ export default function DeliveryChallans() {
 
     if (!locationId && lo.data?.length) {
       setLocationId((lo.data.find((x) => x.is_default) || lo.data[0]).id);
+    }
+  }
+
+  async function addLocation() {
+    if (!ctx || locationBusy) return;
+    const name = window.prompt('Stock location name', locations.length ? '' : 'Main Store');
+    if (!name?.trim()) return;
+    setLocationBusy(true);
+    setError('');
+    try {
+      const { data, error: locationError } = await supabase.from('inventory_locations').insert({
+        business_id: ctx.business_id,
+        name: name.trim(),
+        is_default: locations.length === 0,
+        is_active: true,
+        address: {}
+      }).select('id,name,is_default').single();
+      if (locationError) { setError(locationError.message); return; }
+      if (!data) { setError('The stock location was not returned after creation.'); return; }
+      setLocations((current) => [...current, data].sort((a, b) => a.name.localeCompare(b.name)));
+      setLocationId(data.id);
+      setNotice({ text: 'Stock location "' + data.name + '" created.' });
+    } catch (locationError) {
+      setError(locationError instanceof Error ? locationError.message : 'Could not create the stock location.');
+    } finally {
+      setLocationBusy(false);
     }
   }
 
@@ -270,18 +299,29 @@ export default function DeliveryChallans() {
                 value={date}
                 onChange={(e) => setDate(e.target.value)}
               />
-              <select
-                className="rounded-xl border p-3 text-sm"
-                value={locationId}
-                onChange={(e) => setLocationId(e.target.value)}
-              >
-                <option value="">Stock location…</option>
-                {locations.map((l) => (
-                  <option key={l.id} value={l.id}>
-                    {l.name}
-                  </option>
-                ))}
-              </select>
+              <div className="flex min-w-0 gap-2">
+                <select
+                  className="min-w-0 flex-1 rounded-xl border p-3 text-sm"
+                  value={locationId}
+                  onChange={(e) => setLocationId(e.target.value)}
+                >
+                  <option value="">Stock location…</option>
+                  {locations.map((l) => (
+                    <option key={l.id} value={l.id}>
+                      {l.name}
+                    </option>
+                  ))}
+                </select>
+                <button
+                  type="button"
+                  className="shrink-0 rounded-xl border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+                  onClick={() => void addLocation()}
+                  disabled={locationBusy || !ctx}
+                  title="Create a stock location"
+                >
+                  {locationBusy ? 'Saving…' : '+ Location'}
+                </button>
+              </div>
               <input
                 className="rounded-xl border p-3 text-sm"
                 placeholder="Transporter"
@@ -364,13 +404,23 @@ export default function DeliveryChallans() {
                   </button>
                 </div>
               ))}
-              <button
-                type="button"
-                className="rounded-lg border px-3 py-2 text-xs font-semibold"
-                onClick={() => setLines((current) => [...current, blank()])}
-              >
-                + Add item
-              </button>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  className="rounded-lg border border-violet-200 bg-violet-50 px-3 py-2 text-xs font-semibold text-violet-700 hover:bg-violet-100"
+                  onClick={() => setShowItemModal(true)}
+                  disabled={!ctx}
+                >
+                  + Create product
+                </button>
+                <button
+                  type="button"
+                  className="rounded-lg border px-3 py-2 text-xs font-semibold"
+                  onClick={() => setLines((current) => [...current, blank()])}
+                >
+                  + Add item
+                </button>
+              </div>
             </div>
 
             <div className="mt-5 flex items-center justify-between border-t pt-4">
@@ -432,6 +482,26 @@ export default function DeliveryChallans() {
           </section>
         </div>
       </div>
+
+      {ctx && (
+        <ItemServiceModal
+          open={showItemModal}
+          businessId={ctx.business_id}
+          initialItemType="product"
+          productOnly
+          onClose={() => setShowItemModal(false)}
+          onCreated={(item) => {
+            const createdProduct: Product = { id: item.id, name: item.name, sku: item.sku, unit: item.unit, hsn_sac: item.hsn_sac || null, sales_price: Number(item.sales_price || 0), inventory_tracked: Boolean(item.inventory_tracked) };
+            setProducts((current) => [...current.filter((product) => product.id !== createdProduct.id), createdProduct].sort((a, b) => a.name.localeCompare(b.name)));
+            setLines((current) => {
+              const selectedLine: Line = { ...blank(), product_service_id: createdProduct.id, description: createdProduct.name, unit: createdProduct.unit || '', unit_price: String(createdProduct.sales_price || 0), hsn_sac: createdProduct.hsn_sac || '' };
+              const emptyIndex = current.findIndex((line) => !line.product_service_id && !line.description.trim());
+              return emptyIndex < 0 ? [...current, selectedLine] : current.map((line, index) => index === emptyIndex ? selectedLine : line);
+            });
+            setNotice({ text: 'Product "' + createdProduct.name + '" created and added to this challan.' });
+          }}
+        />
+      )}
 
       {confirmRow && (
         <div className="fixed inset-0 z-50 grid place-items-center bg-slate-950/45 p-4">

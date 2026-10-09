@@ -35,9 +35,7 @@ const baseGroups: NavGroup[] = [
     { label: 'Vendors', href: '/next-workspace/vendors', icon: 'vendor' },
   ]},
   { name: 'Treasury & Banking', items: [
-    { label: 'Bank Accounts', href: '/next-workspace/banking', icon: 'bank' },
-    { label: 'Reconciliation', href: '/next-workspace/banking', icon: 'reconcile' },
-    { label: 'Statements', href: '/next-workspace/banking', icon: 'statement' },
+    { label: 'Banking & Reconciliation', href: '/next-workspace/banking', icon: 'bank' },
     { label: 'Payments', href: '/next-workspace/payments', icon: 'cash' },
   ]},
   { name: 'Settings & Configuration', items: [
