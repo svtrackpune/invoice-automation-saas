@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import QRCode from 'qrcode';
 import { supabase, type BusinessContext } from '@/lib/supabase';
+import { PageHeader } from '@/components/ui/finops/PageHeader';
 
 type DocType = 'invoice' | 'quotation' | 'receipt' | 'delivery_challan' | 'purchase_order' | 'credit_note' | 'cash_bill';
 type TemplateKey = 'classic' | 'minimal' | 'modern' | 'premium' | 'professional';
@@ -297,12 +298,14 @@ export default function DocumentThemeStudio() {
   if (loading || !brand) return <div className="grid min-h-[80vh] place-items-center bg-slate-950 text-sm text-slate-300">Loading Document Theme Studio…</div>;
 
   return <main className="theme-studio min-h-[calc(100vh-64px)] bg-slate-950 text-slate-100">
-    <header className="border-b border-white/10 bg-slate-950/95 px-4 py-3 backdrop-blur sm:px-6">
-      <div className="mx-auto flex max-w-[1600px] items-center justify-between gap-4">
-        <div><p className="text-[9px] font-black uppercase tracking-[.2em] text-indigo-300">Documents · WYSIWYG</p><h1 className="mt-1 text-xl font-bold tracking-tight">Document Theme Studio</h1><p className="mt-1 text-[11px] text-slate-400">Independent visual identity, spacing and payment presentation for each document type.</p></div>
-        <div className="flex items-center gap-2"><span className={dirty ? 'rounded-full bg-amber-400/10 px-3 py-1.5 text-[10px] font-bold text-amber-300 ring-1 ring-amber-400/20' : 'rounded-full bg-emerald-400/10 px-3 py-1.5 text-[10px] font-bold text-emerald-300 ring-1 ring-emerald-400/20'}>{dirty ? 'Unsaved changes' : status || 'Saved'}</span><button type="button" onClick={() => window.print()} className="rounded-lg border border-white/10 px-3 py-2 text-xs font-semibold text-slate-200 hover:bg-white/5">Print canvas</button><button type="button" disabled={!dirty || saving} onClick={() => void save()} className="rounded-lg bg-indigo-500 px-4 py-2 text-xs font-bold text-white hover:bg-indigo-400 disabled:opacity-40">{saving ? 'Saving…' : 'Save all documents'}</button></div>
-      </div>
-    </header>
+    <PageHeader
+      className="border-white/10 bg-slate-950/95 px-4 py-3 backdrop-blur sm:px-6 [&_h1]:!text-white [&_nav]:!text-slate-400 [&_p]:!text-slate-400"
+      breadcrumbs={[{label:'Workspace',href:'/next-workspace'},{label:'Documents'},{label:'Document Theme Studio'}]}
+      title="Document Theme Studio"
+      subtitle="Independent visual identity, spacing and payment presentation for each document type."
+      badge={{label:'Documents · WYSIWYG',variant:'statutory'}}
+      actions={<div className="flex items-center gap-2"><span className={dirty ? 'rounded-full bg-amber-400/10 px-3 py-1.5 text-[10px] font-bold text-amber-300 ring-1 ring-amber-400/20' : 'rounded-full bg-emerald-400/10 px-3 py-1.5 text-[10px] font-bold text-emerald-300 ring-1 ring-emerald-400/20'}>{dirty ? 'Unsaved changes' : status || 'Saved'}</span><button type="button" onClick={() => window.print()} className="rounded-lg border border-white/10 px-3 py-2 text-xs font-semibold text-slate-200 hover:bg-white/5">Print canvas</button><button type="button" disabled={!dirty || saving} onClick={() => void save()} className="rounded-lg bg-indigo-500 px-4 py-2 text-xs font-bold text-white hover:bg-indigo-400 disabled:opacity-40">{saving ? 'Saving…' : 'Save all documents'}</button></div>}
+/>
     {error ? <div className="border-b border-rose-400/20 bg-rose-500/10 px-4 py-3 text-center text-xs text-rose-200">{error}</div> : null}
 
     <div className="mx-auto grid max-w-[1600px] grid-cols-[380px_minmax(0,1fr)] min-h-[calc(100vh-137px)] max-lg:grid-cols-1">
