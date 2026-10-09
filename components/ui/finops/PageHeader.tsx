@@ -9,13 +9,14 @@ export interface PageHeaderProps {
   actions?: ReactNode;
   breadcrumbs?: { label: string; href?: string }[];
   className?: string;
+  compact?: boolean;
 }
 
-export function PageHeader({ title, subtitle, badge, actions, breadcrumbs, className = '' }: PageHeaderProps) {
+export function PageHeader({ title, subtitle, badge, actions, breadcrumbs, className = '', compact = false }: PageHeaderProps) {
   const badgeTone = badge ? finOpsToneClasses[badge.variant] : null;
 
   return (
-    <header className={`finops-page-header gap-4 ${className}`} data-finops-page-header>
+    <header className={`finops-page-header gap-4 ${compact ? 'finops-page-header-compact' : '' } ${className}`} data-finops-page-header>
       <div className="min-w-0">
         {breadcrumbs?.length ? (
           <nav aria-label="Breadcrumb" className="mb-1">
@@ -42,7 +43,7 @@ export function PageHeader({ title, subtitle, badge, actions, breadcrumbs, class
         ) : null}
 
         <div className="flex flex-wrap items-center gap-2">
-          <h1 className="text-2xl font-bold tracking-tight text-finops-neutral-text">{title}</h1>
+          <h1 className={`${compact ? 'text-lg font-bold' : 'text-2xl font-bold'} tracking-tight text-finops-neutral-text`}>{title}</h1>
           {badge && badgeTone ? (
             <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[10px] font-bold ${badgeTone.border} ${badgeTone.tint} ${badgeTone.primary}`}>
               <span aria-hidden="true" className={`h-1.5 w-1.5 rounded-full ${badgeTone.rail}`} />
