@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import ReportViewerControlled from './ReportViewerControlled';
 import { REPORT_TEMPLATE_MAP, REPORT_TEMPLATES } from '@/lib/reports/report-definitions-catalog';
 import type { GroupKey, ReportId, StatusKey } from '@/lib/reports/report-definitions';
+import { PageHeader } from '@/components/ui/finops/PageHeader';
 
 type SavedPreset={id:string;name:string;reportId:ReportId;from:string;to:string;range:string;groupBy:GroupKey;status:StatusKey;q:string;businessId:string;createdAt:string};
 
@@ -23,7 +24,7 @@ export default function ReportsHub(){
  if(reportId)return <ReportViewerControlled reportId={reportId} initialFrom={selectedPreset?.from} initialTo={selectedPreset?.to} initialGroup={selectedPreset?.groupBy} initialStatus={selectedPreset?.status} initialQuery={selectedPreset?.q} onBack={back}/>;
  const groups=categories.map(category=>({...category,reports:REPORT_TEMPLATES.filter(x=>x.category===category.key)}));
  return <main className="min-h-[calc(100vh-100px)] bg-slate-50 p-4 sm:p-6 lg:p-8"><div className="mx-auto max-w-[1500px]">
-  <header className="flex flex-col gap-4 border-b border-slate-200/80 pb-5 lg:flex-row lg:items-end lg:justify-between"><div><p className="text-[10px] font-bold uppercase tracking-[.18em] text-slate-400">Business intelligence</p><h1 className="mt-1 text-3xl font-semibold tracking-tight text-slate-950">FinOps Report Studio</h1><p className="mt-1 max-w-3xl text-sm text-slate-500">Pre-built statutory and operational reports with live filtering, grouping, subtotals and export.</p></div><button type="button" onClick={()=>location.href='/next-workspace'} className="rounded-lg border border-slate-200 bg-white px-3.5 py-2.5 text-xs font-semibold text-slate-700">← Dashboard</button></header>
+  <PageHeader breadcrumbs={[{label:'Workspace',href:'/next-workspace'},{label:'Reports & compliance'}]} title="FinOps Report Studio" subtitle="Pre-built statutory and operational reports with live filtering, grouping, subtotals and export." badge={{label:'Business intelligence',variant:'statutory'}} actions={<button type="button" onClick={()=>location.href='/next-workspace'} className="rounded-lg border border-finops-neutral-border bg-white px-3.5 py-2.5 text-xs font-semibold text-slate-700">← Dashboard</button>}/>
   <div className="mt-5 grid gap-5 xl:grid-cols-[230px_minmax(0,1fr)]">
    <aside className="h-fit rounded-xl border border-slate-200/80 bg-white p-2.5 shadow-[0_1px_2px_rgba(15,23,42,.03)]"><p className="px-2 pb-2 text-[9px] font-bold uppercase tracking-[.14em] text-slate-400">Report catalog</p>{categories.map(category=><div key={category.key} className="mb-1"><a href={'#'+category.key.replaceAll(' ','-').toLowerCase()} className="block rounded-lg px-2 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50">{category.title}</a></div>)}<div className="mt-2 border-t border-slate-100 pt-2"><a href="#saved-custom-presets" className="block rounded-lg px-2 py-2 text-xs font-semibold text-indigo-700 hover:bg-indigo-50">Saved Custom Presets {saved.length>0&&<span className="ml-1 rounded-full bg-indigo-100 px-1.5 py-0.5 text-[9px]">{saved.length}</span>}</a></div></aside>
    <section className="space-y-7">
