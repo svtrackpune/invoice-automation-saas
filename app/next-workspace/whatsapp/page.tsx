@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { supabase, type BusinessContext } from '@/lib/supabase';
+import { PageHeader } from '@/components/ui/finops/PageHeader';
 
 type Connection = {
   id: string;
@@ -254,17 +255,7 @@ export default function WhatsApp() {
   return (
     <main className="min-h-[calc(100vh-100px)] bg-[#fbfaff] p-4 sm:p-6 lg:p-8">
       <div className="mx-auto max-w-[1250px]">
-        <header className="mb-7">
-          <p className="text-[10px] font-bold uppercase tracking-[.18em] text-violet-600">
-            Automation
-          </p>
-          <h1 className="mt-1 text-3xl font-semibold tracking-tight">
-            Communications & Alerts
-          </h1>
-          <p className="mt-2 max-w-2xl text-sm text-slate-500">
-            Configure WAPI WhatsApp, transactional SMS, Telegram and outgoing email. Credentials stay in Supabase Vault and are never returned here.
-          </p>
-        </header>
+        <PageHeader breadcrumbs={[{label:'Workspace',href:'/next-workspace'},{label:'Settings & configuration',href:'/next-workspace/settings'},{label:'Communications & Alerts'}]} title="Communications & Alerts" subtitle="Configure WAPI WhatsApp, transactional SMS, Telegram and outgoing email. Credentials stay in Supabase Vault and are never returned here." badge={{label:'Automation',variant:'neutral'}}/>
 
         {message && (
           <div className="mb-5 rounded-xl border border-violet-200 bg-violet-50 px-4 py-3 text-sm text-violet-900">
