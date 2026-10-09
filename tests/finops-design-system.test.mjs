@@ -66,3 +66,72 @@ test('executive workspace KPIs use the shared metric tile with explicit tones', 
   assert.match(dashboard, /tone="inflow"/);
   assert.match(dashboard, /tone="statutory"/);
 });
+
+test('operational workspace headers use the standardized PageHeader primitive', () => {
+  const headerRoutes = [
+    'app/next-workspace/page.tsx',
+    'app/next-workspace/invoices/page.tsx',
+    'app/next-workspace/quotation/QuotationWorkspaceControlled.tsx',
+    'app/next-workspace/customers/CustomerManagerControlled.tsx',
+    'app/next-workspace/vendors/page.tsx',
+    'app/next-workspace/items/page.tsx',
+    'app/next-workspace/bills/page.tsx',
+    'app/next-workspace/payments/page.tsx',
+    'app/next-workspace/receipts/page.tsx',
+    'app/next-workspace/delivery-challans/page.tsx',
+    'app/next-workspace/barcodes/page.tsx',
+    'app/next-workspace/day-book/page.tsx',
+    'app/next-workspace/stock-audit/page.tsx',
+    'app/next-workspace/banking/BankingControlled.tsx',
+    'app/next-workspace/expenses/ExpenseWorkspaceControlled.tsx',
+    'app/next-workspace/reports/page.tsx',
+    'app/next-workspace/reports/ReportViewerControlled.tsx',
+    'app/next-workspace/reports/daily-cash-book/page.tsx',
+    'app/next-workspace/reports/statutory-hub/page.tsx',
+    'app/next-workspace/accounting/page.tsx',
+    'app/next-workspace/tax/page.tsx',
+    'app/next-workspace/settings/page.tsx',
+    'app/next-workspace/settings/payments/page.tsx',
+    'app/next-workspace/whatsapp/page.tsx',
+    'app/next-workspace/settings/diagnostics/page.tsx',
+    'app/next-workspace/business-settings/page.tsx',
+    'app/next-workspace/data-migration/page.tsx',
+    'app/next-workspace/profile/page.tsx',
+    'app/next-workspace/cash-bill/settings/page.tsx',
+    'app/next-workspace/cash-bill/CashBillControlled.tsx',
+    'app/next-workspace/brand/DocumentThemeStudio.tsx',
+    'app/next-workspace/documents/library/page.tsx',
+  ];
+
+  const missing = headerRoutes.filter((path) => {
+    const source = readFileSync(path, 'utf8');
+    return !source.includes("from '@/components/ui/finops/PageHeader'") || !source.includes('<PageHeader');
+  });
+  assert.deepEqual(missing, [], `routes missing shared PageHeader: ${missing.join(', ')}`);
+});
+
+test('financial summary-card migrations use the shared StatCard primitive', () => {
+  const metricRoutes = [
+    'app/next-workspace/page.tsx',
+    'app/next-workspace/invoices/page.tsx',
+    'app/next-workspace/quotation/QuotationWorkspaceControlled.tsx',
+    'app/next-workspace/vendors/page.tsx',
+    'app/next-workspace/items/page.tsx',
+    'app/next-workspace/bills/page.tsx',
+    'app/next-workspace/payments/page.tsx',
+    'app/next-workspace/receipts/page.tsx',
+    'app/next-workspace/day-book/page.tsx',
+    'app/next-workspace/banking/BankingControlled.tsx',
+    'app/next-workspace/expenses/ExpenseWorkspaceControlled.tsx',
+    'app/next-workspace/reports/ReportViewerControlled.tsx',
+    'app/next-workspace/reports/daily-cash-book/page.tsx',
+    'app/next-workspace/accounting/page.tsx',
+    'app/next-workspace/tax/page.tsx',
+    'app/next-workspace/settings/diagnostics/page.tsx',
+  ];
+  const missing = metricRoutes.filter((path) => {
+    const source = readFileSync(path, 'utf8');
+    return !source.includes("from '@/components/ui/finops/StatCard'") || !source.includes('<StatCard');
+  });
+  assert.deepEqual(missing, [], `summary-card routes missing shared StatCard: ${missing.join(', ')}`);
+});
