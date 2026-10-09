@@ -8,13 +8,14 @@ export interface PageHeaderProps {
   badge?: { label: string; variant: FinOpsSemanticTone };
   actions?: ReactNode;
   breadcrumbs?: { label: string; href?: string }[];
+  className?: string;
 }
 
-export function PageHeader({ title, subtitle, badge, actions, breadcrumbs }: PageHeaderProps) {
+export function PageHeader({ title, subtitle, badge, actions, breadcrumbs, className = '' }: PageHeaderProps) {
   const badgeTone = badge ? finOpsToneClasses[badge.variant] : null;
 
   return (
-    <header className="finops-page-header gap-4" data-finops-page-header>
+    <header className={`finops-page-header gap-4 ${className}`} data-finops-page-header>
       <div className="min-w-0">
         {breadcrumbs?.length ? (
           <nav aria-label="Breadcrumb" className="mb-1">
