@@ -412,6 +412,31 @@ $old$,
 
 SELECT mm_private._inventory_ledger_patch(
   'public.commit_stock_audit_adjustment(uuid,uuid,jsonb)'::regprocedure,
+  $old$  v_item RECORD; v_diff NUMERIC; v_cost NUMERIC; v_variance NUMERIC:=0;$old$,
+  $new$  v_item RECORD; v_diff NUMERIC; v_cost NUMERIC; v_variance NUMERIC:=0; v_current_qty NUMERIC;$new$
+);
+
+SELECT mm_private._inventory_ledger_patch(
+  'public.commit_stock_audit_adjustment(uuid,uuid,jsonb)'::regprocedure,
+  $old$    v_diff:=v_item.audited_qty-v_item.recorded_qty;$old$,
+  $new$    IF v_item.audited_qty IS NULL OR v_item.audited_qty < 0 OR v_item.recorded_qty IS NULL THEN
+      RAISE EXCEPTION 'Recorded and audited stock quantities are required and audited quantity cannot be negative';
+    END IF;
+    SELECT ib.quantity_on_hand INTO v_current_qty
+    FROM public.inventory_balances ib
+    WHERE ib.business_id = p_business_id
+      AND ib.product_service_id = v_item.product_id
+      AND ib.location_id = p_location_id
+    FOR UPDATE;
+    v_current_qty := coalesce(v_current_qty, 0);
+    IF round(v_current_qty, 6) <> round(v_item.recorded_qty, 6) THEN
+      RAISE EXCEPTION 'Inventory changed since this stock audit was loaded. Refresh stock levels before committing.';
+    END IF;
+    v_diff := v_item.audited_qty - v_current_qty;$new$
+);
+
+SELECT mm_private._inventory_ledger_patch(
+  'public.commit_stock_audit_adjustment(uuid,uuid,jsonb)'::regprocedure,
   $old$      UPDATE inventory_balances SET quantity_on_hand=v_item.audited_qty,updated_at=now()
       WHERE business_id=p_business_id AND product_service_id=v_item.product_id AND location_id=p_location_id;
       IF NOT FOUND THEN

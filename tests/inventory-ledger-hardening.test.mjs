@@ -64,3 +64,10 @@ test('warehouse transfer RPC is tenant-scoped, authenticated, atomic and invoice
   assert.match(migration, /Insufficient stock at the source location/);
   assert.match(migration, /GRANT EXECUTE ON FUNCTION public\.transfer_inventory_between_locations/);
 });
+
+test('stock audit uses a locked live balance before deriving adjustment quantity', () => {
+  assert.match(migration, /v_current_qty NUMERIC/);
+  assert.match(migration, /SELECT ib\.quantity_on_hand INTO v_current_qty[\s\S]*FOR UPDATE/);
+  assert.match(migration, /Inventory changed since this stock audit was loaded/);
+  assert.match(migration, /v_diff := v_item\.audited_qty - v_current_qty/);
+});
