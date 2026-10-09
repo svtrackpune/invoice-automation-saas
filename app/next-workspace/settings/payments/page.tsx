@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import QRCode from 'qrcode';
 import { supabase } from '@/lib/supabase';
+import { PageHeader } from '@/components/ui/finops/PageHeader';
 
 type BankAccount = {
   id: string; name: string | null; institution_name: string | null; account_last4: string | null;
@@ -152,10 +153,7 @@ export default function PaymentsSettingsPage() {
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-5 sm:px-6 lg:px-8">
-      <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
-        <div><p className="text-[10px] font-bold uppercase tracking-[.16em] text-indigo-600">Settings / Payments & Banking</p><h1 className="mt-1 text-xl font-bold tracking-tight text-slate-950">Unified Payment Hub</h1><p className="mt-1 text-xs text-slate-500">One authoritative configuration for invoices, receipts, Cash Bill and counter tenders.</p></div>
-        <button type="button" onClick={save} disabled={saving} className="rounded-lg bg-slate-900 px-4 py-2 text-xs font-semibold text-white hover:bg-slate-800 disabled:opacity-50">{saving ? 'Saving…' : 'Save Payment Settings'}</button>
-      </div>
+<PageHeader breadcrumbs={[{label:'Workspace',href:'/next-workspace'},{label:'Settings & configuration',href:'/next-workspace/settings'},{label:'Payments & Banking'}]} title="Unified Payment Hub" subtitle="One authoritative configuration for invoices, receipts, Cash Bill and counter tenders." badge={{label:'Settings / Payments & Banking',variant:'treasury'}} actions={<button type="button" onClick={save} disabled={saving} className="rounded-lg bg-slate-900 px-4 py-2 text-xs font-semibold text-white hover:bg-slate-800 disabled:opacity-50">{saving ? 'Saving…' : 'Save Payment Settings'}</button>}/>
       {message ? <div className="mb-4 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-800">{message}</div> : null}
       {error ? <div className="mb-4 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-800">{error}</div> : null}
 
