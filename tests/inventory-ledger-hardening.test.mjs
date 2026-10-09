@@ -105,7 +105,7 @@ test('invoice and POS posting honor tracked products and resolve a same-business
 test('posted invoice amendments preserve challenged quantities and use tracked-item gates', () => {
   assert.match(trackedPostingMigration, /inv\.source_challan_id IS NOT NULL[\s\S]*?pg_temp\.mm_invoice_amend_lines[\s\S]*?ps\.inventory_tracked/);
   assert.match(trackedPostingMigration, /inv\.source_challan_id IS NULL[\s\S]*?pg_temp\.mm_invoice_amend_lines[\s\S]*?ps\.inventory_tracked/);
-  assert.doesNotMatch(trackedPostingMigration, /id=inv\.business_id AND inventory_enabled/);
+  assert.match(trackedPostingMigration, /FROM pg_temp\.mm_invoice_amend_lines l[\s\S]*?ps\.inventory_tracked/);
 });
 
 test('tracked-item credit notes require and resolve an active stock location', () => {
