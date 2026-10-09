@@ -73,3 +73,13 @@ test('stock audit uses a locked live balance before deriving adjustment quantity
   assert.match(migration, /Inventory changed since this stock audit was loaded/);
   assert.match(migration, /v_diff := v_item\.audited_qty - v_current_qty/);
 });
+
+test('opening stock provisions a default location only when no locations or inventory history exist', () => {
+  assert.match(migration, /INSERT INTO public\.inventory_locations/);
+  assert.match(migration, /'Main Store', 'MAIN', '\{\}'::jsonb, true, true/);
+  assert.match(migration, /NOT EXISTS \(\s*SELECT 1 FROM public\.inventory_movements im[\s\S]*?ps\.id\s*\)/);
+  assert.match(migration, /NOT EXISTS \(\s*SELECT 1 FROM public\.inventory_balances ib[\s\S]*?ps\.id\s*\)/);
+  assert.match(migration, /WHERE il\.business_id = ps\.business_id\s*\)\s*ON CONFLICT DO NOTHING/);
+  assert.match(migration, /FROM public\.products_services ps\s+CROSS JOIN LATERAL \(\s+SELECT il\.id/);
+  assert.doesNotMatch(migration, /Cannot initialize opening stock: at least one business has no active inventory location/);
+});

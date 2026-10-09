@@ -243,10 +243,38 @@ WHERE movement_type = 'opening_stock'
 -- One-time, non-destructive initialization: only products with positive
 -- opening metadata and no existing movement or balance are seeded. This avoids
 -- replaying opening stock for any item whose ledger is already active.
--- Existing products whose business has no active location are deliberately
--- deferred. Their opening-stock metadata remains untouched; the backfill below
--- only creates movements for businesses with a real active location and never
--- guesses a location or creates one implicitly.
+-- Opening-stock metadata is an explicit inventory initialization request.
+-- Only businesses with no location rows at all and no existing inventory history
+-- receive a canonical Main Store. Existing/inactive warehouse records are never
+-- repurposed or reactivated.
+INSERT INTO public.inventory_locations (
+  business_id, name, code, address, is_default, is_active
+)
+SELECT DISTINCT
+  ps.business_id, 'Main Store', 'MAIN', '{}'::jsonb, true, true
+FROM public.products_services ps
+WHERE ps.inventory_tracked
+  AND coalesce(ps.opening_stock, 0) > 0
+  AND NOT EXISTS (
+    SELECT 1 FROM public.inventory_movements im
+    WHERE im.business_id = ps.business_id
+      AND im.product_service_id = ps.id
+  )
+  AND NOT EXISTS (
+    SELECT 1 FROM public.inventory_balances ib
+    WHERE ib.business_id = ps.business_id
+      AND ib.product_service_id = ps.id
+  )
+  AND NOT EXISTS (
+    SELECT 1
+    FROM public.inventory_locations il
+    WHERE il.business_id = ps.business_id
+  )
+ON CONFLICT DO NOTHING;
+
+-- The backfill below only posts stock for a real active location. Businesses
+-- with only inactive locations remain deferred; no existing warehouse is
+-- silently reassigned.
 
 INSERT INTO public.inventory_movements (
   business_id, location_id, product_service_id, movement_type,
