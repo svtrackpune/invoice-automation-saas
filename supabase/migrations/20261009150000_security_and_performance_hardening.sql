@@ -91,7 +91,7 @@ BEGIN
 
     IF fn.prokind = 'p' THEN
       EXECUTE format(
-        'ALTER PROCEDURE %I.%I(%s) SET search_path TO %L',
+        'ALTER PROCEDURE %I.%I(%s) SET search_path TO %s',
         fn.schema_name,
         fn.routine_name,
         fn.identity_arguments,
@@ -99,7 +99,7 @@ BEGIN
       );
     ELSE
       EXECUTE format(
-        'ALTER FUNCTION %I.%I(%s) SET search_path TO %L',
+        'ALTER FUNCTION %I.%I(%s) SET search_path TO %s',
         fn.schema_name,
         fn.routine_name,
         fn.identity_arguments,
