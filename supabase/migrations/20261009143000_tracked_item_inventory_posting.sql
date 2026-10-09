@@ -14,7 +14,8 @@ SET search_path = pg_catalog, public, mm_private, pg_temp
 AS $function$
 DECLARE
   v_definition text;
-  v_occurrences integer;
+  v_old_occurrences integer;
+  v_new_occurrences integer;
 BEGIN
   SELECT pg_get_functiondef(p_target) INTO v_definition;
   IF v_definition IS NULL THEN
@@ -24,10 +25,23 @@ BEGIN
     RAISE EXCEPTION 'Tracked-item inventory patch for % has an empty match string', p_target;
   END IF;
 
-  v_occurrences :=
+  -- The live database may already carry the same protection from an earlier
+  -- migration version. Skip exact replacements that are already installed.
+  IF p_new IS NOT NULL AND length(p_new) > 0 THEN
+    v_new_occurrences :=
+      (length(v_definition) - length(replace(v_definition, p_new, ''))) / length(p_new);
+    IF v_new_occurrences > 0 THEN
+      RETURN;
+    END IF;
+  END IF;
+
+  v_old_occurrences :=
     (length(v_definition) - length(replace(v_definition, p_old, ''))) / length(p_old);
-  IF v_occurrences <> 1 THEN
-    RAISE EXCEPTION 'Tracked-item inventory patch for % expected one match, found %', p_target, v_occurrences;
+  IF v_old_occurrences = 0 THEN
+    RETURN;
+  END IF;
+  IF v_old_occurrences <> 1 THEN
+    RAISE EXCEPTION 'Tracked-item inventory patch for % expected one old match, found %', p_target, v_old_occurrences;
   END IF;
 
   EXECUTE replace(v_definition, p_old, p_new);
@@ -193,6 +207,42 @@ SELECT mm_private._tracked_item_inventory_patch(
       RAISE EXCEPTION 'Inventory location is required to return tracked items on a credit note';
     END IF;$new$
 );
+
+DO $tracked_inventory_postflight$
+DECLARE
+  v_body text;
+BEGIN
+  SELECT lower(p.prosrc) INTO v_body
+  FROM pg_proc p
+  WHERE p.oid = 'public.post_invoice(uuid,uuid)'::regprocedure;
+  IF v_body IS NULL
+     OR position('ps.inventory_tracked' IN v_body) = 0
+     OR position('v_physical := true' IN v_body) = 0
+     OR position('inventory_locations' IN v_body) = 0 THEN
+    RAISE EXCEPTION 'Invoice/POS posting must honor tracked product lines and resolve an active business stock location';
+  END IF;
+
+  SELECT lower(p.prosrc) INTO v_body
+  FROM pg_proc p
+  WHERE p.oid = 'public.update_invoice_any_state(uuid,uuid,date,date,jsonb,text,numeric,text,text,uuid,date,uuid,text,uuid)'::regprocedure;
+  IF v_body IS NULL
+     OR position('pg_temp.mm_invoice_amend_lines' IN v_body) = 0
+     OR position('ps.inventory_tracked' IN v_body) = 0
+     OR position('inv.source_challan_id is not null' IN v_body) = 0
+     OR position('inv.source_challan_id is null' IN v_body) = 0 THEN
+    RAISE EXCEPTION 'Invoice amendments must use tracked-item gates and preserve challan-sourced inventory';
+  END IF;
+
+  SELECT lower(p.prosrc) INTO v_body
+  FROM pg_proc p
+  WHERE p.oid = 'public.post_credit_note(uuid,uuid)'::regprocedure;
+  IF v_body IS NULL
+     OR position('ps.inventory_tracked' IN v_body) = 0
+     OR position('inventory location is required to return tracked items on a credit note' IN v_body) = 0 THEN
+    RAISE EXCEPTION 'Tracked-item credit notes must resolve an active stock location and post movement-ledger returns';
+  END IF;
+END;
+$tracked_inventory_postflight$;
 
 DROP FUNCTION mm_private._tracked_item_inventory_patch(regprocedure, text, text);
 

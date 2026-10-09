@@ -6,7 +6,7 @@ const migration = readFileSync(
   'supabase/migrations/20261009140000_inventory_ledger_hardening.sql',
   'utf8',
 );
-const trackedPostingMigration = readFileSync(
+const trackedItemPostingMigration = readFileSync(
   'supabase/migrations/20261009143000_tracked_item_inventory_posting.sql',
   'utf8',
 );
@@ -96,20 +96,38 @@ test('opening stock provisions a default location only when no locations or inve
 
 
 test('invoice and POS posting honor tracked products and resolve a same-business default location', () => {
-  assert.match(trackedPostingMigration, /v_physical := true/);
-  assert.match(trackedPostingMigration, /ps\.inventory_tracked/);
-  assert.match(trackedPostingMigration, /inv\.inventory_location_id/);
-  assert.match(trackedPostingMigration, /Inventory location is required before amending a tracked-item invoice/);
+  assert.match(trackedItemPostingMigration, /v_physical := true/);
+  assert.match(trackedItemPostingMigration, /ps\.inventory_tracked/);
+  assert.match(trackedItemPostingMigration, /inv\.inventory_location_id/);
+  assert.match(trackedItemPostingMigration, /Inventory location is required before amending a tracked-item invoice/);
 });
 
 test('posted invoice amendments preserve challenged quantities and use tracked-item gates', () => {
-  assert.match(trackedPostingMigration, /inv\.source_challan_id IS NOT NULL[\s\S]*?pg_temp\.mm_invoice_amend_lines[\s\S]*?ps\.inventory_tracked/);
-  assert.match(trackedPostingMigration, /inv\.source_challan_id IS NULL[\s\S]*?pg_temp\.mm_invoice_amend_lines[\s\S]*?ps\.inventory_tracked/);
-  assert.match(trackedPostingMigration, /FROM pg_temp\.mm_invoice_amend_lines l[\s\S]*?ps\.inventory_tracked/);
+  assert.match(trackedItemPostingMigration, /inv\.source_challan_id IS NOT NULL[\s\S]*?pg_temp\.mm_invoice_amend_lines[\s\S]*?ps\.inventory_tracked/);
+  assert.match(trackedItemPostingMigration, /inv\.source_challan_id IS NULL[\s\S]*?pg_temp\.mm_invoice_amend_lines[\s\S]*?ps\.inventory_tracked/);
+  assert.match(trackedItemPostingMigration, /FROM pg_temp\.mm_invoice_amend_lines l[\s\S]*?ps\.inventory_tracked/);
 });
 
 test('tracked-item credit notes require and resolve an active stock location', () => {
-  assert.match(trackedPostingMigration, /public\.credit_note_items cni/);
-  assert.match(trackedPostingMigration, /Inventory location is required to return tracked items on a credit note/);
-  assert.match(trackedPostingMigration, /ORDER BY il\.is_default DESC, il\.name, il\.id/);
+  assert.match(trackedItemPostingMigration, /public\.credit_note_items cni/);
+  assert.match(trackedItemPostingMigration, /Inventory location is required to return tracked items on a credit note/);
+  assert.match(trackedItemPostingMigration, /ORDER BY il\.is_default DESC, il\.name, il\.id/);
+});
+
+
+test('migration rewrite helpers safely no-op for already-installed RPC protections', () => {
+  assert.match(migration, /IF v_new_occurrences > 0 THEN\s+RETURN/);
+  assert.match(migration, /IF v_old_occurrences = 0 THEN\s+RETURN/);
+  assert.match(migration, /DO \$inventory_ledger_postflight\$/);
+  assert.match(migration, /Inventory RPC writes directly to inventory_balances/);
+  assert.match(migration, /Opening stock initialization incomplete/);
+  assert.match(trackedItemPostingMigration, /IF v_new_occurrences > 0 THEN\s+RETURN/);
+  assert.match(trackedItemPostingMigration, /DO \$tracked_inventory_postflight\$/);
+});
+
+test('ledger migrations backfill opening stock only when both movement and balance ledgers are absent', () => {
+  assert.match(migration, /AND NOT EXISTS \(\s*SELECT 1 FROM public\.inventory_movements im[\s\S]*?AND im\.product_service_id = ps\.id/s);
+  assert.match(migration, /AND NOT EXISTS \(\s*SELECT 1 FROM public\.inventory_balances ib[\s\S]*?AND ib\.product_service_id = ps\.id/s);
+  assert.match(migration, /'Opening stock initialized from existing product master data'/);
+  assert.match(migration, /inventory_movements_opening_stock_once_idx/);
 });
