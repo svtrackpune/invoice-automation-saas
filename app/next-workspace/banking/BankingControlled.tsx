@@ -119,9 +119,9 @@ export default function BankingControlled(p:Props){
   return <main className="finops-page"><div className="finops-page-inner space-y-4">
     <PageHeader
       breadcrumbs={[{ label: 'Workspace', href: '/next-workspace' }, { label: 'Treasury & banking' }, { label: 'Bank reconciliation' }]}
-      title="Bank Reconciliation"
-      subtitle="High-density statement matching, confidence scoring and controlled period locking."
-      badge={{ label: p.lockedPeriod || activeRecLocked ? 'Period locked' : 'Matching open', variant: p.lockedPeriod || activeRecLocked ? 'outflow' : 'treasury' }}
+      title="Banking & Treasury"
+      subtitle="Chart of accounts bank mapping, statement reconciliation, and settlement VPAs"
+      badge={{ label: 'BANK ACCOUNTS', variant: 'treasury' }}
       actions={<Button variant="secondary" onClick={()=>location.href='/next-workspace/accounting'}>Open GL</Button>}
     />
 

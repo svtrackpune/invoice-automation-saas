@@ -255,7 +255,7 @@ export default function WhatsApp() {
   return (
     <main className="min-h-[calc(100vh-100px)] bg-[#fbfaff] p-4 sm:p-6 lg:p-8">
       <div className="mx-auto max-w-[1250px]">
-        <PageHeader breadcrumbs={[{label:'Workspace',href:'/next-workspace'},{label:'Settings & configuration',href:'/next-workspace/settings'},{label:'Communications & Alerts'}]} title="Communications & Alerts" subtitle="Configure WAPI WhatsApp, transactional SMS, Telegram and outgoing email. Credentials stay in Supabase Vault and are never returned here." badge={{label:'Automation',variant:'neutral'}}/>
+        <PageHeader breadcrumbs={[{label:'Workspace',href:'/next-workspace'},{label:'Settings & configuration',href:'/next-workspace/settings'},{label:'Communications & Alerts'}]} title="Communications & Dispatch" subtitle="Configure WAPI WhatsApp, Transactional SMS, Telegram Bots, and SSL Port-465 SMTP" badge={{label:'CHANNELS & DISPATCH',variant:'statutory'}}/>
 
         {message && (
           <div className="mb-5 rounded-xl border border-violet-200 bg-violet-50 px-4 py-3 text-sm text-violet-900">

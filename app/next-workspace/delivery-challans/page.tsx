@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { supabase, type BusinessContext } from '@/lib/supabase';
 import { PageHeader } from '@/components/ui/finops/PageHeader';
+import { StatCard } from '@/components/ui/finops/StatCard';
 
 type Customer = { id: string; display_name: string };
 type Product = {
@@ -225,7 +226,7 @@ export default function DeliveryChallans() {
   return (
     <main className="min-h-screen bg-slate-50 p-4 sm:p-7">
       <div className="mx-auto max-w-7xl">
-        <PageHeader breadcrumbs={[{label:'Workspace',href:'/next-workspace'},{label:'Sales & billing'},{label:'Delivery Challans'}]} title="Delivery Challans" subtitle="Dispatch physical stock without creating tax liability." badge={{label:'Physical operations',variant:'treasury'}} actions={<button type="button" className="rounded-xl border border-finops-neutral-border bg-white px-4 py-2 text-sm" onClick={() => { window.location.href = '/next-workspace'; }}>Back</button>}/>
+        <PageHeader breadcrumbs={[{label:'Workspace',href:'/next-workspace'},{label:'Sales & billing'},{label:'Delivery Challans'}]} title="Delivery Challans" subtitle="Rule 55 goods transport, approval dispatch, and delivery tracking" badge={{label:'LOGISTICS & DISPATCH',variant:'inflow'}} actions={<button type="button" className="rounded-xl border border-finops-neutral-border bg-white px-4 py-2 text-sm" onClick={() => { window.location.href = '/next-workspace'; }}>Back</button>}/>
 
         {error && <div className="mb-4 rounded-xl bg-rose-50 p-3 text-sm text-rose-700">{error}</div>}
         {notice.text && (
@@ -242,6 +243,11 @@ export default function DeliveryChallans() {
           </div>
         )}
 
+        <section className="mb-5 grid gap-3 sm:grid-cols-3">
+          <StatCard title="Dispatched" value={String(rows.filter((row) => ['dispatched', 'delivered'].includes(String(row.status).toLowerCase())).length)} tone="inflow" className="min-h-[104px] p-4" />
+          <StatCard title="Awaiting Invoicing" value={String(rows.filter((row) => ['dispatched', 'delivered'].includes(String(row.status).toLowerCase()) && !row.converted_invoice_id).length)} tone="pending" className="min-h-[104px] p-4" />
+          <StatCard title="Returned" value={String(rows.filter((row) => String(row.status).toLowerCase() === 'returned').length)} tone="neutral" className="min-h-[104px] p-4" />
+        </section>
         <div className="grid gap-5 xl:grid-cols-[1.4fr_1fr]">
           <section className="rounded-2xl border bg-white p-5">
             <h2 className="font-semibold">New delivery challan</h2>
