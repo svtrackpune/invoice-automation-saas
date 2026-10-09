@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { supabase, type BusinessContext } from '@/lib/supabase';
+import { PageHeader } from '@/components/ui/finops/PageHeader';
 import BusinessCapabilitiesChecklist from '../business-details/BusinessCapabilitiesChecklist';
 import { DEFAULT_BUSINESS_CONFIG, normalizeBusinessConfig, type BusinessFeatureConfig } from '@/lib/business-config';
 import { getCountryOptions, getCurrencyOptions } from '@/lib/i18n';
@@ -43,7 +44,7 @@ export default function BusinessSettings(){
  if(loading)return <div className="grid min-h-[70vh] place-items-center text-sm text-slate-500">Loading business settings…</div>;
  if(!business)return <div className="p-8"><Card><h1 className="text-xl font-semibold">Business not found</h1><p className="mt-2 text-sm text-slate-500">Create or select a business workspace first.</p></Card></div>;
  const a=business.address||emptyAddress; const logoUrl=business.logo_storage_path?supabase.storage.from('business-branding-public').getPublicUrl(business.logo_storage_path).data.publicUrl:null;
- return <main className="min-h-[calc(100vh-100px)] bg-[#fbfaff] p-4 sm:p-7"><div className="mx-auto max-w-6xl"><header className="mb-6"><p className="text-[10px] font-bold uppercase tracking-[.18em] text-violet-600">Business setup</p><h1 className="mt-1 text-3xl font-semibold tracking-tight">Business settings</h1><p className="mt-2 text-sm text-slate-500">Manage the business identity, contact details, tax profile and counter-billing behavior used across Moneymatters.</p></header>
+ return <main className="min-h-[calc(100vh-100px)] bg-[#fbfaff] p-4 sm:p-7"><div className="mx-auto max-w-6xl"><PageHeader breadcrumbs={[{label:'Workspace',href:'/next-workspace'},{label:'System'},{label:'Business settings'}]} title="Business settings" subtitle="Manage the business identity, contact details, tax profile and counter-billing behavior used across Moneymatters." badge={{label:'Business setup',variant:'neutral'}} className="mb-6"/>
  {error&&<div className="mb-5 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">{error}</div>}
  <div className="grid gap-5 lg:grid-cols-2">
   <Card className="lg:col-span-2"><h2 className="text-lg font-semibold">Business profile & contact</h2><p className="mt-1 text-xs text-slate-500">These details are customer-facing and are used automatically on invoices, estimates, receipts and other documents.</p><div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
