@@ -23,9 +23,8 @@ jobs:
         id: preflight
         run: |
           if [ -z "$PROD_SSH_HOST" ] || [ -z "$PROD_SSH_USER" ] || [ -z "$PROD_SSH_KEY" ]; then
-            echo "::warning::Plesk deployment skipped because PROD_SSH_HOST, PROD_SSH_USER, or PROD_SSH_KEY is not configured."
-            echo "deploy_enabled=false" >> "$GITHUB_OUTPUT"
-            exit 0
+            echo "::error::Plesk deployment cannot be certified: PROD_SSH_HOST, PROD_SSH_USER, and PROD_SSH_KEY must be configured."
+            exit 1
           fi
           echo "deploy_enabled=true" >> "$GITHUB_OUTPUT"
 

@@ -1,6 +1,6 @@
 {
   "name": "invoice-automation-saas",
-  "version": "1.4.0",
+  "version": "1.4.1",
   "private": true,
   "description": "Production-grade multi-business invoicing and financial operations software built with Next.js, Node.js, and Supabase/PostgreSQL.",
   "repository": {
@@ -19,7 +19,7 @@
     "test": "npm run test:financial && node --test tests/*.test.mjs",
     "test:financial": "node --test tests/financial-invariants.test.mjs",
     "test:production-smoke": "node --test tests/production-smoke.test.mjs",
-    "cap:prepare": "npm install --no-save --package-lock=false --ignore-scripts --save-exact @capacitor/core@6.2.2 @capacitor/android@6.2.2 @capacitor/cli@6.2.2",
+    "cap:prepare": "npm install --no-save --package-lock=false --ignore-scripts --save-exact @capacitor/core@8.1.4 @capacitor/android@8.1.4 @capacitor/cli@8.1.4",
     "cap:doctor": "npm run cap:prepare && npx cap doctor",
     "cap:add:android": "npm run cap:prepare && npx cap add android",
     "cap:sync": "npm run cap:prepare && npx cap sync android",

@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { usePathname } from 'next/navigation';
-import type { ReactNode } from 'react';
+import type { Dispatch, ReactNode, SetStateAction } from 'react';
 import { supabase, type BusinessContext } from '@/lib/supabase';
 import GlobalSearch from './GlobalSearch';
 import { BusinessConfigProvider, useBusinessConfig } from '@/lib/BusinessConfigContext';
@@ -85,6 +85,23 @@ function getActiveGroupId(pathname: string): string | null {
   return activeMatch?.groupId ?? null;
 }
 
+/** Prefer the longest registered route so only one matching item is highlighted. */
+function getActiveNavHref(pathname: string): string | null {
+  const normalizedPath = pathname.replace(/\/+$/, '') || '/';
+  let activeMatch: { href: string; hrefLength: number } | null = null;
+  for (const group of baseGroups) {
+    for (const item of group.items) {
+      const href = item.href.replace(/\/+$/, '') || '/';
+      const exactMatch = normalizedPath === href;
+      const nestedMatch = href !== '/next-workspace' && normalizedPath.startsWith(href + '/');
+      if ((exactMatch || nestedMatch) && (!activeMatch || href.length > activeMatch.hrefLength)) {
+        activeMatch = { href, hrefLength: href.length };
+      }
+    }
+  }
+  return activeMatch?.href ?? null;
+}
+
 const titles: Record<string, string> = {
   '/next-workspace': 'Dashboard',
   '/next-workspace/invoices': 'Invoices',
@@ -124,11 +141,11 @@ function monthPeriodLabel() {
   return new Intl.DateTimeFormat('en-IN', { month: 'long', year: 'numeric' }).format(new Date());
 }
 
-function Nav({ pathname, go, openGroup, setOpenGroup, cashBillEnabled, collapsed, business }: {
+function Nav({ pathname, go, openSections, setOpenSections, cashBillEnabled, collapsed, business }: {
   pathname: string;
   go: (href: string) => void;
-  openGroup: string | null;
-  setOpenGroup: (id: string | null) => void;
+  openSections: string[];
+  setOpenSections: Dispatch<SetStateAction<string[]>>;
   cashBillEnabled: boolean;
   collapsed: boolean;
   business: BusinessContext | null;
@@ -143,16 +160,21 @@ function Nav({ pathname, go, openGroup, setOpenGroup, cashBillEnabled, collapsed
       {groups.map(group => (
         <section key={group.name}>
           {!collapsed && (
-            <button type="button" onClick={() => group.items.length > 1 && setOpenGroup(openGroup === group.id ? null : group.id)}
+            <button type="button" onClick={() => group.items.length > 1 && setOpenSections(current => {
+                if (current.includes(group.id)) {
+                  return getActiveGroupId(pathname) === group.id ? current : current.filter(id => id !== group.id);
+                }
+                return [...current, group.id];
+              })}
               className="mb-1.5 flex w-full items-center justify-between px-2 text-left text-[11px] font-bold uppercase tracking-[.14em] text-slate-400 hover:text-slate-600"
-              aria-expanded={group.items.length > 1 ? openGroup === group.id : undefined}>
+              aria-expanded={group.items.length > 1 ? openSections.includes(group.id) : undefined}>
               <span>{group.name}</span>
-              {group.items.length > 1 ? <span className="text-slate-300">{openGroup === group.id ? '−' : '+'}</span> : null}
+              {group.items.length > 1 ? <span className="text-slate-300">{openSections.includes(group.id) ? '−' : '+'}</span> : null}
             </button>
           )}
-          <div className={collapsed || openGroup === group.id || group.items.length === 1 ? 'space-y-0.5' : 'hidden'}>
+          <div className={collapsed || openSections.includes(group.id) || group.items.length === 1 ? 'space-y-0.5' : 'hidden'}>
             {group.items.map(item => {
-              const active = pathname === item.href || (item.href !== '/next-workspace' && pathname.startsWith(item.href + '/'));
+              const active = getActiveNavHref(pathname) === item.href;
               return (
                 <button key={item.label} type="button" onClick={() => go(item.href)} aria-current={active ? 'page' : undefined}
                   title={collapsed ? item.label : undefined}
@@ -204,7 +226,10 @@ function WorkspaceChrome({ children, businesses, activeBusinessId, setActiveBusi
   const [collapsed, setCollapsed] = useState(false);
   const [businessMenu, setBusinessMenu] = useState(false);
   const [accountMenu, setAccountMenu] = useState(false);
-  const [openGroup, setOpenGroup] = useState<string | null>(() => getActiveGroupId(pathname));
+  const [openSections, setOpenSections] = useState<string[]>(() => {
+    const activeGroupId = getActiveGroupId(pathname);
+    return activeGroupId ? [activeGroupId] : [];
+  });
   const businessRef = useRef<HTMLDivElement>(null);
   const accountRef = useRef<HTMLDivElement>(null);
   const { config, loading: configLoading, error: configError } = useBusinessConfig();
@@ -222,7 +247,9 @@ function WorkspaceChrome({ children, businesses, activeBusinessId, setActiveBusi
     return () => document.removeEventListener('keydown', onKey);
   }, []);
   useEffect(() => {
-    setOpenGroup(getActiveGroupId(pathname));
+    const activeGroupId = getActiveGroupId(pathname);
+    if (!activeGroupId) return;
+    setOpenSections(current => current.includes(activeGroupId) ? current : [...current, activeGroupId]);
   }, [pathname]);
 
   const go = (href: string) => { setMobile(false); setBusinessMenu(false); setAccountMenu(false); window.location.href = href; };
@@ -294,10 +321,10 @@ function WorkspaceChrome({ children, businesses, activeBusinessId, setActiveBusi
           {!collapsed ? <span className="px-2 text-[10px] font-bold uppercase tracking-wider text-slate-400">Workspace navigation</span> : null}
           <button type="button" onClick={toggleSidebar} aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'} title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'} className="grid h-8 w-8 place-items-center rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50"><span>{collapsed ? '›' : '‹'}</span></button>
         </div>
-        <Nav pathname={pathname} go={go} openGroup={openGroup} setOpenGroup={setOpenGroup} cashBillEnabled={cashBillEnabled} collapsed={collapsed} business={active || null}/>
+        <Nav pathname={pathname} go={go} openSections={openSections} setOpenSections={setOpenSections} cashBillEnabled={cashBillEnabled} collapsed={collapsed} business={active || null}/>
       </aside>
 
-      {mobile ? <><button type="button" aria-label="Close navigation menu" onClick={() => setMobile(false)} className="fixed inset-0 z-[60] bg-slate-950/20 lg:hidden"/><aside className="fixed inset-y-0 left-0 z-[70] w-72 overflow-y-auto border-r border-slate-200 bg-white px-4 py-4 shadow-2xl lg:hidden"><div className="mb-5 flex items-center justify-between"><div><b className="text-sm">Moneymatters</b><span className="block text-[10px] text-slate-400">FinOps workspace</span></div><button type="button" aria-label="Close navigation menu" onClick={() => setMobile(false)} className="grid h-8 w-8 place-items-center rounded-lg border border-slate-200">×</button></div><Nav pathname={pathname} go={go} openGroup={openGroup} setOpenGroup={setOpenGroup} cashBillEnabled={cashBillEnabled} collapsed={false} business={active || null}/></aside></> : null}
+      {mobile ? <><button type="button" aria-label="Close navigation menu" onClick={() => setMobile(false)} className="fixed inset-0 z-[60] bg-slate-950/20 lg:hidden"/><aside className="fixed inset-y-0 left-0 z-[70] w-72 overflow-y-auto border-r border-slate-200 bg-white px-4 py-4 shadow-2xl lg:hidden"><div className="mb-5 flex items-center justify-between"><div><b className="text-sm">Moneymatters</b><span className="block text-[10px] text-slate-400">FinOps workspace</span></div><button type="button" aria-label="Close navigation menu" onClick={() => setMobile(false)} className="grid h-8 w-8 place-items-center rounded-lg border border-slate-200">×</button></div><Nav pathname={pathname} go={go} openSections={openSections} setOpenSections={setOpenSections} cashBillEnabled={cashBillEnabled} collapsed={false} business={active || null}/></aside></> : null}
 
       <main id="main-content" tabIndex={-1} className="min-w-0 flex-1 outline-none">
         <div className="border-b border-slate-200/80 bg-white px-4 py-2.5 sm:px-6">
