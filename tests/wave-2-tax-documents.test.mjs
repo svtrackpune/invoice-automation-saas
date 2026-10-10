@@ -40,4 +40,4 @@ test('IndiaGSTAdapter is deterministic and component-aware',()=>{
   for(const token of ['IndiaGSTAdapter','CGST','SGST','IGST','REVERSE_CHARGE','baseTaxAmount'])assert.ok(adapter.includes(token),token);
 });
 
-test('Wave 2 package version is carried into the remediation release',()=>{assert.equal(pkg.version,'1.4.0');});
+test('Wave 2 package version is carried into the remediation release',()=>{assert.equal(pkg.version,'1.4.1');});
