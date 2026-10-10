@@ -30,8 +30,8 @@ test('item creation returns HSN and stock-tracking fields to consumers', () => {
 });
 
 test('the sidebar has a single canonical link for the banking workspace', () => {
-  const start = sidebar.indexOf("{ name: 'Treasury & Banking'");
-  const end = sidebar.indexOf("{ name: 'Settings & Configuration'", start);
+  const start = sidebar.indexOf("{ id: 'treasury', name: 'Treasury & Banking'");
+  const end = sidebar.indexOf("{ id: 'settings', name: 'Settings & Configuration'", start);
   const group = sidebar.slice(start, end);
   assert.ok(start >= 0 && end > start, 'Treasury & Banking group exists');
   assert.equal((group.match(/href: '\/next-workspace\/banking'/g) || []).length, 1);
