@@ -31,7 +31,7 @@
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.117.2",
-    "next": "15.5.27",
+    "next": "16.4.0",
     "jsbarcode": "^3.12.3",
     "qrcode": "^1.5.4",
     "react": "19.3.0",
