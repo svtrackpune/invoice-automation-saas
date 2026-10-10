@@ -11,11 +11,11 @@ import { canAccessRoute, canShowCreateMenu } from '@/lib/rbac';
 import { FinOpsIcon, FinOpsPrimaryButton, FinOpsSecondaryButton } from '@/components/ui/finops/FinOpsPrimitives';
 
 type NavItem = { label: string; href: string; icon: Parameters<typeof FinOpsIcon>[0]['name']; always?: boolean };
-type NavGroup = { name: string; items: NavItem[] };
+type NavGroup = { id: string; name: string; items: NavItem[] };
 
 const baseGroups: NavGroup[] = [
-  { name: 'Overview', items: [{ label: 'Dashboard', href: '/next-workspace', icon: 'dashboard' }] },
-  { name: 'Sales & Billing', items: [
+  { id: 'overview', name: 'Overview', items: [{ label: 'Dashboard', href: '/next-workspace', icon: 'dashboard' }] },
+  { id: 'sales', name: 'Sales & Billing', items: [
     { label: 'Cash Bill (POS)', href: '/next-workspace/cash-bill', icon: 'cash' },
     { label: 'Invoices', href: '/next-workspace/invoices', icon: 'invoice' },
     { label: 'Quotations', href: '/next-workspace/quotation', icon: 'quote' },
@@ -25,26 +25,27 @@ const baseGroups: NavGroup[] = [
     { label: 'Delivery Challans', href: '/next-workspace/delivery-challans', icon: 'statement' },
     { label: 'Barcode Printing', href: '/next-workspace/barcodes', icon: 'invoice' },
   ]},
-  { name: 'Documents', items: [
+  { id: 'documents', name: 'Documents', items: [
     { label: 'Document Library', href: '/next-workspace/documents/library', icon: 'invoice' },
     { label: 'Templates & Branding', href: '/next-workspace/brand', icon: 'settings' },
   ]},
-  { name: 'Purchases & Expenses', items: [
+  { id: 'purchases', name: 'Purchases & Expenses', items: [
     { label: 'Expenses', href: '/next-workspace/expenses', icon: 'expense' },
     { label: 'Bills & Purchase Orders', href: '/next-workspace/bills', icon: 'statement' },
+    { label: 'Purchases', href: '/next-workspace/purchases', icon: 'statement' },
     { label: 'Vendors', href: '/next-workspace/vendors', icon: 'vendor' },
   ]},
-  { name: 'Treasury & Banking', items: [
+  { id: 'treasury', name: 'Treasury & Banking', items: [
     { label: 'Banking & Reconciliation', href: '/next-workspace/banking', icon: 'bank' },
     { label: 'Payments', href: '/next-workspace/payments', icon: 'cash' },
   ]},
-  { name: 'Settings & Configuration', items: [
+  { id: 'settings', name: 'Settings & Configuration', items: [
     { label: 'Workspace Settings', href: '/next-workspace/settings', icon: 'settings' },
     { label: 'Payments & Banking', href: '/next-workspace/settings/payments', icon: 'bank' },
     { label: 'Communications & Alerts', href: '/next-workspace/settings/communications', icon: 'settings' },
     { label: 'System Diagnostics', href: '/next-workspace/settings/diagnostics', icon: 'settings' },
   ]},
-  { name: 'Reports & Compliance', items: [
+  { id: 'reports', name: 'Reports & Compliance', items: [
     { label: 'Tax (GST / VAT)', href: '/next-workspace/tax', icon: 'tax' },
     { label: 'P&L & Reports', href: '/next-workspace/reports', icon: 'report' },
     { label: 'Audit Trails', href: '/next-workspace/accounting', icon: 'audit' },
@@ -53,12 +54,36 @@ const baseGroups: NavGroup[] = [
     { label: 'Daily Cash Book', href: '/next-workspace/reports/daily-cash-book', icon: 'cash' },
     { label: 'Statutory Hub', href: '/next-workspace/reports/statutory-hub', icon: 'tax' },
   ]},
-  { name: 'System', items: [
+  { id: 'system', name: 'System', items: [
     { label: 'Business Settings', href: '/next-workspace/business-settings', icon: 'settings' },
     { label: 'Integrations & Data', href: '/next-workspace/data-migration', icon: 'integration' },
     { label: 'Profile', href: '/next-workspace/profile', icon: 'profile' },
   ]},
 ];
+
+/**
+ * Resolve the most specific sidebar group for a pathname. The workspace root
+ * is an exact-match route only; treating it as a prefix would steal every
+ * nested route and leave the Sales & Billing default open.
+ */
+function getActiveGroupId(pathname: string): string | null {
+  const normalizedPath = pathname.replace(/\\/+$/, '') || '/';
+  let activeMatch: { groupId: string; hrefLength: number } | null = null;
+
+  for (const group of baseGroups) {
+    for (const item of group.items) {
+      const href = item.href.replace(/\\/+$/, '') || '/';
+      const exactMatch = normalizedPath === href;
+      const nestedMatch = href !== '/next-workspace' && normalizedPath.startsWith(href + '/');
+
+      if ((exactMatch || nestedMatch) && (!activeMatch || href.length > activeMatch.hrefLength)) {
+        activeMatch = { groupId: group.id, hrefLength: href.length };
+      }
+    }
+  }
+
+  return activeMatch?.groupId ?? null;
+}
 
 const titles: Record<string, string> = {
   '/next-workspace': 'Dashboard',
@@ -102,8 +127,8 @@ function monthPeriodLabel() {
 function Nav({ pathname, go, openGroup, setOpenGroup, cashBillEnabled, collapsed, business }: {
   pathname: string;
   go: (href: string) => void;
-  openGroup: string;
-  setOpenGroup: (name: string) => void;
+  openGroup: string | null;
+  setOpenGroup: (id: string | null) => void;
   cashBillEnabled: boolean;
   collapsed: boolean;
   business: BusinessContext | null;
@@ -118,14 +143,14 @@ function Nav({ pathname, go, openGroup, setOpenGroup, cashBillEnabled, collapsed
       {groups.map(group => (
         <section key={group.name}>
           {!collapsed && (
-            <button type="button" onClick={() => group.items.length > 1 && setOpenGroup(openGroup === group.name ? '' : group.name)}
+            <button type="button" onClick={() => group.items.length > 1 && setOpenGroup(openGroup === group.id ? null : group.id)}
               className="mb-1.5 flex w-full items-center justify-between px-2 text-left text-[11px] font-bold uppercase tracking-[.14em] text-slate-400 hover:text-slate-600"
-              aria-expanded={group.items.length > 1 ? openGroup === group.name : undefined}>
+              aria-expanded={group.items.length > 1 ? openGroup === group.id : undefined}>
               <span>{group.name}</span>
-              {group.items.length > 1 ? <span className="text-slate-300">{openGroup === group.name ? '−' : '+'}</span> : null}
+              {group.items.length > 1 ? <span className="text-slate-300">{openGroup === group.id ? '−' : '+'}</span> : null}
             </button>
           )}
-          <div className={collapsed || openGroup === group.name || group.items.length === 1 ? 'space-y-0.5' : 'hidden'}>
+          <div className={collapsed || openGroup === group.id || group.items.length === 1 ? 'space-y-0.5' : 'hidden'}>
             {group.items.map(item => {
               const active = pathname === item.href || (item.href !== '/next-workspace' && pathname.startsWith(item.href + '/'));
               return (
@@ -179,7 +204,7 @@ function WorkspaceChrome({ children, businesses, activeBusinessId, setActiveBusi
   const [collapsed, setCollapsed] = useState(false);
   const [businessMenu, setBusinessMenu] = useState(false);
   const [accountMenu, setAccountMenu] = useState(false);
-  const [openGroup, setOpenGroup] = useState('Sales & Billing');
+  const [openGroup, setOpenGroup] = useState<string | null>(() => getActiveGroupId(pathname));
   const businessRef = useRef<HTMLDivElement>(null);
   const accountRef = useRef<HTMLDivElement>(null);
   const { config, loading: configLoading, error: configError } = useBusinessConfig();
@@ -197,8 +222,7 @@ function WorkspaceChrome({ children, businesses, activeBusinessId, setActiveBusi
     return () => document.removeEventListener('keydown', onKey);
   }, []);
   useEffect(() => {
-    const group = baseGroups.find(g => g.items.some(i => pathname === i.href || pathname.startsWith(i.href + '/')));
-    if (group && group.items.length > 1) setOpenGroup(group.name);
+    setOpenGroup(getActiveGroupId(pathname));
   }, [pathname]);
 
   const go = (href: string) => { setMobile(false); setBusinessMenu(false); setAccountMenu(false); window.location.href = href; };
