@@ -23,3 +23,7 @@ test('migration does not rewrite or delete historical journal rows',()=>{
  assert.doesNotMatch(migration,/UPDATE public\.journal_entries[\s\S]{0,120}status\s*=\s*'draft'/i);
  assert.doesNotMatch(migration,/DELETE FROM public\.journal_(entries|lines)/i);
 });
+
+test('pre-post totals trigger returns the same LED-001 constraint error',()=>{
+ assert.match(migration,/CREATE OR REPLACE FUNCTION mm_private\.set_journal_totals\(\)[\s\S]*?v_line_count < 2[\s\S]*?LED-001 VIOLATION[\s\S]*?USING ERRCODE = '23514'/i);
+});
