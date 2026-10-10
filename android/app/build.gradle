@@ -19,7 +19,29 @@ def releaseStoreFilePath = signingValue('storeFile', 'ANDROID_KEYSTORE_PATH')
 def releaseStorePassword = signingValue('storePassword', 'ANDROID_KEYSTORE_PASSWORD')
 def releaseKeyAlias = signingValue('keyAlias', 'ANDROID_KEY_ALIAS')
 def releaseKeyPassword = signingValue('keyPassword', 'ANDROID_KEY_PASSWORD')
+def releaseKeystoreBase64 = System.getenv('ANDROID_KEYSTORE_BASE64')
 def releaseStoreFile = releaseStoreFilePath ? rootProject.file(releaseStoreFilePath) : null
+
+// CI may provide the base64-encoded keystore secret directly. Prefer a locally
+// configured path when present; otherwise decode into the ignored Gradle build
+// directory so credentials never enter tracked source files or build logs.
+if ((!releaseStoreFile || !releaseStoreFile.isFile()) && releaseKeystoreBase64?.trim()) {
+    def decodedStoreFile = new File(rootProject.buildDir, 'release-signing/moneymatters-release.jks')
+    if (!decodedStoreFile.parentFile.isDirectory() && !decodedStoreFile.parentFile.mkdirs()) {
+        throw new GradleException('Unable to create the release-signing directory.')
+    }
+    try {
+        decodedStoreFile.bytes = java.util.Base64.getDecoder().decode(releaseKeystoreBase64.trim())
+    } catch (IllegalArgumentException exception) {
+        throw new GradleException('ANDROID_KEYSTORE_BASE64 must contain valid base64-encoded keystore bytes.', exception)
+    }
+    decodedStoreFile.setReadable(false, false)
+    decodedStoreFile.setReadable(true, true)
+    decodedStoreFile.setWritable(false, false)
+    decodedStoreFile.setWritable(true, true)
+    releaseStoreFile = decodedStoreFile
+    releaseStoreFilePath = decodedStoreFile.absolutePath
+}
 
 def releaseSigningInputsPresent = [
     releaseStoreFilePath,
@@ -46,7 +68,7 @@ if (releaseSigningAvailable) {
     }
 } else if (requireReleaseSigning) {
     def missing = []
-    if (!releaseStoreFilePath) missing << 'keystore path (storeFile / ANDROID_KEYSTORE_PATH)'
+    if (!releaseStoreFilePath) missing << 'keystore file or base64 value (storeFile / ANDROID_KEYSTORE_PATH / ANDROID_KEYSTORE_BASE64)'
     if (!releaseStorePassword) missing << 'store password (storePassword / ANDROID_KEYSTORE_PASSWORD)'
     if (!releaseKeyAlias) missing << 'key alias (keyAlias / ANDROID_KEY_ALIAS)'
     if (!releaseKeyPassword) missing << 'key password (keyPassword / ANDROID_KEY_PASSWORD)'
@@ -55,7 +77,7 @@ if (releaseSigningAvailable) {
     }
     throw new GradleException(
         "Release signing is required but unavailable. Configure android/key.properties locally " +
-        "or ANDROID_KEYSTORE_PATH, ANDROID_KEYSTORE_PASSWORD, ANDROID_KEY_ALIAS, ANDROID_KEY_PASSWORD in CI. " +
+        "or ANDROID_KEYSTORE_BASE64 (or ANDROID_KEYSTORE_PATH), ANDROID_KEYSTORE_PASSWORD, ANDROID_KEY_ALIAS, ANDROID_KEY_PASSWORD in CI. " +
         "Missing: " + missing.join(', ') + "."
     )
 } else {
