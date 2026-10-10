@@ -67,12 +67,12 @@ const baseGroups: NavGroup[] = [
  * nested route and leave the Sales & Billing default open.
  */
 function getActiveGroupId(pathname: string): string | null {
-  const normalizedPath = pathname.replace(/\\/+$/, '') || '/';
+  const normalizedPath = pathname.replace(/\/+$/, '') || '/';
   let activeMatch: { groupId: string; hrefLength: number } | null = null;
 
   for (const group of baseGroups) {
     for (const item of group.items) {
-      const href = item.href.replace(/\\/+$/, '') || '/';
+      const href = item.href.replace(/\/+$/, '') || '/';
       const exactMatch = normalizedPath === href;
       const nestedMatch = href !== '/next-workspace' && normalizedPath.startsWith(href + '/');
 
