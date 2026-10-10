@@ -41,8 +41,8 @@ BEGIN
      AND p.prokind IN ('f', 'p')
      AND NOT EXISTS (
        SELECT 1
-         FROM unnest(coalesce(p.proconfig, ARRAY[]::text[])) AS setting
-        WHERE setting = 'search_path=public, pg_temp'
+         FROM unnest(coalesce(p.proconfig, ARRAY[]::text[])) AS settings(value)
+        WHERE settings.value = 'search_path=public, pg_temp'
      );
 
   IF v_unpinned > 0 THEN
