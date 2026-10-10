@@ -1,7 +1,7 @@
 BEGIN;
 
--- The legacy BEFORE UPDATE trigger runs before the deferred balance guard.
--- Match its error contract and minimum-line rule to the new database invariant.
+-- Restore the pre-existing dual-currency/base-currency validation inside the
+-- hardened BEFORE UPDATE posting trigger. LED-001 parity checks occur first.
 CREATE OR REPLACE FUNCTION mm_private.set_journal_totals()
 RETURNS trigger
 LANGUAGE plpgsql
@@ -26,9 +26,6 @@ BEGIN
               CONSTRAINT = 'journal_entries_balance_guard';
     END IF;
 
-    -- Preserve the pre-existing FX/base-currency ledger invariant that was
-    -- enforced by the original posting trigger. The parity check above runs
-    -- first so its failures retain the LED-001/23514 contract.
     PERFORM public.validate_journal_entry_balance(NEW.id);
   END IF;
   RETURN NEW;
