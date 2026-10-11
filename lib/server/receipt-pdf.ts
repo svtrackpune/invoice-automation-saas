@@ -20,8 +20,8 @@ type PdfData = {
   receipt: ReceiptRow;
   payment: { amount: number; invoice_id: string | null } | null;
   invoice: { invoice_number: string; invoice_date: string; total: number; amount_paid: number; balance_due: number; document_kind: string } | null;
-  customer: { display_name: string | null; legal_name: string | null; phone: string | null; email: string | null } | null;
-  business: { name: string | null; legal_name: string | null; address: any; phone: string | null; email: string | null; website: string | null; tax_registration_number: string | null } | null;
+  customer: { display_name: string | null; legal_name: string | null; phone: string | null; email: string | null; billing_address: any; shipping_address: any; tax_id: string | null } | null;
+  business: { name: string | null; legal_name: string | null; address: any; phone: string | null; email: string | null; website: string | null; tax_registration_number: string | null; logo_storage_path: string | null } | null;
   items: Array<{ name: string; sku: string | null; quantity: number; unit_price: number; line_total: number }>;
   allocations: Array<{ invoice_number: string; total_due: number; amount_applied: number; remaining_balance: number }>;
   customer_outstanding: number;
@@ -298,9 +298,9 @@ export async function loadReceiptPdfData(db: SupabaseClient, receiptId: string):
       ? db.from('payments').select('amount,invoice_id').eq('id', receipt.payment_id).eq('business_id', receipt.business_id).maybeSingle()
       : Promise.resolve({ data: null } as any),
     receipt.customer_id
-      ? db.from('customers').select('display_name,legal_name,phone,email').eq('id', receipt.customer_id).eq('business_id', receipt.business_id).maybeSingle()
+      ? db.from('customers').select('display_name,legal_name,phone,email,billing_address,shipping_address,tax_id').eq('id', receipt.customer_id).eq('business_id', receipt.business_id).maybeSingle()
       : Promise.resolve({ data: null } as any),
-    db.from('businesses').select('name,legal_name,address,phone,email,website,tax_registration_number').eq('id', receipt.business_id).single(),
+    db.from('businesses').select('name,legal_name,address,phone,email,website,tax_registration_number,logo_storage_path').eq('id', receipt.business_id).single(),
   ]);
 
   const invoiceId = paymentResult.data?.invoice_id || null;
