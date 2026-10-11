@@ -136,25 +136,40 @@ async function resolveDispatchContext(job: NotificationJob): Promise<PublicDispa
   const publicUrl = publicAbsolute(publicPath);
   const pdfUrl = publicAbsolute(pdfPath);
   if (!publicUrl || !pdfUrl) throw new Error("Public document or PDF URL is missing.");
+  const documentType = String(row.document_type || type);
+  const documentNumber = String(row.document_number || "");
+  const currencyCode = String(row.currency_code || "INR").toUpperCase();
+  const balanceDue = Number(row.balance_due || 0);
+  const businessName = String(row.business_name || "Business");
+  const upiId = row.upi_id ? String(row.upi_id) : null;
+  const upiQrString = documentType === "invoice" && currencyCode === "INR" && balanceDue > 0 && upiId
+    ? "upi://pay?" + new URLSearchParams({
+      pa: upiId,
+      pn: businessName,
+      am: balanceDue.toFixed(2),
+      cu: "INR",
+      tn: documentNumber,
+    }).toString()
+    : null;
   return {
-    document_type: String(row.document_type || type),
+    document_type: documentType,
     document_id: String(row.document_id || id),
-    document_number: String(row.document_number || ""),
+    document_number: documentNumber,
     document_date: String(row.document_date || ""),
     due_date: row.due_date ? String(row.due_date) : null,
     valid_until: row.valid_until ? String(row.valid_until) : null,
     status: String(row.status || ""),
-    currency_code: String(row.currency_code || "INR"),
+    currency_code: currencyCode,
     total_amount: Number(row.total_amount || 0),
     amount_paid: Number(row.amount_paid || 0),
-    balance_due: Number(row.balance_due || 0),
+    balance_due: balanceDue,
     customer_outstanding_balance: metadata.customer_outstanding_balance === undefined || metadata.customer_outstanding_balance === null
       || !Number.isFinite(Number(metadata.customer_outstanding_balance))
       ? null : Number(metadata.customer_outstanding_balance),
-    upi_id: row.upi_id ? String(row.upi_id) : null,
-    upi_qr_string: row.upi_qr_string ? String(row.upi_qr_string) : null,
+    upi_id: upiId,
+    upi_qr_string: upiQrString,
     payment_link: row.payment_link ? String(row.payment_link) : null,
-    business_name: String(row.business_name || "Business"),
+    business_name: businessName,
     customer_name: String(row.customer_name || "Customer"),
     business_tax_id: row.business_tax_id ? String(row.business_tax_id) : null,
     customer_tax_id: row.customer_tax_id ? String(row.customer_tax_id) : null,
