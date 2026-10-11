@@ -19,7 +19,7 @@
     "test": "npm run test:financial && node --test tests/*.test.mjs",
     "test:financial": "node --test tests/financial-invariants.test.mjs",
     "test:production-smoke": "node --test tests/production-smoke.test.mjs",
-    "cap:prepare": "npm install --no-save --package-lock=false --ignore-scripts --save-exact @capacitor/core@8.1.4 @capacitor/android@8.1.4 @capacitor/cli@8.1.4",
+    "cap:prepare": "npm install --no-save --package-lock=false --ignore-scripts --save-exact @capacitor/core@8.5.3 @capacitor/android@8.5.3 @capacitor/cli@8.5.3",
     "cap:doctor": "npm run cap:prepare && npx cap doctor",
     "cap:add:android": "npm run cap:prepare && npx cap add android",
     "cap:sync": "npm run cap:prepare && npx cap sync android",
