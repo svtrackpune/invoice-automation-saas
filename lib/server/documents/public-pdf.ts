@@ -131,7 +131,7 @@ export async function buildPublicDocumentPdf(doc: PublicDocument): Promise<Buffe
   const catalogId = add(''), pagesId = add('');
   const font1 = add('<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>');
   const font2 = add('<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>');
-  const logo = await fetchLogo(doc.business.logoStoragePath);
+  const logo = await fetchLogo(canonical.business.logoUrl || null);
   const logoId = logo ? add('') : null;
 
   const header = (continued: boolean) => {
@@ -146,11 +146,11 @@ export async function buildPublicDocumentPdf(doc: PublicDocument): Promise<Buffe
     const bx=M+70;
     c.text(bx,35,canonical.business.tradeName || canonical.business.legalName,13,true,C.navy);
     let dy=53;
-    addressParts(doc.business.address).slice(0,2).forEach(v=>{drawWrap(c,bx,dy,v,40,7.5,false,C.muted,1);dy+=10;});
-    const contact=[doc.business.phone,doc.business.email].filter(Boolean).join(' | ');
+    addressParts(canonical.business.address).slice(0,2).forEach(v=>{drawWrap(c,bx,dy,v,40,7.5,false,C.muted,1);dy+=10;});
+    const contact=[canonical.business.phone,canonical.business.email].filter(Boolean).join(' | ');
     if(contact){drawWrap(c,bx,dy,contact,42,7.3,false,C.muted,1);dy+=10;}
     if(canonical.business.gstin)c.text(bx,dy,'GSTIN: '+canonical.business.gstin,7.5,true,C.ink);
-    if(doc.business.pan)c.text(bx,dy+10,'PAN: '+doc.business.pan,7.3,false,C.muted);
+    if(canonical.business.pan)c.text(bx,dy+10,'PAN: '+canonical.business.pan,7.3,false,C.muted);
     const rx=363,rw=right-rx;
     c.rect(rx,32,rw,92,C.navy);
     c.text(rx+12,42,continued?docTitle(doc.type)+' (CONTINUED)':docTitle(doc.type),14,true,C.white);
@@ -169,8 +169,8 @@ export async function buildPublicDocumentPdf(doc: PublicDocument): Promise<Buffe
   const drawParties=(top:number)=>{
     const gap=10,colW=(CW-gap)/2,boxH=100;
     const list=[
-      {x:M,label:'BILLED TO',name:doc.customer.legalName||doc.customer.name,rows:partyRows(doc.customer.billingAddress||doc.customer.address,doc.customer.phone,doc.customer.email,doc.customer.taxId)},
-      {x:M+colW+gap,label:'SHIPPED TO',name:doc.customer.legalName||doc.customer.name,rows:partyRows(doc.customer.shippingAddress||doc.customer.billingAddress||doc.customer.address,null,null,null)}
+      {x:M,label:'BILLED TO',name:canonical.customer.name,rows:partyRows(canonical.customer.billingAddress||canonicalAddress(doc.customer.address),canonical.customer.phone||null,canonical.customer.email||null,canonical.customer.gstin||null)},
+      {x:M+colW+gap,label:'SHIPPED TO',name:canonical.customer.name,rows:partyRows(canonical.customer.shippingAddress||canonical.customer.billingAddress,null,null,null)}
     ];
     for(const p of list){
       c.rect(p.x,top,colW,boxH,C.white,C.border); c.rect(p.x,top,colW,19,C.pale);
@@ -201,8 +201,9 @@ export async function buildPublicDocumentPdf(doc: PublicDocument): Promise<Buffe
   header(false);
   let y=drawParties(147)+4;
   y=tableHeader(y);
-  const items=doc.items.length?doc.items:[{description:'No line items supplied',quantity:0,unit:null,unitPrice:0,discount:0,taxAmount:0,lineTotal:0,hsnSac:null}];
+  const items=canonical.items.length?canonical.items:[{description:'No line items supplied',quantity:0,unitPrice:0,discount:0,taxRate:0,amount:0,hsn:undefined}];
   items.forEach((it,i)=>{
+    const originalItem=doc.items[i];
     const desc=wrap(it.description,31).slice(0,3), rh=Math.max(25,desc.length*9+10);
     if(y+rh>FOOTER_TOP-4){c.newPage();header(true);y=tableHeader(78);}
     if(i%2===1)c.rect(M,y,CW,rh,C.pale);
@@ -210,13 +211,13 @@ export async function buildPublicDocumentPdf(doc: PublicDocument): Promise<Buffe
     const xs:number[]=[];let xx=M;for(const w of widths){xs.push(xx);xx+=w;}
     c.text(xs[0]+5,y+8,i+1,7,false,C.muted);
     desc.forEach((v,j)=>c.text(xs[1]+5,y+6+j*9,v,7.2,j===0,C.ink));
-    c.text(xs[2]+4,y+8,it.hsnSac||'-',6.6,false,C.muted);
-    c.text(xs[3]+widths[3]-5,y+8,ascii(it.quantity)+(it.unit?' '+ascii(it.unit).slice(0,4):''),6.9,false,C.ink,'right');
-    c.text(xs[4]+widths[4]-5,y+8,money(it.unitPrice,doc.currencyCode),6.5,false,C.ink,'right');
-    c.text(xs[5]+widths[5]-5,y+8,it.discount?money(it.discount,doc.currencyCode):'-',6.5,false,C.ink,'right');
-    const taxable=Math.max(0,Number(it.quantity||0)*Number(it.unitPrice||0)-Number(it.discount||0));
-    c.text(xs[6]+widths[6]-5,y+8,money(taxable,doc.currencyCode),6.5,false,C.ink,'right');
-    c.text(xs[7]+widths[7]-5,y+8,money(it.lineTotal,doc.currencyCode),6.5,true,C.ink,'right');
+    c.text(xs[2]+4,y+8,it.hsn||'-',6.6,false,C.muted);
+    c.text(xs[3]+widths[3]-5,y+8,ascii(it.quantity)+(originalItem?.unit?' '+ascii(originalItem.unit).slice(0,4):''),6.9,false,C.ink,'right');
+    c.text(xs[4]+widths[4]-5,y+8,money(it.unitPrice,canonical.document.currency),6.5,false,C.ink,'right');
+    c.text(xs[5]+widths[5]-5,y+8,it.discount?money(it.discount,canonical.document.currency):'-',6.5,false,C.ink,'right');
+    const taxable=Math.max(0,it.quantity*it.unitPrice-it.discount);
+    c.text(xs[6]+widths[6]-5,y+8,money(taxable,canonical.document.currency),6.5,false,C.ink,'right');
+    c.text(xs[7]+widths[7]-5,y+8,money(it.amount,canonical.document.currency),6.5,true,C.ink,'right');
     y+=rh;
   });
   if(y+190>FOOTER_TOP-4){c.newPage();header(true);y=82;}else y+=12;
@@ -227,18 +228,22 @@ export async function buildPublicDocumentPdf(doc: PublicDocument): Promise<Buffe
   c.rect(totalX,y-2,totalW,18,C.pale,C.border);
   c.text(totalX+8,y+3,'FINANCIAL SUMMARY',7.3,true,C.indigo);y+=20;
   const summary:Array<[string,number,boolean]> = doc.type === 'challan'
-    ? [['Declared Value',doc.total,true]]
+    ? [['Declared Value',canonical.financials.grandTotal,true]]
     : [
-      ['Subtotal',doc.subtotal,false],['Trade Discount',-Math.abs(doc.discountTotal),false],
-      ['Taxable Value',Math.max(0,doc.subtotal-doc.discountTotal),false]
+      ['Subtotal',canonical.financials.subtotal,false],
+      ['Trade Discount',-Math.abs(canonical.financials.totalDiscount),false],
+      ['Taxable Value',Math.max(0,canonical.financials.subtotal-canonical.financials.totalDiscount),false]
     ];
   if(doc.type !== 'challan') {
-    if(doc.igstAmount>0)summary.push(['IGST',doc.igstAmount,false]);
-    else if(doc.cgstAmount>0||doc.sgstAmount>0)summary.push(['CGST',doc.cgstAmount,false],['SGST',doc.sgstAmount,false]);
-    else if(doc.taxTotal>0)summary.push(['GST / Tax',doc.taxTotal,false]);
-    const round=Number((doc.total-(doc.subtotal-doc.discountTotal+doc.taxTotal)).toFixed(2));
-    summary.push(['Round Off',round,false],['Grand Total',doc.total,true]);
-    if(doc.type==='invoice')summary.push(['Amount Paid',doc.amountPaid,false],['Balance Due',doc.balanceDue,true]);
+    if(canonical.financials.taxBreakdown.length) {
+      canonical.financials.taxBreakdown.forEach(line => summary.push([
+        line.rate>0 ? line.name+' ('+line.rate+'%)' : line.name,
+        line.amount,
+        false
+      ]));
+    }
+    summary.push(['Round Off',canonical.financials.roundOff,false],['Grand Total',canonical.financials.grandTotal,true]);
+    if(doc.type==='invoice')summary.push(['Amount Paid',canonical.financials.amountPaid,false],['Balance Due',canonical.financials.balanceDue,true]);
   }
   for(const [label,value,bold] of summary){
     if(y+15>FOOTER_TOP-4){c.newPage();header(true);y=80;}
