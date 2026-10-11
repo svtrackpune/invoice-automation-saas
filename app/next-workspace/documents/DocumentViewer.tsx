@@ -425,23 +425,32 @@ export default function DocumentViewer({ type, id }: { type: string; id: string 
     if (!value) { setPaymentQrDataUrl(''); return () => { active = false; }; }
     QRCode.toDataURL(value, { width: 180, margin: 1, errorCorrectionLevel: 'M' }).then((url) => { if (active) setPaymentQrDataUrl(url); }).catch(() => { if (active) setPaymentQrDataUrl(''); });
     return () => { active = false; };
-  }, [paymentSelection, job, paymentSettings, preferences, business]);
+  }, [paymentSelection, job, paymentSettings, preferences, business, model, mergedBusiness, type]);
 
   const customer = model.customer || model.party || model.vendor || {};
   const items = type === 'receipt' ? (receiptItems.length ? receiptItems : model.items || []) : model.items || [];
+  const canonicalType = type === 'delivery_challan' ? 'challan'
+    : type === 'quotation' ? 'quotation'
+      : type === 'receipt' ? 'receipt' : 'invoice';
+  const canonicalPaymentEnabled = ['invoice','tax_invoice','cash_bill'].includes(type);
+  const configuredUpiId = canonicalPaymentEnabled
+    ? paymentSettings?.upi_id || paymentSelection?.bank?.upi_id || null
+    : null;
   const canonical = useMemo(() => createCanonicalDocumentViewModel({
     ...model,
-    type: type === 'delivery_challan' ? 'challan' : type,
+    type: canonicalType,
     business: mergedBusiness,
     customer,
     items,
     bank: paymentSelection?.bank || {},
-    upiId: paymentSettings?.upi_id || null,
+    customer_outstanding: type === 'receipt' ? customerBalance : undefined,
+    balance_due: type === 'receipt' ? customerBalance : model.balance_due,
+    upiId: configuredUpiId,
   }, {
-    type: type === 'delivery_challan' ? 'challan' : ['tax_invoice','cash_bill'].includes(type) ? 'invoice' : type as any,
-    upiId: paymentSettings?.upi_id || paymentSelection?.bank?.upi_id || null,
+    type: canonicalType,
+    upiId: configuredUpiId,
     prefillUpiAmount: preferences?.prefill_upi_amount !== false,
-  }), [model, type, mergedBusiness, customer, items, paymentSelection, paymentSettings, preferences]);
+  }), [model, type, canonicalType, mergedBusiness, customer, items, paymentSelection, paymentSettings, preferences, configuredUpiId, customerBalance]);
   const canonicalPayload = useMemo(() => ({
     ...model,
     invoice_number: canonical.document.number,
@@ -453,7 +462,7 @@ export default function DocumentViewer({ type, id }: { type: string; id: string 
     total: canonical.financials.grandTotal,
     amount_paid: canonical.financials.amountPaid,
     balance_due: canonical.financials.balanceDue,
-    payment_qr_payload: canonical.financials.upiQrString || model.payment_qr_payload,
+    payment_qr_payload: canonicalPaymentEnabled ? canonical.financials.upiQrString || model.payment_qr_payload : model.payment_qr_payload,
   }), [model, canonical]);
   const theme = THEMES[template?.template_key] || THEMES.modern;
   const fields = preferences?.custom_fields || {};
