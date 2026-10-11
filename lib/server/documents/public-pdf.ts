@@ -259,9 +259,9 @@ export async function buildPublicDocumentPdf(doc: PublicDocument): Promise<Buffe
     y+=16;
   }
   y+=5;
-  const qrData=doc.upiId
-    ? 'upi://pay?pa='+encodeURIComponent(doc.upiId)+'&pn='+encodeURIComponent(doc.business.name)+'&am='+encodeURIComponent(Math.max(0,doc.balanceDue||doc.total).toFixed(2))+'&cu='+encodeURIComponent(doc.currencyCode||'INR')+'&tn='+encodeURIComponent(doc.number)
-    : (doc.paymentQrPayload?.startsWith('upi://pay?')?doc.paymentQrPayload:null);
+  const qrData=doc.type==='invoice'&&doc.balanceDue>0&&doc.upiId
+    ? 'upi://pay?pa='+encodeURIComponent(doc.upiId)+'&pn='+encodeURIComponent(doc.business.name)+'&am='+encodeURIComponent(doc.balanceDue.toFixed(2))+'&cu='+encodeURIComponent(doc.currencyCode||'INR')+'&tn='+encodeURIComponent(doc.number)
+    : (doc.type==='invoice'&&doc.balanceDue>0&&doc.paymentQrPayload?.startsWith('upi://pay?')?doc.paymentQrPayload:null);
   if(doc.bankDetails||qrData){
     const sectionH=qrData?100:76;
     if(y+sectionH>FOOTER_TOP-4){c.newPage();header(true);y=80;}
