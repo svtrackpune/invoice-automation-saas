@@ -123,16 +123,18 @@ export async function loadPublicDocumentById(
       discountTotal: 0, taxTotal: 0, total: n(data.receipt.amount), amountPaid: n(data.receipt.amount),
       balanceDue: Math.max(0, n(data.invoice?.balance_due)), notes: nullable(data.receipt.notes), terms: null,
       paymentLink: null, paymentQrPayload: null, vehicleNumber: null, transporterName: null, ewayBillNumber: null,
+      placeOfSupplyStateCode: null, supplyType: null, cgstAmount: 0, sgstAmount: 0, igstAmount: 0,
+      bankDetails: null, upiId: null,
       business: {
         name: text(data.business?.legal_name || data.business?.name) || 'Business',
         legalName: nullable(data.business?.legal_name), email: nullable(data.business?.email),
         phone: nullable(data.business?.phone), website: nullable(data.business?.website), address: data.business?.address ?? null,
-        taxRegistrationNumber: nullable(data.business?.tax_registration_number), logoStoragePath: null,
+        taxRegistrationNumber: nullable(data.business?.tax_registration_number), logoStoragePath: null, pan: null,
       },
       customer: {
         name: text(data.customer?.legal_name || data.customer?.display_name) || 'Customer',
         legalName: nullable(data.customer?.legal_name), email: nullable(data.customer?.email),
-        phone: nullable(data.customer?.phone), address: null, taxId: null,
+        phone: nullable(data.customer?.phone), address: null, billingAddress: null, shippingAddress: null, taxId: null,
       },
       items: data.items.map(item => ({
         description: text(item.name) || 'Item', quantity: n(item.quantity), unit: null,
@@ -154,11 +156,15 @@ export async function loadPublicDocumentById(
   let notes: string | null = null, terms: string | null = null;
   let paymentLink: string | null = null, paymentQrPayload: string | null = null;
   let vehicleNumber: string | null = null, transporterName: string | null = null, ewayBillNumber: string | null = null;
+  let placeOfSupplyStateCode: string | null = null, supplyType: string | null = null;
+  let cgstAmount = 0, sgstAmount = 0, igstAmount = 0;
+  let bankDetails: PublicDocument['bankDetails'] = null, upiId: string | null = null;
+  let paymentBankAccountId: string | null = null;
   let items: PublicDocument['items'] = [];
 
   if (type === 'invoice') {
     const result = await db.from('invoices')
-      .select('id,business_id,customer_id,invoice_number,invoice_date,due_date,status,currency_code,subtotal,discount_total,tax_total,total,amount_paid,balance_due,notes,terms,payment_display_mode,payment_link,payment_qr_payload,public_share_token')
+      .select('id,business_id,customer_id,invoice_number,invoice_date,due_date,status,currency_code,subtotal,discount_total,tax_total,total,amount_paid,balance_due,notes,terms,payment_display_mode,payment_link,payment_qr_payload,public_share_token,place_of_supply_state_code,supply_type,cgst_amount,sgst_amount,igst_amount,payment_bank_account_id')
       .eq('id', id).eq('business_id', businessId).maybeSingle();
     if (result.error || !result.data) return null;
     row = result.data as Row;
@@ -168,6 +174,9 @@ export async function loadPublicDocumentById(
     subtotal = n(row.subtotal); discountTotal = n(row.discount_total); taxTotal = n(row.tax_total);
     total = n(row.total); amountPaid = n(row.amount_paid); balanceDue = n(row.balance_due);
     notes = nullable(row.notes); terms = nullable(row.terms);
+    placeOfSupplyStateCode = nullable(row.place_of_supply_state_code); supplyType = nullable(row.supply_type);
+    cgstAmount = n(row.cgst_amount); sgstAmount = n(row.sgst_amount); igstAmount = n(row.igst_amount);
+    paymentBankAccountId = nullable(row.payment_bank_account_id);
     if (text(row.payment_display_mode) === 'online') {
       paymentLink = nullable(row.payment_link);
       paymentQrPayload = nullable(row.payment_qr_payload || row.payment_link);
@@ -233,11 +242,31 @@ export async function loadPublicDocumentById(
 
   if (!statusAllowed(type, status, validUntil)) return null;
   if (typeToken.length < 48) return null;
+  if (type === 'invoice') {
+    const [bankResult, settingsResult] = await Promise.all([
+      paymentBankAccountId
+        ? db.from('bank_accounts').select('name,institution_name,account_holder_name,account_number,account_last4,ifsc_code,branch_name').eq('id', paymentBankAccountId).eq('business_id', businessId).maybeSingle()
+        : Promise.resolve({ data: null, error: null }),
+      db.from('document_payment_settings').select('upi_id').eq('business_id', businessId).maybeSingle(),
+    ]);
+    if (bankResult.error) throw new Error('Invoice settlement details are unavailable.');
+    if (settingsResult.error) throw new Error('Invoice payment settings are unavailable.');
+    if (bankResult.data) {
+      const b = bankResult.data as Row;
+      bankDetails = {
+        name: nullable(b.name), institutionName: nullable(b.institution_name),
+        accountHolderName: nullable(b.account_holder_name), accountNumber: nullable(b.account_number),
+        accountLast4: nullable(b.account_last4), ifscCode: nullable(b.ifsc_code), branchName: nullable(b.branch_name),
+      };
+    }
+    upiId = nullable(settingsResult.data?.upi_id);
+  }
   const parties = await loadParties(db, businessId, customerId || null);
   return {
     type, id, businessId, number, date, dueDate, validUntil, status, currencyCode,
     subtotal, discountTotal, taxTotal, total, amountPaid, balanceDue, notes, terms,
     paymentLink, paymentQrPayload, vehicleNumber, transporterName, ewayBillNumber,
+    placeOfSupplyStateCode, supplyType, cgstAmount, sgstAmount, igstAmount, bankDetails, upiId,
     business: parties.business, customer: parties.customer, items,
   };
 }
