@@ -193,14 +193,15 @@ export function createCanonicalDocumentViewModel(
   const customerName = str(first(customerSource.legalName, customerSource.legal_name, customerSource.display_name, customerSource.name, customerSource.customer_name), 'Customer');
   const publicUrl = str(first(options.publicUrl, source.publicUrl, source.public_url, root.publicUrl));
   const explicitQr = nullableText(source.upiQrString, source.payment_qr_payload, source.paymentQrPayload, source.payment_qr_payload);
-  const qrUpi = bankUpi ? 'upi://pay?' + new URLSearchParams({
-    pa: bankUpi,
-    pn: businessName,
-    am: (options.prefillUpiAmount === false ? 0 : balance > 0 ? balance : total).toFixed(2),
-    cu: currency || 'INR',
-    tn: str(first(source.number, source.document_number, source.invoice_number, source.quotation_number, source.receipt_number)),
-  }).toString() : undefined;
-  const taxLines = record(source.taxBreakdown || source.tax_breakdown);
+  const qrUpi = documentType === 'invoice' && currency === 'INR' && balance > 0 && bankUpi
+    ? 'upi://pay?' + new URLSearchParams({
+      pa: bankUpi,
+      pn: businessName,
+      ...(options.prefillUpiAmount === false ? {} : { am: balance.toFixed(2) }),
+      cu: 'INR',
+      tn: str(first(source.number, source.document_number, source.invoice_number, source.quotation_number, source.receipt_number)),
+    }).toString()
+    : undefined;
   const taxArray = Array.isArray(source.taxBreakdown || source.tax_breakdown)
     ? (source.taxBreakdown || source.tax_breakdown) as unknown[]
     : [];
