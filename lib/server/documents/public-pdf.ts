@@ -178,7 +178,7 @@ export async function buildPublicDocumentPdf(doc: PublicDocument): Promise<Buffe
     const st=doc.status.replace(/_/g,' ').toUpperCase(), badgeW=Math.min(84,Math.max(44,st.length*5+14));
     c.rect(right-badgeW-10,64,badgeW,15,statusColor(doc.status));
     c.text(right-badgeW/2-10,67,st,7,true,C.white,'center');
-    c.text(rx+12,67,'DOCUMENT NO.',6.5,true,[0.78,0.82,0.91]);
+    c.text(rx+12,67,doc.type==='invoice'?'INVOICE NO.':'DOCUMENT NO.',6.5,true,[0.78,0.82,0.91]);
     c.text(rx+12,77,doc.number,9.2,true,C.white);
     c.text(rx+12,93,'DATE  '+dateLabel(doc.date),7.2,false,C.white);
     if(doc.dueDate)c.text(rx+12,106,'DUE  '+dateLabel(doc.dueDate),7.2,false,C.white);
@@ -281,8 +281,9 @@ export async function buildPublicDocumentPdf(doc: PublicDocument): Promise<Buffe
     }
     y+=qrData?88:45;
   }
-  if(doc.notes||doc.terms){
-    const lines=[...(doc.notes?wrap('Notes: '+doc.notes,100):[]),...(doc.terms?wrap('Terms: '+doc.terms,100):[])],needed=22+lines.length*10;
+  const legalTerms = doc.terms || (doc.type === 'invoice' ? 'Payment due as per agreed terms. Subject to applicable jurisdiction.' : null);
+  if(doc.notes||legalTerms){
+    const lines=[...(doc.notes?wrap('Notes: '+doc.notes,100):[]),...(legalTerms?wrap('Terms: '+legalTerms,100):[])],needed=22+lines.length*10;
     if(y+needed>FOOTER_TOP-4){c.newPage();header(true);y=80;}
     c.line(M,y,right,y);y+=8;c.text(M,y,'TERMS & CONDITIONS',7.8,true,C.navy);y+=13;
     lines.slice(0,6).forEach(s=>{c.text(M,y,s,7,false,C.muted);y+=10;});
