@@ -68,6 +68,7 @@ type PublicDispatchContext = {
   total_amount: number;
   amount_paid: number;
   balance_due: number;
+  customer_outstanding_balance: number | null;
   business_name: string;
   customer_name: string;
   business_tax_id: string | null;
@@ -144,6 +145,9 @@ async function resolveDispatchContext(job: NotificationJob): Promise<PublicDispa
     total_amount: Number(row.total_amount || 0),
     amount_paid: Number(row.amount_paid || 0),
     balance_due: Number(row.balance_due || 0),
+    customer_outstanding_balance: metadata.customer_outstanding_balance === undefined || metadata.customer_outstanding_balance === null
+      || !Number.isFinite(Number(metadata.customer_outstanding_balance))
+      ? null : Number(metadata.customer_outstanding_balance),
     business_name: String(row.business_name || "Business"),
     customer_name: String(row.customer_name || "Customer"),
     business_tax_id: row.business_tax_id ? String(row.business_tax_id) : null,
@@ -167,6 +171,8 @@ function documentPlainText(doc: PublicDispatchContext) {
     `Total amount: ${formatDocumentMoney(doc.total_amount,doc.currency_code)}`,
     doc.document_type === "invoice" ? `Amount paid: ${formatDocumentMoney(doc.amount_paid,doc.currency_code)}` : "",
     doc.document_type === "invoice" ? `Balance due: ${formatDocumentMoney(doc.balance_due,doc.currency_code)}` : "",
+    doc.document_type === "receipt" && doc.customer_outstanding_balance !== null
+      ? `Customer outstanding balance: ${formatDocumentMoney(doc.customer_outstanding_balance,doc.currency_code)}` : "",
     `Status: ${doc.status.replace(/_/g," ")}`,
     `View document: ${doc.public_url}`,
     doc.business_tax_id ? `GSTIN / Tax ID: ${doc.business_tax_id}` : "",
@@ -175,7 +181,9 @@ function documentPlainText(doc: PublicDispatchContext) {
 }
 function documentSmsText(doc: PublicDispatchContext) {
   const amount = `${String(doc.currency_code || "INR").toUpperCase()} ${Number(doc.total_amount || 0).toFixed(2)}`;
-  const due = doc.document_type === "invoice" ? ` Balance due ${String(doc.currency_code || "INR").toUpperCase()} ${Number(doc.balance_due || 0).toFixed(2)}.` : "";
+  const due = doc.document_type === "invoice" ? ` Balance due ${String(doc.currency_code || "INR").toUpperCase()} ${Number(doc.balance_due || 0).toFixed(2)}.`
+    : doc.document_type === "receipt" && doc.customer_outstanding_balance !== null
+      ? ` Customer outstanding ${String(doc.currency_code || "INR").toUpperCase()} ${Number(doc.customer_outstanding_balance).toFixed(2)}.` : "";
   return `${documentLabel(doc.document_type)} #${doc.document_number} from ${doc.business_name}. Amount ${amount}.${due} View: ${doc.public_url} - Moneymatters FinOps`;
 }
 function documentCaption(doc: PublicDispatchContext) {
@@ -190,6 +198,8 @@ function documentCaption(doc: PublicDispatchContext) {
     doc.due_date ? `• *Due Date:* ${markdownEscape(doc.due_date)}` : doc.valid_until ? `• *Valid Until:* ${markdownEscape(doc.valid_until)}` : "",
     `• *Total Amount:* ${markdownEscape(formatDocumentMoney(doc.total_amount,doc.currency_code))}`,
     doc.document_type === "invoice" ? `• *Balance Due:* ${markdownEscape(formatDocumentMoney(doc.balance_due,doc.currency_code))}` : "",
+    doc.document_type === "receipt" && doc.customer_outstanding_balance !== null
+      ? `• *Customer Outstanding Balance:* ${markdownEscape(formatDocumentMoney(doc.customer_outstanding_balance,doc.currency_code))}` : "",
     `• *Status:* ${markdownEscape(doc.status.replace(/_/g," "))}`,
     "",
     `🔗 View ${doc.document_type === "invoice" ? "& Pay " : ""}Online: ${doc.public_url}`,
@@ -199,9 +209,9 @@ function documentCaption(doc: PublicDispatchContext) {
   ].filter(Boolean).join("\n");
   return caption.length <= 1000 ? caption : caption.slice(0,900) + "\n" + doc.public_url;
 }
-function buildDocumentEmailHtml(input: { businessName: string; docType: string; docNumber: string; totalAmount: string; publicUrl: string; customerName: string }) {
+function buildDocumentEmailHtml(input: { businessName: string; docType: string; docNumber: string; totalAmount: string; publicUrl: string; customerName: string; customerOutstandingBalance?: string | null }) {
   const label = documentLabel(input.docType);
-  return `<!doctype html><html><body style="margin:0;background:#f1f5f9;font-family:Arial,Helvetica,sans-serif;color:#0f172a"><div style="max-width:640px;margin:24px auto;background:#fff;border:1px solid #e2e8f0;border-radius:16px;overflow:hidden"><div style="padding:24px 28px;background:#312e81;color:#fff"><div style="font-size:12px;letter-spacing:2px;text-transform:uppercase;opacity:.85">${htmlEscape(label)}</div><h1 style="font-size:22px;margin:8px 0">${htmlEscape(input.docNumber)}</h1><div>${htmlEscape(input.businessName)}</div></div><div style="padding:24px 28px"><p>Dear ${htmlEscape(input.customerName)},</p><p>Your ${htmlEscape(label.toLowerCase())} is ready. A PDF copy is attached for your records.</p><p><strong>Total amount:</strong> ${htmlEscape(input.totalAmount)}</p><p><a href="${htmlEscape(input.publicUrl)}">View document online</a></p><div style="margin-top:32px;padding-top:16px;border-top:1px solid #e2e8f0;text-align:center;font-size:12px;color:#64748b">Sent securely via <strong>Moneymatters</strong> FinOps.<br/><a href="https://mm.nilanga.in" style="color:#4f46e5;font-weight:600;text-decoration:none">Join Moneymatters for free</a> to automate invoicing, inventory &amp; GST.</div></div></div></body></html>`;
+  return `<!doctype html><html><body style="margin:0;background:#f1f5f9;font-family:Arial,Helvetica,sans-serif;color:#0f172a"><div style="max-width:640px;margin:24px auto;background:#fff;border:1px solid #e2e8f0;border-radius:16px;overflow:hidden"><div style="padding:24px 28px;background:#312e81;color:#fff"><div style="font-size:12px;letter-spacing:2px;text-transform:uppercase;opacity:.85">${htmlEscape(label)}</div><h1 style="font-size:22px;margin:8px 0">${htmlEscape(input.docNumber)}</h1><div>${htmlEscape(input.businessName)}</div></div><div style="padding:24px 28px"><p>Dear ${htmlEscape(input.customerName)},</p><p>Your ${htmlEscape(label.toLowerCase())} is ready. A PDF copy is attached for your records.</p><p><strong>Total amount:</strong> ${htmlEscape(input.totalAmount)}</p>${input.docType === "receipt" && input.customerOutstandingBalance ? `<p><strong>Customer outstanding balance:</strong> ${htmlEscape(input.customerOutstandingBalance)}</p>` : ""}<p><a href="${htmlEscape(input.publicUrl)}">View document online</a></p><div style="margin-top:32px;padding-top:16px;border-top:1px solid #e2e8f0;text-align:center;font-size:12px;color:#64748b">Sent securely via <strong>Moneymatters</strong> FinOps.<br/><a href="https://mm.nilanga.in" style="color:#4f46e5;font-weight:600;text-decoration:none">Join Moneymatters for free</a> to automate invoicing, inventory &amp; GST.</div></div></div></body></html>`;
 }
 function documentHtml(doc: PublicDispatchContext) {
   const rows: Array<[string,string]> = [
@@ -209,6 +219,8 @@ function documentHtml(doc: PublicDispatchContext) {
     ...(doc.due_date ? [["Due date",doc.due_date] as [string,string]] : doc.valid_until ? [["Valid until",doc.valid_until] as [string,string]] : []),
     ["Total amount",formatDocumentMoney(doc.total_amount,doc.currency_code)],
     ...(doc.document_type === "invoice" ? [["Amount paid",formatDocumentMoney(doc.amount_paid,doc.currency_code)] as [string,string],["Balance due",formatDocumentMoney(doc.balance_due,doc.currency_code)] as [string,string]] : []),
+    ...(doc.document_type === "receipt" && doc.customer_outstanding_balance !== null
+      ? [["Customer outstanding balance",formatDocumentMoney(doc.customer_outstanding_balance,doc.currency_code)] as [string,string]] : []),
     ["Status",doc.status.replace(/_/g," ")],
   ];
   const tr = rows.map(([label,value]) => `<tr><td style="padding:10px 12px;border-bottom:1px solid #e2e8f0;color:#64748b">${htmlEscape(label)}</td><td style="padding:10px 12px;border-bottom:1px solid #e2e8f0;font-weight:600;color:#0f172a;text-align:right">${htmlEscape(value)}</td></tr>`).join("");
@@ -306,7 +318,9 @@ async function send(
     const textBody = dispatch ? documentPlainText(dispatch) : message + (actionUrl ? "\n\n" + actionUrl : "");
     const htmlBody = dispatch ? buildDocumentEmailHtml({ businessName: dispatch.business_name, docType: dispatch.document_type,
       docNumber: dispatch.document_number, totalAmount: formatDocumentMoney(dispatch.total_amount, dispatch.currency_code),
-      publicUrl: dispatch.public_url, customerName: dispatch.customer_name }) : undefined;
+      publicUrl: dispatch.public_url, customerName: dispatch.customer_name,
+      customerOutstandingBalance: dispatch.document_type === "receipt" && dispatch.customer_outstanding_balance !== null
+        ? formatDocumentMoney(dispatch.customer_outstanding_balance, dispatch.currency_code) : null }) : undefined;
     const response = await fetch(endpoint + "/emails", { method: "POST",
       headers: { Authorization: "Bearer " + connection.secret, "Content-Type": "application/json",
         "Idempotency-Key": job.delivery_idempotency_key || "notification-job:" + job.id },
@@ -450,7 +464,9 @@ async function send(
     const textBody = dispatch ? documentPlainText(dispatch) : message + (actionUrl ? "\n\n" + actionUrl : "");
     const htmlBody = dispatch ? buildDocumentEmailHtml({ businessName: dispatch.business_name, docType: dispatch.document_type,
       docNumber: dispatch.document_number, totalAmount: formatDocumentMoney(dispatch.total_amount, dispatch.currency_code),
-      publicUrl: dispatch.public_url, customerName: dispatch.customer_name }) : undefined;
+      publicUrl: dispatch.public_url, customerName: dispatch.customer_name,
+      customerOutstandingBalance: dispatch.document_type === "receipt" && dispatch.customer_outstanding_balance !== null
+        ? formatDocumentMoney(dispatch.customer_outstanding_balance, dispatch.currency_code) : null }) : undefined;
     const response = await fetch(connection.endpoint_url?.trim() || "https://api.sendgrid.com/v3/mail/send", {
       method: "POST", headers: { Authorization: "Bearer " + connection.secret, "Content-Type": "application/json" },
       body: JSON.stringify({ personalizations: [{ to: [{ email: job.recipient }] }], from: { email: connection.sender },
