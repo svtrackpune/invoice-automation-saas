@@ -92,3 +92,21 @@ test('receipt table sends through the selected tenant channel and offers the pub
  assert.ok(ui.includes('Send PDF'));
  assert.ok(ui.includes('create_public_receipt_link'));
 });
+
+
+test('SendGrid and Resend attach generated PDFs and use branded shared HTML',async()=>{
+ const worker=await read('supabase/functions/process-notifications/index.ts');
+ assert.match(worker,/function buildDocumentEmailHtml\(input:/);
+ const sg=worker.slice(worker.indexOf('if (connection.provider === "sendgrid")'),worker.indexOf('throw new Error("Notification provider is not supported by this worker.")'));
+ const re=worker.slice(worker.indexOf('if (connection.provider === "resend")'),worker.indexOf('if (connection.provider === "twilio")'));
+ assert.match(sg,/Buffer\.from\(await fetchDocumentPdf\(dispatch\)\)\.toString\("base64"\)/);
+ assert.match(sg,/type: "application\/pdf"/); assert.match(sg,/type: "text\/html"/);
+ assert.match(re,/content: await fetchDocumentPdf\(dispatch\)/); assert.match(re,/html: htmlBody/);
+ assert.match(worker,/automate invoicing, inventory &amp; GST/);
+});
+test('middleware explicitly recognizes public document routes',async()=>{
+ const source=await read('middleware.ts');
+ assert.match(source,/PUBLIC_DOC_PATTERNS/);
+ assert.match(source,/delivery-challan/); assert.match(source,/api\\/public-documents/);
+ assert.match(source,/PUBLIC_DOC_PATTERNS\.some\(\(pattern\) => pattern\.test\(pathname\)\) return response/);
+});
