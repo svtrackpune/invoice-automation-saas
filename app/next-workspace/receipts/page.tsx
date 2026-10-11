@@ -5,34 +5,33 @@ import { Button, Card, EmptyState, Modal, SearchInput, Select } from '@/componen
 import { PageHeader } from '@/components/ui/finops/PageHeader';
 import { StatCard } from '@/components/ui/finops/StatCard';
 import Transaction360Panel from '../documents/Transaction360Panel';
+import { buildPublicDocumentShareMessage, getPublicDocumentUrl } from '@/lib/client/share-document';
 
 type Receipt={id:string;receipt_number:string;receipt_date:string;amount:number;payment_method:string|null;reference_number:string|null;customer_id:string|null;payment_id:string|null}; type Customer={id:string;display_name:string}; type Payment={id:string;invoice_id:string|null;amount:number;reference:string|null}; type Invoice={id:string;invoice_number:string;total:number;amount_paid:number;balance_due:number};
 type SortKey='receipt'|'date'|'customer'|'invoice'|'method'|'amount'; type SortDirection='asc'|'desc';
 const money=(n:number)=>new Intl.NumberFormat('en-IN',{style:'currency',currency:'INR',maximumFractionDigits:2}).format(Number(n||0));
 
 export default function Receipts(){
- const[selectedReceipt,setSelectedReceipt]=useState<Receipt|null>(null); const[rows,setRows]=useState<Receipt[]>([]),[customers,setCustomers]=useState<Customer[]>([]),[payments,setPayments]=useState<Payment[]>([]),[invoices,setInvoices]=useState<Invoice[]>([]),[q,setQ]=useState(''),[pageSize,setPageSize]=useState('20'),[page,setPage]=useState(1),[sortBy,setSortBy]=useState<SortKey>('date'),[sortDirection,setSortDirection]=useState<SortDirection>('desc'),[loading,setLoading]=useState(true),[businessId,setBusinessId]=useState(''),[sendingReceiptId,setSendingReceiptId]=useState<string|null>(null);
- useEffect(()=>{(async()=>{const c=await supabase.rpc('get_my_business_context');const b=c.data?.[0] as BusinessContext|undefined;if(!b){location.href='/';return}setBusinessId(b.business_id);const[r,cu]=await Promise.all([supabase.from('receipts').select('id,receipt_number,receipt_date,amount,payment_method,reference_number,customer_id,payment_id').eq('business_id',b.business_id).order('receipt_date',{ascending:false}).limit(500),supabase.from('customers').select('id,display_name').eq('business_id',b.business_id).eq('is_active',true).order('display_name')]);const paymentIds=(r.data||[]).map((x:Receipt)=>x.payment_id).filter(Boolean);const p=paymentIds.length?await supabase.from('payments').select('id,invoice_id,amount,reference').eq('business_id',b.business_id).in('id',paymentIds):{data:[]};const invoiceIds=(p.data||[]).map((x:Payment)=>x.invoice_id).filter(Boolean);const i=invoiceIds.length?await supabase.from('invoices').select('id,invoice_number,total,amount_paid,balance_due').eq('business_id',b.business_id).in('id',invoiceIds):{data:[]};setRows((r.data||[]) as Receipt[]);setCustomers((cu.data||[]) as Customer[]);setPayments((p.data||[]) as Payment[]);setInvoices((i.data||[]) as Invoice[]);setLoading(false)})()},[]);
+ const[selectedReceipt,setSelectedReceipt]=useState<Receipt|null>(null); const[rows,setRows]=useState<Receipt[]>([]),[customers,setCustomers]=useState<Customer[]>([]),[payments,setPayments]=useState<Payment[]>([]),[invoices,setInvoices]=useState<Invoice[]>([]),[q,setQ]=useState(''),[pageSize,setPageSize]=useState('20'),[page,setPage]=useState(1),[sortBy,setSortBy]=useState<SortKey>('date'),[sortDirection,setSortDirection]=useState<SortDirection>('desc'),[loading,setLoading]=useState(true),[businessId,setBusinessId]=useState(''),[businessName,setBusinessName]=useState('Moneymatters'),[sendingReceiptId,setSendingReceiptId]=useState<string|null>(null);
+ useEffect(()=>{(async()=>{const c=await supabase.rpc('get_my_business_context');const b=c.data?.[0] as BusinessContext|undefined;if(!b){location.href='/';return}setBusinessId(b.business_id);setBusinessName(String(b.business_name||'Moneymatters'));const[r,cu]=await Promise.all([supabase.from('receipts').select('id,receipt_number,receipt_date,amount,payment_method,reference_number,customer_id,payment_id').eq('business_id',b.business_id).order('receipt_date',{ascending:false}).limit(500),supabase.from('customers').select('id,display_name').eq('business_id',b.business_id).eq('is_active',true).order('display_name')]);const paymentIds=(r.data||[]).map((x:Receipt)=>x.payment_id).filter(Boolean);const p=paymentIds.length?await supabase.from('payments').select('id,invoice_id,amount,reference').eq('business_id',b.business_id).in('id',paymentIds):{data:[]};const invoiceIds=(p.data||[]).map((x:Payment)=>x.invoice_id).filter(Boolean);const i=invoiceIds.length?await supabase.from('invoices').select('id,invoice_number,total,amount_paid,balance_due').eq('business_id',b.business_id).in('id',invoiceIds):{data:[]};setRows((r.data||[]) as Receipt[]);setCustomers((cu.data||[]) as Customer[]);setPayments((p.data||[]) as Payment[]);setInvoices((i.data||[]) as Invoice[]);setLoading(false)})()},[]);
  const name=(id:string|null)=>customers.find(x=>x.id===id)?.display_name||'Customer'; const payment=(id:string|null)=>payments.find(x=>x.id===id); const invoice=(id:string|null)=>invoices.find(x=>x.id===id);
  const filtered=useMemo(()=>rows.filter(x=>`${x.receipt_number} ${name(x.customer_id)} ${x.reference_number||''} ${x.payment_method||''} ${invoice(payment(x.payment_id)?.invoice_id||null)?.invoice_number||''}`.toLowerCase().includes(q.toLowerCase())),[rows,customers,payments,invoices,q]);
  const sorted=useMemo(()=>{const result=[...filtered];const d=sortDirection==='asc'?1:-1;result.sort((a,b)=>{const av=sortBy==='receipt'?a.receipt_number:sortBy==='date'?a.receipt_date:sortBy==='customer'?name(a.customer_id):sortBy==='invoice'?invoice(payment(a.payment_id)?.invoice_id||null)?.invoice_number||'':sortBy==='method'?a.payment_method||'':Number(a.amount||0);const bv=sortBy==='receipt'?b.receipt_number:sortBy==='date'?b.receipt_date:sortBy==='customer'?name(b.customer_id):sortBy==='invoice'?invoice(payment(b.payment_id)?.invoice_id||null)?.invoice_number||'':sortBy==='method'?b.payment_method||'':Number(b.amount||0);const c=typeof av==='number'&&typeof bv==='number'?av-bv:String(av).localeCompare(String(bv),undefined,{numeric:true,sensitivity:'base'});return(c||a.id.localeCompare(b.id))*d});return result},[filtered,sortBy,sortDirection,customers,payments,invoices]);
  useEffect(()=>setPage(1),[q,pageSize,sortBy,sortDirection]); const total=rows.reduce((a,x)=>a+Number(x.amount||0),0); const pages=pageSize==='all'?1:Math.max(1,Math.ceil(sorted.length/Number(pageSize))); const visible=pageSize==='all'?sorted:sorted.slice((page-1)*Number(pageSize),page*Number(pageSize));
  const openReceipt=(id:string)=>{location.href=`/next-workspace/documents?type=receipt&id=${id}`};
- const getPublicReceiptUrl=async(id:string)=>{
-   const result=await supabase.rpc('create_public_receipt_link',{p_receipt_id:id});
-   if(result.error)throw new Error(result.error.message);
-   const path=typeof result.data?.path==='string'?result.data.path:'';
-   if(!/^\/receipt\/[A-Fa-f0-9]{48,128}$/.test(path))throw new Error('The public receipt link could not be created.');
-   return new URL(path,window.location.origin).toString();
- };
+ const getPublicReceiptUrl=async(id:string)=>getPublicDocumentUrl('receipt',id);
  const copyLink=async(id:string)=>{
    try{const url=await getPublicReceiptUrl(id);try{await navigator.clipboard.writeText(url);window.alert('Public receipt link copied.')}catch{window.prompt('Copy public receipt link',url)}}
    catch(error){window.alert(error instanceof Error?error.message:'Unable to create a public receipt link.')}
  };
  const shareReceipt=async(id:string)=>{
    const row=rows.find(x=>x.id===id);
-   try{const url=await getPublicReceiptUrl(id);if(navigator.share)await navigator.share({title:`Receipt ${row?.receipt_number||''}`,text:`Payment receipt ${row?.receipt_number||''} · ${money(row?.amount||0)}`,url});else{try{await navigator.clipboard.writeText(url);window.alert('Public receipt link copied.')}catch{window.prompt('Copy public receipt link',url)}}}
-   catch(error){window.alert(error instanceof Error?error.message:'Unable to create a public receipt link.')}
+   try{
+     const url=await getPublicReceiptUrl(id);
+     const shareText=buildPublicDocumentShareMessage({documentType:'receipt',businessName,customerName:name(row?.customer_id||null),documentNumber:row?.receipt_number||'',documentDate:row?.receipt_date||'',totalAmount:Number(row?.amount||0),currencyCode:'INR',publicUrl:url});
+     if(navigator.share)await navigator.share({title:'Receipt '+(row?.receipt_number||''),text:shareText});
+     else{try{await navigator.clipboard.writeText(shareText);window.alert('Customer-ready public receipt message copied.')}catch{window.prompt('Copy public receipt message',shareText)}}
+   }catch(error){if(!(error instanceof Error&&error.name==='AbortError'))window.alert(error instanceof Error?error.message:'Unable to create a public receipt link.')}
  };
  const sendReceipt=async(id:string)=>{
    if(!businessId)return;
@@ -49,9 +48,10 @@ export default function Receipts(){
      const payload=(result.data||{}) as {queued?:boolean;client_fallback?:boolean;channel?:string;reason?:string;action_url?:string};
      if(payload.queued){window.alert('Receipt PDF queued via '+(payload.channel||'the configured provider')+'.');return;}
      if(payload.client_fallback&&payload.action_url){
-       const url=new URL(payload.action_url,window.location.origin).toString();
-       if(navigator.share)await navigator.share({title:`Receipt ${row.receipt_number}`,text:summary,url});
-       else{try{await navigator.clipboard.writeText(url);window.alert('Public receipt link copied.')}catch{window.prompt('Copy public receipt link',url)}}
+       const url=await getPublicReceiptUrl(id);
+       const shareText=buildPublicDocumentShareMessage({documentType:'receipt',businessName,customerName:name(row.customer_id),documentNumber:row.receipt_number,documentDate:row.receipt_date,totalAmount:Number(row.amount||0),currencyCode:'INR',publicUrl:url});
+       if(navigator.share)await navigator.share({title:'Receipt '+row.receipt_number,text:shareText});
+       else{try{await navigator.clipboard.writeText(shareText);window.alert('Customer-ready public receipt message copied.')}catch{window.prompt('Copy public receipt message',shareText)}}
        return;
      }
      window.alert(payload.reason||'No active customer delivery channel is configured. Use Share or Copy link.');

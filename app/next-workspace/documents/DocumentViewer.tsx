@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useMemo, useState } from 'react';
 import { supabase } from '@/lib/supabase';
+import { buildPublicDocumentShareMessage, canSharePublicDocument, getPublicDocumentUrl } from '@/lib/client/share-document';
 import QRCode from 'qrcode';
 import { CashBillCompliance, CreditNoteCompliance, DeliveryChallanCompliance, PurchaseOrderCompliance, ReceiptSettlement, TaxInvoiceCompliance, TaxSummaryGrid, type ReceiptAllocation, type TaxLine } from '@/components/documents/PrintCompliance';
 
@@ -421,11 +422,43 @@ export default function DocumentViewer({ type, id }: { type: string; id: string 
   const documentTitleOverride = text(preferences?.document_title_override || '');
   const number = model.document_number || model.challan_number || model.bill_number || model.invoice_number || model.quotation_number || model.receipt_number || model.number || '';
   const title = type === 'receipt' ? 'Payment Receipt' : type === 'tax_invoice' ? 'Tax Invoice' : type === 'cash_bill' ? 'Cash Bill' : type === 'quotation' ? 'Estimate / Quotation' : type === 'delivery_challan' ? 'Delivery Challan' : type === 'purchase_order' ? 'Purchase Order' : type === 'credit_note' ? 'Credit Note' : type === 'debit_note' ? 'Debit Note' : 'Invoice';
-  const link = typeof window !== 'undefined' ? window.location.href : '';
+  const canShareDocument = canSharePublicDocument(type);
   const logoUrl = mergedBusiness?.logo_storage_path ? supabase.storage.from('business-branding-public').getPublicUrl(mergedBusiness.logo_storage_path).data.publicUrl : '';
   const back = () => { if (type === 'invoice' && model.status === 'draft') { location.href = `/next-workspace/invoices/new?edit=${id}`; return; } history.back(); };
-  const copyLink = async () => { try { await navigator.clipboard.writeText(link); setNotice('Link copied.'); } catch { setNotice('Unable to copy link.'); } };
-  const share = async () => { try { if (navigator.share) await navigator.share({ title: `${title} ${number}`, text: `${mergedBusiness.name || 'Business'} · ${number}`, url: link }); else await copyLink(); } catch { await copyLink(); } };
+  const shareMessage = (publicUrl: string) => buildPublicDocumentShareMessage({
+    documentType: type,
+    businessName: text(mergedBusiness.name || mergedBusiness.legal_name || 'Business'),
+    customerName: text(customer.legal_name || customer.display_name || customer.name || 'Customer'),
+    documentNumber: text(number),
+    documentDate: text(model.invoice_date || model.quotation_date || model.challan_date || model.receipt_date || model.date || ''),
+    totalAmount: Number(model.total ?? model.amount ?? 0),
+    ...(type === 'invoice' || type === 'tax_invoice' || type === 'cash_bill' ? { balanceDue: Number(model.balance_due ?? 0) } : {}),
+    currencyCode: text(model.currency_code || 'INR'),
+    publicUrl,
+  });
+  const copyLink = async () => {
+    try {
+      const publicUrl = await getPublicDocumentUrl(type, id);
+      await navigator.clipboard.writeText(publicUrl);
+      setNotice('Public customer link copied.');
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : 'Unable to create a public customer link.');
+    }
+  };
+  const share = async () => {
+    try {
+      const publicUrl = await getPublicDocumentUrl(type, id);
+      const message = shareMessage(publicUrl);
+      if (navigator.share) await navigator.share({ title: title + ' ' + number, text: message });
+      else {
+        await navigator.clipboard.writeText(message);
+        setNotice('Customer-ready public sharing message copied.');
+      }
+    } catch (error) {
+      if (error instanceof Error && error.name === 'AbortError') return;
+      setNotice(error instanceof Error ? error.message : 'Unable to share this document publicly.');
+    }
+  };
   const print = () => {
     const paper = document.querySelector('.paper') as HTMLElement | null;
     if (!paper) return;
@@ -470,7 +503,7 @@ export default function DocumentViewer({ type, id }: { type: string; id: string 
   };
   if (loading) return <div className="center">Preparing document…</div>;
   if (error) return <div className="center error">{error}</div>;
-  return <main className="page"><div className="toolbar"><div><small>DOCUMENT CENTER</small><h1>{title} {number}</h1><p>{template?.template_name || theme.label} · Print-ready</p></div><div className="actions">{type==='cash_bill'&&<select aria-label="Cash Bill print format" value={cashBillFormat} onChange={e=>setCashBillFormat(e.target.value as typeof cashBillFormat)}><option value="a4">A4 Modern</option><option value="a5">A5 Modern</option><option value="thermal80">Thermal 80mm</option><option value="thermal58">Thermal 58mm</option></select>}<button onClick={back}>Back</button><button onClick={copyLink}>Copy link</button><button onClick={share}>Share Invoice</button><button onClick={print}>Print / Save PDF</button></div></div>
+  return <main className="page"><div className="toolbar"><div><small>DOCUMENT CENTER</small><h1>{title} {number}</h1><p>{template?.template_name || theme.label} · Print-ready</p></div><div className="actions">{type==='cash_bill'&&<select aria-label="Cash Bill print format" value={cashBillFormat} onChange={e=>setCashBillFormat(e.target.value as typeof cashBillFormat)}><option value="a4">A4 Modern</option><option value="a5">A5 Modern</option><option value="thermal80">Thermal 80mm</option><option value="thermal58">Thermal 58mm</option></select>}<button onClick={back}>Back</button>{canShareDocument && <button onClick={copyLink}>Copy customer link</button>}{canShareDocument && <button onClick={share}>Share public link</button>}<button onClick={print}>Print / Save PDF</button></div></div>
     <Paper type={type} payload={model} business={mergedBusiness} customer={customer} items={items} theme={theme} fields={fields} logoUrl={logoUrl} paymentSelection={paymentSelection} paymentQrDataUrl={paymentQrDataUrl}
       showLogo={preferences?.show_logo !== false} showBusinessAddress={preferences?.show_business_address !== false} showTaxDetails={preferences?.show_tax_details !== false}
       showBankDetails={paymentSelection?.payment_display_mode === 'bank' || preferences?.show_bank_details === true}
