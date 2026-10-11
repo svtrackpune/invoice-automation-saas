@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
+import { buildPublicDocumentShareMessage, getPublicDocumentUrl, publicDocumentUrlFromToken } from '@/lib/client/share-document';
 import QRCode from 'qrcode';
 import DocumentViewer from './DocumentViewer';
 import InvoiceEditModal from '../invoices/InvoiceEditModal';
@@ -15,8 +16,6 @@ export default function DocumentReviewCenter({ type, id }: { type: string; id: s
   const [amountPaid, setAmountPaid] = useState(0);
   const [paymentMode, setPaymentMode] = useState<'none'|'bank'|'online'>('none');
   const [quotationToken, setQuotationToken] = useState('');
-  const [invoiceToken, setInvoiceToken] = useState('');
-  const [challanToken, setChallanToken] = useState('');
   const [challanNumber, setChallanNumber] = useState('');
   const [quotationNumber, setQuotationNumber] = useState('');
   const [invoiceNumber, setInvoiceNumber] = useState('');
@@ -56,17 +55,16 @@ export default function DocumentReviewCenter({ type, id }: { type: string; id: s
       }
       if (type === 'challan' || type === 'delivery_challan') {
         const result = await supabase.from('delivery_challans')
-          .select('challan_number,status,public_share_token,customer_id')
+          .select('challan_number,status,customer_id')
           .eq('id', id).eq('business_id', currentBusinessId).maybeSingle();
         if (!active) return;
         if (result.error) { setError(result.error.message); setStatus('error'); return; }
         setStatus(result.data?.status || 'missing');
-        setChallanToken(String(result.data?.public_share_token || ''));
         setChallanNumber(String(result.data?.challan_number || ''));
         setCustomerId(String(result.data?.customer_id || ''));
         return;
       }
-      const result = await supabase.from('invoices').select('invoice_number,document_kind,status,amount_paid,balance_due,customer_id,payment_display_mode,payment_link,payment_qr_payload,public_share_token').eq('id', id).eq('business_id', currentBusinessId).maybeSingle();
+      const result = await supabase.from('invoices').select('invoice_number,document_kind,status,amount_paid,balance_due,customer_id,payment_display_mode,payment_link,payment_qr_payload').eq('id', id).eq('business_id', currentBusinessId).maybeSingle();
       if (!active) return;
       if (result.error) { setError(result.error.message); setStatus('error'); return; }
       setStatus(result.data?.status || 'missing');
@@ -79,7 +77,6 @@ export default function DocumentReviewCenter({ type, id }: { type: string; id: s
       setPaymentMode((result.data?.payment_display_mode || 'none') as 'none'|'bank'|'online');
       setInvoiceNumber(String(result.data?.invoice_number || ''));
       setInvoicePaymentLink(String(result.data?.payment_link || '').trim());
-      setInvoiceToken(String(result.data?.public_share_token || ''));
       setDocumentKind(result.data?.document_kind === 'cash_bill' ? 'cash_bill' : 'invoice');
       if (new URLSearchParams(window.location.search).get('edit') === '1' && result.data?.status !== 'void') setEditOpen(true);
     })();
@@ -88,7 +85,8 @@ export default function DocumentReviewCenter({ type, id }: { type: string; id: s
 
   useEffect(() => {
     if (type !== 'quotation' || !quotationToken) return;
-    const publicUrl = `${window.location.origin}/quote/${encodeURIComponent(quotationToken)}`;
+    const publicUrl = publicDocumentUrlFromToken('quotation', quotationToken);
+    if (!publicUrl) return;
     const install = () => {
       const paper = document.querySelector('.paper') as HTMLElement | null;
       if (!paper) return false;
@@ -150,32 +148,73 @@ export default function DocumentReviewCenter({ type, id }: { type: string; id: s
   const dispatchDocument = async () => {
     if (!id || !['invoice','quotation','challan','delivery_challan'].includes(type) || !businessId) return;
     setBusy(true); setError(''); setNotice('');
-    const canonicalType = type === 'delivery_challan' ? 'challan' : type;
-    const number = canonicalType === 'quotation' ? quotationNumber : canonicalType === 'challan' ? challanNumber : invoiceNumber;
-    const message = canonicalType === 'quotation'
-      ? 'Quotation ' + number + ' is ready for your review.'
-      : canonicalType === 'challan'
-        ? 'Delivery challan ' + number + ' is ready for your review.'
-        : 'Invoice ' + number + ' is ready.' + (balanceDue > 0 ? ' Balance due: ' + balanceDue.toFixed(2) + '.' : '');
-    const token = canonicalType === 'quotation' ? quotationToken : canonicalType === 'challan' ? challanToken : invoiceToken;
-    const path = canonicalType === 'quotation' ? '/quote/' : canonicalType === 'challan' ? '/challan/' : '/invoice/';
-    const actionUrl = token ? window.location.origin + path + encodeURIComponent(token) : null;
-    const result = await supabase.rpc('dispatch_customer_document',{
-      p_business_id:businessId,p_document_type:canonicalType,p_document_id:id,p_message:message,
-      p_subject:(canonicalType === 'quotation' ? 'Quotation ' : canonicalType === 'challan' ? 'Delivery Challan ' : 'Invoice ') + number,
-      p_action_url:actionUrl
-    });
-    if(result.error){setError(result.error.message);setBusy(false);return;}
-    const data=result.data as {queued?:boolean;client_fallback?:boolean;channel?:string;recipient?:string;message?:string;action_url?:string};
-    if(data.client_fallback&&data.recipient){
-      const body=[data.message||message,data.action_url||actionUrl||''].filter(Boolean).join('\n\n'),encoded=encodeURIComponent(body);let url='';
-      if(data.channel==='whatsapp')url='https://wa.me/'+data.recipient.replace(/\D/g,'')+'?text='+encoded;
-      else if(data.channel==='telegram')url='https://t.me/share/url?url='+encodeURIComponent(data.action_url||actionUrl||'')+'&text='+encodeURIComponent(data.message||message);
-      else if(data.channel==='email')url='mailto:'+data.recipient+'?subject='+encodeURIComponent(type==='quotation'?'Quotation '+quotationNumber:'Invoice '+invoiceNumber)+'&body='+encoded;
-      else url='sms:'+data.recipient+'?body='+encoded;
-      window.open(url,'_blank','noopener,noreferrer'); setNotice('Opened '+(data.channel||'client')+' fallback.');
-    }else setNotice(data.queued?'Queued via '+(data.channel||'selected channel')+'.':'Dispatch completed.');
-    setBusy(false);
+    try {
+      const canonicalType = type === 'delivery_challan' ? 'challan' : type;
+      let row: Record<string, unknown> | null = null;
+      if (canonicalType === 'invoice') {
+        const result = await supabase.from('invoices').select('invoice_number,invoice_date,total,balance_due,currency_code,customer_id').eq('id', id).eq('business_id', businessId).maybeSingle();
+        if (result.error || !result.data) throw new Error(result.error?.message || 'Invoice could not be loaded for sharing.');
+        row = result.data as unknown as Record<string, unknown>;
+      } else if (canonicalType === 'quotation') {
+        const result = await supabase.from('quotations').select('quotation_number,quotation_date,total,currency_code,customer_id').eq('id', id).eq('business_id', businessId).maybeSingle();
+        if (result.error || !result.data) throw new Error(result.error?.message || 'Quotation could not be loaded for sharing.');
+        row = result.data as unknown as Record<string, unknown>;
+      } else {
+        const result = await supabase.from('delivery_challans').select('challan_number,challan_date,total,customer_id').eq('id', id).eq('business_id', businessId).maybeSingle();
+        if (result.error || !result.data) throw new Error(result.error?.message || 'Delivery challan could not be loaded for sharing.');
+        row = result.data as unknown as Record<string, unknown>;
+      }
+
+      const documentNumber = String(row?.invoice_number || row?.quotation_number || row?.challan_number
+        || (canonicalType === 'quotation' ? quotationNumber : canonicalType === 'challan' ? challanNumber : invoiceNumber));
+      const documentDate = String(row?.invoice_date || row?.quotation_date || row?.challan_date || '');
+      const sourceCustomerId = String(row?.customer_id || customerId || '');
+      const businessResult = await supabase.from('businesses').select('name,legal_name').eq('id', businessId).maybeSingle();
+      const customerResult = sourceCustomerId
+        ? await supabase.from('customers').select('display_name,legal_name').eq('id', sourceCustomerId).eq('business_id', businessId).maybeSingle()
+        : { data: null, error: null };
+      const businessRecord = businessResult.data as {name?: string | null; legal_name?: string | null} | null;
+      const customerRecord = customerResult.data as {display_name?: string | null; legal_name?: string | null} | null;
+      const shareDetails = {
+        documentType: canonicalType,
+        businessName: String(businessRecord?.legal_name || businessRecord?.name || 'Business'),
+        customerName: String(customerRecord?.legal_name || customerRecord?.display_name || 'Customer'),
+        documentNumber,
+        documentDate,
+        totalAmount: Number(row?.total || 0),
+        ...(canonicalType === 'invoice' ? { balanceDue: Number(row?.balance_due ?? balanceDue) } : {}),
+        currencyCode: String(row?.currency_code || 'INR'),
+      };
+      const message = buildPublicDocumentShareMessage(shareDetails);
+      const result = await supabase.rpc('dispatch_customer_document', {
+        p_business_id: businessId,
+        p_document_type: canonicalType,
+        p_document_id: id,
+        p_message: message,
+        p_subject: (canonicalType === 'quotation' ? 'Quotation ' : canonicalType === 'challan' ? 'Delivery Challan ' : 'Invoice ') + documentNumber,
+        p_action_url: null,
+      });
+      if (result.error) throw new Error(result.error.message);
+      const data = result.data as { queued?: boolean; client_fallback?: boolean; channel?: string; recipient?: string; reason?: string };
+      if (data.client_fallback && data.recipient) {
+        const publicUrl = await getPublicDocumentUrl(canonicalType, id);
+        const body = buildPublicDocumentShareMessage({ ...shareDetails, publicUrl });
+        const encoded = encodeURIComponent(body);
+        let url = '';
+        if (data.channel === 'whatsapp') url = 'https://wa.me/' + data.recipient.replace(/\D/g, '') + '?text=' + encoded;
+        else if (data.channel === 'telegram') url = 'https://t.me/share/url?url=' + encodeURIComponent(publicUrl) + '&text=' + encodeURIComponent(body.replace(publicUrl, '').trim());
+        else if (data.channel === 'email') url = 'mailto:' + data.recipient + '?subject=' + encodeURIComponent(documentNumber) + '&body=' + encoded;
+        else url = 'sms:' + data.recipient + '?body=' + encoded;
+        window.open(url, '_blank', 'noopener,noreferrer');
+        setNotice('Opened ' + (data.channel || 'client') + ' fallback with the public customer link.');
+      } else {
+        setNotice(data.queued ? 'Queued via ' + (data.channel || 'selected channel') + '.' : 'Dispatch completed.');
+      }
+    } catch (error) {
+      setError(error instanceof Error ? error.message : 'Unable to prepare a secure public document link.');
+    } finally {
+      setBusy(false);
+    }
   };
 
   const quotationEditable = type === 'quotation' && ['draft','sent'].includes(status);
