@@ -302,7 +302,7 @@ async function send(
   if (connection.provider === "resend") {
     if (!connection.secret || !connection.sender) throw new Error("Email connection is incomplete.");
     const endpoint = connection.endpoint_url?.replace(/\/+$/, "") || "https://api.resend.com";
-    const attachments = dispatch ? [{ filename: attachmentFilename(dispatch), content: bytesToBase64(await fetchDocumentPdf(dispatch)) }] : [];
+    const attachments = dispatch ? [{ filename: attachmentFilename(dispatch), content: bytesToBase64(await fetchDocumentPdf(dispatch)), content_type: "application/pdf" }] : [];
     const textBody = dispatch ? documentPlainText(dispatch) : message + (actionUrl ? "\n\n" + actionUrl : "");
     const htmlBody = dispatch ? buildDocumentEmailHtml({ businessName: dispatch.business_name, docType: dispatch.document_type,
       docNumber: dispatch.document_number, totalAmount: formatDocumentMoney(dispatch.total_amount, dispatch.currency_code),
