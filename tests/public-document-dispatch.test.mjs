@@ -173,3 +173,16 @@ test('webhook claim processing state is legal and notification outbox stays idem
  assert.match(migration,/notification_jobs\.delivery_idempotency_key/);
  assert.match(connections,/notification_jobs_delivery_idempotency_uidx/);
 });
+
+test('public token RPC grants cover anon and authenticated sessions without widening function scope',async()=>{
+ const migration=await read('supabase/migrations/20261011143043_grant_public_document_rpc_permissions.sql');
+ const invoice=await read('app/invoice/[token]/page.tsx');
+ const quotation=await read('app/quote/[token]/page.tsx');
+ for(const name of ['get_public_invoice','get_public_quote','get_public_quotation','get_public_receipt','get_public_delivery_challan','get_public_document']){
+  assert.ok(migration.includes("'" + name + "'"), 'missing public RPC: ' + name);
+ }
+ assert.match(migration,/p\.pronamespace = 'public'::regnamespace/);
+ assert.match(migration,/GRANT EXECUTE ON FUNCTION %s TO anon, authenticated/);
+ assert.match(invoice,/supabase\.rpc\('get_public_invoice'/);
+ assert.match(quotation,/supabase\.rpc\('get_public_quotation'/);
+});
