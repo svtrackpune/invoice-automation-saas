@@ -41,7 +41,7 @@ function buildContentSecurityPolicy(nonce: string, supabaseOrigin: string | null
   ].join('; ');
 }
 
-const PUBLIC_DOC_PATTERNS = [
+const PUBLIC_RECIPIENT_ROUTES = [
   /^\/invoice\/[^/]+$/,
   /^\/quote\/[^/]+$/,
   /^\/receipt\/[^/]+$/,
@@ -75,8 +75,9 @@ export function middleware(request: NextRequest): NextResponse {
 
   if (isProduction) response.headers.set('Strict-Transport-Security', 'max-age=63072000; includeSubDomains; preload');
 
-  // Public bearer-token routes retain standard security headers and bypass auth/CORS policy.
-  if (PUBLIC_DOC_PATTERNS.some((pattern) => pattern.test(pathname))) return response;
+  // Public recipient links are bearer-token routes: keep security headers, then bypass
+  // private workspace auth/session policy and all cross-origin API policy checks.
+  if (PUBLIC_RECIPIENT_ROUTES.some((route) => route.test(pathname))) return response;
 
   const isPublicApi = pathname.startsWith(PUBLIC_API_PREFIX);
 
