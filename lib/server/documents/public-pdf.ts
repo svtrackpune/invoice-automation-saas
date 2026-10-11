@@ -247,7 +247,7 @@ export async function buildPublicDocumentPdf(doc: PublicDocument): Promise<Buffe
   else if(doc.cgstAmount>0||doc.sgstAmount>0)summary.push(['CGST',doc.cgstAmount,false],['SGST',doc.sgstAmount,false]);
   else if(doc.taxTotal>0)summary.push(['GST / Tax',doc.taxTotal,false]);
   const round=Number((doc.total-(doc.subtotal-doc.discountTotal+doc.taxTotal)).toFixed(2));
-  if(Math.abs(round)>=0.01)summary.push(['Round Off',round,false]);
+  summary.push(['Round Off',round,false]);
   summary.push(['Grand Total',doc.total,true]);
   if(doc.type==='invoice')summary.push(['Amount Paid',doc.amountPaid,false],['Balance Due',doc.balanceDue,true]);
   for(const [label,value,bold] of summary){
@@ -294,9 +294,11 @@ export async function buildPublicDocumentPdf(doc: PublicDocument): Promise<Buffe
     c.text(sx+18,Math.min(y+40,FOOTER_TOP-6),'Authorized Signatory',7,false,C.muted);
   }
   const pageCount=c.pages.length;
+  const footerText = 'Generated via Moneymatters FinOps | Join Moneymatters for free at mm.nilanga.in';
+  const footerX = (W - approxWidth(footerText, 6.8, false)) / 2;
   for(let i=0;i<pageCount;i++){
     c.pages[i].commands.push(rgb(C.border)+' RG 0.55 w '+M+' 31 m '+right+' 31 l S');
-    c.pages[i].commands.push(rgb(C.muted)+' rg BT /F1 6.8 Tf 1 0 0 1 '+M+' 17 Tm (Generated via Moneymatters FinOps | Join Moneymatters for free at mm.nilanga.in) Tj ET');
+    c.pages[i].commands.push(rgb(C.muted)+' rg BT /F1 6.8 Tf 1 0 0 1 '+footerX.toFixed(2)+' 17 Tm ('+esc(footerText)+') Tj ET');
     c.pages[i].commands.push(rgb(C.muted)+' rg BT /F1 7 Tf 1 0 0 1 '+(right-47).toFixed(2)+' 17 Tm (Page '+(i+1)+' of '+pageCount+') Tj ET');
   }
   if(logo&&logoId)objects[logoId-1]=Buffer.concat([
