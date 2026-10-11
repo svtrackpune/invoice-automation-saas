@@ -69,6 +69,9 @@ type PublicDispatchContext = {
   amount_paid: number;
   balance_due: number;
   customer_outstanding_balance: number | null;
+  upi_id: string | null;
+  upi_qr_string: string | null;
+  payment_link: string | null;
   business_name: string;
   customer_name: string;
   business_tax_id: string | null;
@@ -148,6 +151,9 @@ async function resolveDispatchContext(job: NotificationJob): Promise<PublicDispa
     customer_outstanding_balance: metadata.customer_outstanding_balance === undefined || metadata.customer_outstanding_balance === null
       || !Number.isFinite(Number(metadata.customer_outstanding_balance))
       ? null : Number(metadata.customer_outstanding_balance),
+    upi_id: row.upi_id ? String(row.upi_id) : null,
+    upi_qr_string: row.upi_qr_string ? String(row.upi_qr_string) : null,
+    payment_link: row.payment_link ? String(row.payment_link) : null,
     business_name: String(row.business_name || "Business"),
     customer_name: String(row.customer_name || "Customer"),
     business_tax_id: row.business_tax_id ? String(row.business_tax_id) : null,
@@ -173,6 +179,8 @@ function documentPlainText(doc: PublicDispatchContext) {
     doc.document_type === "invoice" ? `Balance due: ${formatDocumentMoney(doc.balance_due,doc.currency_code)}` : "",
     doc.document_type === "receipt" && doc.customer_outstanding_balance !== null
       ? `Customer outstanding balance: ${formatDocumentMoney(doc.customer_outstanding_balance,doc.currency_code)}` : "",
+    doc.document_type === "invoice" && doc.upi_qr_string ? `Pay Now via UPI: ${doc.upi_qr_string}` : "",
+    doc.document_type === "invoice" && doc.payment_link ? `Pay online: ${doc.payment_link}` : "",
     `Status: ${doc.status.replace(/_/g," ")}`,
     `View document: ${doc.public_url}`,
     doc.business_tax_id ? `GSTIN / Tax ID: ${doc.business_tax_id}` : "",
@@ -200,6 +208,9 @@ function documentCaption(doc: PublicDispatchContext) {
     doc.document_type === "invoice" ? `• *Balance Due:* ${markdownEscape(formatDocumentMoney(doc.balance_due,doc.currency_code))}` : "",
     doc.document_type === "receipt" && doc.customer_outstanding_balance !== null
       ? `• *Customer Outstanding Balance:* ${markdownEscape(formatDocumentMoney(doc.customer_outstanding_balance,doc.currency_code))}` : "",
+    doc.document_type === "invoice" && doc.upi_id ? `• *UPI ID:* ${markdownEscape(doc.upi_id)}` : "",
+    doc.document_type === "invoice" && doc.upi_qr_string ? `💳 Pay Now via UPI: ${doc.upi_qr_string}` : "",
+    doc.document_type === "invoice" && doc.payment_link ? `💳 Pay Online: ${doc.payment_link}` : "",
     `• *Status:* ${markdownEscape(doc.status.replace(/_/g," "))}`,
     "",
     `🔗 View ${doc.document_type === "invoice" ? "& Pay " : ""}Online: ${doc.public_url}`,
@@ -209,9 +220,9 @@ function documentCaption(doc: PublicDispatchContext) {
   ].filter(Boolean).join("\n");
   return caption.length <= 1000 ? caption : caption.slice(0,900) + "\n" + doc.public_url;
 }
-function buildDocumentEmailHtml(input: { businessName: string; docType: string; docNumber: string; totalAmount: string; publicUrl: string; customerName: string; customerOutstandingBalance?: string | null }) {
+function buildDocumentEmailHtml(input: { businessName: string; docType: string; docNumber: string; totalAmount: string; publicUrl: string; customerName: string; customerOutstandingBalance?: string | null; upiQrString?: string | null; paymentLink?: string | null }) {
   const label = documentLabel(input.docType);
-  return `<!doctype html><html><body style="margin:0;background:#f1f5f9;font-family:Arial,Helvetica,sans-serif;color:#0f172a"><div style="max-width:640px;margin:24px auto;background:#fff;border:1px solid #e2e8f0;border-radius:16px;overflow:hidden"><div style="padding:24px 28px;background:#312e81;color:#fff"><div style="font-size:12px;letter-spacing:2px;text-transform:uppercase;opacity:.85">${htmlEscape(label)}</div><h1 style="font-size:22px;margin:8px 0">${htmlEscape(input.docNumber)}</h1><div>${htmlEscape(input.businessName)}</div></div><div style="padding:24px 28px"><p>Dear ${htmlEscape(input.customerName)},</p><p>Your ${htmlEscape(label.toLowerCase())} is ready. A PDF copy is attached for your records.</p><p><strong>Total amount:</strong> ${htmlEscape(input.totalAmount)}</p>${input.docType === "receipt" && input.customerOutstandingBalance ? `<p><strong>Customer outstanding balance:</strong> ${htmlEscape(input.customerOutstandingBalance)}</p>` : ""}<p><a href="${htmlEscape(input.publicUrl)}">View document online</a></p><div style="margin-top:32px;padding-top:16px;border-top:1px solid #e2e8f0;text-align:center;font-size:12px;color:#64748b">Sent securely via <strong>Moneymatters</strong> FinOps.<br/><a href="https://mm.nilanga.in" style="color:#4f46e5;font-weight:600;text-decoration:none">Join Moneymatters for free</a> to automate invoicing, inventory &amp; GST.</div></div></div></body></html>`;
+  return `<!doctype html><html><body style="margin:0;background:#f1f5f9;font-family:Arial,Helvetica,sans-serif;color:#0f172a"><div style="max-width:640px;margin:24px auto;background:#fff;border:1px solid #e2e8f0;border-radius:16px;overflow:hidden"><div style="padding:24px 28px;background:#312e81;color:#fff"><div style="font-size:12px;letter-spacing:2px;text-transform:uppercase;opacity:.85">${htmlEscape(label)}</div><h1 style="font-size:22px;margin:8px 0">${htmlEscape(input.docNumber)}</h1><div>${htmlEscape(input.businessName)}</div></div><div style="padding:24px 28px"><p>Dear ${htmlEscape(input.customerName)},</p><p>Your ${htmlEscape(label.toLowerCase())} is ready. A PDF copy is attached for your records.</p><p><strong>Total amount:</strong> ${htmlEscape(input.totalAmount)}</p>${input.docType === "receipt" && input.customerOutstandingBalance ? `<p><strong>Customer outstanding balance:</strong> ${htmlEscape(input.customerOutstandingBalance)}</p>` : ""}${input.docType === "invoice" && input.upiQrString ? `<p><a href="${htmlEscape(input.upiQrString)}" style="display:inline-block;background:#047857;color:#fff;text-decoration:none;padding:10px 14px;border-radius:8px;font-weight:700">Pay Now via UPI</a></p>` : ""}${input.paymentLink ? `<p><a href="${htmlEscape(input.paymentLink)}">Pay online</a></p>` : ""}<p><a href="${htmlEscape(input.publicUrl)}">View document online</a></p><div style="margin-top:32px;padding-top:16px;border-top:1px solid #e2e8f0;text-align:center;font-size:12px;color:#64748b">Sent securely via <strong>Moneymatters</strong> FinOps.<br/><a href="https://mm.nilanga.in" style="color:#4f46e5;font-weight:600;text-decoration:none">Join Moneymatters for free</a> to automate invoicing, inventory &amp; GST.</div></div></div></body></html>`;
 }
 function documentHtml(doc: PublicDispatchContext) {
   const rows: Array<[string,string]> = [
@@ -320,7 +331,8 @@ async function send(
       docNumber: dispatch.document_number, totalAmount: formatDocumentMoney(dispatch.total_amount, dispatch.currency_code),
       publicUrl: dispatch.public_url, customerName: dispatch.customer_name,
       customerOutstandingBalance: dispatch.document_type === "receipt" && dispatch.customer_outstanding_balance !== null
-        ? formatDocumentMoney(dispatch.customer_outstanding_balance, dispatch.currency_code) : null }) : undefined;
+        ? formatDocumentMoney(dispatch.customer_outstanding_balance, dispatch.currency_code) : null,
+      upiQrString: dispatch.upi_qr_string, paymentLink: dispatch.payment_link }) : undefined;
     const response = await fetch(endpoint + "/emails", { method: "POST",
       headers: { Authorization: "Bearer " + connection.secret, "Content-Type": "application/json",
         "Idempotency-Key": job.delivery_idempotency_key || "notification-job:" + job.id },
@@ -466,7 +478,8 @@ async function send(
       docNumber: dispatch.document_number, totalAmount: formatDocumentMoney(dispatch.total_amount, dispatch.currency_code),
       publicUrl: dispatch.public_url, customerName: dispatch.customer_name,
       customerOutstandingBalance: dispatch.document_type === "receipt" && dispatch.customer_outstanding_balance !== null
-        ? formatDocumentMoney(dispatch.customer_outstanding_balance, dispatch.currency_code) : null }) : undefined;
+        ? formatDocumentMoney(dispatch.customer_outstanding_balance, dispatch.currency_code) : null,
+      upiQrString: dispatch.upi_qr_string, paymentLink: dispatch.payment_link }) : undefined;
     const response = await fetch(connection.endpoint_url?.trim() || "https://api.sendgrid.com/v3/mail/send", {
       method: "POST", headers: { Authorization: "Bearer " + connection.secret, "Content-Type": "application/json" },
       body: JSON.stringify({ personalizations: [{ to: [{ email: job.recipient }] }], from: { email: connection.sender },
