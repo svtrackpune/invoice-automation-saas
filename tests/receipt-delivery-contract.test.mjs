@@ -72,6 +72,11 @@ test('payment settlement guarantees one receipt, a live ledger balance and idemp
   const migration = await read('supabase/migrations/20261011190732_payment_receipt_ledger_notifications.sql');
   const tokenMigration = await read('supabase/migrations/20261011190933_receipt_token_for_every_receipt.sql');
   const cryptoMigration = await read('supabase/migrations/20261011191246_fix_receipt_token_crypto_schema.sql');
+  const paymentFix = await read('supabase/migrations/20261011195108_fix_payment_receipt_insert_idempotency.sql');
+  const outboxFix = await read('supabase/migrations/20261011195230_fix_receipt_outbox_idempotency.sql');
+  const evidenceFix = await read('supabase/migrations/20261011195752_fix_notification_evidence_partial_index.sql');
+  const receiptTokenGuard = await read('supabase/migrations/20261011195902_receipt_token_unconditional.sql');
+  const acceptedOutboxFix = await read('supabase/migrations/20261011200205_fix_accepted_invoice_outbox_idempotency.sql');
   const receiptRenderer = await read('lib/server/receipt-pdf.ts');
   const worker = await read('supabase/functions/process-notifications/index.ts');
 
@@ -105,6 +110,12 @@ test('payment settlement guarantees one receipt, a live ledger balance and idemp
   assert.match(worker, /customerOutstandingBalance:/);
   assert.match(worker, /application\/pdf/);
   assert.match(worker, /sendDocument/);
+  assert.match(paymentFix,/EXCEPTION WHEN unique_violation/);
+  assert.match(outboxFix,/pg_get_functiondef/);
+  assert.match(outboxFix,/EXCEPTION WHEN unique_violation/);
+  assert.match(evidenceFix,/ON CONFLICT \(notification_job_id, attempt_no\)\s+WHERE notification_job_id IS NOT NULL/);
+  assert.match(receiptTokenGuard,/IF v_token_position > v_customer_guard_position/);
+  assert.match(acceptedOutboxFix,/EXCEPTION WHEN unique_violation/);
   assert.ok(tokenMigration.indexOf("v_access := public._issue_receipt_access_token") < tokenMigration.indexOf("IF r.customer_id IS NULL"),
     'the receipt access token must be minted even when there is no customer contact or configured delivery channel');
   assert.match(cryptoMigration,/extensions\.gen_random_bytes\(32\)/);
