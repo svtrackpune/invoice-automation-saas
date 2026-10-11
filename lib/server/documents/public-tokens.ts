@@ -261,7 +261,12 @@ export async function loadPublicDocumentById(
         accountLast4: nullable(b.account_last4), ifscCode: nullable(b.ifsc_code), branchName: nullable(b.branch_name),
       };
     }
-    upiId = settingsResult.data?.payment_qr_enabled === false ? null : nullable(settingsResult.data?.upi_id);
+    if (settingsResult.data?.payment_qr_enabled === false) {
+      upiId = null;
+      paymentQrPayload = null;
+    } else {
+      upiId = nullable(settingsResult.data?.upi_id);
+    }
   }
   const parties = await loadParties(db, businessId, customerId || null);
   return {
