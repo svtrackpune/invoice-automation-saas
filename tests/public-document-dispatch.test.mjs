@@ -56,6 +56,8 @@ test('multi-channel worker sends real PDFs for SMTP/WAPI/Telegram and keeps test
  assert.match(worker,/attachments/);
  assert.match(worker,/documentSmsText/);
  assert.match(worker,/Wapi document delivery requires the configured instance ID/);
+ assert.match(worker,/bytesToBase64\(pdfBytes!\)/);
+ assert.match(worker,/multipart\.set\("document", new Blob/);
  assert.match(worker,/Join Moneymatters for free/);
  assert.match(worker,/job\.notification_type === "manual_test"/);
 });
@@ -103,15 +105,16 @@ test('SendGrid and Resend attach generated PDFs and use branded shared HTML',asy
  const re=worker.slice(worker.indexOf('if (connection.provider === "resend")'),worker.indexOf('if (connection.provider === "twilio")'));
  assert.match(sg,/Buffer\.from\(await fetchDocumentPdf\(dispatch\)\)\.toString\("base64"\)/);
  assert.match(sg,/type: "application\/pdf"/); assert.match(sg,/type: "text\/html"/);
- assert.match(re,/content: await fetchDocumentPdf\(dispatch\)/); assert.match(re,/html: htmlBody/);
+ assert.match(re,/content: bytesToBase64\(await fetchDocumentPdf\(dispatch\)\)/); assert.match(re,/html: htmlBody/);
  assert.match(worker,/automate invoicing, inventory &amp; GST/);
 });
 test('middleware explicitly recognizes public document routes',async()=>{
  const source=await read('middleware.ts');
- assert.match(source,/PUBLIC_DOC_PATTERNS/);
+ assert.match(source,/PUBLIC_RECIPIENT_ROUTES/);
  assert.match(source,/delivery-challan/); assert.match(source,/api.*public-documents/);
- assert.match(source,/PUBLIC_DOC_PATTERNS\.some\(\(pattern\) => pattern\.test\(pathname\)\)/);
- assert.match(source,/if \(PUBLIC_DOC_PATTERNS\.some/);
+ assert.match(source,/PUBLIC_RECIPIENT_ROUTES\.some\(\(route\) => route\.test\(pathname\)\)/);
+ assert.match(source,/if \(PUBLIC_RECIPIENT_ROUTES\.some/);
+ assert.match(source,/Public recipient links are bearer-token routes/);
  assert.match(source,/return response;/);
 });
 
