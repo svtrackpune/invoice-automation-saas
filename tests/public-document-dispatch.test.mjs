@@ -71,3 +71,14 @@ test('manual quotation dispatch advances draft to sent before exposing the publi
  assert.match(migration,/UPDATE public\.quotations SET status='sent',updated_at=now\(\)[\s\S]*?status='draft'/);
  assert.match(migration,/v_public_path := '\/quote\/'\|\|v_token/);
 });
+
+test('receipt copy/share actions use short-lived public receipt links, not workspace IDs',async()=>{
+ const ui=await read('app/next-workspace/receipts/page.tsx');
+ const sql=await read('supabase/migrations/20261011170000_public_receipt_link_rpc.sql');
+ assert.match(ui,/create_public_receipt_link/);
+ assert.match(ui,/\/receipt\/\[A-Fa-f0-9\]\{48,128\}/);
+ assert.doesNotMatch(ui,/window\.location\.origin\}\/next-workspace\/documents\?type=receipt&id=/);
+ assert.match(sql,/public\._issue_receipt_access_token\(p_receipt_id, 'customer_download'\)/);
+ assert.match(sql,/REVOKE ALL ON FUNCTION public\.create_public_receipt_link\(uuid\) FROM PUBLIC, anon/);
+ assert.match(sql,/GRANT EXECUTE ON FUNCTION public\.create_public_receipt_link\(uuid\) TO authenticated/);
+});

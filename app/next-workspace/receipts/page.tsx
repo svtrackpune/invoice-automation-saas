@@ -18,8 +18,22 @@ export default function Receipts(){
  const sorted=useMemo(()=>{const result=[...filtered];const d=sortDirection==='asc'?1:-1;result.sort((a,b)=>{const av=sortBy==='receipt'?a.receipt_number:sortBy==='date'?a.receipt_date:sortBy==='customer'?name(a.customer_id):sortBy==='invoice'?invoice(payment(a.payment_id)?.invoice_id||null)?.invoice_number||'':sortBy==='method'?a.payment_method||'':Number(a.amount||0);const bv=sortBy==='receipt'?b.receipt_number:sortBy==='date'?b.receipt_date:sortBy==='customer'?name(b.customer_id):sortBy==='invoice'?invoice(payment(b.payment_id)?.invoice_id||null)?.invoice_number||'':sortBy==='method'?b.payment_method||'':Number(b.amount||0);const c=typeof av==='number'&&typeof bv==='number'?av-bv:String(av).localeCompare(String(bv),undefined,{numeric:true,sensitivity:'base'});return(c||a.id.localeCompare(b.id))*d});return result},[filtered,sortBy,sortDirection,customers,payments,invoices]);
  useEffect(()=>setPage(1),[q,pageSize,sortBy,sortDirection]); const total=rows.reduce((a,x)=>a+Number(x.amount||0),0); const pages=pageSize==='all'?1:Math.max(1,Math.ceil(sorted.length/Number(pageSize))); const visible=pageSize==='all'?sorted:sorted.slice((page-1)*Number(pageSize),page*Number(pageSize));
  const openReceipt=(id:string)=>{location.href=`/next-workspace/documents?type=receipt&id=${id}`};
- const copyLink=async(id:string)=>{const url=`${location.origin}/next-workspace/documents?type=receipt&id=${id}`;try{await navigator.clipboard.writeText(url);window.alert('Receipt link copied.')}catch{window.prompt('Copy receipt link',url)}};
- const shareReceipt=async(id:string)=>{const url=`${location.origin}/next-workspace/documents?type=receipt&id=${id}`;const r=rows.find(x=>x.id===id);try{if(navigator.share)await navigator.share({title:`Receipt ${r?.receipt_number||''}`,text:`Payment receipt ${r?.receipt_number||''} · ${money(r?.amount||0)}`,url});else await navigator.clipboard.writeText(url)}catch{/* cancelled */}};
+ const getPublicReceiptUrl=async(id:string)=>{
+   const result=await supabase.rpc('create_public_receipt_link',{p_receipt_id:id});
+   if(result.error)throw new Error(result.error.message);
+   const path=typeof result.data?.path==='string'?result.data.path:'';
+   if(!/^\/receipt\/[A-Fa-f0-9]{48,128}$/.test(path))throw new Error('The public receipt link could not be created.');
+   return new URL(path,window.location.origin).toString();
+ };
+ const copyLink=async(id:string)=>{
+   try{const url=await getPublicReceiptUrl(id);try{await navigator.clipboard.writeText(url);window.alert('Public receipt link copied.')}catch{window.prompt('Copy public receipt link',url)}}
+   catch(error){window.alert(error instanceof Error?error.message:'Unable to create a public receipt link.')}
+ };
+ const shareReceipt=async(id:string)=>{
+   const row=rows.find(x=>x.id===id);
+   try{const url=await getPublicReceiptUrl(id);if(navigator.share)await navigator.share({title:`Receipt ${row?.receipt_number||''}`,text:`Payment receipt ${row?.receipt_number||''} · ${money(row?.amount||0)}`,url});else{try{await navigator.clipboard.writeText(url);window.alert('Public receipt link copied.')}catch{window.prompt('Copy public receipt link',url)}}}
+   catch(error){window.alert(error instanceof Error?error.message:'Unable to create a public receipt link.')}
+ };
  const toggleSort=(key:SortKey)=>{if(sortBy===key)setSortDirection(d=>d==='asc'?'desc':'asc');else{setSortBy(key);setSortDirection('asc')}};
  if(loading)return <div className="grid min-h-[70vh] place-items-center text-sm text-slate-500">Loading receipts…</div>;
  return <main className="min-h-[calc(100vh-100px)] bg-[#fbfaff] p-4 sm:p-6 lg:p-7"><div className="mx-auto max-w-[1450px]">
