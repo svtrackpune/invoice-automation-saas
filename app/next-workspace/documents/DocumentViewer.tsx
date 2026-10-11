@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useMemo, useState } from 'react';
 import { supabase } from '@/lib/supabase';
+import { createCanonicalDocumentViewModel } from '@/lib/shared/document-view-model';
 import { buildPublicDocumentShareMessage, canSharePublicDocument, getPublicDocumentUrl } from '@/lib/client/share-document';
 import QRCode from 'qrcode';
 import { CashBillCompliance, CreditNoteCompliance, DeliveryChallanCompliance, PurchaseOrderCompliance, ReceiptSettlement, TaxInvoiceCompliance, TaxSummaryGrid, type ReceiptAllocation, type TaxLine } from '@/components/documents/PrintCompliance';
@@ -397,18 +398,30 @@ export default function DocumentViewer({ type, id }: { type: string; id: string 
   const mergedBusiness = useMemo(() => ({ ...(model.business || {}), ...(business || {}) }), [model.business, business]);
   useEffect(() => {
     let active = true;
-    const existing = text(paymentSelection?.payment_qr_payload || job?.payload?.payment_qr_payload || '');
-    const upiId = text(paymentSettings?.upi_id || '');
+    const upiId = text(paymentSettings?.upi_id || paymentSelection?.bank?.upi_id || '');
     const currency = text(job?.payload?.currency_code || 'INR').trim() || 'INR';
-    const balanceDue = Math.max(0, Number(job?.payload?.balance_due || 0));
-    const invoiceTotal = Math.max(0, Number(job?.payload?.total || 0));
-    let dynamic = '';
-    if (upiId) {
+    const source = {
+      ...model,
+      type: type === 'delivery_challan' ? 'challan' : type,
+      business: mergedBusiness,
+      customer: model.customer || model.party || model.vendor || {},
+      bank: paymentSelection?.bank || {},
+    };
+    const canonical = createCanonicalDocumentViewModel(source, {
+      type: type === 'delivery_challan' ? 'challan' : ['tax_invoice','cash_bill'].includes(type) ? 'invoice' : type as any,
+      upiId,
+      prefillUpiAmount: preferences?.prefill_upi_amount !== false,
+    });
+    const existing = text(paymentSelection?.payment_qr_payload || model.payment_qr_payload || job?.payload?.payment_qr_payload || '');
+    const balanceDue = Math.max(0, Number(model.balance_due || 0));
+    const invoiceTotal = Math.max(0, Number(model.total || 0));
+    let dynamic = canonical.financials.upiQrString || '';
+    if (!dynamic && upiId && type === 'cash_bill') {
       const params = new URLSearchParams({ pa: upiId, pn: text(mergedBusiness.name || mergedBusiness.legal_name || 'Business'), cu: currency });
       if (preferences?.prefill_upi_amount !== false) params.set('am', (balanceDue > 0 ? balanceDue : invoiceTotal).toFixed(2));
       dynamic = 'upi://pay?' + params.toString();
     }
-    const value = existing || dynamic || text(paymentSelection?.payment_link || job?.payload?.payment_link || '');
+    const value = dynamic || existing || text(paymentSelection?.payment_link || model.payment_link || job?.payload?.payment_link || '');
     if (!value) { setPaymentQrDataUrl(''); return () => { active = false; }; }
     QRCode.toDataURL(value, { width: 180, margin: 1, errorCorrectionLevel: 'M' }).then((url) => { if (active) setPaymentQrDataUrl(url); }).catch(() => { if (active) setPaymentQrDataUrl(''); });
     return () => { active = false; };
@@ -416,6 +429,32 @@ export default function DocumentViewer({ type, id }: { type: string; id: string 
 
   const customer = model.customer || model.party || model.vendor || {};
   const items = type === 'receipt' ? (receiptItems.length ? receiptItems : model.items || []) : model.items || [];
+  const canonical = useMemo(() => createCanonicalDocumentViewModel({
+    ...model,
+    type: type === 'delivery_challan' ? 'challan' : type,
+    business: mergedBusiness,
+    customer,
+    items,
+    bank: paymentSelection?.bank || {},
+    upiId: paymentSettings?.upi_id || null,
+  }, {
+    type: type === 'delivery_challan' ? 'challan' : ['tax_invoice','cash_bill'].includes(type) ? 'invoice' : type as any,
+    upiId: paymentSettings?.upi_id || paymentSelection?.bank?.upi_id || null,
+    prefillUpiAmount: preferences?.prefill_upi_amount !== false,
+  }), [model, type, mergedBusiness, customer, items, paymentSelection, paymentSettings, preferences]);
+  const canonicalPayload = useMemo(() => ({
+    ...model,
+    invoice_number: canonical.document.number,
+    invoice_date: canonical.document.date,
+    currency_code: canonical.document.currency,
+    subtotal: canonical.financials.subtotal,
+    discount_total: canonical.financials.totalDiscount,
+    tax_total: Number(model.tax_total ?? canonical.financials.taxBreakdown.reduce((sum, row) => sum + row.amount, 0)),
+    total: canonical.financials.grandTotal,
+    amount_paid: canonical.financials.amountPaid,
+    balance_due: canonical.financials.balanceDue,
+    payment_qr_payload: canonical.financials.upiQrString || model.payment_qr_payload,
+  }), [model, canonical]);
   const theme = THEMES[template?.template_key] || THEMES.modern;
   const fields = preferences?.custom_fields || {};
   const studioTheme = fields?.theme_studio || {};
@@ -504,7 +543,7 @@ export default function DocumentViewer({ type, id }: { type: string; id: string 
   if (loading) return <div className="center">Preparing document…</div>;
   if (error) return <div className="center error">{error}</div>;
   return <main className="page"><div className="toolbar"><div><small>DOCUMENT CENTER</small><h1>{title} {number}</h1><p>{template?.template_name || theme.label} · Print-ready</p></div><div className="actions">{type==='cash_bill'&&<select aria-label="Cash Bill print format" value={cashBillFormat} onChange={e=>setCashBillFormat(e.target.value as typeof cashBillFormat)}><option value="a4">A4 Modern</option><option value="a5">A5 Modern</option><option value="thermal80">Thermal 80mm</option><option value="thermal58">Thermal 58mm</option></select>}<button onClick={back}>Back</button>{canShareDocument && <button onClick={copyLink}>Copy customer link</button>}{canShareDocument && <button onClick={share}>Share public link</button>}<button onClick={print}>Print / Save PDF</button></div></div>
-    <Paper type={type} payload={model} business={mergedBusiness} customer={customer} items={items} theme={theme} fields={fields} logoUrl={logoUrl} paymentSelection={paymentSelection} paymentQrDataUrl={paymentQrDataUrl}
+    <Paper type={type} payload={canonicalPayload} business={mergedBusiness} customer={customer} items={items} theme={theme} fields={fields} logoUrl={logoUrl} paymentSelection={paymentSelection} paymentQrDataUrl={paymentQrDataUrl}
       showLogo={preferences?.show_logo !== false} showBusinessAddress={preferences?.show_business_address !== false} showTaxDetails={preferences?.show_tax_details !== false}
       showBankDetails={paymentSelection?.payment_display_mode === 'bank' || preferences?.show_bank_details === true}
       showPaymentLink={preferences?.show_payment_link !== false && (paymentSelection?.payment_display_mode === 'online' || paymentSettings?.payment_link_enabled === true)}
