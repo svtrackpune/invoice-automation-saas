@@ -223,6 +223,14 @@ async function fetchDocumentPdf(doc: PublicDispatchContext) {
   if(!bytes.length||bytes.length>10*1024*1024)throw new Error("Document PDF is empty or exceeds the 10 MB email attachment limit.");
   return bytes;
 }
+function bytesToBase64(bytes: Uint8Array): string {
+  let binary = "";
+  const chunkSize = 0x8000;
+  for (let offset = 0; offset < bytes.length; offset += chunkSize) {
+    binary += String.fromCharCode(...bytes.subarray(offset, Math.min(offset + chunkSize, bytes.length)));
+  }
+  return btoa(binary);
+}
 function attachmentFilename(doc: PublicDispatchContext) {
   const kind=doc.document_type==="invoice"?"Invoice":doc.document_type==="quotation"?"Quotation":doc.document_type==="challan"?"Delivery-Challan":"Receipt";
   const no=doc.document_number.replace(/[^A-Za-z0-9._-]+/g,"-").slice(0,90)||doc.document_id;
@@ -247,8 +255,9 @@ async function send(
     const url = isDocument
       ? endpointBase + "/message/sendMedia/" + encodeURIComponent(String(connection.external_instance_id))
       : endpointBase + "/message/sendText";
+    const pdfBytes = isDocument ? await fetchDocumentPdf(dispatch!) : null;
     const body = isDocument
-      ? { number:job.recipient,mediatype:"document",mimetype:"application/pdf",caption:documentCaption(dispatch!),media:dispatch!.pdf_url,fileName:attachmentFilename(dispatch!),type:"document",filename:attachmentFilename(dispatch!) }
+      ? { number:job.recipient,mediatype:"document",mimetype:"application/pdf",caption:documentCaption(dispatch!),media:bytesToBase64(pdfBytes!),fileName:attachmentFilename(dispatch!),type:"document",filename:attachmentFilename(dispatch!) }
       : { number:job.recipient,text:message+(actionUrl && dispatch===null ? "\n\n"+actionUrl : "") };
     const response = await fetch(url,{method:"POST",headers:{Authorization:"Bearer "+connection.secret,"Content-Type":"application/json"},body:JSON.stringify(body)});
     if(!response.ok)throw new Error("Wapi delivery failed.");
@@ -263,10 +272,15 @@ async function send(
   if (connection.provider === "telegram-bot") {
     if (!connection.secret) throw new Error("Telegram connection is incomplete.");
     let endpoint: string;
-    let body: Record<string,unknown>;
+    let body: Record<string,unknown> = {};
+    let multipart: FormData | null = null;
     if(dispatch?.pdf_url){
       endpoint="https://api.telegram.org/bot"+connection.secret+"/sendDocument";
-      body={chat_id:job.recipient,document:dispatch.pdf_url,caption:documentCaption(dispatch),parse_mode:"Markdown"};
+      multipart = new FormData();
+      multipart.set("chat_id", job.recipient);
+      multipart.set("caption", documentCaption(dispatch));
+      multipart.set("parse_mode", "Markdown");
+      multipart.set("document", new Blob([await fetchDocumentPdf(dispatch)], { type: "application/pdf" }), attachmentFilename(dispatch));
     }else{
       const label="View document";
       const plainText=actionUrl?message+"\n\n"+label:message;
@@ -274,7 +288,9 @@ async function send(
       endpoint="https://api.telegram.org/bot"+connection.secret+"/sendMessage";
       body={chat_id:job.recipient,text:plainText,...(entities?{entities}:{}),disable_web_page_preview:true};
     }
-    const response=await fetch(endpoint,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
+    const response=await fetch(endpoint,multipart
+      ? {method:"POST",body:multipart}
+      : {method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
     const payload:unknown=await response.json().catch(()=>null);
     if(!response.ok||!payload||typeof payload!=="object"||(payload as Record<string,unknown>).ok!==true)throw new Error("Telegram delivery failed.");
     const result=(payload as Record<string,unknown>).result;
@@ -286,7 +302,7 @@ async function send(
   if (connection.provider === "resend") {
     if (!connection.secret || !connection.sender) throw new Error("Email connection is incomplete.");
     const endpoint = connection.endpoint_url?.replace(/\/+$/, "") || "https://api.resend.com";
-    const attachments = dispatch ? [{ filename: attachmentFilename(dispatch), content: await fetchDocumentPdf(dispatch) }] : [];
+    const attachments = dispatch ? [{ filename: attachmentFilename(dispatch), content: bytesToBase64(await fetchDocumentPdf(dispatch)) }] : [];
     const textBody = dispatch ? documentPlainText(dispatch) : message + (actionUrl ? "\n\n" + actionUrl : "");
     const htmlBody = dispatch ? buildDocumentEmailHtml({ businessName: dispatch.business_name, docType: dispatch.document_type,
       docNumber: dispatch.document_number, totalAmount: formatDocumentMoney(dispatch.total_amount, dispatch.currency_code),
