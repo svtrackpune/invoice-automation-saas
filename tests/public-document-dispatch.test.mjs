@@ -54,6 +54,8 @@ test('multi-channel worker sends real PDFs for SMTP/WAPI/Telegram and keeps test
  assert.match(worker,/\/sendDocument/);
  assert.match(worker,/contentType:"application\/pdf"/);
  assert.match(worker,/attachments/);
+ assert.match(worker,/documentSmsText/);
+ assert.match(worker,/Wapi document delivery requires the configured instance ID/);
  assert.match(worker,/Join Moneymatters for free/);
  assert.match(worker,/job\.notification_type === "manual_test"/);
 });
@@ -62,4 +64,10 @@ test('trusted link resolver defaults to the production HTTPS domain and blocks e
  const shared=await read('supabase/functions/_shared/tenant-notifications.ts');
  assert.match(shared,/https:\/\/mm\.nilanga\.in/);
  assert.match(shared,/url\.origin !== base\.origin/);
+});
+
+test('manual quotation dispatch advances draft to sent before exposing the public token',async()=>{
+ const migration=await read('supabase/migrations/20261011160000_public_quotation_dispatch_promote.sql');
+ assert.match(migration,/UPDATE public\.quotations SET status='sent',updated_at=now\(\)[\s\S]*?status='draft'/);
+ assert.match(migration,/v_public_path := '\/quote\/'\|\|v_token/);
 });

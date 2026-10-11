@@ -173,6 +173,11 @@ function documentPlainText(doc: PublicDispatchContext) {
     "Sent securely via Moneymatters FinOps. Join Moneymatters for free at https://mm.nilanga.in",
   ].filter(Boolean).join("\n");
 }
+function documentSmsText(doc: PublicDispatchContext) {
+  const amount = `${String(doc.currency_code || "INR").toUpperCase()} ${Number(doc.total_amount || 0).toFixed(2)}`;
+  const due = doc.document_type === "invoice" ? ` Balance due ${String(doc.currency_code || "INR").toUpperCase()} ${Number(doc.balance_due || 0).toFixed(2)}.` : "";
+  return `${documentLabel(doc.document_type)} #${doc.document_number} from ${doc.business_name}. Amount ${amount}.${due} View: ${doc.public_url} - Moneymatters FinOps`;
+}
 function documentCaption(doc: PublicDispatchContext) {
   const caption = [
     `📄 *${markdownEscape(documentLabel(doc.document_type))} from ${markdownEscape(doc.business_name)}*`,
@@ -226,14 +231,15 @@ async function send(
   dispatch: PublicDispatchContext | null,
 ) {
   const actionUrl = dispatch?.public_url || absoluteUrl(job.action_url);
-  const message = dispatch ? documentPlainText(dispatch) : job.message;
+  const message = dispatch ? (job.channel === "sms" ? documentSmsText(dispatch) : documentPlainText(dispatch)) : job.message;
   const subject = dispatch ? documentSubject(dispatch) : job.subject || "Notification";
 
   if (connection.provider === "wapi") {
     const configured = connection.endpoint_url?.replace(/\/+$/, "");
     if (!configured || !connection.secret) throw new Error("Wapi connection is incomplete.");
     const endpointBase = configured.replace(/\/message\/sendText\/?$/,"");
-    const isDocument = Boolean(dispatch?.pdf_url && connection.external_instance_id);
+    if (dispatch?.pdf_url && !connection.external_instance_id) throw new Error("Wapi document delivery requires the configured instance ID.");
+    const isDocument = Boolean(dispatch?.pdf_url);
     const url = isDocument
       ? endpointBase + "/message/sendMedia/" + encodeURIComponent(String(connection.external_instance_id))
       : endpointBase + "/message/sendText";
