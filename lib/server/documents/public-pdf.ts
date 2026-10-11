@@ -152,7 +152,7 @@ export async function buildPublicDocumentPdf(doc: PublicDocument): Promise<Buffe
   const catalogId = add(''), pagesId = add('');
   const font1 = add('<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>');
   const font2 = add('<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>');
-  const logo = doc.type === 'invoice' ? await fetchLogo(doc.business.logoStoragePath) : null;
+  const logo = await fetchLogo(doc.business.logoStoragePath);
   const logoId = logo ? add('') : null;
 
   const header = (continued: boolean) => {
@@ -182,6 +182,7 @@ export async function buildPublicDocumentPdf(doc: PublicDocument): Promise<Buffe
     c.text(rx+12,77,doc.number,9.2,true,C.white);
     c.text(rx+12,93,'DATE  '+dateLabel(doc.date),7.2,false,C.white);
     if(doc.dueDate)c.text(rx+12,106,'DUE  '+dateLabel(doc.dueDate),7.2,false,C.white);
+    else if(doc.validUntil)c.text(rx+12,106,'VALID UNTIL  '+dateLabel(doc.validUntil),7.2,false,C.white);
     c.line(M,135,right,135,C.border,0.8);
   };
   const partyRows=(address:unknown,phone:string|null,email:string|null,taxId:string|null)=>
@@ -201,6 +202,13 @@ export async function buildPublicDocumentPdf(doc: PublicDocument): Promise<Buffe
     const state=stateLabel(doc.placeOfSupplyStateCode);
     if(state)c.text(right,top+113,'PLACE OF SUPPLY: '+state,7.3,true,C.muted,'right');
     if(doc.type==='invoice'&&doc.supplyType)c.text(right,top+124,'Supply: '+doc.supplyType.replace(/_/g,' '),7,false,C.muted,'right');
+    if(doc.type==='challan') {
+      let detailsTop=top+128;
+      if(doc.vehicleNumber)c.text(M,detailsTop,'Vehicle No: '+doc.vehicleNumber,7.2,false,C.muted);
+      if(doc.transporterName)c.text(M+205,detailsTop,'Transporter: '+doc.transporterName,7.2,false,C.muted);
+      if(doc.ewayBillNumber)c.text(M,detailsTop+12,'E-Way Bill: '+doc.ewayBillNumber,7.2,false,C.muted);
+      return top+(doc.ewayBillNumber?160:(doc.vehicleNumber||doc.transporterName?148:124));
+    }
     return top+(doc.type==='invoice'&&doc.supplyType?134:124);
   };
   const widths=[22,144,47,39,60,52,82,77];
@@ -239,17 +247,20 @@ export async function buildPublicDocumentPdf(doc: PublicDocument): Promise<Buffe
   drawWrap(c,wordX,y+16,totalInWords(doc.total,doc.currencyCode),42,8.1,true,C.navy,3);
   c.rect(totalX,y-2,totalW,18,C.pale,C.border);
   c.text(totalX+8,y+3,'FINANCIAL SUMMARY',7.3,true,C.indigo);y+=20;
-  const summary:Array<[string,number,boolean]>=[
-    ['Subtotal',doc.subtotal,false],['Trade Discount',-Math.abs(doc.discountTotal),false],
-    ['Taxable Value',Math.max(0,doc.subtotal-doc.discountTotal),false]
-  ];
-  if(doc.igstAmount>0)summary.push(['IGST',doc.igstAmount,false]);
-  else if(doc.cgstAmount>0||doc.sgstAmount>0)summary.push(['CGST',doc.cgstAmount,false],['SGST',doc.sgstAmount,false]);
-  else if(doc.taxTotal>0)summary.push(['GST / Tax',doc.taxTotal,false]);
-  const round=Number((doc.total-(doc.subtotal-doc.discountTotal+doc.taxTotal)).toFixed(2));
-  summary.push(['Round Off',round,false]);
-  summary.push(['Grand Total',doc.total,true]);
-  if(doc.type==='invoice')summary.push(['Amount Paid',doc.amountPaid,false],['Balance Due',doc.balanceDue,true]);
+  const summary:Array<[string,number,boolean]> = doc.type === 'challan'
+    ? [['Declared Value',doc.total,true]]
+    : [
+      ['Subtotal',doc.subtotal,false],['Trade Discount',-Math.abs(doc.discountTotal),false],
+      ['Taxable Value',Math.max(0,doc.subtotal-doc.discountTotal),false]
+    ];
+  if(doc.type !== 'challan') {
+    if(doc.igstAmount>0)summary.push(['IGST',doc.igstAmount,false]);
+    else if(doc.cgstAmount>0||doc.sgstAmount>0)summary.push(['CGST',doc.cgstAmount,false],['SGST',doc.sgstAmount,false]);
+    else if(doc.taxTotal>0)summary.push(['GST / Tax',doc.taxTotal,false]);
+    const round=Number((doc.total-(doc.subtotal-doc.discountTotal+doc.taxTotal)).toFixed(2));
+    summary.push(['Round Off',round,false],['Grand Total',doc.total,true]);
+    if(doc.type==='invoice')summary.push(['Amount Paid',doc.amountPaid,false],['Balance Due',doc.balanceDue,true]);
+  }
   for(const [label,value,bold] of summary){
     if(y+15>FOOTER_TOP-4){c.newPage();header(true);y=80;}
     if(bold)c.rect(totalX,y-1,totalW,17,label==='Grand Total'?C.navy:C.pale);
@@ -257,6 +268,13 @@ export async function buildPublicDocumentPdf(doc: PublicDocument): Promise<Buffe
     c.text(totalX+7,y+2,label,label==='Grand Total'?8.1:7.5,bold,color);
     c.text(right-7,y+2,(value<0?'-':'')+money(Math.abs(value),doc.currencyCode),label==='Grand Total'?8.2:7.4,bold,color,'right');
     y+=16;
+  }
+  if(doc.type==='challan'){
+    if(y+38>FOOTER_TOP-4){c.newPage();header(true);y=80;}
+    c.rect(M,y,CW,30,C.pale,C.border);
+    c.text(M+8,y+5,'SUPPLY ON APPROVAL / JOB WORK / EXHIBITION / TRANSPORTATION ONLY',7.1,true,C.navy);
+    c.text(M+8,y+17,'NOT FOR SALE / NOT A TAX INVOICE',8,true,C.red);
+    y+=38;
   }
   y+=5;
   const qrData=doc.type==='invoice'&&doc.balanceDue>0&&doc.upiId
