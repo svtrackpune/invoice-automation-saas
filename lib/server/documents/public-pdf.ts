@@ -46,24 +46,6 @@ function addressParts(v: unknown): string[] {
     [a.city || a.locality, a.state || a.country_subdivision_code, a.postal_code || a.pin || a.pincode].filter(Boolean).join(', '),
     a.country || a.country_code].map(ascii).filter(Boolean);
 }
-function numberWords(n: number): string {
-  const one = ['', 'One','Two','Three','Four','Five','Six','Seven','Eight','Nine','Ten','Eleven','Twelve','Thirteen','Fourteen','Fifteen','Sixteen','Seventeen','Eighteen','Nineteen'];
-  const ten = ['', '', 'Twenty','Thirty','Forty','Fifty','Sixty','Seventy','Eighty','Ninety'];
-  const sub = (v: number): string => {
-    const out: string[] = [];
-    if (v >= 100) { out.push(one[Math.floor(v / 100)] + ' Hundred'); v %= 100; }
-    if (v >= 20) { out.push(ten[Math.floor(v / 10)]); v %= 10; }
-    if (v > 0) out.push(one[v]);
-    return out.join(' ');
-  };
-  if (!Number.isFinite(n) || n <= 0) return 'Zero';
-  let v = Math.floor(n); const out: string[] = [];
-  const groups: Array<[number, string]> = [[10000000,'Crore'],[100000,'Lakh'],[1000,'Thousand'],[1,'']];
-  for (const [size, label] of groups) {
-    if (v >= size) { const q = Math.floor(v / size); out.push(size === 1 ? sub(q) : sub(q) + ' ' + label); v %= size; }
-  }
-  return out.join(' ') || 'Zero';
-}
 function stateLabel(code: string | null): string {
   const states: Record<string,string> = {
     '01':'Jammu & Kashmir','02':'Himachal Pradesh','03':'Punjab','04':'Chandigarh','05':'Uttarakhand',
