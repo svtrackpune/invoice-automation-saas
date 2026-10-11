@@ -87,7 +87,7 @@ const buildReceiptPdf = (data: PdfData) => {
     amount: data.receipt.amount,
     total: data.payment?.amount ?? data.receipt.amount,
     amount_paid: data.payment?.amount ?? data.receipt.amount,
-    balance_due: data.invoice?.balance_due ?? 0,
+    balance_due: data.customer_outstanding,
     customer_outstanding: data.customer_outstanding,
     business: data.business,
     customer: data.customer,
