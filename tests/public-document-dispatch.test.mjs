@@ -162,3 +162,14 @@ test('SMS fallback uses a concise branded template with the canonical public lin
  assert.ok(review.includes("'sms:' + data.recipient + '?body=' + encodeURIComponent(smsBody)"));
  assert.ok(helper.includes("const PUBLIC_ORIGIN = 'https://mm.nilanga.in'"));
 });
+
+test('webhook claim processing state is legal and notification outbox stays idempotent',async()=>{
+ const migration=await read('supabase/migrations/20261011135517_webhook_idempotency_and_outbox.sql');
+ const connections=await read('supabase/migrations/20261003180000_gate1_tenant_notification_connections.sql');
+ assert.match(migration,/payment_webhook_events_status_check/);
+ assert.match(migration,/'processing'::text/);
+ assert.match(migration,/VALIDATE CONSTRAINT payment_webhook_events_status_check/);
+ assert.match(migration,/REVOKE ALL ON TABLE public\.payment_webhook_events FROM PUBLIC, anon, authenticated/);
+ assert.match(migration,/notification_jobs\.delivery_idempotency_key/);
+ assert.match(connections,/notification_jobs_delivery_idempotency_uidx/);
+});
