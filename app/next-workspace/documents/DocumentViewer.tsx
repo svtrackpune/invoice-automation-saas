@@ -421,7 +421,7 @@ export default function DocumentViewer({ type, id }: { type: string; id: string 
       if (preferences?.prefill_upi_amount !== false) params.set('am', (balanceDue > 0 ? balanceDue : invoiceTotal).toFixed(2));
       dynamic = 'upi://pay?' + params.toString();
     }
-    const value = dynamic || existing || text(paymentSelection?.payment_link || model.payment_link || job?.payload?.payment_link || '');
+    const value = paymentSettings?.payment_qr_enabled === false ? '' : dynamic || existing || text(paymentSelection?.payment_link || model.payment_link || job?.payload?.payment_link || '');
     if (!value) { setPaymentQrDataUrl(''); return () => { active = false; }; }
     QRCode.toDataURL(value, { width: 180, margin: 1, errorCorrectionLevel: 'M' }).then((url) => { if (active) setPaymentQrDataUrl(url); }).catch(() => { if (active) setPaymentQrDataUrl(''); });
     return () => { active = false; };
@@ -556,7 +556,7 @@ export default function DocumentViewer({ type, id }: { type: string; id: string 
       showLogo={preferences?.show_logo !== false} showBusinessAddress={preferences?.show_business_address !== false} showTaxDetails={preferences?.show_tax_details !== false}
       showBankDetails={paymentSelection?.payment_display_mode === 'bank' || preferences?.show_bank_details === true}
       showPaymentLink={preferences?.show_payment_link !== false && (paymentSelection?.payment_display_mode === 'online' || paymentSettings?.payment_link_enabled === true)}
-      showPaymentQr={preferences?.show_payment_qr !== false && (paymentSelection?.payment_display_mode === 'online' || paymentSettings?.payment_qr_enabled !== false)}
+      showPaymentQr={preferences?.show_payment_qr !== false && paymentSettings?.payment_qr_enabled !== false && (paymentSelection?.payment_display_mode === 'online' || paymentSettings?.payment_qr_enabled !== false)}
       showSignature={preferences?.show_signature === true || preferences?.show_authorized_signatory === true} showTerms={preferences?.show_terms !== false}
       showCustomerBalance={preferences?.show_customer_balance !== false && !['delivery_challan','purchase_order'].includes(type)} customerBalance={customerBalance} showAuthorizedSignatory={preferences?.show_authorized_signatory === true}
       minItemRows={Number(preferences?.min_item_rows || 0)} showSerialNumbers={preferences?.show_serial_numbers === true} documentTitleOverride={documentTitleOverride} studioTheme={studioTheme} taxLines={taxLines} receiptAllocations={receiptAllocations} originalInvoice={originalInvoice} cashBillFormat={cashBillFormat} />
