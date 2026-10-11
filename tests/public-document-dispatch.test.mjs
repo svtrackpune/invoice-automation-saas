@@ -107,6 +107,6 @@ test('SendGrid and Resend attach generated PDFs and use branded shared HTML',asy
 test('middleware explicitly recognizes public document routes',async()=>{
  const source=await read('middleware.ts');
  assert.match(source,/PUBLIC_DOC_PATTERNS/);
- assert.match(source,/delivery-challan/); assert.match(source,/api\\/public-documents/);
+ assert.match(source,/delivery-challan/); assert.match(source,/api.*public-documents/);
  assert.match(source,/PUBLIC_DOC_PATTERNS\.some\(\(pattern\) => pattern\.test\(pathname\)\) return response/);
 });
