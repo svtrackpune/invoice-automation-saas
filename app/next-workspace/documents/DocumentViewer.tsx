@@ -154,7 +154,7 @@ function DocumentTotals({ payload, currency='INR', receipt=false, showTaxDetails
     </div>
     <div className="amount-words">
       <span>Amount in words</span>
-      <strong>{whole}{currency === 'INR' ? ` Rupees${paise ? ` and ${String(paise).padStart(2,'0')} Paise` : ''}` : ''} Only</strong>
+      <strong>{text(payload.amount_in_words || (whole + (currency === 'INR' ? ` Rupees${paise ? ` and ${String(paise).padStart(2,'0')} Paise` : ''}` : '') + ' Only'))}</strong>
     </div>
   </div>;
 }
