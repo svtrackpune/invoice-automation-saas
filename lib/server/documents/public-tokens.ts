@@ -249,7 +249,7 @@ export async function loadPublicDocumentById(
       paymentBankAccountId
         ? db.from('bank_accounts').select('name,institution_name,account_holder_name,account_number,account_last4,ifsc_code,branch_name').eq('id', paymentBankAccountId).eq('business_id', businessId).maybeSingle()
         : Promise.resolve({ data: null, error: null }),
-      db.from('document_payment_settings').select('upi_id').eq('business_id', businessId).maybeSingle(),
+      db.from('document_payment_settings').select('upi_id,payment_qr_enabled').eq('business_id', businessId).maybeSingle(),
     ]);
     if (bankResult.error) throw new Error('Invoice settlement details are unavailable.');
     if (settingsResult.error) throw new Error('Invoice payment settings are unavailable.');
@@ -261,7 +261,7 @@ export async function loadPublicDocumentById(
         accountLast4: nullable(b.account_last4), ifscCode: nullable(b.ifsc_code), branchName: nullable(b.branch_name),
       };
     }
-    upiId = nullable(settingsResult.data?.upi_id);
+    upiId = settingsResult.data?.payment_qr_enabled === false ? null : nullable(settingsResult.data?.upi_id);
   }
   const parties = await loadParties(db, businessId, customerId || null);
   return {
