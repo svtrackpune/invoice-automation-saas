@@ -85,7 +85,7 @@ export function canonicalAddress(value: unknown): string {
     first(a.line2, a.address_line2, a.address_line_2),
     [first(a.city, a.locality), first(a.state, a.state_name), first(a.postal_code, a.pin, a.pincode, a.zip)].filter(Boolean).join(' '),
     first(a.country, a.country_name),
-  ].map(str).filter(Boolean).join(', ');
+  ].map(value => str(value)).filter(Boolean).join(', ');
 }
 
 function numberWords(value: number): string {
