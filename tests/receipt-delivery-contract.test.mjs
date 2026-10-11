@@ -71,6 +71,7 @@ test('dedicated notification worker cadence is one minute', async () => {
 test('payment settlement guarantees one receipt, a live ledger balance and idempotent multi-channel PDF outbox jobs', async () => {
   const migration = await read('supabase/migrations/20261011190732_payment_receipt_ledger_notifications.sql');
   const tokenMigration = await read('supabase/migrations/20261011190933_receipt_token_for_every_receipt.sql');
+  const cryptoMigration = await read('supabase/migrations/20261011191246_fix_receipt_token_crypto_schema.sql');
   const receiptRenderer = await read('lib/server/receipt-pdf.ts');
   const worker = await read('supabase/functions/process-notifications/index.ts');
 
@@ -106,4 +107,9 @@ test('payment settlement guarantees one receipt, a live ledger balance and idemp
   assert.match(worker, /sendDocument/);
   assert.ok(tokenMigration.indexOf("v_access := public._issue_receipt_access_token") < tokenMigration.indexOf("IF r.customer_id IS NULL"),
     'the receipt access token must be minted even when there is no customer contact or configured delivery channel');
+  assert.match(cryptoMigration,/extensions\.gen_random_bytes\(32\)/);
+  assert.match(cryptoMigration,/extensions\.digest\(token_value, 'sha256'\)/);
+  assert.match(cryptoMigration,/REVOKE ALL ON FUNCTION public\._issue_receipt_access_token\(uuid,text\)/);
+  assert.match(receiptRenderer,/createCanonicalDocumentViewModel/);
+  assert.match(receiptRenderer,/canonical\.financials\.amountInWords/);
 });
