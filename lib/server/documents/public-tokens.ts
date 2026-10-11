@@ -32,11 +32,17 @@ export type PublicDocument = {
   ewayBillNumber: string | null;
   business: {
     name: string; legalName: string | null; email: string | null; phone: string | null;
-    website: string | null; address: unknown; taxRegistrationNumber: string | null; logoStoragePath: string | null;
+    website: string | null; address: unknown; taxRegistrationNumber: string | null; logoStoragePath: string | null; pan: string | null;
   };
   customer: {
-    name: string; legalName: string | null; email: string | null; phone: string | null; address: unknown; taxId: string | null;
+    name: string; legalName: string | null; email: string | null; phone: string | null; address: unknown;
+    billingAddress: unknown; shippingAddress: unknown; taxId: string | null;
   };
+  placeOfSupplyStateCode: string | null; supplyType: string | null;
+  cgstAmount: number; sgstAmount: number; igstAmount: number;
+  bankDetails: { name: string | null; institutionName: string | null; accountHolderName: string | null;
+    accountNumber: string | null; accountLast4: string | null; ifscCode: string | null; branchName: string | null } | null;
+  upiId: string | null;
   items: Array<{
     description: string; quantity: number; unit: string | null; unitPrice: number;
     discount: number; taxAmount: number; lineTotal: number; hsnSac: string | null;
@@ -67,7 +73,7 @@ function statusAllowed(type: PublicDocumentType, status: string, validUntil: str
 }
 
 async function loadParties(db: SupabaseClient, businessId: string, customerId: string | null) {
-  const [businessResult, customerResult] = await Promise.all([
+  const [businessResult, customerResult, taxProfileResult] = await Promise.all([
     db.from('businesses')
       .select('id,name,legal_name,email,phone,website,address,tax_registration_number,logo_storage_path')
       .eq('id', businessId).maybeSingle(),
@@ -75,22 +81,28 @@ async function loadParties(db: SupabaseClient, businessId: string, customerId: s
       ? db.from('customers').select('id,display_name,legal_name,email,phone,billing_address,shipping_address,tax_id')
           .eq('id', customerId).eq('business_id', businessId).maybeSingle()
       : Promise.resolve({ data: null, error: null }),
+    db.from('business_tax_profiles').select('gstin,pan,gst_registration_type').eq('business_id', businessId).maybeSingle(),
   ]);
   if (businessResult.error || !businessResult.data) throw new Error('Public document business is unavailable.');
   if (customerId && (customerResult.error || !customerResult.data)) throw new Error('Public document customer is unavailable.');
+  if (taxProfileResult.error) throw new Error('Public document tax profile is unavailable.');
   const b = businessResult.data as Row;
   const c = (customerResult.data ?? {}) as Row;
+  const taxProfile = (taxProfileResult.data ?? {}) as Row;
+  const gstType = text(taxProfile.gst_registration_type).toUpperCase();
   return {
     business: {
       name: text(b.legal_name || b.name) || 'Business',
       legalName: nullable(b.legal_name), email: nullable(b.email), phone: nullable(b.phone),
       website: nullable(b.website), address: b.address ?? null,
-      taxRegistrationNumber: nullable(b.tax_registration_number), logoStoragePath: nullable(b.logo_storage_path),
+      taxRegistrationNumber: gstType === 'NONE' ? null : nullable(taxProfile.gstin || b.tax_registration_number),
+      logoStoragePath: nullable(b.logo_storage_path), pan: nullable(taxProfile.pan),
     },
     customer: {
       name: text(c.legal_name || c.display_name) || 'Customer',
       legalName: nullable(c.legal_name), email: nullable(c.email), phone: nullable(c.phone),
-      address: c.shipping_address ?? c.billing_address ?? null, taxId: nullable(c.tax_id),
+      address: c.shipping_address ?? c.billing_address ?? null,
+      billingAddress: c.billing_address ?? null, shippingAddress: c.shipping_address ?? null, taxId: nullable(c.tax_id),
     },
   };
 }
