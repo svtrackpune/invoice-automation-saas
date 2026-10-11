@@ -396,36 +396,7 @@ export default function DocumentViewer({ type, id }: { type: string; id: string 
     return rawModel;
   }, [rawModel,type]);
   const mergedBusiness = useMemo(() => ({ ...(model.business || {}), ...(business || {}) }), [model.business, business]);
-  useEffect(() => {
-    let active = true;
-    const upiId = text(paymentSettings?.payment_qr_enabled === false ? '' : (paymentSettings?.upi_id || paymentSelection?.bank?.upi_id || ''));
-    const currency = text(job?.payload?.currency_code || 'INR').trim() || 'INR';
-    const source = {
-      ...model,
-      type: type === 'delivery_challan' ? 'challan' : type,
-      business: mergedBusiness,
-      customer: model.customer || model.party || model.vendor || {},
-      bank: paymentSelection?.bank || {},
-    };
-    const canonical = createCanonicalDocumentViewModel(source, {
-      type: type === 'delivery_challan' ? 'challan' : ['tax_invoice','cash_bill'].includes(type) ? 'invoice' : type as any,
-      upiId,
-      prefillUpiAmount: preferences?.prefill_upi_amount !== false,
-    });
-    const existing = paymentSettings?.payment_qr_enabled === false ? '' : text(paymentSelection?.payment_qr_payload || model.payment_qr_payload || job?.payload?.payment_qr_payload || '');
-    const balanceDue = Math.max(0, Number(model.balance_due || 0));
-    const invoiceTotal = Math.max(0, Number(model.total || 0));
-    let dynamic = canonical.financials.upiQrString || '';
-    if (!dynamic && upiId && type === 'cash_bill') {
-      const params = new URLSearchParams({ pa: upiId, pn: text(mergedBusiness.name || mergedBusiness.legal_name || 'Business'), cu: currency });
-      if (preferences?.prefill_upi_amount !== false) params.set('am', (balanceDue > 0 ? balanceDue : invoiceTotal).toFixed(2));
-      dynamic = 'upi://pay?' + params.toString();
-    }
-    const value = paymentSettings?.payment_qr_enabled === false ? '' : dynamic || existing || text(paymentSelection?.payment_link || model.payment_link || job?.payload?.payment_link || '');
-    if (!value) { setPaymentQrDataUrl(''); return () => { active = false; }; }
-    QRCode.toDataURL(value, { width: 180, margin: 1, errorCorrectionLevel: 'M' }).then((url) => { if (active) setPaymentQrDataUrl(url); }).catch(() => { if (active) setPaymentQrDataUrl(''); });
-    return () => { active = false; };
-  }, [paymentSelection, job, paymentSettings, preferences, business, model, mergedBusiness, type]);
+
 
   const customer = model.customer || model.party || model.vendor || {};
   const items = type === 'receipt' ? (receiptItems.length ? receiptItems : model.items || []) : model.items || [];
@@ -464,6 +435,36 @@ export default function DocumentViewer({ type, id }: { type: string; id: string 
     balance_due: canonical.financials.balanceDue,
     payment_qr_payload: canonicalPaymentEnabled ? canonical.financials.upiQrString || model.payment_qr_payload : model.payment_qr_payload,
   }), [model, canonical]);
+  useEffect(() => {
+    let active = true;
+    const upiId = text(paymentSettings?.payment_qr_enabled === false ? '' : (paymentSettings?.upi_id || paymentSelection?.bank?.upi_id || ''));
+    const currency = text(job?.payload?.currency_code || 'INR').trim() || 'INR';
+    const source = {
+      ...model,
+      type: type === 'delivery_challan' ? 'challan' : type,
+      business: mergedBusiness,
+      customer: model.customer || model.party || model.vendor || {},
+      bank: paymentSelection?.bank || {},
+    };
+    const canonical = createCanonicalDocumentViewModel(source, {
+      type: type === 'delivery_challan' ? 'challan' : ['tax_invoice','cash_bill'].includes(type) ? 'invoice' : type as any,
+      upiId,
+      prefillUpiAmount: preferences?.prefill_upi_amount !== false,
+    });
+    const existing = paymentSettings?.payment_qr_enabled === false ? '' : text(paymentSelection?.payment_qr_payload || model.payment_qr_payload || job?.payload?.payment_qr_payload || '');
+    const balanceDue = Math.max(0, Number(model.balance_due || 0));
+    const invoiceTotal = Math.max(0, Number(model.total || 0));
+    let dynamic = canonical.financials.upiQrString || '';
+    if (!dynamic && upiId && type === 'cash_bill') {
+      const params = new URLSearchParams({ pa: upiId, pn: text(mergedBusiness.name || mergedBusiness.legal_name || 'Business'), cu: currency });
+      if (preferences?.prefill_upi_amount !== false) params.set('am', (balanceDue > 0 ? balanceDue : invoiceTotal).toFixed(2));
+      dynamic = 'upi://pay?' + params.toString();
+    }
+    const value = paymentSettings?.payment_qr_enabled === false ? '' : dynamic || existing || text(paymentSelection?.payment_link || model.payment_link || job?.payload?.payment_link || '');
+    if (!value) { setPaymentQrDataUrl(''); return () => { active = false; }; }
+    QRCode.toDataURL(value, { width: 180, margin: 1, errorCorrectionLevel: 'M' }).then((url) => { if (active) setPaymentQrDataUrl(url); }).catch(() => { if (active) setPaymentQrDataUrl(''); });
+    return () => { active = false; };
+  }, [paymentSelection, job, paymentSettings, preferences, business, model, mergedBusiness, type, canonical, canonicalPaymentEnabled]);
   const theme = THEMES[template?.template_key] || THEMES.modern;
   const fields = preferences?.custom_fields || {};
   const studioTheme = fields?.theme_studio || {};
