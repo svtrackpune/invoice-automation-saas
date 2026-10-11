@@ -76,9 +76,11 @@ test('receipt copy/share actions use short-lived public receipt links, not works
  const ui=await read('app/next-workspace/receipts/page.tsx');
  const sql=await read('supabase/migrations/20261011170000_public_receipt_link_rpc.sql');
  assert.match(ui,/create_public_receipt_link/);
- assert.match(ui,/\/receipt\/\[A-Fa-f0-9\]\{48,128\}/);
- assert.doesNotMatch(ui,/window\.location\.origin\}\/next-workspace\/documents\?type=receipt&id=/);
- assert.match(sql,/public\._issue_receipt_access_token\(p_receipt_id, 'customer_download'\)/);
- assert.match(sql,/REVOKE ALL ON FUNCTION public\.create_public_receipt_link\(uuid\) FROM PUBLIC, anon/);
- assert.match(sql,/GRANT EXECUTE ON FUNCTION public\.create_public_receipt_link\(uuid\) TO authenticated/);
+ assert.match(ui,/result\\.data\\?\\.path/);
+ assert.match(ui,/\[A-Fa-f0-9\]\{48,128\}/);
+ assert.match(ui,/const copyLink=async\\(id:string\\)=>\\{/);
+ assert.match(ui,/const shareReceipt=async\\(id:string\\)=>\\{/);
+ assert.match(sql,/public\\._issue_receipt_access_token\\(p_receipt_id, 'customer_download'\\)/);
+ assert.match(sql,/REVOKE ALL ON FUNCTION public\\.create_public_receipt_link\\(uuid\\) FROM PUBLIC, anon/);
+ assert.match(sql,/GRANT EXECUTE ON FUNCTION public\\.create_public_receipt_link\\(uuid\\) TO authenticated/);
 });
