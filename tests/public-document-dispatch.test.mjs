@@ -210,5 +210,12 @@ test('public invoice renderer creates a vector-rendered A4 GST PDF with QR and b
  assert.equal(raw.slice(Number(match[1]),Number(match[1])+4),'xref');
  const qr=QRCodePlaceholderForTest(pdf);
  assert.ok(qr);
+
+ const challan={...doc,type:'challan',number:'DC-0004',status:'dispatched',dueDate:null,validUntil:null,amountPaid:0,balanceDue:0,
+  placeOfSupplyStateCode:null,supplyType:null,cgstAmount:0,sgstAmount:0,igstAmount:0,bankDetails:null,upiId:null,
+  vehicleNumber:'MH24AB1234',transporterName:'Sample Transport',ewayBillNumber:'EWB-12345'};
+ const challanPdf=await buildPublicDocumentPdf(challan);
+ const challanText=challanPdf.toString('latin1');
+ for(const value of ['DELIVERY CHALLAN','Vehicle No: MH24AB1234','Transporter: Sample Transport','E-Way Bill: EWB-12345','NOT FOR SALE / NOT A TAX INVOICE']) assert.ok(challanText.includes(value),'Challan PDF is missing '+value);
 });
 function QRCodePlaceholderForTest(pdf){return pdf.includes(Buffer.from('SCAN TO PAY'));}
