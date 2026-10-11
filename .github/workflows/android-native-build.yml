@@ -37,8 +37,8 @@ jobs:
       - name: Install web dependencies
         run: npm ci
 
-      - name: Install Capacitor 6 toolchain
-        run: npm install --no-save --package-lock=false --ignore-scripts --save-exact @capacitor/core@6.2.2 @capacitor/android@6.2.2 @capacitor/cli@6.2.2
+      - name: Install Capacitor 8 toolchain
+        run: npm install --no-save --package-lock=false --ignore-scripts --save-exact @capacitor/core@8.5.3 @capacitor/android@8.5.3 @capacitor/cli@8.5.3
 
       - name: Sync Android project
         run: npx cap sync android
