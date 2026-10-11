@@ -131,7 +131,7 @@ function canonicalType(source: Source, explicitType?: string): CanonicalDocument
   const t = str(first(explicitType, source.type, source.document_type, source.documentType, source.document_kind)).toLowerCase();
   if (t.includes('challan')) return 'challan';
   if (t.includes('receipt') || t.includes('voucher')) return 'receipt';
-  if (t.includes('quote') || t.includes('estimate')) return 'quotation';
+  if (t.includes('quotation') || t.includes('quote') || t.includes('estimate')) return 'quotation';
   return 'invoice';
 }
 
