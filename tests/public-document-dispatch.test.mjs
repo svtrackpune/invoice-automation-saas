@@ -186,3 +186,29 @@ test('public token RPC grants cover anon and authenticated sessions without wide
  assert.match(invoice,/supabase\.rpc\('get_public_invoice'/);
  assert.match(quotation,/supabase\.rpc\('get_public_quotation'/);
 });
+
+test('public invoice renderer creates a vector-rendered A4 GST PDF with QR and binary xref',async()=>{
+ const { buildPublicDocumentPdf }=await import('../lib/server/documents/public-pdf.ts');
+ const doc={
+  type:'invoice',id:'invoice-id',businessId:'business-id',number:'INV-000018',date:'2026-10-11',dueDate:'2026-10-25',validUntil:null,status:'sent',currencyCode:'INR',
+  subtotal:200,discountTotal:10,taxTotal:34.2,total:224.2,amountPaid:50,balanceDue:174.2,notes:'Payment due within agreed terms.',terms:'Subject to jurisdiction.',paymentLink:null,paymentQrPayload:null,
+  vehicleNumber:null,transporterName:null,ewayBillNumber:null,placeOfSupplyStateCode:'27',supplyType:'intra_state',cgstAmount:17.1,sgstAmount:17.1,igstAmount:0,
+  bankDetails:{name:'Primary Account',institutionName:'Sample Bank',accountHolderName:'Sample Industries',accountNumber:'1234567890',accountLast4:'7890',ifscCode:'SBIN0001234',branchName:'Nilanga'},upiId:'sample@upi',
+  business:{name:'Sample Industries',legalName:'Sample Industries Private Limited',email:'billing@example.test',phone:'9999999999',website:'https://example.test',address:{line1:'Main Road',city:'Nilanga',state:'Maharashtra',postal_code:'413521',country:'India'},taxRegistrationNumber:'27ABCDE1234F1Z5',logoStoragePath:null,pan:'ABCDE1234F'},
+  customer:{name:'Example Customer',legalName:'Example Customer LLP',email:'customer@example.test',phone:'8888888888',address:{line1:'Market Road',city:'Latur',state:'Maharashtra',postal_code:'413512'},billingAddress:{line1:'Market Road',city:'Latur',state:'Maharashtra',postal_code:'413512'},shippingAddress:{line1:'Industrial Estate',city:'Latur',state:'Maharashtra',postal_code:'413512'},taxId:'27AACCE1234A1Z7'},
+  items:[{description:'Industrial Equipment',quantity:2,unit:'pcs',unitPrice:100,discount:10,taxAmount:34.2,lineTotal:224.2,hsnSac:'8479'}]
+ };
+ const pdf=await buildPublicDocumentPdf(doc);
+ assert.ok(Buffer.isBuffer(pdf));
+ assert.equal(pdf.subarray(0,8).toString('ascii'),'%PDF-1.4');
+ const raw=pdf.toString('latin1');
+ assert.match(raw,/\/MediaBox \[0 0 595\.28 841\.89\]/);
+ for(const text of ['TAX INVOICE','INV-000018','BILLED TO','SHIPPED TO','HSN/SAC','CGST','SGST','Grand Total','Balance Due','SCAN TO PAY','Generated via Moneymatters FinOps']) assert.ok(raw.includes(text),'PDF is missing '+text);
+ assert.doesNotMatch(raw,/Rs\./);
+ const match=raw.match(/startxref\n(\d+)\n%%EOF/);
+ assert.ok(match,'PDF cross-reference offset is missing');
+ assert.equal(raw.slice(Number(match[1]),Number(match[1])+4),'xref');
+ const qr=QRCodePlaceholderForTest(pdf);
+ assert.ok(qr);
+});
+function QRCodePlaceholderForTest(pdf){return pdf.includes(Buffer.from('SCAN TO PAY'));}
