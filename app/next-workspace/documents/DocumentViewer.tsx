@@ -398,7 +398,7 @@ export default function DocumentViewer({ type, id }: { type: string; id: string 
   const mergedBusiness = useMemo(() => ({ ...(model.business || {}), ...(business || {}) }), [model.business, business]);
   useEffect(() => {
     let active = true;
-    const upiId = text(paymentSettings?.upi_id || paymentSelection?.bank?.upi_id || '');
+    const upiId = text(paymentSettings?.payment_qr_enabled === false ? '' : (paymentSettings?.upi_id || paymentSelection?.bank?.upi_id || ''));
     const currency = text(job?.payload?.currency_code || 'INR').trim() || 'INR';
     const source = {
       ...model,
@@ -433,7 +433,7 @@ export default function DocumentViewer({ type, id }: { type: string; id: string 
     : type === 'quotation' ? 'quotation'
       : type === 'receipt' ? 'receipt' : 'invoice';
   const canonicalPaymentEnabled = ['invoice','tax_invoice','cash_bill'].includes(type);
-  const configuredUpiId = canonicalPaymentEnabled
+  const configuredUpiId = canonicalPaymentEnabled && paymentSettings?.payment_qr_enabled !== false
     ? paymentSettings?.upi_id || paymentSelection?.bank?.upi_id || null
     : null;
   const canonical = useMemo(() => createCanonicalDocumentViewModel({
