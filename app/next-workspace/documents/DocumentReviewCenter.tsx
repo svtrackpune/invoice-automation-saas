@@ -15,6 +15,9 @@ export default function DocumentReviewCenter({ type, id }: { type: string; id: s
   const [amountPaid, setAmountPaid] = useState(0);
   const [paymentMode, setPaymentMode] = useState<'none'|'bank'|'online'>('none');
   const [quotationToken, setQuotationToken] = useState('');
+  const [invoiceToken, setInvoiceToken] = useState('');
+  const [challanToken, setChallanToken] = useState('');
+  const [challanNumber, setChallanNumber] = useState('');
   const [quotationNumber, setQuotationNumber] = useState('');
   const [invoiceNumber, setInvoiceNumber] = useState('');
   const [customerId, setCustomerId] = useState('');
@@ -51,7 +54,19 @@ export default function DocumentReviewCenter({ type, id }: { type: string; id: s
         if (new URLSearchParams(window.location.search).get('edit') === '1' && ['draft','sent'].includes(String(result.data?.status))) setQuotationEditOpen(true);
         return;
       }
-      const result = await supabase.from('invoices').select('invoice_number,document_kind,status,amount_paid,balance_due,customer_id,payment_display_mode,payment_link,payment_qr_payload').eq('id', id).eq('business_id', currentBusinessId).maybeSingle();
+      if (type === 'challan' || type === 'delivery_challan') {
+        const result = await supabase.from('delivery_challans')
+          .select('challan_number,status,public_share_token,customer_id')
+          .eq('id', id).eq('business_id', currentBusinessId).maybeSingle();
+        if (!active) return;
+        if (result.error) { setError(result.error.message); setStatus('error'); return; }
+        setStatus(result.data?.status || 'missing');
+        setChallanToken(String(result.data?.public_share_token || ''));
+        setChallanNumber(String(result.data?.challan_number || ''));
+        setCustomerId(String(result.data?.customer_id || ''));
+        return;
+      }
+      const result = await supabase.from('invoices').select('invoice_number,document_kind,status,amount_paid,balance_due,customer_id,payment_display_mode,payment_link,payment_qr_payload,public_share_token').eq('id', id).eq('business_id', currentBusinessId).maybeSingle();
       if (!active) return;
       if (result.error) { setError(result.error.message); setStatus('error'); return; }
       setStatus(result.data?.status || 'missing');
@@ -64,6 +79,7 @@ export default function DocumentReviewCenter({ type, id }: { type: string; id: s
       setPaymentMode((result.data?.payment_display_mode || 'none') as 'none'|'bank'|'online');
       setInvoiceNumber(String(result.data?.invoice_number || ''));
       setInvoicePaymentLink(String(result.data?.payment_link || '').trim());
+      setInvoiceToken(String(result.data?.public_share_token || ''));
       setDocumentKind(result.data?.document_kind === 'cash_bill' ? 'cash_bill' : 'invoice');
       if (new URLSearchParams(window.location.search).get('edit') === '1' && result.data?.status !== 'void') setEditOpen(true);
     })();
@@ -132,11 +148,23 @@ export default function DocumentReviewCenter({ type, id }: { type: string; id: s
   }, [id, type, paymentMode]);
 
   const dispatchDocument = async () => {
-    if (!id || !['invoice','quotation'].includes(type) || !businessId) return;
+    if (!id || !['invoice','quotation','challan','delivery_challan'].includes(type) || !businessId) return;
     setBusy(true); setError(''); setNotice('');
-    const message = type === 'quotation' ? 'Quotation ' + quotationNumber + ' is ready for your review.' : 'Invoice ' + invoiceNumber + ' is ready.' + (balanceDue > 0 ? ' Balance due: ' + balanceDue.toFixed(2) + '.' : '');
-    const actionUrl = type === 'quotation' && quotationToken ? window.location.origin + '/quote/' + encodeURIComponent(quotationToken) : invoicePaymentLink || null;
-    const result = await supabase.rpc('dispatch_customer_document',{p_business_id:businessId,p_document_type:type,p_document_id:id,p_message:message,p_subject:type==='quotation'?'Quotation '+quotationNumber:'Invoice '+invoiceNumber,p_action_url:actionUrl});
+    const canonicalType = type === 'delivery_challan' ? 'challan' : type;
+    const number = canonicalType === 'quotation' ? quotationNumber : canonicalType === 'challan' ? challanNumber : invoiceNumber;
+    const message = canonicalType === 'quotation'
+      ? 'Quotation ' + number + ' is ready for your review.'
+      : canonicalType === 'challan'
+        ? 'Delivery challan ' + number + ' is ready for your review.'
+        : 'Invoice ' + number + ' is ready.' + (balanceDue > 0 ? ' Balance due: ' + balanceDue.toFixed(2) + '.' : '');
+    const token = canonicalType === 'quotation' ? quotationToken : canonicalType === 'challan' ? challanToken : invoiceToken;
+    const path = canonicalType === 'quotation' ? '/quote/' : canonicalType === 'challan' ? '/challan/' : '/invoice/';
+    const actionUrl = token ? window.location.origin + path + encodeURIComponent(token) : null;
+    const result = await supabase.rpc('dispatch_customer_document',{
+      p_business_id:businessId,p_document_type:canonicalType,p_document_id:id,p_message:message,
+      p_subject:(canonicalType === 'quotation' ? 'Quotation ' : canonicalType === 'challan' ? 'Delivery Challan ' : 'Invoice ') + number,
+      p_action_url:actionUrl
+    });
     if(result.error){setError(result.error.message);setBusy(false);return;}
     const data=result.data as {queued?:boolean;client_fallback?:boolean;channel?:string;recipient?:string;message?:string;action_url?:string};
     if(data.client_fallback&&data.recipient){
@@ -192,7 +220,7 @@ export default function DocumentReviewCenter({ type, id }: { type: string; id: s
 
   return <div className="relative min-h-screen">
     <DocumentViewer type={type} id={id} />
-    {type === 'invoice' && <div className="fixed inset-x-0 bottom-0 z-[80] border-t border-slate-200 bg-white/95 px-4 py-3 shadow-[0_-10px_40px_rgba(15,23,42,.12)] backdrop-blur sm:px-6"><div className="mx-auto flex max-w-6xl flex-col gap-2 sm:flex-row sm:items-center sm:justify-between"><div className="min-w-0"><div className="text-sm font-semibold text-slate-900">{draft ? 'Review invoice before posting' : status === 'void' ? 'Invoice voided' : documentKind === 'cash_bill' ? 'Cash Bill correction' : 'Invoice correction'}</div><div className="text-xs text-slate-500">{draft ? 'Check customer, items, quantities, GST, totals, payment details and the final layout. Nothing affects the ledger until you finalize the invoice.' : status === 'void' ? 'This invoice is permanently void in the accounting history.' : documentKind === 'cash_bill' ? 'Correct the existing counter sale. The bill number stays unchanged and its settlement payment and receipt are synchronized with the corrected total.' : 'Correct any manual mistake from the existing document. The invoice number stays unchanged and the accounting history is amended with a controlled reversal and repost.'}</div>{error&&<div className="mt-1 text-xs font-medium text-red-600">{error}</div>}{notice&&<div className="mt-1 text-xs font-medium text-emerald-600">{notice}</div>}</div><div className="flex shrink-0 gap-2"><button type="button" onClick={back} className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50">Back</button>{(type==='invoice'||type==='quotation')&&status!=='void'&&<button type="button" onClick={dispatchDocument} disabled={busy} className="rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-2.5 text-sm font-semibold text-indigo-700 disabled:opacity-50">{busy?'Sending…':'Send document'}</button>}{editable&&<button type="button" onClick={openEdit} disabled={busy} className="rounded-xl border border-violet-200 bg-violet-50 px-4 py-2.5 text-sm font-semibold text-violet-700 hover:bg-violet-100 disabled:opacity-50">{documentKind === 'cash_bill' ? 'Edit Cash Bill' : 'Edit Invoice'}</button>}{draft&&<button type="button" onClick={finalize} disabled={busy} className="rounded-xl bg-violet-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-violet-700 disabled:cursor-not-allowed disabled:opacity-50">{busy?'Posting…':'Finalize & Post'}</button>}{canCreateCreditNote&&<button type="button" onClick={()=>{setError('');setNotice('');setCreditNoteOpen(true)}} disabled={busy} className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-2.5 text-sm font-semibold text-amber-800 hover:bg-amber-100 disabled:opacity-50">Credit note</button>}{!draft&&paymentMode==='online'&&status!=='void'&&<button type="button" onClick={generatePaymentLink} disabled={busy} className="rounded-xl border border-violet-200 bg-violet-50 px-4 py-2.5 text-sm font-semibold text-violet-700 hover:bg-violet-100 disabled:opacity-50">{busy?'Generating…':'Generate Payment Link'}</button>}{voidable&&<button type="button" onClick={voidInvoice} disabled={busy} className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-2.5 text-sm font-semibold text-rose-700 hover:bg-rose-100 disabled:opacity-50">{busy?'Voiding…':'Void Invoice'}</button>}</div></div></div>}
+    {type === 'invoice' && <div className="fixed inset-x-0 bottom-0 z-[80] border-t border-slate-200 bg-white/95 px-4 py-3 shadow-[0_-10px_40px_rgba(15,23,42,.12)] backdrop-blur sm:px-6"><div className="mx-auto flex max-w-6xl flex-col gap-2 sm:flex-row sm:items-center sm:justify-between"><div className="min-w-0"><div className="text-sm font-semibold text-slate-900">{draft ? 'Review invoice before posting' : status === 'void' ? 'Invoice voided' : documentKind === 'cash_bill' ? 'Cash Bill correction' : 'Invoice correction'}</div><div className="text-xs text-slate-500">{draft ? 'Check customer, items, quantities, GST, totals, payment details and the final layout. Nothing affects the ledger until you finalize the invoice.' : status === 'void' ? 'This invoice is permanently void in the accounting history.' : documentKind === 'cash_bill' ? 'Correct the existing counter sale. The bill number stays unchanged and its settlement payment and receipt are synchronized with the corrected total.' : 'Correct any manual mistake from the existing document. The invoice number stays unchanged and the accounting history is amended with a controlled reversal and repost.'}</div>{error&&<div className="mt-1 text-xs font-medium text-red-600">{error}</div>}{notice&&<div className="mt-1 text-xs font-medium text-emerald-600">{notice}</div>}</div><div className="flex shrink-0 gap-2"><button type="button" onClick={back} className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50">Back</button>{(type==='invoice'||type==='quotation'||type==='challan'||type==='delivery_challan')&&status!=='void'&&<button type="button" onClick={dispatchDocument} disabled={busy} className="rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-2.5 text-sm font-semibold text-indigo-700 disabled:opacity-50">{busy?'Sending…':'Send document'}</button>}{editable&&<button type="button" onClick={openEdit} disabled={busy} className="rounded-xl border border-violet-200 bg-violet-50 px-4 py-2.5 text-sm font-semibold text-violet-700 hover:bg-violet-100 disabled:opacity-50">{documentKind === 'cash_bill' ? 'Edit Cash Bill' : 'Edit Invoice'}</button>}{draft&&<button type="button" onClick={finalize} disabled={busy} className="rounded-xl bg-violet-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-violet-700 disabled:cursor-not-allowed disabled:opacity-50">{busy?'Posting…':'Finalize & Post'}</button>}{canCreateCreditNote&&<button type="button" onClick={()=>{setError('');setNotice('');setCreditNoteOpen(true)}} disabled={busy} className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-2.5 text-sm font-semibold text-amber-800 hover:bg-amber-100 disabled:opacity-50">Credit note</button>}{!draft&&paymentMode==='online'&&status!=='void'&&<button type="button" onClick={generatePaymentLink} disabled={busy} className="rounded-xl border border-violet-200 bg-violet-50 px-4 py-2.5 text-sm font-semibold text-violet-700 hover:bg-violet-100 disabled:opacity-50">{busy?'Generating…':'Generate Payment Link'}</button>}{voidable&&<button type="button" onClick={voidInvoice} disabled={busy} className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-2.5 text-sm font-semibold text-rose-700 hover:bg-rose-100 disabled:opacity-50">{busy?'Voiding…':'Void Invoice'}</button>}</div></div></div>}
     {(type === 'invoice' || type === 'quotation') && <Transaction360Panel entityType={type === 'invoice' ? documentKind : 'quotation'} entityId={id} />}
     {creditNoteOpen && canCreateCreditNote && <CreditNoteModal open={creditNoteOpen} businessId={businessId} customerId={customerId} invoiceId={id} invoiceNumber={invoiceNumber} balanceDue={balanceDue} items={invoiceItems} onClose={()=>setCreditNoteOpen(false)} onSaved={async()=>{setCreditNoteOpen(false);window.location.reload();}} />}
     {editOpen && <InvoiceEditModal invoiceId={id} invoiceNumber={invoiceNumber} documentKind={documentKind} amountPaid={amountPaid} onClose={closeEdit} />}

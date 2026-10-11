@@ -75,6 +75,12 @@ export default function PublicInvoice({params}:{params:Promise<{token:string}>})
         {invoice.payment_display_mode==='online'&&<div className="text-center"><h3 className="font-bold uppercase tracking-wider">Payment</h3>{invoice.payment_link&&<a href={invoice.payment_link} target="_blank" rel="noreferrer" className="mt-3 inline-flex rounded-lg bg-violet-600 px-5 py-2.5 text-sm font-bold text-white">Pay Now</a>}{qr&&<div className="mt-3"><Image src={qr} alt="Payment QR" width={144} height={144} unoptimized className="mx-auto h-36 w-36"/><p className="mt-1 text-[11px] text-slate-500">Scan to pay the invoice amount.</p></div>}</div>}
       </section>}
 
+
+      <section className="flex flex-col gap-3 border-t border-slate-200 p-6 sm:flex-row sm:items-center sm:justify-between sm:p-8 print:hidden">
+        <div><p className="font-semibold text-slate-900">Need a copy for your records?</p><p className="mt-1 text-xs text-slate-500">Download a PDF copy of this invoice.</p></div>
+        <a href={'/api/public-documents/pdf?type=invoice&token=' + encodeURIComponent(token)} className="inline-flex min-h-12 items-center justify-center rounded-xl bg-violet-600 px-6 py-3 text-sm font-semibold text-white hover:bg-violet-700">Download Official PDF</a>
+      </section>
+
       <footer className="border-t border-slate-200 bg-slate-50 p-6 text-center text-xs text-slate-400"><div>This is a customer-facing invoice shared by {invoice.business.name}.</div><div className="mt-3 flex items-center justify-center gap-2 border-t border-slate-200 pt-3"><span className="inline-grid h-4 w-4 place-items-center rounded bg-violet-600 text-[9px] font-black text-white">M</span><span>Powered by <strong className="text-violet-600">Moneymatters</strong></span></div></footer>
     </article>
   </main>;

@@ -1,0 +1,261 @@
+import 'server-only';
+
+import type { SupabaseClient } from '@supabase/supabase-js';
+import { buildReceiptPdf, getServerSupabase, loadReceiptPdfData, sha256Hex } from '@/lib/server/receipt-pdf';
+import { buildPublicDocumentPdf } from '@/lib/server/documents/public-pdf';
+
+export type PublicDocumentType = 'invoice' | 'quotation' | 'challan' | 'receipt';
+type Row = Record<string, unknown>;
+
+export type PublicDocument = {
+  type: PublicDocumentType;
+  id: string;
+  businessId: string;
+  number: string;
+  date: string;
+  dueDate: string | null;
+  validUntil: string | null;
+  status: string;
+  currencyCode: string;
+  subtotal: number;
+  discountTotal: number;
+  taxTotal: number;
+  total: number;
+  amountPaid: number;
+  balanceDue: number;
+  notes: string | null;
+  terms: string | null;
+  paymentLink: string | null;
+  paymentQrPayload: string | null;
+  vehicleNumber: string | null;
+  transporterName: string | null;
+  ewayBillNumber: string | null;
+  business: {
+    name: string; legalName: string | null; email: string | null; phone: string | null;
+    website: string | null; address: unknown; taxRegistrationNumber: string | null; logoStoragePath: string | null;
+  };
+  customer: {
+    name: string; legalName: string | null; email: string | null; phone: string | null; address: unknown; taxId: string | null;
+  };
+  items: Array<{
+    description: string; quantity: number; unit: string | null; unitPrice: number;
+    discount: number; taxAmount: number; lineTotal: number; hsnSac: string | null;
+  }>;
+};
+
+const text = (v: unknown) => String(v ?? '').trim();
+const n = (v: unknown) => Number(v ?? 0);
+const nullable = (v: unknown) => v == null || text(v) === '' ? null : text(v);
+const TOKEN_PATTERN = /^[A-Fa-f0-9]{48,128}$/;
+
+function statusAllowed(type: PublicDocumentType, status: string, validUntil: string | null) {
+  const s = status.toLowerCase();
+  if (type === 'invoice') return ['sent', 'partially_paid', 'paid'].includes(s);
+  if (type === 'quotation') {
+    return ['sent', 'accepted'].includes(s)
+      && (!validUntil || s === 'accepted' || validUntil.slice(0, 10) >= new Date().toISOString().slice(0, 10));
+  }
+  if (type === 'challan') return !['draft', 'void', 'cancelled', 'deleted'].includes(s);
+  return true;
+}
+
+async function loadParties(db: SupabaseClient, businessId: string, customerId: string | null) {
+  const [businessResult, customerResult] = await Promise.all([
+    db.from('businesses')
+      .select('id,name,legal_name,email,phone,website,address,tax_registration_number,logo_storage_path')
+      .eq('id', businessId).maybeSingle(),
+    customerId
+      ? db.from('customers').select('id,display_name,legal_name,email,phone,billing_address,shipping_address,tax_id')
+          .eq('id', customerId).eq('business_id', businessId).maybeSingle()
+      : Promise.resolve({ data: null, error: null }),
+  ]);
+  if (businessResult.error || !businessResult.data) throw new Error('Public document business is unavailable.');
+  if (customerId && (customerResult.error || !customerResult.data)) throw new Error('Public document customer is unavailable.');
+  const b = businessResult.data as Row;
+  const c = (customerResult.data ?? {}) as Row;
+  return {
+    business: {
+      name: text(b.legal_name || b.name) || 'Business',
+      legalName: nullable(b.legal_name), email: nullable(b.email), phone: nullable(b.phone),
+      website: nullable(b.website), address: b.address ?? null,
+      taxRegistrationNumber: nullable(b.tax_registration_number), logoStoragePath: nullable(b.logo_storage_path),
+    },
+    customer: {
+      name: text(c.legal_name || c.display_name) || 'Customer',
+      legalName: nullable(c.legal_name), email: nullable(c.email), phone: nullable(c.phone),
+      address: c.shipping_address ?? c.billing_address ?? null, taxId: nullable(c.tax_id),
+    },
+  };
+}
+
+export async function loadPublicDocumentById(
+  type: PublicDocumentType,
+  id: string,
+  businessId: string,
+): Promise<PublicDocument | null> {
+  const db = getServerSupabase();
+  if (type === 'receipt') {
+    const data = await loadReceiptPdfData(db, id);
+    if (text(data.receipt.business_id) !== businessId) return null;
+    return {
+      type, id: text(data.receipt.id), businessId, number: text(data.receipt.receipt_number),
+      date: text(data.receipt.receipt_date), dueDate: null, validUntil: null, status: 'paid',
+      currencyCode: text(data.receipt.currency_code || 'INR') || 'INR', subtotal: n(data.receipt.amount),
+      discountTotal: 0, taxTotal: 0, total: n(data.receipt.amount), amountPaid: n(data.receipt.amount),
+      balanceDue: Math.max(0, n(data.invoice?.balance_due)), notes: nullable(data.receipt.notes), terms: null,
+      paymentLink: null, paymentQrPayload: null, vehicleNumber: null, transporterName: null, ewayBillNumber: null,
+      business: {
+        name: text(data.business?.legal_name || data.business?.name) || 'Business',
+        legalName: nullable(data.business?.legal_name), email: nullable(data.business?.email),
+        phone: nullable(data.business?.phone), website: nullable(data.business?.website), address: data.business?.address ?? null,
+        taxRegistrationNumber: nullable(data.business?.tax_registration_number), logoStoragePath: null,
+      },
+      customer: {
+        name: text(data.customer?.legal_name || data.customer?.display_name) || 'Customer',
+        legalName: nullable(data.customer?.legal_name), email: nullable(data.customer?.email),
+        phone: nullable(data.customer?.phone), address: null, taxId: null,
+      },
+      items: data.items.map(item => ({
+        description: text(item.name) || 'Item', quantity: n(item.quantity), unit: null,
+        unitPrice: n(item.unit_price), discount: 0, taxAmount: 0, lineTotal: n(item.line_total), hsnSac: null,
+      })),
+    };
+  }
+
+  let row: Row;
+  let customerId: string;
+  let typeToken: string;
+  let number: string;
+  let date: string;
+  let dueDate: string | null = null;
+  let validUntil: string | null = null;
+  let status: string;
+  let currencyCode = 'INR';
+  let subtotal = 0, discountTotal = 0, taxTotal = 0, total = 0, amountPaid = 0, balanceDue = 0;
+  let notes: string | null = null, terms: string | null = null;
+  let paymentLink: string | null = null, paymentQrPayload: string | null = null;
+  let vehicleNumber: string | null = null, transporterName: string | null = null, ewayBillNumber: string | null = null;
+  let items: PublicDocument['items'] = [];
+
+  if (type === 'invoice') {
+    const result = await db.from('invoices')
+      .select('id,business_id,customer_id,invoice_number,invoice_date,due_date,status,currency_code,subtotal,discount_total,tax_total,total,amount_paid,balance_due,notes,terms,payment_display_mode,payment_link,payment_qr_payload,public_share_token')
+      .eq('id', id).eq('business_id', businessId).maybeSingle();
+    if (result.error || !result.data) return null;
+    row = result.data as Row;
+    typeToken = text(row.public_share_token);
+    customerId = text(row.customer_id); number = text(row.invoice_number); date = text(row.invoice_date);
+    status = text(row.status); dueDate = nullable(row.due_date); currencyCode = text(row.currency_code || 'INR') || 'INR';
+    subtotal = n(row.subtotal); discountTotal = n(row.discount_total); taxTotal = n(row.tax_total);
+    total = n(row.total); amountPaid = n(row.amount_paid); balanceDue = n(row.balance_due);
+    notes = nullable(row.notes); terms = nullable(row.terms);
+    if (text(row.payment_display_mode) === 'online') {
+      paymentLink = nullable(row.payment_link);
+      paymentQrPayload = nullable(row.payment_qr_payload || row.payment_link);
+    }
+    const itemResult = await db.from('invoice_items')
+      .select('description,quantity,unit_price,discount,tax_amount,line_total,hsn_sac,product_service_id,sort_order')
+      .eq('invoice_id', id).order('sort_order');
+    if (itemResult.error) throw new Error('Invoice items are unavailable.');
+    const productIds = Array.from(new Set(((itemResult.data || []) as Row[]).map(x => text(x.product_service_id)).filter(Boolean)));
+    const productsResult = productIds.length
+      ? await db.from('products_services').select('id,name,unit').eq('business_id', businessId).in('id', productIds)
+      : { data: [], error: null };
+    if (productsResult.error) throw new Error('Invoice products are unavailable.');
+    const products = new Map(((productsResult.data || []) as Row[]).map(p => [text(p.id), p]));
+    items = ((itemResult.data || []) as Row[]).map(item => {
+      const product = products.get(text(item.product_service_id));
+      return {
+        description: text(product?.name || item.description) || 'Item', quantity: n(item.quantity),
+        unit: nullable(product?.unit), unitPrice: n(item.unit_price), discount: n(item.discount),
+        taxAmount: n(item.tax_amount), lineTotal: n(item.line_total), hsnSac: nullable(item.hsn_sac),
+      };
+    });
+  } else if (type === 'quotation') {
+    const result = await db.from('quotations')
+      .select('id,business_id,customer_id,quotation_number,quotation_date,valid_until,status,currency_code,subtotal,discount_amount,tax_amount,total,notes,terms,public_accept_token')
+      .eq('id', id).eq('business_id', businessId).maybeSingle();
+    if (result.error || !result.data) return null;
+    row = result.data as Row;
+    typeToken = text(row.public_accept_token);
+    customerId = text(row.customer_id); number = text(row.quotation_number); date = text(row.quotation_date);
+    status = text(row.status); validUntil = nullable(row.valid_until); currencyCode = text(row.currency_code || 'INR') || 'INR';
+    subtotal = n(row.subtotal); discountTotal = n(row.discount_amount); taxTotal = n(row.tax_amount); total = n(row.total);
+    balanceDue = total; notes = nullable(row.notes); terms = nullable(row.terms);
+    const itemResult = await db.from('quotation_items')
+      .select('description,quantity,unit_price,discount_type,discount_value,tax_rate_id,sort_order')
+      .eq('quotation_id', id).order('sort_order');
+    if (itemResult.error) throw new Error('Quotation items are unavailable.');
+    items = ((itemResult.data || []) as Row[]).map(item => {
+      const base = n(item.quantity) * n(item.unit_price);
+      const discount = text(item.discount_type) === 'percentage' ? base * n(item.discount_value) / 100 : n(item.discount_value);
+      return { description: text(item.description) || 'Item', quantity: n(item.quantity), unit: null, unitPrice: n(item.unit_price), discount, taxAmount: 0, lineTotal: Math.max(0, base - discount), hsnSac: null };
+    });
+  } else {
+    const result = await db.from('delivery_challans')
+      .select('id,business_id,customer_id,challan_number,challan_date,status,subtotal,total,notes,terms,vehicle_number,transporter_name,eway_bill_number,public_share_token')
+      .eq('id', id).eq('business_id', businessId).maybeSingle();
+    if (result.error || !result.data) return null;
+    row = result.data as Row;
+    typeToken = text(row.public_share_token);
+    customerId = text(row.customer_id); number = text(row.challan_number); date = text(row.challan_date);
+    status = text(row.status); subtotal = n(row.subtotal); total = n(row.total); balanceDue = total;
+    notes = nullable(row.notes); terms = nullable(row.terms); vehicleNumber = nullable(row.vehicle_number);
+    transporterName = nullable(row.transporter_name); ewayBillNumber = nullable(row.eway_bill_number);
+    const itemResult = await db.from('delivery_challan_items')
+      .select('description,quantity,unit,unit_price,line_total,hsn_sac,sort_order')
+      .eq('challan_id', id).eq('business_id', businessId).order('sort_order');
+    if (itemResult.error) throw new Error('Delivery challan items are unavailable.');
+    items = ((itemResult.data || []) as Row[]).map(item => ({
+      description: text(item.description) || 'Item', quantity: n(item.quantity), unit: nullable(item.unit),
+      unitPrice: n(item.unit_price), discount: 0, taxAmount: 0, lineTotal: n(item.line_total), hsnSac: nullable(item.hsn_sac),
+    }));
+  }
+
+  if (!statusAllowed(type, status, validUntil)) return null;
+  if (typeToken.length < 48) return null;
+  const parties = await loadParties(db, businessId, customerId || null);
+  return {
+    type, id, businessId, number, date, dueDate, validUntil, status, currencyCode,
+    subtotal, discountTotal, taxTotal, total, amountPaid, balanceDue, notes, terms,
+    paymentLink, paymentQrPayload, vehicleNumber, transporterName, ewayBillNumber,
+    business: parties.business, customer: parties.customer, items,
+  };
+}
+
+export async function resolvePublicDocumentByToken(type: PublicDocumentType, token: string): Promise<PublicDocument | null> {
+  if (!['invoice', 'quotation', 'challan', 'receipt'].includes(type) || !TOKEN_PATTERN.test(token)) return null;
+  const db = getServerSupabase();
+  if (type === 'receipt') {
+    const { data, error } = await db.from('receipt_access_tokens')
+      .select('receipt_id,business_id,purpose,expires_at,revoked_at')
+      .eq('token_hash', sha256Hex(token)).maybeSingle();
+    if (error || !data || data.revoked_at) return null;
+    if (!['customer_download', 'whatsapp_delivery'].includes(text(data.purpose))) return null;
+    if (data.expires_at && new Date(String(data.expires_at)).getTime() <= Date.now()) return null;
+    return loadPublicDocumentById('receipt', text(data.receipt_id), text(data.business_id));
+  }
+
+  const table = type === 'invoice' ? 'invoices' : type === 'quotation' ? 'quotations' : 'delivery_challans';
+  const tokenColumn = type === 'invoice' ? 'public_share_token' : type === 'quotation' ? 'public_accept_token' : 'public_share_token';
+  const found = await db.from(table).select('id,business_id').eq(tokenColumn, token).maybeSingle();
+  if (found.error || !found.data) return null;
+  const document = await loadPublicDocumentById(type, text(found.data.id), text(found.data.business_id));
+  if (!document) return null;
+  // A token lookup and row read happen separately; re-check the token on the document row to prevent stale token use.
+  const verify = await db.from(table).select(tokenColumn).eq('id', document.id).eq('business_id', document.businessId).maybeSingle();
+  if (verify.error || !verify.data || text((verify.data as Row)[tokenColumn]) !== token) return null;
+  return document;
+}
+
+export async function renderDocumentToBuffer(type: PublicDocumentType, id: string, businessId: string): Promise<Buffer> {
+  if (type === 'receipt') {
+    const db = getServerSupabase();
+    const data = await loadReceiptPdfData(db, id);
+    if (text(data.receipt.business_id) !== businessId) throw new Error('Receipt not found.');
+    return buildReceiptPdf(data);
+  }
+  const document = await loadPublicDocumentById(type, id, businessId);
+  if (!document) throw new Error('Public document not found.');
+  return buildPublicDocumentPdf(document);
+}

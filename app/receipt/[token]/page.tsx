@@ -1,0 +1,13 @@
+import { notFound } from 'next/navigation';
+import { resolvePublicDocumentByToken } from '@/lib/server/documents/public-tokens';
+export const dynamic='force-dynamic';
+const money=(v:number,c:string)=>new Intl.NumberFormat('en-IN',{style:'currency',currency:c||'INR',maximumFractionDigits:2}).format(Number(v||0));
+export default async function PublicReceipt({params}:{params:Promise<{token:string}>}){
+ const {token}=await params;const decoded=decodeURIComponent(token);const doc=await resolvePublicDocumentByToken('receipt',decoded);if(!doc)notFound();
+ const pdf='/api/receipts/pdf?token='+encodeURIComponent(decoded);
+ return <main className="min-h-screen bg-slate-100 p-4 sm:p-8"><article className="mx-auto max-w-3xl overflow-hidden rounded-2xl bg-white shadow-sm">
+ <header className="border-b border-slate-200 p-6 sm:p-8"><p className="text-xs font-bold uppercase tracking-[0.18em] text-violet-600">Payment Receipt</p><h1 className="mt-1 text-2xl font-bold text-slate-900">{doc.number}</h1><p className="mt-2 text-sm font-medium text-slate-600">{doc.business.name}</p>{doc.business.taxRegistrationNumber&&<p className="text-xs text-slate-500">GSTIN / Tax ID: {doc.business.taxRegistrationNumber}</p>}<p className="mt-3 text-sm text-slate-500">Receipt date: {doc.date}</p></header>
+ <section className="grid gap-6 p-6 sm:grid-cols-2 sm:p-8"><div><p className="text-xs font-bold uppercase tracking-wider text-slate-400">Received from</p><h2 className="mt-2 font-semibold text-slate-900">{doc.customer.legalName||doc.customer.name}</h2>{doc.customer.phone&&<p className="text-sm text-slate-600">{doc.customer.phone}</p>}{doc.customer.email&&<p className="text-sm text-slate-600">{doc.customer.email}</p>}</div><div className="rounded-xl bg-slate-50 p-4"><p className="text-xs uppercase tracking-wider text-slate-400">Amount received</p><p className="text-2xl font-bold text-slate-900">{money(doc.total,doc.currencyCode)}</p>{doc.balanceDue>0&&<p className="mt-1 text-xs text-slate-500">Invoice balance after this receipt: {money(doc.balanceDue,doc.currencyCode)}</p>}</div></section>
+ <section className="px-6 pb-6 sm:px-8 sm:pb-8"><a href={pdf} className="inline-flex w-full items-center justify-center rounded-xl bg-violet-600 px-5 py-4 font-semibold text-white hover:bg-violet-700 sm:w-auto">Download Official PDF</a><p className="mt-4 text-xs text-slate-500">This receipt link is time-limited and can be revoked by the business.</p></section><footer className="border-t border-slate-200 bg-slate-50 p-5 text-center text-xs text-slate-400">Sent securely via Moneymatters FinOps.</footer>
+ </article></main>;
+}

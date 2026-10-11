@@ -44,9 +44,14 @@ export async function resolveTenantConnection(
 
 export function absoluteUrl(actionUrl: string | null | undefined) {
   if (!actionUrl) return null;
-  const base = (Deno.env.get("MONEYMATTERS_PUBLIC_URL") || "").replace(/\/+$/, "");
-  if (!base) throw new Error("Public application URL is not configured.");
-  return base + (actionUrl.startsWith("/") ? actionUrl : "/" + actionUrl);
+  const configured = (Deno.env.get("MONEYMATTERS_PUBLIC_URL") || "https://mm.nilanga.in").replace(/\/+$/, "");
+  const base = new URL(configured);
+  if (base.protocol !== "https:") throw new Error("Public application URL must use HTTPS.");
+  const url = new URL(actionUrl, base);
+  if (url.protocol !== "https:" || url.origin !== base.origin) {
+    throw new Error("Public application links must remain on the configured Moneymatters domain.");
+  }
+  return url.toString();
 }
 
 export async function connectionCandidates(
