@@ -84,3 +84,12 @@ test('receipt copy/share actions use short-lived public receipt links, not works
  assert.match(sql,/REVOKE ALL ON FUNCTION public\\.create_public_receipt_link\\(uuid\\) FROM PUBLIC, anon/);
  assert.match(sql,/GRANT EXECUTE ON FUNCTION public\\.create_public_receipt_link\\(uuid\\) TO authenticated/);
 });
+
+test('receipt table dispatches through the tenant RPC and keeps public link actions',async()=>{
+ const ui=await read('app/next-workspace/receipts/page.tsx');
+ assert.match(ui,/p_document_type:'receipt'/);
+ assert.match(ui,/p_business_id:businessId/);
+ assert.match(ui,/Send PDF/);
+ assert.match(ui,/create_public_receipt_link/);
+ assert.match(ui,/\/receipt\//);
+});
