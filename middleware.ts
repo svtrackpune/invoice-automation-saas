@@ -41,6 +41,17 @@ function buildContentSecurityPolicy(nonce: string, supabaseOrigin: string | null
   ].join('; ');
 }
 
+const PUBLIC_DOC_PATTERNS = [
+  /^\/invoice\/[^/]+$/,
+  /^\/quote\/[^/]+$/,
+  /^\/receipt\/[^/]+$/,
+  /^\/challan\/[^/]+$/,
+  /^\/delivery-challan\/[^/]+$/,
+  /^\/api\/public-documents\/.*$/,
+  /^\/healthz$/,
+  /^\/readyz$/,
+];
+
 export function middleware(request: NextRequest): NextResponse {
   const pathname = request.nextUrl.pathname;
   const isApi = pathname.startsWith(API_PREFIX);
@@ -63,6 +74,9 @@ export function middleware(request: NextRequest): NextResponse {
   response.headers.set('Content-Security-Policy', csp);
 
   if (isProduction) response.headers.set('Strict-Transport-Security', 'max-age=63072000; includeSubDomains; preload');
+
+  // Public bearer-token routes retain standard security headers and bypass auth/CORS policy.
+  if (PUBLIC_DOC_PATTERNS.some((pattern) => pattern.test(pathname))) return response;
 
   const isPublicApi = pathname.startsWith(PUBLIC_API_PREFIX);
 
