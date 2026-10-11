@@ -243,6 +243,7 @@ test('canonical view model powers invoice, quotation, receipt, challan, print an
 
 test('public quotation acceptance is token-authorized, idempotent, and never bypasses invoice posting',async()=>{
  const migration=await read('supabase/migrations/20261011193409_public_quotation_acceptance_and_invoice_dispatch.sql');
+ const conversionFix=await read('supabase/migrations/20261011194327_fix_quotation_conversion_call_signature.sql');
  const convertedPreview=await read('supabase/migrations/20261011193431_public_quotation_converted_preview.sql');
  const page=await read('app/quote/[token]/page.tsx');
  assert.match(migration,/CREATE OR REPLACE FUNCTION public\.accept_public_quotation/);
@@ -250,6 +251,8 @@ test('public quotation acceptance is token-authorized, idempotent, and never byp
  assert.match(migration,/q\.created_by IS NULL/);
  assert.match(migration,/mm_private\.has_business_permission\(q\.business_id,'sales\.create',q\.created_by\)/);
  assert.match(migration,/public\.convert_quotation_to_invoice/);
+ assert.match(conversionFix,/v_items,[\s\S]*?NULL,[\s\S]*?0,[\s\S]*?q\.notes,[\s\S]*?q\.terms/);
+ assert.match(conversionFix,/public\.create_invoice_from_items/);
  assert.match(migration,/delivery_pending_posting/);
  assert.match(migration,/NEW\.journal_entry_id IS NULL/);
  assert.match(migration,/DEFERRABLE INITIALLY DEFERRED/);
