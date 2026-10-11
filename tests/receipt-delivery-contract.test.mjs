@@ -69,7 +69,8 @@ test('dedicated notification worker cadence is one minute', async () => {
 });
 
 test('payment settlement guarantees one receipt, a live ledger balance and idempotent multi-channel PDF outbox jobs', async () => {
-  const migration = await read('supabase/migrations/20261012010000_payment_receipt_ledger_notifications.sql');
+  const migration = await read('supabase/migrations/20261011190732_payment_receipt_ledger_notifications.sql');
+  const tokenMigration = await read('supabase/migrations/20261011190933_receipt_token_for_every_receipt.sql');
   const receiptRenderer = await read('lib/server/receipt-pdf.ts');
   const worker = await read('supabase/functions/process-notifications/index.ts');
 
@@ -103,4 +104,6 @@ test('payment settlement guarantees one receipt, a live ledger balance and idemp
   assert.match(worker, /customerOutstandingBalance:/);
   assert.match(worker, /application\/pdf/);
   assert.match(worker, /sendDocument/);
+  assert.ok(tokenMigration.indexOf("v_access := public._issue_receipt_access_token") < tokenMigration.indexOf("IF r.customer_id IS NULL"),
+    'the receipt access token must be minted even when there is no customer contact or configured delivery channel');
 });
