@@ -199,6 +199,10 @@ function documentCaption(doc: PublicDispatchContext) {
   ].filter(Boolean).join("\n");
   return caption.length <= 1000 ? caption : caption.slice(0,900) + "\n" + doc.public_url;
 }
+function buildDocumentEmailHtml(input: { businessName: string; docType: string; docNumber: string; totalAmount: string; publicUrl: string; customerName: string }) {
+  const label = documentLabel(input.docType);
+  return `<!doctype html><html><body style="margin:0;background:#f1f5f9;font-family:Arial,Helvetica,sans-serif;color:#0f172a"><div style="max-width:640px;margin:24px auto;background:#fff;border:1px solid #e2e8f0;border-radius:16px;overflow:hidden"><div style="padding:24px 28px;background:#312e81;color:#fff"><div style="font-size:12px;letter-spacing:2px;text-transform:uppercase;opacity:.85">${htmlEscape(label)}</div><h1 style="font-size:22px;margin:8px 0">${htmlEscape(input.docNumber)}</h1><div>${htmlEscape(input.businessName)}</div></div><div style="padding:24px 28px"><p>Dear ${htmlEscape(input.customerName)},</p><p>Your ${htmlEscape(label.toLowerCase())} is ready. A PDF copy is attached for your records.</p><p><strong>Total amount:</strong> ${htmlEscape(input.totalAmount)}</p><p><a href="${htmlEscape(input.publicUrl)}">View document online</a></p><div style="margin-top:32px;padding-top:16px;border-top:1px solid #e2e8f0;text-align:center;font-size:12px;color:#64748b">Sent securely via <strong>Moneymatters</strong> FinOps.<br/><a href="https://mm.nilanga.in" style="color:#4f46e5;font-weight:600;text-decoration:none">Join Moneymatters for free</a> to automate invoicing, inventory &amp; GST.</div></div></div></body></html>`;
+}
 function documentHtml(doc: PublicDispatchContext) {
   const rows: Array<[string,string]> = [
     ["Document number",doc.document_number],["Date",doc.document_date],
@@ -280,40 +284,20 @@ async function send(
   }
 
   if (connection.provider === "resend") {
-    if (!connection.secret || !connection.sender) {
-      throw new Error("Email connection is incomplete.");
-    }
-
-    const endpoint =
-      connection.endpoint_url?.replace(/\/+$/, "") ||
-      "https://api.resend.com";
-
-    const response = await fetch(endpoint + "/emails", {
-      method: "POST",
-      headers: {
-        Authorization: "Bearer " + connection.secret,
-        "Content-Type": "application/json",
-        "Idempotency-Key":
-          job.delivery_idempotency_key ||
-          "notification-job:" + job.id,
-      },
-      body: JSON.stringify({
-        from: connection.sender,
-        to: [job.recipient],
-        subject,
-        text: message + (actionUrl && dispatch === null ? "\n\n" + actionUrl : ""),
-      }),
-    });
-
+    if (!connection.secret || !connection.sender) throw new Error("Email connection is incomplete.");
+    const endpoint = connection.endpoint_url?.replace(/\/+$/, "") || "https://api.resend.com";
+    const attachments = dispatch ? [{ filename: attachmentFilename(dispatch), content: await fetchDocumentPdf(dispatch) }] : [];
+    const textBody = dispatch ? documentPlainText(dispatch) : message + (actionUrl ? "\n\n" + actionUrl : "");
+    const htmlBody = dispatch ? buildDocumentEmailHtml({ businessName: dispatch.business_name, docType: dispatch.document_type,
+      docNumber: dispatch.document_number, totalAmount: formatDocumentMoney(dispatch.total_amount, dispatch.currency_code),
+      publicUrl: dispatch.public_url, customerName: dispatch.customer_name }) : undefined;
+    const response = await fetch(endpoint + "/emails", { method: "POST",
+      headers: { Authorization: "Bearer " + connection.secret, "Content-Type": "application/json",
+        "Idempotency-Key": job.delivery_idempotency_key || "notification-job:" + job.id },
+      body: JSON.stringify({ from: connection.sender, to: [job.recipient], subject, text: textBody,
+        ...(htmlBody ? { html: htmlBody } : {}), ...(attachments.length ? { attachments } : {}) }) });
     const payload: unknown = await response.json().catch(() => null);
-    if (
-      !response.ok ||
-      !payload ||
-      typeof payload !== "object"
-    ) {
-      throw new Error("Email delivery failed.");
-    }
-
+    if (!response.ok || !payload || typeof payload !== "object") throw new Error("Email delivery failed.");
     const id = (payload as Record<string, unknown>).id;
     return typeof id === "string" ? id : null;
   }
@@ -445,13 +429,19 @@ async function send(
 
   if (connection.provider === "sendgrid") {
     if (!connection.secret || !connection.sender) throw new Error("SendGrid connection is incomplete.");
-    const response=await fetch(connection.endpoint_url?.trim()||"https://api.sendgrid.com/v3/mail/send",{
-      method:"POST",
-      headers:{Authorization:"Bearer "+connection.secret,"Content-Type":"application/json"},
-      body:JSON.stringify({personalizations:[{to:[{email:job.recipient}]}],from:{email:connection.sender},subject:job.subject||"Notification",
-        content:[{type:"text/plain",value:message+(actionUrl&&dispatch===null?"\n\n"+actionUrl:"")}]}),
-    });
-    if(!response.ok)throw new Error("SendGrid delivery failed.");
+    const attachments = dispatch ? [{ content: Buffer.from(await fetchDocumentPdf(dispatch)).toString("base64"),
+      filename: attachmentFilename(dispatch), type: "application/pdf", disposition: "attachment" }] : [];
+    const textBody = dispatch ? documentPlainText(dispatch) : message + (actionUrl ? "\n\n" + actionUrl : "");
+    const htmlBody = dispatch ? buildDocumentEmailHtml({ businessName: dispatch.business_name, docType: dispatch.document_type,
+      docNumber: dispatch.document_number, totalAmount: formatDocumentMoney(dispatch.total_amount, dispatch.currency_code),
+      publicUrl: dispatch.public_url, customerName: dispatch.customer_name }) : undefined;
+    const response = await fetch(connection.endpoint_url?.trim() || "https://api.sendgrid.com/v3/mail/send", {
+      method: "POST", headers: { Authorization: "Bearer " + connection.secret, "Content-Type": "application/json" },
+      body: JSON.stringify({ personalizations: [{ to: [{ email: job.recipient }] }], from: { email: connection.sender },
+        subject: dispatch ? documentSubject(dispatch) : job.subject || "Notification",
+        content: [{ type: "text/plain", value: textBody }, ...(htmlBody ? [{ type: "text/html", value: htmlBody }] : [])],
+        ...(attachments.length ? { attachments } : {}) }) });
+    if (!response.ok) throw new Error("SendGrid delivery failed.");
     return response.headers.get("x-message-id");
   }
 
