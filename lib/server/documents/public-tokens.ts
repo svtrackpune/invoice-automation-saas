@@ -48,6 +48,13 @@ const n = (v: unknown) => Number(v ?? 0);
 const nullable = (v: unknown) => v == null || text(v) === '' ? null : text(v);
 const TOKEN_PATTERN = /^[A-Fa-f0-9]{48,128}$/;
 
+/** Canonical recipient route for an existing opaque public token. */
+export function getPublicDocumentPath(type: PublicDocumentType, token: string): string | null {
+  if (!TOKEN_PATTERN.test(token)) return null;
+  const segment = type === 'quotation' ? 'quote' : type === 'challan' ? 'delivery-challan' : type;
+  return '/' + segment + '/' + token;
+}
+
 function statusAllowed(type: PublicDocumentType, status: string, validUntil: string | null) {
   const s = status.toLowerCase();
   if (type === 'invoice') return ['sent', 'partially_paid', 'paid'].includes(s);
@@ -224,7 +231,7 @@ export async function loadPublicDocumentById(
 }
 
 export async function resolvePublicDocumentByToken(type: PublicDocumentType, token: string): Promise<PublicDocument | null> {
-  if (!['invoice', 'quotation', 'challan', 'receipt'].includes(type) || !TOKEN_PATTERN.test(token)) return null;
+  if (!['invoice', 'quotation', 'challan', 'receipt'].includes(type) || !getPublicDocumentPath(type, token)) return null;
   const db = getServerSupabase();
   if (type === 'receipt') {
     const { data, error } = await db.from('receipt_access_tokens')
