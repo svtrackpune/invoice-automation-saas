@@ -74,10 +74,12 @@ test('manual quotation dispatch advances draft to sent before exposing the publi
 
 test('receipt copy/share actions use short-lived public receipt links, not workspace IDs',async()=>{
  const ui=await read('app/next-workspace/receipts/page.tsx');
+ const helper=await read('lib/client/share-document.ts');
  const sql=await read('supabase/migrations/20261011170000_public_receipt_link_rpc.sql');
- assert.ok(ui.includes('create_public_receipt_link'));
- assert.ok(ui.includes('result.data?.path'));
- assert.ok(ui.includes('[A-Fa-f0-9]{48,128}'));
+ assert.ok(ui.includes("getPublicDocumentUrl('receipt',id)"));
+ assert.ok(helper.includes("supabase.rpc('get_public_document_link'"));
+ assert.ok(helper.includes("'path' in data"));
+ assert.ok(helper.includes('[A-Fa-f0-9]{48,128}'));
  assert.ok(ui.includes('const copyLink=async(id:string)=>{'));
  assert.ok(ui.includes('const shareReceipt=async(id:string)=>{'));
  assert.ok(sql.includes("public._issue_receipt_access_token(p_receipt_id, 'customer_download')"));
@@ -90,7 +92,7 @@ test('receipt table sends through the selected tenant channel and offers the pub
  assert.ok(ui.includes("p_document_type:'receipt'"));
  assert.ok(ui.includes('p_business_id:businessId'));
  assert.ok(ui.includes('Send PDF'));
- assert.ok(ui.includes('create_public_receipt_link'));
+ assert.ok(ui.includes("getPublicDocumentUrl('receipt',id)"));
 });
 
 
