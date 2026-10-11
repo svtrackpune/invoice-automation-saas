@@ -44,9 +44,9 @@ export default function PublicInvoice({params}:{params:Promise<{token:string}>})
     subtotal:invoice.subtotal,discount_total:invoice.discount_total,tax_total:invoice.tax_total,total:invoice.total,
     amount_paid:invoice.amount_paid,balance_due:invoice.balance_due,payment_qr_payload:invoice.payment_qr_payload,
     business:invoice.business,customer:invoice.customer,bank:invoice.bank,items:invoice.items,
-  },{type:'invoice',publicUrl:'https://mm.nilanga.in/invoice/'+encodeURIComponent(token),upiId:invoice.payment_qr_enabled===false?null:(invoice.upi_id||invoice.bank?.upi_id)}):null,[invoice,token]);
+  },{type:'invoice',publicUrl:'https://mm.nilanga.in/invoice/'+encodeURIComponent(token),upiId:invoice.payment_qr_enabled===false?null:(invoice.upi_id||invoice.bank?.upi_id),bank:invoice.payment_qr_enabled===false?{...invoice.bank,upi_id:null}:invoice.bank}):null,[invoice,token]);
 
-  useEffect(()=>{let active=true;const value=canonical?.financials.upiQrString||invoice?.payment_qr_payload||invoice?.payment_link||'';if(!value){setQr('');return()=>{active=false}};QRCode.toDataURL(value,{width:180,margin:1,errorCorrectionLevel:'M'}).then(x=>{if(active)setQr(x)}).catch(()=>{if(active)setQr('')});return()=>{active=false}},[canonical?.financials.upiQrString,invoice?.payment_qr_payload,invoice?.payment_link]);
+  useEffect(()=>{let active=true;const value=invoice?.payment_qr_enabled===false?'':canonical?.financials.upiQrString||invoice?.payment_qr_payload||'';if(!value){setQr('');return()=>{active=false}};QRCode.toDataURL(value,{width:180,margin:1,errorCorrectionLevel:'M'}).then(x=>{if(active)setQr(x)}).catch(()=>{if(active)setQr('')});return()=>{active=false}},[canonical?.financials.upiQrString,invoice?.payment_qr_payload,invoice?.payment_link]);
 
   const logoUrl=useMemo(()=>invoice?.business.logo_storage_path?supabase.storage.from('business-branding-public').getPublicUrl(invoice.business.logo_storage_path).data.publicUrl:'',[invoice?.business.logo_storage_path]);
   const paymentBox=invoice?.payment_display_mode==='bank'&&invoice.bank?invoice.bank
