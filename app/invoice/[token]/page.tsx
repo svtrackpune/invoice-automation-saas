@@ -18,6 +18,7 @@ type Invoice = {
   invoice_number:string; invoice_date:string; due_date:string|null; status:string; currency_code:string;
   subtotal:number; discount_total:number; tax_total:number; total:number; amount_paid:number; balance_due:number;
   notes:string|null; terms:string|null; payment_display_mode:'none'|'bank'|'online'; payment_link:string|null; payment_qr_payload:string|null;
+  upi_id:string|null; payment_qr_enabled:boolean;
   template_name:string|null;
   customer:{display_name:string;legal_name:string|null;email:string|null;phone:string|null;billing_address:AddressValue;shipping_address:AddressValue;tax_id:string|null};
   business:{name:string;legal_name:string|null;phone:string|null;email:string|null;website:string|null;address:AddressValue;logo_storage_path:string|null;tax_registration_number:string|null};
@@ -43,12 +44,14 @@ export default function PublicInvoice({params}:{params:Promise<{token:string}>})
     subtotal:invoice.subtotal,discount_total:invoice.discount_total,tax_total:invoice.tax_total,total:invoice.total,
     amount_paid:invoice.amount_paid,balance_due:invoice.balance_due,payment_qr_payload:invoice.payment_qr_payload,
     business:invoice.business,customer:invoice.customer,bank:invoice.bank,items:invoice.items,
-  },{type:'invoice',publicUrl:'https://mm.nilanga.in/invoice/'+encodeURIComponent(token),upiId:invoice.bank?.upi_id}):null,[invoice,token]);
+  },{type:'invoice',publicUrl:'https://mm.nilanga.in/invoice/'+encodeURIComponent(token),upiId:invoice.payment_qr_enabled===false?null:(invoice.upi_id||invoice.bank?.upi_id)}):null,[invoice,token]);
 
   useEffect(()=>{let active=true;const value=canonical?.financials.upiQrString||invoice?.payment_qr_payload||invoice?.payment_link||'';if(!value){setQr('');return()=>{active=false}};QRCode.toDataURL(value,{width:180,margin:1,errorCorrectionLevel:'M'}).then(x=>{if(active)setQr(x)}).catch(()=>{if(active)setQr('')});return()=>{active=false}},[canonical?.financials.upiQrString,invoice?.payment_qr_payload,invoice?.payment_link]);
 
   const logoUrl=useMemo(()=>invoice?.business.logo_storage_path?supabase.storage.from('business-branding-public').getPublicUrl(invoice.business.logo_storage_path).data.publicUrl:'',[invoice?.business.logo_storage_path]);
-  const paymentBox=invoice?.payment_display_mode==='bank'&&invoice.bank?invoice.bank:invoice?.payment_display_mode==='online'?(invoice.payment_link||invoice.payment_qr_payload||canonical?.financials.upiQrString?{online:true}:null):null;
+  const paymentBox=invoice?.payment_display_mode==='bank'&&invoice.bank?invoice.bank
+    :invoice?.payment_display_mode==='online'?(invoice.payment_link||invoice.payment_qr_payload||canonical?.financials.upiQrString?{online:true}:null)
+    :invoice?.payment_display_mode==='bank'&&canonical?.financials.upiQrString?{online:true}:null;
 
   if(loading)return <main className="min-h-screen grid place-items-center bg-slate-50 text-sm text-slate-500">Loading invoice…</main>;
   if(error||!invoice)return <main className="min-h-screen grid place-items-center bg-slate-50 p-6"><div className="max-w-md rounded-3xl bg-white p-8 text-center shadow-sm"><h1 className="text-xl font-bold text-slate-900">Invoice unavailable</h1><p className="mt-3 text-sm text-slate-600">{error||'This invoice link is invalid or no longer available.'}</p></div></main>;
@@ -80,7 +83,7 @@ export default function PublicInvoice({params}:{params:Promise<{token:string}>})
 
       {paymentBox&&<section className="mx-6 mb-8 max-w-sm rounded-xl border border-black p-4 sm:mx-8 print:mx-0">
         {invoice.payment_display_mode==='bank'&&invoice.bank&&<div className="text-sm text-slate-800"><h3 className="font-bold uppercase tracking-wider">Bank Details</h3>{invoice.bank.account_holder_name&&<div className="mt-2"><b>Account Name:</b> {invoice.bank.account_holder_name}</div>}<div><b>Bank:</b> {invoice.bank.institution_name||invoice.bank.name}</div>{invoice.bank.account_number&&<div><b>Account No:</b> {invoice.bank.account_number}</div>}{invoice.bank.account_type&&<div><b>Account Type:</b> {invoice.bank.account_type}</div>}{invoice.bank.branch_name&&<div><b>Branch:</b> {invoice.bank.branch_name}</div>}{invoice.bank.ifsc_code&&<div><b>IFSC:</b> {invoice.bank.ifsc_code}</div>}{invoice.bank.upi_id&&<div><b>UPI:</b> {invoice.bank.upi_id}</div>}{canonical?.financials.upiQrString&&<a href={canonical.financials.upiQrString} className="mt-3 inline-flex rounded-lg border border-violet-200 px-4 py-2.5 text-sm font-bold text-violet-700">Pay Now via UPI</a>}</div>}
-        {invoice.payment_display_mode==='online'&&<div className="text-center"><h3 className="font-bold uppercase tracking-wider">Payment</h3>{invoice.payment_link&&<a href={invoice.payment_link} target="_blank" rel="noreferrer" className="mt-3 inline-flex rounded-lg bg-violet-600 px-5 py-2.5 text-sm font-bold text-white">Pay Now Online</a>}{canonical?.financials.upiQrString&&<a href={canonical.financials.upiQrString} className="mt-3 ml-2 inline-flex rounded-lg border border-violet-200 px-4 py-2.5 text-sm font-bold text-violet-700">Pay Now via UPI</a>}{qr&&<div className="mt-3"><Image src={qr} alt="Payment QR" width={144} height={144} unoptimized className="mx-auto h-36 w-36"/><p className="mt-1 text-[11px] text-slate-500">Scan to pay the invoice amount.</p></div>}</div>}
+        {(invoice.payment_display_mode==='online'||(!invoice.bank&&invoice.payment_display_mode==='bank'))&&<div className="text-center"><h3 className="font-bold uppercase tracking-wider">Payment</h3>{invoice.payment_link&&<a href={invoice.payment_link} target="_blank" rel="noreferrer" className="mt-3 inline-flex rounded-lg bg-violet-600 px-5 py-2.5 text-sm font-bold text-white">Pay Now Online</a>}{canonical?.financials.upiQrString&&<a href={canonical.financials.upiQrString} className="mt-3 ml-2 inline-flex rounded-lg border border-violet-200 px-4 py-2.5 text-sm font-bold text-violet-700">Pay Now via UPI</a>}{qr&&<div className="mt-3"><Image src={qr} alt="Payment QR" width={144} height={144} unoptimized className="mx-auto h-36 w-36"/><p className="mt-1 text-[11px] text-slate-500">Scan to pay the invoice amount.</p></div>}</div>}
       </section>}
 
 
