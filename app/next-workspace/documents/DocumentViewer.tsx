@@ -472,6 +472,37 @@ export default function DocumentViewer({ type, id }: { type: string; id: string 
     QRCode.toDataURL(value, { width: 180, margin: 1, errorCorrectionLevel: 'M' }).then((url) => { if (active) setPaymentQrDataUrl(url); }).catch(() => { if (active) setPaymentQrDataUrl(''); });
     return () => { active = false; };
   }, [paymentSelection, job, paymentSettings, preferences, business, model, mergedBusiness, type, canonical, canonicalPaymentEnabled]);
+  const canonicalBusiness = useMemo(() => ({
+    ...mergedBusiness,
+    name: canonical.business.tradeName || canonical.business.legalName,
+    legal_name: canonical.business.legalName,
+    address: canonical.business.address,
+    phone: canonical.business.phone,
+    email: canonical.business.email,
+    tax_registration_number: canonical.business.gstin,
+    logo_storage_path: mergedBusiness?.logo_storage_path || canonical.business.logoUrl,
+    pan: canonical.business.pan,
+  }), [mergedBusiness, canonical]);
+  const canonicalCustomer = useMemo(() => ({
+    ...customer,
+    display_name: canonical.customer.name,
+    legal_name: canonical.customer.name,
+    billing_address: canonical.customer.billingAddress,
+    shipping_address: canonical.customer.shippingAddress,
+    phone: canonical.customer.phone,
+    email: canonical.customer.email,
+    tax_id: canonical.customer.gstin,
+  }), [customer, canonical]);
+  const canonicalItems = useMemo(() => canonical.items.map((item, index) => ({
+    ...(items[index] || {}),
+    description: item.description,
+    quantity: item.quantity,
+    unit_price: item.unitPrice,
+    discount: item.discount,
+    tax_rate: item.taxRate,
+    line_total: item.amount,
+    hsn_sac: item.hsn,
+  })), [items, canonical]);
   const theme = THEMES[template?.template_key] || THEMES.modern;
   const fields = preferences?.custom_fields || {};
   const studioTheme = fields?.theme_studio || {};
@@ -560,7 +591,7 @@ export default function DocumentViewer({ type, id }: { type: string; id: string 
   if (loading) return <div className="center">Preparing document…</div>;
   if (error) return <div className="center error">{error}</div>;
   return <main className="page"><div className="toolbar"><div><small>DOCUMENT CENTER</small><h1>{title} {number}</h1><p>{template?.template_name || theme.label} · Print-ready</p></div><div className="actions">{type==='cash_bill'&&<select aria-label="Cash Bill print format" value={cashBillFormat} onChange={e=>setCashBillFormat(e.target.value as typeof cashBillFormat)}><option value="a4">A4 Modern</option><option value="a5">A5 Modern</option><option value="thermal80">Thermal 80mm</option><option value="thermal58">Thermal 58mm</option></select>}<button onClick={back}>Back</button>{canShareDocument && <button onClick={copyLink}>Copy customer link</button>}{canShareDocument && <button onClick={share}>Share public link</button>}<button onClick={print}>Print / Save PDF</button></div></div>
-    <Paper type={type} payload={canonicalPayload} business={mergedBusiness} customer={customer} items={items} theme={theme} fields={fields} logoUrl={logoUrl} paymentSelection={paymentSelection} paymentQrDataUrl={paymentQrDataUrl} upiIntentUrl={canonicalPaymentEnabled ? canonical.financials.upiQrString || '' : ''}
+    <Paper type={type} payload={canonicalPayload} business={canonicalBusiness} customer={canonicalCustomer} items={canonicalItems} theme={theme} fields={fields} logoUrl={logoUrl} paymentSelection={paymentSelection} paymentQrDataUrl={paymentQrDataUrl} upiIntentUrl={canonicalPaymentEnabled ? canonical.financials.upiQrString || '' : ''}
       showLogo={preferences?.show_logo !== false} showBusinessAddress={preferences?.show_business_address !== false} showTaxDetails={preferences?.show_tax_details !== false}
       showBankDetails={paymentSelection?.payment_display_mode === 'bank' || preferences?.show_bank_details === true}
       showPaymentLink={preferences?.show_payment_link !== false && (paymentSelection?.payment_display_mode === 'online' || paymentSettings?.payment_link_enabled === true)}
