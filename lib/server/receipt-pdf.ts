@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
+import { createCanonicalDocumentViewModel } from '@/lib/shared/document-view-model';
 
 type ReceiptRow = {
   id: string;
@@ -78,6 +79,20 @@ const wrap = (value: string, maxChars: number) => {
 const pdfEscape = (value: string) => cleanText(value);
 
 const buildReceiptPdf = (data: PdfData) => {
+  const canonical = createCanonicalDocumentViewModel({
+    type: 'receipt',
+    number: data.receipt.receipt_number,
+    date: data.receipt.receipt_date,
+    currency_code: data.receipt.currency_code || 'INR',
+    amount: data.receipt.amount,
+    total: data.payment?.amount ?? data.receipt.amount,
+    amount_paid: data.payment?.amount ?? data.receipt.amount,
+    balance_due: data.invoice?.balance_due ?? 0,
+    customer_outstanding: data.customer_outstanding,
+    business: data.business,
+    customer: data.customer,
+    items: data.items,
+  }, { type: 'receipt' });
   const pageWidth = 595;
   const pageHeight = 842;
   const left = 42;
@@ -104,17 +119,17 @@ const buildReceiptPdf = (data: PdfData) => {
   let y = pageHeight - top;
   let page = ensurePage();
 
-  const businessName = plain(data.business?.name || data.business?.legal_name || 'Business');
+  const businessName = plain(canonical.business.tradeName || canonical.business.legalName || 'Business');
   const businessLegal = plain(data.business?.legal_name || '');
   const address = addressText(data.business?.address);
   const contact = [data.business?.phone, data.business?.email, data.business?.website].filter(Boolean).map(plain).join(' · ');
-  const receiptNumber = plain(data.receipt.receipt_number);
-  const customerName = plain(data.customer?.display_name || data.customer?.legal_name || 'Cash Customer');
+  const receiptNumber = plain(canonical.document.number);
+  const customerName = plain(canonical.customer.name || 'Cash Customer');
   const invoiceNumber = plain(data.invoice?.invoice_number || '');
   const paymentAmount = Number(data.payment?.amount ?? data.receipt.amount ?? 0);
-  const total = Number(data.invoice?.total ?? paymentAmount);
+  const total = canonical.financials.grandTotal;
   const balance = Math.max(0, Number(data.invoice?.balance_due ?? Math.max(total - paymentAmount, 0)));
-  const currency = plain(data.receipt.currency_code || 'INR') || 'INR';
+  const currency = canonical.document.currency || 'INR';
 
   textLine(page, left, y, businessName, 18, true);
   y -= 22;
@@ -142,6 +157,8 @@ const buildReceiptPdf = (data: PdfData) => {
   rect(page, left, y - 8, usableWidth, 40);
   textLine(page, left + 12, y + 17, `Received with thanks from ${customerName}`, 9.5, true);
   textLine(page, left + 12, y + 3, `Current customer ledger outstanding: ${money(data.customer_outstanding, currency)}`, 8.5);
+  y -= 13;
+  textLine(page, left + 12, y + 3, `Amount in words: ${canonical.financials.amountInWords}`, 7.8);
   y -= 56;
 
   if (data.allocations.length) {
