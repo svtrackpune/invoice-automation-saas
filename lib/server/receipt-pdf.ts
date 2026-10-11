@@ -287,14 +287,20 @@ export async function loadReceiptPdfData(db: SupabaseClient, receiptId: string):
   ]);
 
   const invoiceId = paymentResult.data?.invoice_id || null;
-  const [allocationResult, invoiceBalanceResult] = await Promise.all([
+  const [allocationResult, outstandingResult] = await Promise.all([
     receipt.payment_id
       ? db.from('payment_allocations').select('invoice_id,amount').eq('business_id', receipt.business_id).eq('payment_id', receipt.payment_id)
       : Promise.resolve({ data: [] } as any),
     receipt.customer_id
-      ? db.from('invoices').select('balance_due,status').eq('business_id', receipt.business_id).eq('customer_id', receipt.customer_id).in('status', ['sent','posted','partially_paid','overdue'])
-      : Promise.resolve({ data: [] } as any),
+      ? db.rpc('fn_get_customer_outstanding_balance', {
+          p_business_id: receipt.business_id,
+          p_customer_id: receipt.customer_id,
+        })
+      : Promise.resolve({ data: 0, error: null } as any),
   ]);
+  if (receipt.customer_id && outstandingResult.error) {
+    throw new Error('Customer outstanding balance could not be calculated.');
+  }
 
   const allocationInvoiceIds = Array.from(new Set((allocationResult.data || []).map((row: any) => row.invoice_id).filter(Boolean)));
   const allocationInvoiceResult = allocationInvoiceIds.length
@@ -309,7 +315,7 @@ export async function loadReceiptPdfData(db: SupabaseClient, receiptId: string):
       remaining_balance: Math.max(0, Number(source?.balance_due || 0)),
     };
   });
-  const customerOutstanding = (invoiceBalanceResult.data || []).reduce((sum: number, row: any) => sum + Math.max(0, Number(row.balance_due || 0)), 0);
+  const customerOutstanding = Number(outstandingResult.data || 0);
 
   const [invoiceResult, itemsResult] = await Promise.all([
     invoiceId
