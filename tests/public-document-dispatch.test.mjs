@@ -125,7 +125,7 @@ test('customer-facing shares use canonical token URLs instead of merchant worksp
  const quotations=await read('app/next-workspace/quotation/QuotationWorkspaceControlled.tsx');
  const review=await read('app/next-workspace/documents/DocumentReviewCenter.tsx');
  const challengedRoute=await read('app/delivery-challan/[token]/page.tsx');
- const linkRpc=await read('supabase/migrations/20261011190000_public_document_link_rpc.sql');
+ const linkRpc=await read('supabase/migrations/20261011132212_public_document_link_rpc_and_challan_route.sql');
  assert.ok(helper.includes('getPublicDocumentUrl'));
  assert.ok(helper.includes('get_public_document_link'));
  assert.ok(helper.includes("const PUBLIC_ORIGIN = 'https://mm.nilanga.in'"));
