@@ -263,10 +263,17 @@ test('public quotation acceptance is token-authorized, idempotent, and never byp
 
 test('notification dispatch shares only balance-aware INR UPI intent and configured payment link',async()=>{
  const migration=await read('supabase/migrations/20261011193404_public_invoice_upi_dispatch.sql');
+ const viewMigration=await read('supabase/migrations/20261011193856_public_invoice_upi_view.sql');
+ const settingsGuard=await read('supabase/migrations/20261011194022_public_invoice_upi_settings_guard.sql');
  const worker=await read('supabase/functions/process-notifications/index.ts');
  assert.match(migration,/resolve_public_document_dispatch_base/);
  assert.match(migration,/dps\.upi_id/);
  assert.match(migration,/REVOKE ALL ON FUNCTION public\.resolve_public_document_dispatch\(uuid,text,uuid,text\)[\s\S]*?FROM PUBLIC, anon, authenticated/);
+ assert.match(viewMigration,/LEFT JOIN public\.document_payment_settings dps/);
+ assert.match(viewMigration,/'upi_id', CASE/);
+ assert.match(viewMigration,/'payment_qr_enabled'/);
+ assert.match(settingsGuard,/coalesce\(dps\.payment_qr_enabled, true\)/);
+ assert.match(settingsGuard,/ELSE NULL END/);
  assert.match(worker,/documentType === "invoice" && currencyCode === "INR" && balanceDue > 0 && upiId/);
  assert.match(worker,/upi_qr_string: upiQrString/);
  assert.match(worker,/Pay Now via UPI/);
