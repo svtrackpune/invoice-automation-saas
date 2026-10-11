@@ -105,7 +105,8 @@ test('SendGrid and Resend attach generated PDFs and use branded shared HTML',asy
  const re=worker.slice(worker.indexOf('if (connection.provider === "resend")'),worker.indexOf('if (connection.provider === "twilio")'));
  assert.match(sg,/Buffer\.from\(await fetchDocumentPdf\(dispatch\)\)\.toString\("base64"\)/);
  assert.match(sg,/type: "application\/pdf"/); assert.match(sg,/type: "text\/html"/);
- assert.match(re,/content: bytesToBase64\(await fetchDocumentPdf\(dispatch\)\)/); assert.match(re,/html: htmlBody/);
+ assert.match(re,/content: bytesToBase64\(await fetchDocumentPdf\(dispatch\)\)/);
+ assert.match(re,/content_type: "application\/pdf"/); assert.match(re,/html: htmlBody/);
  assert.match(worker,/automate invoicing, inventory &amp; GST/);
 });
 test('middleware explicitly recognizes public document routes',async()=>{
