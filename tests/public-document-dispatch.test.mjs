@@ -112,3 +112,37 @@ test('middleware explicitly recognizes public document routes',async()=>{
  assert.match(source,/if \(PUBLIC_DOC_PATTERNS\.some/);
  assert.match(source,/return response;/);
 });
+
+
+test('customer-facing shares use canonical token URLs instead of merchant workspace routes',async()=>{
+ const helper=await read('lib/client/share-document.ts');
+ const serverTokens=await read('lib/server/documents/public-tokens.ts');
+ const viewer=await read('app/next-workspace/documents/DocumentViewer.tsx');
+ const invoices=await read('app/next-workspace/invoices/page.tsx');
+ const receipts=await read('app/next-workspace/receipts/page.tsx');
+ const quotations=await read('app/next-workspace/quotation/QuotationWorkspaceControlled.tsx');
+ const review=await read('app/next-workspace/documents/DocumentReviewCenter.tsx');
+ const challengedRoute=await read('app/delivery-challan/[token]/page.tsx');
+ const linkRpc=await read('supabase/migrations/20261011190000_public_document_link_rpc.sql');
+ assert.ok(helper.includes('getPublicDocumentUrl'));
+ assert.ok(helper.includes('get_public_document_link'));
+ assert.ok(helper.includes("const PUBLIC_ORIGIN = 'https://mm.nilanga.in'"));
+ assert.ok(helper.includes("path.includes('/next-workspace/')"));
+ assert.ok(serverTokens.includes('getPublicDocumentPath'));
+ const viewerShare=viewer.slice(viewer.indexOf('const copyLink = async'),viewer.indexOf('const print = () =>'));
+ assert.ok(viewerShare.includes('getPublicDocumentUrl'));
+ assert.ok(!viewerShare.includes('window.location.href'));
+ const shareStart=invoices.indexOf('const share = async');
+ const shareEnd=invoices.indexOf('}; return <div',shareStart);
+ const invoiceShare=invoices.slice(shareStart,shareEnd);
+ assert.ok(invoiceShare.includes("getPublicDocumentUrl('invoice'"));
+ assert.ok(!invoiceShare.includes('/next-workspace/documents?type=invoice&id='));
+ assert.ok(receipts.includes("getPublicDocumentUrl('receipt',id)"));
+ assert.ok(quotations.includes("getPublicDocumentUrl('quotation',quote.id)"));
+ assert.ok(review.includes('getPublicDocumentUrl(canonicalType, id)'));
+ assert.ok(review.includes('p_action_url: null'));
+ assert.ok(challengedRoute.includes('Download Official PDF'));
+ assert.ok(linkRpc.includes("v_path := '/delivery-challan/' || v_token"));
+ assert.ok(linkRpc.includes("has_business_permission(v_business_id, 'sales.create', auth.uid())"));
+ assert.ok(linkRpc.includes('REVOKE ALL ON FUNCTION public.get_public_document_link(text, uuid) FROM PUBLIC, anon'));
+});
