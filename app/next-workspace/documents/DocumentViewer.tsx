@@ -412,7 +412,7 @@ export default function DocumentViewer({ type, id }: { type: string; id: string 
       upiId,
       prefillUpiAmount: preferences?.prefill_upi_amount !== false,
     });
-    const existing = text(paymentSelection?.payment_qr_payload || model.payment_qr_payload || job?.payload?.payment_qr_payload || '');
+    const existing = paymentSettings?.payment_qr_enabled === false ? '' : text(paymentSelection?.payment_qr_payload || model.payment_qr_payload || job?.payload?.payment_qr_payload || '');
     const balanceDue = Math.max(0, Number(model.balance_due || 0));
     const invoiceTotal = Math.max(0, Number(model.total || 0));
     let dynamic = canonical.financials.upiQrString || '';
