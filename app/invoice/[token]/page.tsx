@@ -16,7 +16,8 @@ type AddressValue = string | {
 
 type Invoice = {
   invoice_number:string; invoice_date:string; due_date:string|null; status:string; currency_code:string;
-  subtotal:number; discount_total:number; tax_total:number; total:number; amount_paid:number; balance_due:number;
+  subtotal:number; discount_total:number; tax_total:number; cgst_amount:number; sgst_amount:number; igst_amount:number;
+  place_of_supply_state_code:string|null; supply_type:string; total:number; amount_paid:number; balance_due:number;
   notes:string|null; terms:string|null; payment_display_mode:'none'|'bank'|'online'; payment_link:string|null; payment_qr_payload:string|null;
   upi_id:string|null; payment_qr_enabled:boolean;
   template_name:string|null;
@@ -41,8 +42,10 @@ export default function PublicInvoice({params}:{params:Promise<{token:string}>})
 
   const canonical=useMemo(()=>invoice?createCanonicalDocumentViewModel({
     type:'invoice',number:invoice.invoice_number,date:invoice.invoice_date,due_date:invoice.due_date,status:invoice.status,currency_code:invoice.currency_code,
-    subtotal:invoice.subtotal,discount_total:invoice.discount_total,tax_total:invoice.tax_total,total:invoice.total,
-    amount_paid:invoice.amount_paid,balance_due:invoice.balance_due,payment_qr_payload:invoice.payment_qr_payload,
+    subtotal:invoice.subtotal,discount_total:invoice.discount_total,tax_total:invoice.tax_total,
+    cgst_amount:invoice.cgst_amount,sgst_amount:invoice.sgst_amount,igst_amount:invoice.igst_amount,
+    place_of_supply_state_code:invoice.place_of_supply_state_code,supply_type:invoice.supply_type,
+    total:invoice.total,amount_paid:invoice.amount_paid,balance_due:invoice.balance_due,payment_qr_payload:invoice.payment_qr_payload,
     business:invoice.business,customer:invoice.customer,bank:invoice.payment_qr_enabled===false?{...invoice.bank,upi_id:null}:invoice.bank,items:invoice.items,
   },{type:'invoice',publicUrl:'https://mm.nilanga.in/invoice/'+encodeURIComponent(token),upiId:invoice.payment_qr_enabled===false?null:(invoice.upi_id||invoice.bank?.upi_id)}):null,[invoice,token]);
 
@@ -78,7 +81,7 @@ export default function PublicInvoice({params}:{params:Promise<{token:string}>})
 
       <section className="grid gap-8 p-6 sm:grid-cols-[1fr_280px] sm:p-8">
         <div className="text-sm text-slate-600">{invoice.notes&&<div><h3 className="font-semibold text-slate-900">Notes</h3><p className="mt-2 whitespace-pre-line">{invoice.notes}</p></div>}{invoice.terms&&<div className="mt-5"><h3 className="font-semibold text-slate-900">Terms & conditions</h3><p className="mt-2 whitespace-pre-line">{invoice.terms}</p></div>}</div>
-        <div className="space-y-2 text-sm"><div className="flex justify-between"><span>Subtotal</span><span>{money(canonical?.financials.subtotal??invoice.subtotal,invoice.currency_code)}</span></div>{invoice.discount_total!==0&&<div className="flex justify-between"><span>Discount</span><span>-{money(canonical?.financials.totalDiscount??invoice.discount_total,invoice.currency_code)}</span></div>}{invoice.tax_total!==0&&<div className="flex justify-between"><span>Tax / GST</span><span>{money(invoice.tax_total,invoice.currency_code)}</span></div>}<div className="flex justify-between border-t border-slate-200 pt-3 text-lg font-bold"><span>Total</span><span>{money(canonical?.financials.grandTotal??invoice.total,invoice.currency_code)}</span></div>{invoice.amount_paid>0&&<div className="flex justify-between"><span>Amount paid</span><span>{money(canonical?.financials.amountPaid??invoice.amount_paid,invoice.currency_code)}</span></div>}<div className="flex justify-between font-semibold"><span>Balance due</span><span>{money(canonical?.financials.balanceDue??invoice.balance_due,invoice.currency_code)}</span></div></div>
+        <div className="space-y-2 text-sm"><div className="flex justify-between"><span>Subtotal</span><span>{money(canonical?.financials.subtotal??invoice.subtotal,invoice.currency_code)}</span></div>{invoice.discount_total!==0&&<div className="flex justify-between"><span>Discount</span><span>-{money(canonical?.financials.totalDiscount??invoice.discount_total,invoice.currency_code)}</span></div>}{invoice.igst_amount>0?<div className="flex justify-between"><span>IGST</span><span>{money(invoice.igst_amount,invoice.currency_code)}</span></div>:<>{invoice.cgst_amount>0&&<div className="flex justify-between"><span>CGST</span><span>{money(invoice.cgst_amount,invoice.currency_code)}</span></div>}{invoice.sgst_amount>0&&<div className="flex justify-between"><span>SGST</span><span>{money(invoice.sgst_amount,invoice.currency_code)}</span></div>}{invoice.tax_total!==0&&invoice.cgst_amount===0&&invoice.sgst_amount===0&&<div className="flex justify-between"><span>Tax / GST</span><span>{money(invoice.tax_total,invoice.currency_code)}</span></div>}</>}<div className="flex justify-between border-t border-slate-200 pt-3 text-lg font-bold"><span>Total</span><span>{money(canonical?.financials.grandTotal??invoice.total,invoice.currency_code)}</span></div>{invoice.amount_paid>0&&<div className="flex justify-between"><span>Amount paid</span><span>{money(canonical?.financials.amountPaid??invoice.amount_paid,invoice.currency_code)}</span></div>}<div className="flex justify-between font-semibold"><span>Balance due</span><span>{money(canonical?.financials.balanceDue??invoice.balance_due,invoice.currency_code)}</span></div></div>
       </section>
 
       {paymentBox&&<section className="mx-6 mb-8 max-w-sm rounded-xl border border-black p-4 sm:mx-8 print:mx-0">
