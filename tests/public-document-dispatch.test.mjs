@@ -219,3 +219,57 @@ test('public invoice renderer creates a vector-rendered A4 GST PDF with QR and b
  for(const value of ['DELIVERY CHALLAN','Vehicle No: MH24AB1234','Transporter: Sample Transport','E-Way Bill: EWB-12345','NOT FOR SALE / NOT A TAX INVOICE']) assert.ok(challanText.includes(value),'Challan PDF is missing '+value);
 });
 function QRCodePlaceholderForTest(pdf){return pdf.includes(Buffer.from('SCAN TO PAY'));}
+
+test('canonical view model powers invoice, quotation, receipt, challan, print and PDF surfaces',async()=>{
+ const viewModel=await read('lib/shared/document-view-model.ts');
+ const viewer=await read('app/next-workspace/documents/DocumentViewer.tsx');
+ const invoice=await read('app/invoice/[token]/page.tsx');
+ const quote=await read('app/quote/[token]/page.tsx');
+ const receipt=await read('app/receipt/[token]/page.tsx');
+ const challan=await read('app/delivery-challan/[token]/page.tsx');
+ const publicPdf=await read('lib/server/documents/public-pdf.ts');
+ const receiptPdf=await read('lib/server/receipt-pdf.ts');
+ assert.match(viewModel,/export interface CanonicalDocumentViewModel/);
+ assert.match(viewModel,/taxBreakdown/);
+ assert.match(viewModel,/amountInWords/);
+ assert.match(viewModel,/upiQrString/);
+ for(const source of [viewer,invoice,quote,receipt,challan,publicPdf,receiptPdf]) {
+   assert.match(source,/createCanonicalDocumentViewModel/);
+ }
+ assert.match(invoice,/Pay Now via UPI/);
+ assert.match(viewer,/customer_outstanding: type === 'receipt' \? customerBalance/);
+ assert.match(publicPdf,/canonical\.financials\.upiQrString/);
+});
+
+test('public quotation acceptance is token-authorized, idempotent, and never bypasses invoice posting',async()=>{
+ const migration=await read('supabase/migrations/20261011193409_public_quotation_acceptance_and_invoice_dispatch.sql');
+ const convertedPreview=await read('supabase/migrations/20261011193431_public_quotation_converted_preview.sql');
+ const page=await read('app/quote/[token]/page.tsx');
+ assert.match(migration,/CREATE OR REPLACE FUNCTION public\.accept_public_quotation/);
+ assert.match(migration,/public_accept_token = btrim\(p_public_accept_token\)/);
+ assert.match(migration,/q\.created_by IS NULL/);
+ assert.match(migration,/mm_private\.has_business_permission\(q\.business_id,'sales\.create',q\.created_by\)/);
+ assert.match(migration,/public\.convert_quotation_to_invoice/);
+ assert.match(migration,/delivery_pending_posting/);
+ assert.match(migration,/NEW\.journal_entry_id IS NULL/);
+ assert.match(migration,/DEFERRABLE INITIALLY DEFERRED/);
+ assert.match(migration,/delivery_idempotency_key/);
+ assert.match(convertedPreview,/q\.status NOT IN \('sent', 'accepted', 'converted'\)/);
+ assert.match(convertedPreview,/invoice_number/);
+ assert.match(page,/supabase\.rpc\('accept_public_quotation'/);
+ assert.doesNotMatch(page,/mailto:/);
+ assert.match(page,/The official Tax Invoice is dispatched only after the business posts it/);
+});
+
+test('notification dispatch shares only balance-aware INR UPI intent and configured payment link',async()=>{
+ const migration=await read('supabase/migrations/20261011193404_public_invoice_upi_dispatch.sql');
+ const worker=await read('supabase/functions/process-notifications/index.ts');
+ assert.match(migration,/resolve_public_document_dispatch_base/);
+ assert.match(migration,/dps\.upi_id/);
+ assert.match(migration,/REVOKE ALL ON FUNCTION public\.resolve_public_document_dispatch\(uuid,text,uuid,text\)[\s\S]*?FROM PUBLIC, anon, authenticated/);
+ assert.match(worker,/documentType === "invoice" && currencyCode === "INR" && balanceDue > 0 && upiId/);
+ assert.match(worker,/upi_qr_string: upiQrString/);
+ assert.match(worker,/Pay Now via UPI/);
+ assert.match(worker,/sendDocument/);
+ assert.match(worker,/attachments/);
+});
