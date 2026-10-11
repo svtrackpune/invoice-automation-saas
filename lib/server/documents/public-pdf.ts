@@ -1,4 +1,5 @@
 import type { PublicDocument } from '@/lib/server/documents/public-tokens';
+import { createCanonicalDocumentViewModel } from '@/lib/shared/document-view-model';
 import QRCode from 'qrcode';
 
 const W = 595.28, H = 841.89, M = 36, CW = W - M * 2, FOOTER_TOP = H - 36;
@@ -62,11 +63,6 @@ function numberWords(n: number): string {
     if (v >= size) { const q = Math.floor(v / size); out.push(size === 1 ? sub(q) : sub(q) + ' ' + label); v %= size; }
   }
   return out.join(' ') || 'Zero';
-}
-function totalInWords(n: number, currency: string): string {
-  if (currency.toUpperCase() !== 'INR') return currency + ' ' + Number(n || 0).toFixed(2) + ' Only';
-  const value = Math.max(0, Number(n) || 0), rupees = Math.floor(value + 0.000001), paise = Math.round((value - rupees) * 100);
-  return numberWords(rupees) + ' Indian Rupees' + (paise ? ' and ' + numberWords(paise) + ' Paise' : '') + ' Only';
 }
 function stateLabel(code: string | null): string {
   const states: Record<string,string> = {
@@ -146,6 +142,7 @@ const statusColor = (s: string): RGB => ['paid','accepted','delivered'].includes
   ['overdue','void','cancelled'].includes(s.toLowerCase()) ? C.red : C.amber;
 
 export async function buildPublicDocumentPdf(doc: PublicDocument): Promise<Buffer> {
+  const canonical = createCanonicalDocumentViewModel(doc, { type: doc.type, upiId: doc.upiId });
   const c = new Canvas(), right = W - M;
   const objects: Array<Buffer|string> = [];
   const add = (v: Buffer|string) => { objects.push(v); return objects.length; };
@@ -165,12 +162,12 @@ export async function buildPublicDocumentPdf(doc: PublicDocument): Promise<Buffe
       c.text(M+35,53,wrap(doc.business.name,2)[0].slice(0,2).toUpperCase(),13,true,C.indigo,'center');
     }
     const bx=M+70;
-    c.text(bx,35,doc.business.name,13,true,C.navy);
+    c.text(bx,35,canonical.business.tradeName || canonical.business.legalName,13,true,C.navy);
     let dy=53;
     addressParts(doc.business.address).slice(0,2).forEach(v=>{drawWrap(c,bx,dy,v,40,7.5,false,C.muted,1);dy+=10;});
     const contact=[doc.business.phone,doc.business.email].filter(Boolean).join(' | ');
     if(contact){drawWrap(c,bx,dy,contact,42,7.3,false,C.muted,1);dy+=10;}
-    if(doc.business.taxRegistrationNumber)c.text(bx,dy,'GSTIN: '+doc.business.taxRegistrationNumber,7.5,true,C.ink);
+    if(canonical.business.gstin)c.text(bx,dy,'GSTIN: '+canonical.business.gstin,7.5,true,C.ink);
     if(doc.business.pan)c.text(bx,dy+10,'PAN: '+doc.business.pan,7.3,false,C.muted);
     const rx=363,rw=right-rx;
     c.rect(rx,32,rw,92,C.navy);
@@ -244,7 +241,7 @@ export async function buildPublicDocumentPdf(doc: PublicDocument): Promise<Buffe
 
   const totalX=342,totalW=right-totalX,wordX=M;
   c.text(wordX,y+2,'TOTAL IN WORDS',7.2,true,C.muted);
-  drawWrap(c,wordX,y+16,totalInWords(doc.total,doc.currencyCode),42,8.1,true,C.navy,3);
+  drawWrap(c,wordX,y+16,canonical.financials.amountInWords,42,8.1,true,C.navy,3);
   c.rect(totalX,y-2,totalW,18,C.pale,C.border);
   c.text(totalX+8,y+3,'FINANCIAL SUMMARY',7.3,true,C.indigo);y+=20;
   const summary:Array<[string,number,boolean]> = doc.type === 'challan'
@@ -277,9 +274,8 @@ export async function buildPublicDocumentPdf(doc: PublicDocument): Promise<Buffe
     y+=38;
   }
   y+=5;
-  const qrData=doc.type==='invoice'&&doc.balanceDue>0&&doc.upiId
-    ? 'upi://pay?pa='+encodeURIComponent(doc.upiId)+'&pn='+encodeURIComponent(doc.business.name)+'&am='+encodeURIComponent(doc.balanceDue.toFixed(2))+'&cu='+encodeURIComponent(doc.currencyCode||'INR')+'&tn='+encodeURIComponent(doc.number)
-    : (doc.type==='invoice'&&doc.balanceDue>0&&doc.paymentQrPayload?.startsWith('upi://pay?')?doc.paymentQrPayload:null);
+  const qrData=canonical.financials.upiQrString
+    || (doc.type==='invoice'&&doc.balanceDue>0&&doc.paymentQrPayload?.startsWith('upi://pay?')?doc.paymentQrPayload:null);
   if(doc.bankDetails||qrData){
     const sectionH=qrData?100:76;
     if(y+sectionH>FOOTER_TOP-4){c.newPage();header(true);y=80;}
