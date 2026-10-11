@@ -67,3 +67,40 @@ test('dedicated notification worker cadence is one minute', async () => {
   assert.match(sql, /\* \* \* \* \*/);
   assert.match(sql, /process-notifications/);
 });
+
+test('payment settlement guarantees one receipt, a live ledger balance and idempotent multi-channel PDF outbox jobs', async () => {
+  const migration = await read('supabase/migrations/20261012010000_payment_receipt_ledger_notifications.sql');
+  const receiptRenderer = await read('lib/server/receipt-pdf.ts');
+  const worker = await read('supabase/functions/process-notifications/index.ts');
+
+  assert.match(migration, /CREATE OR REPLACE FUNCTION public\.fn_get_customer_outstanding_balance/);
+  assert.match(migration, /sum\(coalesce\(i\.balance_due, 0\)\)/);
+  assert.match(migration, /i\.status::text NOT IN \('draft', 'void', 'cancelled'\)/);
+  assert.match(migration, /REVOKE ALL ON FUNCTION public\.fn_get_customer_outstanding_balance\(uuid,uuid\)\s+FROM PUBLIC, anon, authenticated/);
+  assert.doesNotMatch(migration, /GRANT EXECUTE ON FUNCTION public\.fn_get_customer_outstanding_balance\(uuid,uuid\)[\s\S]{0,80}TO anon/);
+
+  assert.match(migration, /CREATE UNIQUE INDEX IF NOT EXISTS receipts_payment_id_uidx/);
+  assert.match(migration, /CREATE CONSTRAINT TRIGGER trg_payment_settled_notify[\s\S]*?DEFERRABLE INITIALLY DEFERRED/);
+  assert.match(migration, /NEW\.direction::text <> 'inbound'/);
+  assert.match(migration, /ON CONFLICT \(payment_id\) WHERE payment_id IS NOT NULL DO NOTHING/);
+  assert.match(migration, /CREATE CONSTRAINT TRIGGER trg_enqueue_receipt_delivery_notifications[\s\S]*?DEFERRABLE INITIALLY DEFERRED/);
+  assert.match(migration, /public\._issue_receipt_access_token\(r\.id, 'customer_download'\)/);
+  assert.doesNotMatch(migration, /document_tokens|aggregate_id|event_type|payload jsonb/i);
+
+  for (const channel of ['whatsapp', 'email', 'sms', 'telegram']) {
+    assert.ok(migration.includes("'" + channel + "'"), 'missing receipt channel route: ' + channel);
+  }
+  assert.match(migration, /FOREACH v_channel IN ARRAY v_channels/);
+  assert.match(migration, /receipt:' \|\| r\.id::text \|\| ':v5:' \|\| v_channel/);
+  assert.match(migration, /customer_outstanding_balance/);
+  assert.match(migration, /delivery_idempotency_key/);
+
+  assert.match(receiptRenderer, /rpc\('fn_get_customer_outstanding_balance'/);
+  assert.match(receiptRenderer, /Customer outstanding balance could not be calculated/);
+  assert.match(worker, /customer_outstanding_balance: metadata\.customer_outstanding_balance/);
+  assert.match(worker, /Customer outstanding balance:/);
+  assert.match(worker, /Customer Outstanding Balance/);
+  assert.match(worker, /customerOutstandingBalance:/);
+  assert.match(worker, /application\/pdf/);
+  assert.match(worker, /sendDocument/);
+});
