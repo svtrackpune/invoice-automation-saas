@@ -1,5 +1,5 @@
 import type { PublicDocument } from './public-tokens';
-import { canonicalAddress, createCanonicalDocumentViewModel } from '../../shared/document-view-model';
+import { canonicalAddress, createCanonicalDocumentViewModel } from '../../shared/document-view-model.ts';
 import QRCode from 'qrcode';
 
 const W = 595.28, H = 841.89, M = 36, CW = W - M * 2, FOOTER_TOP = H - 36;
