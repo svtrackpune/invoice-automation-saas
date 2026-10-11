@@ -32,8 +32,10 @@ test('Android release signing contract stays fail-closed and secret-free', async
   assert.match(keyExample, /CHANGE_ME/);
   assert.match(keyExample, /moneymatters-release/);
   assert.match(workflow, /ANDROID_KEYSTORE_BASE64/);
-  assert.match(workflow, /ANDROID_KEYSTORE_PATH/);
-  assert.match(workflow, /npm run android:aab:release/);
+  assert.match(workflow, /ANDROID_KEYSTORE_PASSWORD/);
+  assert.match(workflow, /ANDROID_KEY_ALIAS/);
+  assert.match(workflow, /ANDROID_KEY_PASSWORD/);
+  assert.match(workflow, /gradlew bundleRelease -PrequireReleaseSigning=true/);
   assert.match(workflow, /app-release\.aab/);
   assert.equal(packageJson.scripts['android:aab:debug'], 'npm run cap:build:android:debug');
   assert.equal(packageJson.scripts['android:aab:release'], 'npm run cap:build:android:release');
