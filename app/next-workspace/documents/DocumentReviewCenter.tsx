@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
-import { buildPublicDocumentShareMessage, getPublicDocumentUrl, publicDocumentUrlFromToken } from '@/lib/client/share-document';
+import { buildPublicDocumentShareMessage, buildPublicDocumentSmsMessage, getPublicDocumentUrl, publicDocumentUrlFromToken } from '@/lib/client/share-document';
 import QRCode from 'qrcode';
 import DocumentViewer from './DocumentViewer';
 import InvoiceEditModal from '../invoices/InvoiceEditModal';
@@ -204,7 +204,10 @@ export default function DocumentReviewCenter({ type, id }: { type: string; id: s
         if (data.channel === 'whatsapp') url = 'https://wa.me/' + data.recipient.replace(/\D/g, '') + '?text=' + encoded;
         else if (data.channel === 'telegram') url = 'https://t.me/share/url?url=' + encodeURIComponent(publicUrl) + '&text=' + encodeURIComponent(body.replace(publicUrl, '').trim());
         else if (data.channel === 'email') url = 'mailto:' + data.recipient + '?subject=' + encodeURIComponent(documentNumber) + '&body=' + encoded;
-        else url = 'sms:' + data.recipient + '?body=' + encoded;
+        else if (data.channel === 'sms') {
+          const smsBody = buildPublicDocumentSmsMessage({ ...shareDetails, publicUrl });
+          url = 'sms:' + data.recipient + '?body=' + encodeURIComponent(smsBody);
+        } else throw new Error('Unsupported customer fallback channel.');
         window.open(url, '_blank', 'noopener,noreferrer');
         setNotice('Opened ' + (data.channel || 'client') + ' fallback with the public customer link.');
       } else {

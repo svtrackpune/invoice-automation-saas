@@ -44,10 +44,6 @@ function routeSegment(type: CanonicalDocumentType): string {
 }
 
 function publicOrigin(): string {
-  if (process.env.NODE_ENV !== 'production' && typeof window !== 'undefined'
-    && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')) {
-    return window.location.origin;
-  }
   const configured = process.env.NEXT_PUBLIC_APP_URL?.trim();
   if (configured) {
     try {
@@ -147,4 +143,19 @@ export function buildPublicDocumentShareMessage(input: PublicDocumentShareInput)
   if (input.publicUrl) lines.push('', '📥 *View & Download PDF:*', input.publicUrl);
   lines.push('', '──────────────────', '⚡ _Sent via Moneymatters FinOps — Join Moneymatters for free at https://mm.nilanga.in_');
   return lines.join('\n');
+}
+
+export function buildPublicDocumentSmsMessage(input: PublicDocumentShareInput): string {
+  const type = canonicalType(input.documentType);
+  const label = type === 'quotation' ? 'Quotation' : type === 'receipt' ? 'Payment Receipt'
+    : type === 'challan' ? 'Delivery Challan' : type === 'invoice' ? 'Invoice' : 'Document';
+  const business = cleanLine(input.businessName, 'Business');
+  const number = cleanLine(input.documentNumber, '—');
+  const currency = String(input.currencyCode || 'INR').trim().toUpperCase();
+  const amount = money(input.totalAmount, currency);
+  const balance = input.balanceDue !== undefined && input.balanceDue !== null
+    ? ' Balance due ' + money(input.balanceDue, currency) + '.'
+    : '';
+  const link = input.publicUrl ? ' View: ' + input.publicUrl : '';
+  return label + ' #' + number + ' from ' + business + '. Amount ' + amount + '.' + balance + link + ' - Moneymatters FinOps';
 }

@@ -148,3 +148,13 @@ test('customer-facing shares use canonical token URLs instead of merchant worksp
  assert.ok(linkRpc.includes("has_business_permission(v_business_id, 'sales.create', auth.uid())"));
  assert.ok(linkRpc.includes('REVOKE ALL ON FUNCTION public.get_public_document_link(text, uuid) FROM PUBLIC, anon'));
 });
+
+test('SMS fallback uses a concise branded template with the canonical public link',async()=>{
+ const helper=await read('lib/client/share-document.ts');
+ const review=await read('app/next-workspace/documents/DocumentReviewCenter.tsx');
+ assert.ok(helper.includes('export function buildPublicDocumentSmsMessage'));
+ assert.ok(helper.includes('Moneymatters FinOps'));
+ assert.ok(review.includes('buildPublicDocumentSmsMessage({ ...shareDetails, publicUrl })'));
+ assert.ok(review.includes("'sms:' + data.recipient + '?body=' + encodeURIComponent(smsBody)"));
+ assert.ok(helper.includes("const PUBLIC_ORIGIN = 'https://mm.nilanga.in'"));
+});
