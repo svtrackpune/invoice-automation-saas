@@ -39,17 +39,15 @@ BEGIN
      AND q.status <> 'accepted' THEN
     RAISE EXCEPTION 'Quotation has expired';
   END IF;$old$;
-  IF length(v_definition)-length(replace(v_definition,v_old,'')) <> length(v_old) THEN
-    RAISE EXCEPTION 'Public quotation view patch aborted: expiry guard not found exactly once';
+  -- Repeat-safe: absence of this guard means the public-view patch has already run.
+  IF position(v_old IN v_definition) > 0 THEN
+    v_definition := replace(v_definition,v_old,'');
   END IF;
-  v_definition := replace(v_definition,v_old,'');
 
   v_old := $old$    'invoice_status', linked_invoice.status::text,
     'accepted_at', q.accepted_at,$old$;
-  IF length(v_definition)-length(replace(v_definition,v_old,'')) <> length(v_old) THEN
-    RAISE EXCEPTION 'Public quotation view patch aborted: JSON payment insertion point not found exactly once';
-  END IF;
-  v_new := $new$    'invoice_status', linked_invoice.status::text,
+  IF position(v_old IN v_definition) > 0 THEN
+    v_new := $new$    'invoice_status', linked_invoice.status::text,
     'currency_code', q.currency_code,
     'upi_id', CASE
       WHEN coalesce(dps.payment_qr_enabled, true)
@@ -72,16 +70,17 @@ BEGIN
       END
     ) ELSE NULL END,
     'accepted_at', q.accepted_at,$new$;
-  v_definition := replace(v_definition,v_old,v_new);
+    v_definition := replace(v_definition,v_old,v_new);
+  ELSIF position('payment_qr_enabled' IN v_definition) = 0 THEN
+    RAISE EXCEPTION 'Public quotation view patch aborted: payment JSON is neither original nor patched';
+  END IF;
 
   v_old := $old$  LEFT JOIN public.invoices linked_invoice
     ON linked_invoice.id = q.invoice_id
    AND linked_invoice.business_id = q.business_id
   WHERE c.id = q.customer_id AND c.business_id = q.business_id;$old$;
-  IF length(v_definition)-length(replace(v_definition,v_old,'')) <> length(v_old) THEN
-    RAISE EXCEPTION 'Public quotation view patch aborted: tenant-scoped join point not found exactly once';
-  END IF;
-  v_new := $new$  LEFT JOIN public.invoices linked_invoice
+  IF position(v_old IN v_definition) > 0 THEN
+    v_new := $new$  LEFT JOIN public.invoices linked_invoice
     ON linked_invoice.id = q.invoice_id
    AND linked_invoice.business_id = q.business_id
   LEFT JOIN public.document_payment_settings dps
@@ -107,7 +106,10 @@ BEGIN
     LIMIT 1
   ) quote_bank ON true
   WHERE c.id = q.customer_id AND c.business_id = q.business_id;$new$;
-  v_definition := replace(v_definition,v_old,v_new);
+    v_definition := replace(v_definition,v_old,v_new);
+  ELSIF position('business_document_bank_accounts' IN v_definition) = 0 THEN
+    RAISE EXCEPTION 'Public quotation view patch aborted: settlement join is neither original nor patched';
+  END IF;
 
   IF position('business_document_bank_accounts' IN v_definition)=0
      OR position('payment_qr_enabled' IN v_definition)=0
