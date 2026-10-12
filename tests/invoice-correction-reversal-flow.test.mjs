@@ -10,7 +10,7 @@ test('correction modal renders invoice editor core directly, without a nested wo
   const core = await read('app/next-workspace/invoices/InvoiceEditorCore.tsx');
   const page = await read('app/next-workspace/invoices/new/page.tsx');
   assert.match(modal, /import InvoiceEditorCore from '\.\/InvoiceEditorCore'/);
-  assert.match(modal, /<InvoiceEditorCore documentId=\{invoiceId\} embedded documentKind=\{documentKind\} onCancel=\{onClose\} onSaved=\{onClose\} \/>/);
+  assert.ok(modal.includes('<InvoiceEditorCore documentId={invoiceId} embedded documentKind={documentKind} onCancel={onClose} onSaved={() => { onClose(); window.location.assign(`/next-workspace/documents?type=invoice&id=${encodeURIComponent(invoiceId)}`); }} />'));
   assert.doesNotMatch(modal, /<iframe/);
   assert.match(page, /<InvoiceEditorCore \/>/);
   assert.match(core, /documentId\?: string/);
