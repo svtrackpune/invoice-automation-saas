@@ -203,7 +203,7 @@ test('public invoice renderer creates a vector-rendered A4 GST PDF with QR and b
  assert.equal(pdf.subarray(0,8).toString('ascii'),'%PDF-1.4');
  const raw=pdf.toString('latin1');
  assert.match(raw,/\/MediaBox \[0 0 595\.28 841\.89\]/);
- for(const text of ['TAX INVOICE','INV-000018','BILLED TO','SHIPPED TO','HSN/SAC','CGST','SGST','Grand Total','Balance Due','SCAN TO PAY','Generated via Moneymatters FinOps']) assert.ok(raw.includes(text),'PDF is missing '+text);
+ for(const text of ['INVOICE','INV-000018','BILL TO','INVOICE SUMMARY','ITEM / DESCRIPTION','CGST','SGST','Total','Balance due','PAYMENT','Pay Now via UPI','Scan to pay the invoice amount.','This is a customer-facing invoice shared by','Powered by Moneymatters | mm.nilanga.in']) assert.ok(raw.includes(text),'PDF is missing '+text);
  assert.doesNotMatch(raw,/Rs\./);
  const match=raw.match(/startxref\n(\d+)\n%%EOF/);
  assert.ok(match,'PDF cross-reference offset is missing');
@@ -218,7 +218,7 @@ test('public invoice renderer creates a vector-rendered A4 GST PDF with QR and b
  const challanText=challanPdf.toString('latin1');
  for(const value of ['DELIVERY CHALLAN','Vehicle No: MH24AB1234','Transporter: Sample Transport','E-Way Bill: EWB-12345','NOT FOR SALE / NOT A TAX INVOICE']) assert.ok(challanText.includes(value),'Challan PDF is missing '+value);
 });
-function QRCodePlaceholderForTest(pdf){return pdf.includes(Buffer.from('SCAN TO PAY'));}
+function QRCodePlaceholderForTest(pdf){const raw=pdf.toString('latin1');return raw.includes('/Subtype /Link')&&raw.includes('Pay Now via UPI')&&raw.includes('/Annots [');}
 
 test('canonical view model powers invoice, quotation, receipt, challan, print and PDF surfaces',async()=>{
  const viewModel=await read('lib/shared/document-view-model.ts');
