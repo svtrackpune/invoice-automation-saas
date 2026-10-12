@@ -31,6 +31,20 @@ test('post-commit checkout failures never become invoice-posting error banners',
   assert.doesNotMatch(finalize, /setError\(link\.error/);
 });
 
+
+test('public invoice RPC returns the active settlement account for online invoices when display is enabled', async () => {
+  const migration = await read('supabase/migrations/20261012130000_public_invoice_native_upi_bank_details.sql');
+  assert.match(migration, /business_document_preferences/);
+  assert.match(migration, /bdp\.show_bank_details/);
+  assert.match(migration, /payment_display_mode='online'/);
+  assert.match(migration, /public\.business_document_bank_accounts/);
+  assert.match(migration, /dps\.default_bank_account_id/);
+  assert.match(migration, /candidate\.is_primary/);
+  assert.match(migration, /'bank', CASE/);
+  assert.match(migration, /'account_number', ba\.account_number/);
+  assert.match(migration, /'ifsc_code', ba\.ifsc_code/);
+});
+
 test('public invoice web payment card shows bank details together with UPI QR and a native UPI action', async () => {
   const page = await read('app/invoice/[token]/page.tsx');
   assert.match(page, /PAYMENT/);
