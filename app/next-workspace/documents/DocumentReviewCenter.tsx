@@ -253,7 +253,17 @@ export default function DocumentReviewCenter({ type, id }: { type: string; id: s
     if (result.error) { setError(result.error.message); setBusy(false); return; }
     setStatus('sent');
     if (paymentMode === 'online') {
-      const link = await supabase.functions.invoke('create-payment-link', { body: { invoice_id: id } });
+      let link: { data: { status?: string; reason?: string; payment_link?: unknown; error?: string } | null; error: Error | null };
+      try {
+        link = await supabase.functions.invoke('create-payment-link', { body: { invoice_id: id } });
+      } catch {
+        // Posting already committed. A transport-level Edge Function failure is
+        // non-fatal because the document remains payable by its configured methods.
+        setNotice('Invoice finalized and posted. The document has been refreshed with its currently configured payment options.');
+        setBusy(false);
+        window.setTimeout(() => { window.location.assign('/next-workspace/documents?type=invoice&id=' + encodeURIComponent(id)); }, 650);
+        return;
+      }
       if (link.data?.status === 'skipped' && link.data?.reason === 'native_upi_configured') {
         setNotice('Invoice finalized and posted. Native UPI payment and bank settlement details are available on the refreshed document.');
         setBusy(false);
