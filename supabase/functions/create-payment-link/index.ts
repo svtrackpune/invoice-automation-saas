@@ -25,9 +25,6 @@ Deno.serve(async(req)=>{
     if(invoiceError||!invoice)return json({error:"Invoice not found"},404);
     if(!["sent","posted","partially_paid","overdue"].includes(String(invoice.status))||!invoice.journal_entry_id)return json({error:"Invoice must be posted before creating a payment link"},409);
     if(Number(invoice.balance_due)<=0)return json({error:"Invoice has no outstanding balance"},400);
-    const {data:existing}=await admin.from("payment_links").select("*").eq("business_id",businessId).eq("invoice_id",invoice.id).in("status",["creating","created","paid","partially_paid"]).order("created_at",{ascending:false}).limit(1).maybeSingle();
-    if(existing?.short_url)return json({payment_link:existing});
-    if(existing?.status==="creating")return json({error:"Payment link creation is already in progress. Please retry shortly."},409);
     const {data:settings}=await admin.from("document_payment_settings").select("payment_gateway_provider,payment_link_enabled,payment_qr_enabled,upi_id,enable_upi,default_bank_account_id,cashfree_environment,razorpay_enabled,razorpay_key_id,razorpay_secret_ref,cashfree_enabled,cashfree_app_id,cashfree_secret_ref,stripe_enabled,stripe_publishable_key,stripe_secret_ref").eq("business_id",businessId).maybeSingle();
     nativeUpiConfigured=settings?.payment_qr_enabled===true&&settings?.enable_upi!==false&&typeof settings?.upi_id==="string"&&settings.upi_id.trim().length>0;
     const provider=requestedProvider||String(settings?.payment_gateway_provider||"").toLowerCase();
@@ -35,6 +32,9 @@ Deno.serve(async(req)=>{
     // Direct UPI/bank settlement is a valid payment mode, not a failed checkout.
     // Skip the aggregator when a third-party provider is not configured and enabled.
     if(nativeUpiConfigured&&(settings?.payment_link_enabled!==true||!gatewayEnabled||!["razorpay","cashfree","stripe"].includes(provider)))return nativeUpiSkipped();
+    const {data:existing}=await admin.from("payment_links").select("*").eq("business_id",businessId).eq("invoice_id",invoice.id).in("status",["creating","created","paid","partially_paid"]).order("created_at",{ascending:false}).limit(1).maybeSingle();
+    if(existing?.short_url)return json({payment_link:existing});
+    if(existing?.status==="creating")return json({error:"Payment link creation is already in progress. Please retry shortly."},409);
     if(!["razorpay","cashfree","stripe"].includes(provider))return nativeUpiConfigured?nativeUpiSkipped():json({error:"Select a payment gateway in Payment Settings before generating a payment link."},409);
     if(settings?.payment_link_enabled!==true||!gatewayEnabled)return nativeUpiConfigured?nativeUpiSkipped():json({error:"Payment link generation is disabled in Payment Settings."},409);
     const {data:credentials,error:credentialError}=await admin.rpc("resolve_payment_gateway_credentials",{p_business_id:businessId,p_provider:provider});
