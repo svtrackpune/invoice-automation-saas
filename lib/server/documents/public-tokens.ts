@@ -213,13 +213,25 @@ export async function loadPublicDocumentById(
     subtotal = n(row.subtotal); discountTotal = n(row.discount_amount); taxTotal = n(row.tax_amount); total = n(row.total);
     balanceDue = total; notes = nullable(row.notes); terms = nullable(row.terms);
     const itemResult = await db.from('quotation_items')
-      .select('description,quantity,unit_price,discount_type,discount_value,tax_rate_id,sort_order')
+      .select('description,quantity,unit_price,discount_type,discount_value,tax_rate_id,sort_order,line_discount,line_tax,line_total')
       .eq('quotation_id', id).order('sort_order');
     if (itemResult.error) throw new Error('Quotation items are unavailable.');
     items = ((itemResult.data || []) as Row[]).map(item => {
       const base = n(item.quantity) * n(item.unit_price);
-      const discount = text(item.discount_type) === 'percentage' ? base * n(item.discount_value) / 100 : n(item.discount_value);
-      return { description: text(item.description) || 'Item', quantity: n(item.quantity), unit: null, unitPrice: n(item.unit_price), discount, taxAmount: 0, lineTotal: Math.max(0, base - discount), hsnSac: null };
+      const computedDiscount = text(item.discount_type) === 'percentage' ? base * n(item.discount_value) / 100 : n(item.discount_value);
+      const discount = item.line_discount == null ? computedDiscount : n(item.line_discount);
+      const taxAmount = n(item.line_tax);
+      const computedLineTotal = Math.max(0, base - discount) + taxAmount;
+      return {
+        description: text(item.description) || 'Item',
+        quantity: n(item.quantity),
+        unit: null,
+        unitPrice: n(item.unit_price),
+        discount,
+        taxAmount,
+        lineTotal: item.line_total == null ? computedLineTotal : n(item.line_total),
+        hsnSac: null,
+      };
     });
   } else {
     const result = await db.from('delivery_challans')
