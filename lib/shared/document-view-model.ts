@@ -193,7 +193,7 @@ export function createCanonicalDocumentViewModel(
   const customerName = str(first(customerSource.legalName, customerSource.legal_name, customerSource.display_name, customerSource.name, customerSource.customer_name), 'Customer');
   const publicUrl = str(first(options.publicUrl, source.publicUrl, source.public_url, root.publicUrl));
   const explicitQr = nullableText(source.upiQrString, source.payment_qr_payload, source.paymentQrPayload, source.payment_qr_payload);
-  const qrUpi = documentType === 'invoice' && currency === 'INR' && balance > 0 && bankUpi
+  const qrUpi = ['invoice', 'quotation'].includes(documentType) && currency === 'INR' && balance > 0 && bankUpi
     ? 'upi://pay?' + new URLSearchParams({
       pa: bankUpi,
       pn: businessName,
