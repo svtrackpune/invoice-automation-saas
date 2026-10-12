@@ -15,6 +15,9 @@ async function bodyText(response:Response){return (await response.text()).slice(
 Deno.serve(async(req)=>{
   if(req.method!=='POST')return json({error:'POST required'},405);
   try{
+    const workerToken=req.headers.get('x-moneymatters-worker-token');
+    const {data:authorized,error:authorizationError}=await admin.rpc('is_notification_worker_token_valid',{p_token:workerToken});
+    if(authorizationError||authorized!==true)return json({error:'Unauthorized'},401);
     const {data:materialized,error:materializeError}=await admin.rpc('materialize_webhook_deliveries',{p_limit:50});
     if(materializeError)throw materializeError;
     const {data:deliveries,error:claimError}=await admin.rpc('claim_webhook_deliveries',{p_limit:50});
