@@ -286,7 +286,7 @@ test('notification dispatch shares only balance-aware INR UPI intent and configu
 
 test('notification worker requires a Vault cron token or a permission-checked manual-test session',async()=>{
  const worker=await read('supabase/functions/process-notifications/index.ts');
- const migration=await read('supabase/migrations/20261012065500_protect_notification_worker_endpoint.sql');
+ const migration=await read('supabase/migrations/20261012070315_protect_notification_worker_endpoint.sql');
  assert.match(worker,/x-moneymatters-worker-token/);
  assert.match(worker,/is_notification_worker_token_valid/);
  assert.match(worker,/admin\.auth\.getUser\(bearer\)/);
