@@ -279,12 +279,26 @@ export async function buildPublicDocumentPdf(doc: PublicDocument): Promise<Buffe
     return top+(doc.type==='invoice'&&doc.supplyType?134:124);
   };
 
-  const widths=[22,144,47,39,60,52,82,77];
-  const labels=['#','Item Description','HSN/SAC','Qty','Unit Rate','Discount','Taxable Amt','Total'];
+  const widths = doc.type === 'invoice' ? [270, 60, 92, CW - 422] : [22,144,47,39,60,52,82,77];
+  const labels = doc.type === 'invoice'
+    ? ['ITEM / DESCRIPTION', 'QTY', 'RATE', 'AMOUNT']
+    : ['#','Item Description','HSN/SAC','Qty','Unit Rate','Discount','Taxable Amt','Total'];
   const tableHeader=(top:number)=>{
-    c.rect(M,top,CW,23,C.navy);let x=M;
-    widths.forEach((w,i)=>{const align=i>=3?'right':'left';c.text(align==='right'?x+w-5:x+5,top+7,labels[i],6.7,true,C.white,align);x+=w;});
-    return top+23;
+    if (doc.type === 'invoice') {
+      c.rect(M, top, CW, 24, C.pale);
+      c.line(M, top, right, top, C.border, 0.65);
+      c.line(M, top + 24, right, top + 24, C.border, 0.65);
+      let x = M;
+      widths.forEach((w, i) => {
+        const align = i > 0 ? 'right' : 'left';
+        c.text(align === 'right' ? x + w - 8 : x + 8, top + 8, labels[i], 7.1, true, C.muted, align);
+        x += w;
+      });
+    } else {
+      c.rect(M,top,CW,23,C.navy);let x=M;
+      widths.forEach((w,i)=>{const align=i>=3?'right':'left';c.text(align==='right'?x+w-5:x+5,top+7,labels[i],6.7,true,C.white,align);x+=w;});
+    }
+    return top + (doc.type === 'invoice' ? 24 : 23);
   };
 
   header(false);
@@ -293,21 +307,35 @@ export async function buildPublicDocumentPdf(doc: PublicDocument): Promise<Buffe
   const items=canonical.items.length?canonical.items:[{description:'No line items supplied',quantity:0,unitPrice:0,discount:0,taxRate:0,amount:0,hsn:undefined}];
   items.forEach((it,i)=>{
     const originalItem=doc.items[i];
-    const desc=wrap(it.description,31).slice(0,3), rh=Math.max(25,desc.length*9+10);
-    if(y+rh>FOOTER_TOP-4){c.newPage();header(true);y=tableHeader(78);}
-    if(i%2===1)c.rect(M,y,CW,rh,C.pale);
-    c.line(M,y+rh,right,y+rh,C.border,0.45);
-    const xs:number[]=[];let xx=M;for(const w of widths){xs.push(xx);xx+=w;}
-    c.text(xs[0]+5,y+8,i+1,7,false,C.muted);
-    desc.forEach((v,j)=>c.text(xs[1]+5,y+6+j*9,v,7.2,j===0,C.ink));
-    c.text(xs[2]+4,y+8,it.hsn||'-',6.6,false,C.muted);
-    c.text(xs[3]+widths[3]-5,y+8,ascii(it.quantity)+(originalItem?.unit?' '+ascii(originalItem.unit).slice(0,4):''),6.9,false,C.ink,'right');
-    c.text(xs[4]+widths[4]-5,y+8,money(it.unitPrice,canonical.document.currency),6.5,false,C.ink,'right');
-    c.text(xs[5]+widths[5]-5,y+8,it.discount?money(it.discount,canonical.document.currency):'-',6.5,false,C.ink,'right');
-    const taxable=Math.max(0,it.quantity*it.unitPrice-it.discount);
-    c.text(xs[6]+widths[6]-5,y+8,money(taxable,canonical.document.currency),6.5,false,C.ink,'right');
-    c.text(xs[7]+widths[7]-5,y+8,money(it.amount,canonical.document.currency),6.5,true,C.ink,'right');
-    y+=rh;
+    if (doc.type === 'invoice') {
+      const desc = wrap(it.description, 48).slice(0, 2);
+      const rh = Math.max(30, desc.length * 10 + (it.hsn ? 8 : 0) + 8);
+      if (y + rh > FOOTER_TOP - 4) { c.newPage(); header(true); y = tableHeader(78); }
+      c.line(M, y + rh, right, y + rh, C.border, 0.5);
+      const xs: number[] = []; let xx = M; for (const w of widths) { xs.push(xx); xx += w; }
+      desc.forEach((v, j) => c.text(xs[0] + 8, y + 7 + j * 10, v, j === 0 ? 8.2 : 7.4, j === 0, j === 0 ? C.navy : C.muted));
+      if (it.hsn) c.text(xs[0] + 8, y + 7 + desc.length * 10, 'HSN / SAC: ' + it.hsn, 6.5, false, C.muted);
+      c.text(xs[1] + widths[1] - 8, y + 9, ascii(it.quantity) + (originalItem?.unit ? ' ' + ascii(originalItem.unit).slice(0, 5) : ''), 7.7, false, C.ink, 'right');
+      c.text(xs[2] + widths[2] - 8, y + 9, money(it.unitPrice, canonical.document.currency), 7.5, false, C.ink, 'right');
+      c.text(xs[3] + widths[3] - 8, y + 9, money(it.amount, canonical.document.currency), 7.8, true, C.navy, 'right');
+      y += rh;
+    } else {
+      const desc=wrap(it.description,31).slice(0,3), rh=Math.max(25,desc.length*9+10);
+      if(y+rh>FOOTER_TOP-4){c.newPage();header(true);y=tableHeader(78);}
+      if(i%2===1)c.rect(M,y,CW,rh,C.pale);
+      c.line(M,y+rh,right,y+rh,C.border,0.45);
+      const xs:number[]=[];let xx=M;for(const w of widths){xs.push(xx);xx+=w;}
+      c.text(xs[0]+5,y+8,i+1,7,false,C.muted);
+      desc.forEach((v,j)=>c.text(xs[1]+5,y+6+j*9,v,7.2,j===0,C.ink));
+      c.text(xs[2]+4,y+8,it.hsn||'-',6.6,false,C.muted);
+      c.text(xs[3]+widths[3]-5,y+8,ascii(it.quantity)+(originalItem?.unit?' '+ascii(originalItem.unit).slice(0,4):''),6.9,false,C.ink,'right');
+      c.text(xs[4]+widths[4]-5,y+8,money(it.unitPrice,canonical.document.currency),6.5,false,C.ink,'right');
+      c.text(xs[5]+widths[5]-5,y+8,it.discount?money(it.discount,canonical.document.currency):'-',6.5,false,C.ink,'right');
+      const taxable=Math.max(0,it.quantity*it.unitPrice-it.discount);
+      c.text(xs[6]+widths[6]-5,y+8,money(taxable,canonical.document.currency),6.5,false,C.ink,'right');
+      c.text(xs[7]+widths[7]-5,y+8,money(it.amount,canonical.document.currency),6.5,true,C.ink,'right');
+      y+=rh;
+    }
   });
   if(y+190>FOOTER_TOP-4){c.newPage();header(true);y=82;}else y+=12;
 
