@@ -122,7 +122,7 @@ export default function QuotationsListPage() {
                   {filtered.map(row => {
                     const customer = customers[row.customer_id];
                     const expired = row.status === 'sent' && Boolean(row.valid_until && row.valid_until < today());
-                    const isPublic = ['sent', 'accepted', 'converted'].includes(row.status) && !expired;
+                    const isPublic = ['sent', 'accepted', 'converted'].includes(row.status);
                     const isEditable = ['draft', 'sent'].includes(row.status);
                     const pdf = pdfUrl(row);
                     return (
