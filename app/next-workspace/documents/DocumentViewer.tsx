@@ -332,7 +332,7 @@ export default function DocumentViewer({ type, id }: { type: string; id: string 
         loaded.data?.template_id ? supabase.from('document_templates').select('template_key,template_name').eq('id', loaded.data.template_id).maybeSingle() : Promise.resolve({ data: null } as any),
         businessId ? supabase.from('business_document_preferences').select('custom_fields,show_logo,show_business_address,show_tax_details,show_payment_qr,show_payment_link,show_signature,show_terms,show_bank_details,document_title_override,min_item_rows,prefill_upi_amount,show_customer_balance,show_authorized_signatory,show_serial_numbers').eq('business_id', businessId).eq('document_type', renderType).maybeSingle() : Promise.resolve({ data: null } as any),
         businessId ? supabase.from('businesses').select('id,name,legal_name,registration_number,tax_registration_number,tax_enabled,tax_mode,tax_type,currency_code,address,phone,alternate_phone,contact_person_name,contact_person_designation,email,alternate_email,website,google_location_link,logo_storage_path,logo_url').eq('id', businessId).maybeSingle() : Promise.resolve({ data: null } as any),
-        businessId ? supabase.from('document_payment_settings').select('upi_id,payment_qr_enabled,payment_link_enabled,payment_instructions').eq('business_id', businessId).maybeSingle() : Promise.resolve({ data: null } as any),
+        businessId ? supabase.from('document_payment_settings').select('upi_id,payment_qr_enabled,payment_link_enabled,payment_instructions,default_bank_account_id').eq('business_id', businessId).maybeSingle() : Promise.resolve({ data: null } as any),
       ]);
       if (!active) return;
       setJob(loaded.data); setTemplate(templateResult.data); setPreferences(preferenceResult.data); setPaymentSettings(paymentSettingsResult.data || null); if (businessResult.data) setBusiness(businessResult.data);
@@ -345,6 +345,39 @@ export default function DocumentViewer({ type, id }: { type: string; id: string 
           selectedBank = bankResult.data || null;
         }
         if (selectedBank) setPaymentSelection({ payment_display_mode: 'bank', bank: selectedBank });
+      }
+      if (type === 'quotation' && businessId) {
+        let quotationBankId = selectedBank?.id || null;
+        if (!quotationBankId) {
+          const preferred = await supabase.from('business_document_bank_accounts')
+            .select('bank_account_id')
+            .eq('business_id', businessId).eq('document_type', 'quotation')
+            .order('display_order', { ascending: true }).order('created_at', { ascending: true })
+            .limit(1).maybeSingle();
+          if (!preferred.error) quotationBankId = preferred.data?.bank_account_id || null;
+        }
+        if (!quotationBankId) quotationBankId = paymentSettingsResult.data?.default_bank_account_id || null;
+        if (!quotationBankId) {
+          const businessDefaults = await supabase.from('business_settings').select('default_bank_account_id')
+            .eq('business_id', businessId).maybeSingle();
+          if (!businessDefaults.error) quotationBankId = businessDefaults.data?.default_bank_account_id || null;
+        }
+        let quotationBank: any = null;
+        if (quotationBankId) {
+          const preferredBank = await supabase.from('bank_accounts')
+            .select('id,name,institution_name,account_last4,account_holder_name,ifsc_code,branch_name,account_type,currency_code,metadata')
+            .eq('id', quotationBankId).eq('business_id', businessId).eq('is_active', true).maybeSingle();
+          if (!preferredBank.error) quotationBank = preferredBank.data || null;
+        }
+        if (!quotationBank) {
+          const fallbackBank = await supabase.from('bank_accounts')
+            .select('id,name,institution_name,account_last4,account_holder_name,ifsc_code,branch_name,account_type,currency_code,metadata')
+            .eq('business_id', businessId).eq('is_active', true)
+            .order('is_primary', { ascending: false }).order('created_at', { ascending: true })
+            .limit(1).maybeSingle();
+          if (!fallbackBank.error) quotationBank = fallbackBank.data || null;
+        }
+        setPaymentSelection(quotationBank ? { payment_display_mode: 'bank', bank: quotationBank } : null);
       }
       if (type === 'invoice' && businessId && invoiceId) {
         const invoiceResult = await supabase.from('invoices').select('payment_display_mode,payment_bank_account_id,payment_link,payment_qr_payload').eq('id', invoiceId).eq('business_id', businessId).maybeSingle();
@@ -403,7 +436,7 @@ export default function DocumentViewer({ type, id }: { type: string; id: string 
   const canonicalType = type === 'delivery_challan' ? 'challan'
     : type === 'quotation' ? 'quotation'
       : type === 'receipt' ? 'receipt' : 'invoice';
-  const canonicalPaymentEnabled = ['invoice','tax_invoice','cash_bill'].includes(type);
+  const canonicalPaymentEnabled = ['invoice','tax_invoice','cash_bill','quotation'].includes(type);
   const configuredUpiId = canonicalPaymentEnabled && paymentSettings?.payment_qr_enabled !== false
     ? paymentSettings?.upi_id || paymentSelection?.bank?.upi_id || null
     : null;
