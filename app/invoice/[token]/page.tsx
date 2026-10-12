@@ -19,7 +19,7 @@ type Invoice = {
   subtotal:number; discount_total:number; tax_total:number; cgst_amount:number; sgst_amount:number; igst_amount:number;
   place_of_supply_state_code:string|null; supply_type:string; total:number; amount_paid:number; balance_due:number;
   notes:string|null; terms:string|null; payment_display_mode:'none'|'bank'|'online'; payment_link:string|null; payment_qr_payload:string|null;
-  upi_id:string|null; payment_qr_enabled:boolean;
+  upi_id:string|null; payment_qr_enabled:boolean; settlement_display_mode:'upi_qr'|'bank_transfer'|'both'|'none';
   template_name:string|null;
   customer:{display_name:string;legal_name:string|null;email:string|null;phone:string|null;billing_address:AddressValue;shipping_address:AddressValue;tax_id:string|null};
   business:{name:string;legal_name:string|null;phone:string|null;email:string|null;website:string|null;address:AddressValue;logo_storage_path:string|null;tax_registration_number:string|null};
@@ -46,15 +46,16 @@ export default function PublicInvoice({params}:{params:Promise<{token:string}>})
     cgst_amount:invoice.cgst_amount,sgst_amount:invoice.sgst_amount,igst_amount:invoice.igst_amount,
     place_of_supply_state_code:invoice.place_of_supply_state_code,supply_type:invoice.supply_type,
     total:invoice.total,amount_paid:invoice.amount_paid,balance_due:invoice.balance_due,payment_qr_payload:invoice.payment_qr_payload,
+    settlement_display_mode:invoice.settlement_display_mode,
     business:invoice.business,customer:invoice.customer,bank:invoice.payment_qr_enabled===false?{...invoice.bank,upi_id:null}:invoice.bank,items:invoice.items,
-  },{type:'invoice',publicUrl:'https://mm.nilanga.in/invoice/'+encodeURIComponent(token),upiId:invoice.payment_qr_enabled===false?null:(invoice.upi_id||invoice.bank?.upi_id)}):null,[invoice,token]);
+  },{type:'invoice',publicUrl:'https://mm.nilanga.in/invoice/'+encodeURIComponent(token),upiId:invoice.payment_qr_enabled===false?null:(invoice.upi_id||invoice.bank?.upi_id),settlementDisplayMode:invoice.settlement_display_mode,paymentQrEnabled:invoice.payment_qr_enabled}):null,[invoice,token]);
 
-  useEffect(()=>{let active=true;const value=invoice?.payment_qr_enabled===false?'':canonical?.financials.upiQrString||invoice?.payment_qr_payload||'';if(!value){setQr('');return()=>{active=false}};QRCode.toDataURL(value,{width:180,margin:1,errorCorrectionLevel:'M'}).then(x=>{if(active)setQr(x)}).catch(()=>{if(active)setQr('')});return()=>{active=false}},[canonical?.financials.upiQrString,invoice?.payment_qr_payload,invoice?.payment_link,invoice?.payment_qr_enabled]);
+  useEffect(()=>{let active=true;const mode=canonical?.settlementDisplayMode;const value=invoice?.payment_qr_enabled===false||!['upi_qr','both'].includes(mode||'')?'':canonical?.financials.upiQrString||'';if(!value){setQr('');return()=>{active=false}};QRCode.toDataURL(value,{width:180,margin:1,errorCorrectionLevel:'M'}).then(x=>{if(active)setQr(x)}).catch(()=>{if(active)setQr('')});return()=>{active=false}},[canonical?.financials.upiQrString,canonical?.settlementDisplayMode,invoice?.payment_qr_enabled]);
 
   const logoUrl=useMemo(()=>invoice?.business.logo_storage_path?supabase.storage.from('business-branding-public').getPublicUrl(invoice.business.logo_storage_path).data.publicUrl:'',[invoice?.business.logo_storage_path]);
-  const paymentBox=invoice?.payment_display_mode==='bank'&&invoice.bank?invoice.bank
-    :invoice?.payment_display_mode==='online'?(invoice.payment_link||invoice.payment_qr_payload||canonical?.financials.upiQrString?{online:true}:null)
-    :invoice?.payment_display_mode==='bank'&&canonical?.financials.upiQrString?{online:true}:null;
+  const showBankSettlement=Boolean(invoice?.bank&&(canonical?.settlementDisplayMode==='bank_transfer'||canonical?.settlementDisplayMode==='both'));
+  const showUpiSettlement=Boolean(canonical?.financials.upiQrString&&(canonical?.settlementDisplayMode==='upi_qr'||canonical?.settlementDisplayMode==='both'));
+  const paymentBox=showBankSettlement||showUpiSettlement;
 
   if(loading)return <main className="min-h-screen grid place-items-center bg-slate-50 text-sm text-slate-500">Loading invoice…</main>;
   if(error||!invoice)return <main className="min-h-screen grid place-items-center bg-slate-50 p-6"><div className="max-w-md rounded-3xl bg-white p-8 text-center shadow-sm"><h1 className="text-xl font-bold text-slate-900">Invoice unavailable</h1><p className="mt-3 text-sm text-slate-600">{error||'This invoice link is invalid or no longer available.'}</p></div></main>;
@@ -85,9 +86,9 @@ export default function PublicInvoice({params}:{params:Promise<{token:string}>})
       </section>
 
       {paymentBox&&<section className="mx-6 mb-8 max-w-3xl rounded-2xl border border-slate-300 bg-white p-5 sm:mx-8 sm:p-6 print:mx-0">
-        <h3 className="text-center text-xs font-bold tracking-[0.16em] text-slate-900">PAYMENT</h3>
-        <div className={invoice.bank?'mt-4 grid gap-4 sm:grid-cols-2':'mt-4'}>
-          {invoice.bank&&<div className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
+        <h3 className="text-center text-xs font-bold tracking-[0.16em] text-slate-900">{canonical?.settlementDisplayMode==='bank_transfer'?'BANK DETAILS':'PAYMENT'}</h3>
+        <div className={showBankSettlement&&showUpiSettlement?'mt-4 grid gap-4 sm:grid-cols-2':'mt-4'}>
+          {showBankSettlement&&invoice.bank&&<div className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
             <h4 className="text-xs font-bold uppercase tracking-wider text-slate-900">Bank settlement details</h4>
             {invoice.bank.account_holder_name&&<div className="mt-3"><b>Account Name:</b> {invoice.bank.account_holder_name}</div>}
             <div><b>Bank:</b> {invoice.bank.institution_name||invoice.bank.name}</div>
@@ -97,12 +98,10 @@ export default function PublicInvoice({params}:{params:Promise<{token:string}>})
             {invoice.bank.ifsc_code&&<div><b>IFSC:</b> {invoice.bank.ifsc_code}</div>}
             {invoice.bank.upi_id&&<div><b>UPI:</b> {invoice.bank.upi_id}</div>}
           </div>}
-          <div className="flex flex-col items-center justify-start text-center">
-            {invoice.payment_link&&<a href={invoice.payment_link} target="_blank" rel="noreferrer" className="inline-flex rounded-full bg-violet-600 px-5 py-2.5 text-sm font-bold text-white hover:bg-violet-700">Pay Now Online</a>}
-            {canonical?.financials.upiQrString&&<a href={canonical.financials.upiQrString} className="mt-2 inline-flex rounded-full bg-violet-600 px-5 py-2.5 text-sm font-bold text-white hover:bg-violet-700">Pay Now via UPI</a>}
-            {qr&&<div className="mt-3"><Image src={qr} alt="Payment QR" width={180} height={180} unoptimized className="mx-auto h-36 w-36"/><p className="mt-2 text-xs text-slate-500">Scan to pay the invoice amount.</p></div>}
-            {!canonical?.financials.upiQrString&&!invoice.payment_link&&<p className="mt-3 text-sm text-slate-500">Please use the bank settlement details shown here.</p>}
-          </div>
+          {showUpiSettlement&&<div className={showBankSettlement?'flex flex-col items-center justify-start text-center':'mx-auto flex max-w-xs flex-col items-center justify-start text-center'}>
+            <a href={canonical?.financials.upiQrString} className="inline-flex rounded-full bg-violet-600 px-5 py-2.5 text-sm font-bold text-white hover:bg-violet-700">Pay Now via UPI</a>
+            {qr&&<div className="mt-3"><Image src={qr} alt="UPI payment QR code" width={180} height={180} unoptimized className="mx-auto h-36 w-36"/><p className="mt-2 text-xs text-slate-500">Scan to pay the invoice amount.</p></div>}
+          </div>}
         </div>
       </section>}
 
