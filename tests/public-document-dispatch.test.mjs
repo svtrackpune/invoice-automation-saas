@@ -215,6 +215,17 @@ test('public invoice renderer creates a vector-rendered A4 GST PDF with QR and b
  assert.ok(annotationRect,'UPI action must have a clickable PDF annotation');
  assert.ok(Number(annotationRect[1])>200,'UPI action must be positioned inside the payment card, not the page top-left');
  assert.ok(Number(annotationRect[2])>100,'UPI action must be positioned in the document body, not the top margin');
+ assert.doesNotMatch(raw,/Sample Bank/,'UPI-only default must not expose bank account strings');
+ const bankOnlyPdf=await buildPublicDocumentPdf({...doc,settlementDisplayMode:'bank_transfer'});
+ const bankOnlyText=bankOnlyPdf.toString('latin1');
+ assert.match(bankOnlyText,/Sample Bank/,'bank_transfer mode must show bank settlement details');
+ assert.doesNotMatch(bankOnlyText,/Pay Now via UPI|Scan to pay the invoice amount\./,'bank_transfer mode must not show a UPI QR panel');
+ const bothPdf=await buildPublicDocumentPdf({...doc,settlementDisplayMode:'both'});
+ const bothText=bothPdf.toString('latin1');
+ assert.match(bothText,/Sample Bank/,'explicit both mode must show bank details');
+ assert.match(bothText,/Pay Now via UPI/,'explicit both mode must show UPI checkout');
+ const bankFallback=await buildPublicDocumentPdf({...doc,upiId:null,settlementDisplayMode:undefined});
+ assert.match(bankFallback.toString('latin1'),/Sample Bank/,'when UPI is absent the renderer should default to bank transfer');
 
  const challan={...doc,type:'challan',number:'DC-0004',status:'dispatched',dueDate:null,validUntil:null,amountPaid:0,balanceDue:0,
   placeOfSupplyStateCode:null,supplyType:null,cgstAmount:0,sgstAmount:0,igstAmount:0,bankDetails:null,upiId:null,
@@ -224,6 +235,18 @@ test('public invoice renderer creates a vector-rendered A4 GST PDF with QR and b
  for(const value of ['DELIVERY CHALLAN','Vehicle No: MH24AB1234','Transporter: Sample Transport','E-Way Bill: EWB-12345','NOT FOR SALE / NOT A TAX INVOICE']) assert.ok(challanText.includes(value),'Challan PDF is missing '+value);
 });
 function QRCodePlaceholderForTest(pdf){const raw=pdf.toString('latin1');return raw.includes('/Subtype /Link')&&raw.includes('Pay Now via UPI')&&raw.includes('/Annots [');}
+
+test('document toolbar exposes styled actions, copied feedback, and print iframe copies component styles',async()=>{
+ const viewer=await read('app/next-workspace/documents/DocumentViewer.tsx');
+ assert.match(viewer,/rounded-full bg-purple-600/);
+ assert.match(viewer,/Copy customer link/);
+ assert.match(viewer,/isCopied \? 'Copied!'/);
+ assert.match(viewer,/Customer link copied to clipboard!/);
+ assert.match(viewer,/role="status" aria-live="polite"/);
+ assert.match(viewer,/document\.querySelectorAll\('style'\)/);
+ assert.match(viewer,/stylesheetReady/);
+ assert.match(viewer,/settlementDisplayMode=\{canonical\.settlementDisplayMode\}/);
+});
 
 test('canonical view model powers invoice, quotation, receipt, challan, print and PDF surfaces',async()=>{
  const viewModel=await read('lib/shared/document-view-model.ts');
