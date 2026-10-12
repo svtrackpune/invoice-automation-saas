@@ -310,7 +310,7 @@ export async function buildPublicDocumentPdf(doc: PublicDocument): Promise<Buffe
     if (doc.type === 'invoice') {
       const desc = wrap(it.description, 48).slice(0, 2);
       const rh = Math.max(30, desc.length * 10 + (it.hsn ? 8 : 0) + 8);
-      if (y + rh > FOOTER_TOP - 4) { c.newPage(); header(true); y = tableHeader(78); }
+      if (y + rh > FOOTER_TOP - 4) { c.newPage(); header(true); y = tableHeader(154); }
       c.line(M, y + rh, right, y + rh, C.border, 0.5);
       const xs: number[] = []; let xx = M; for (const w of widths) { xs.push(xx); xx += w; }
       desc.forEach((v, j) => c.text(xs[0] + 8, y + 7 + j * 10, v, j === 0 ? 8.2 : 7.4, j === 0, j === 0 ? C.navy : C.muted));
@@ -321,7 +321,7 @@ export async function buildPublicDocumentPdf(doc: PublicDocument): Promise<Buffe
       y += rh;
     } else {
       const desc=wrap(it.description,31).slice(0,3), rh=Math.max(25,desc.length*9+10);
-      if(y+rh>FOOTER_TOP-4){c.newPage();header(true);y=tableHeader(78);}
+      if(y+rh>FOOTER_TOP-4){c.newPage();header(true);y=tableHeader(154);}
       if(i%2===1)c.rect(M,y,CW,rh,C.pale);
       c.line(M,y+rh,right,y+rh,C.border,0.45);
       const xs:number[]=[];let xx=M;for(const w of widths){xs.push(xx);xx+=w;}
@@ -385,7 +385,7 @@ export async function buildPublicDocumentPdf(doc: PublicDocument): Promise<Buffe
     }
     y = Math.max(leftY, totalY) + 12;
   } else {
-  if(y+190>FOOTER_TOP-4){c.newPage();header(true);y=82;}else y+=12;
+  if(y+190>FOOTER_TOP-4){c.newPage();header(true);y=154;}else y+=12;
 
   const totalX=342,totalW=right-totalX,wordX=M;
   c.text(wordX,y+2,'TOTAL IN WORDS',7.2,true,C.muted);
@@ -411,7 +411,7 @@ export async function buildPublicDocumentPdf(doc: PublicDocument): Promise<Buffe
     if(doc.type==='invoice')summary.push(['Amount Paid',canonical.financials.amountPaid,false],['Balance Due',canonical.financials.balanceDue,true]);
   }
   for(const [label,value,bold] of summary){
-    if(y+15>FOOTER_TOP-4){c.newPage();header(true);y=80;}
+    if(y+15>FOOTER_TOP-4){c.newPage();header(true);y=154;}
     if(bold)c.rect(totalX,y-1,totalW,17,label==='Grand Total'?C.navy:C.pale);
     const color=bold&&label==='Grand Total'?C.white:C.ink;
     c.text(totalX+7,y+2,label,label==='Grand Total'?8.1:7.5,bold,color);
@@ -435,7 +435,7 @@ export async function buildPublicDocumentPdf(doc: PublicDocument): Promise<Buffe
   if (doc.type === 'invoice') {
     if (doc.bankDetails || qrData) {
       const sectionH = qrData ? 174 : 104;
-      if (y + sectionH > FOOTER_TOP - 4) { c.newPage(); header(true); y = 80; }
+      if (y + sectionH > FOOTER_TOP - 4) { c.newPage(); header(true); y = 154; }
       const cardX = M, cardW = CW;
       c.roundRect(cardX, y, cardW, sectionH, 9, C.white, [0.796, 0.835, 0.882] as RGB, 0.75);
       c.text(W / 2, y + 10, 'PAYMENT', 10, true, C.navy, 'center');
