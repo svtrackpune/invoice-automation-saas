@@ -520,7 +520,7 @@ async function authorizeWorkerRequest(req: Request, body: Record<string, unknown
   // The workspace's "Test connection" flow is the only user-JWT entry point.
   // Require a real Supabase session and an owned settings.manage manual-test job.
   const authorization = req.headers.get("authorization") || "";
-  const bearer = authorization.match(/^Bearer\\s+(.+)$/i)?.[1];
+  const bearer = authorization.match(/^Bearer\s+(.+)$/i)?.[1];
   const jobId = typeof body.job_id === "string" ? body.job_id.trim() : "";
   if (!bearer || !jobId) return false;
 
