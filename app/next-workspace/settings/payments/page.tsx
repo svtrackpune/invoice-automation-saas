@@ -34,6 +34,20 @@ const emptySettings = (businessId: string): PaymentSettings => ({
 });
 const upiPattern = /^[\w.-]+@[\w.-]+$/;
 
+function resolveSettlementDisplayMode(
+  configured: unknown,
+  upiId: string | null | undefined,
+  qrEnabled: boolean | undefined,
+  hasBank: boolean,
+): PaymentSettings['settlement_display_mode'] {
+  const hasUpi = Boolean(upiId?.trim()) && qrEnabled !== false;
+  if (configured === 'both' && hasUpi && hasBank) return 'both';
+  if (configured === 'bank_transfer' && hasBank) return 'bank_transfer';
+  if (configured === 'upi_qr' && hasUpi) return 'upi_qr';
+  if (hasUpi) return 'upi_qr';
+  return 'bank_transfer';
+}
+
 export default function PaymentsSettingsPage() {
   const [businessId, setBusinessId] = useState('');
   const [settings, setSettings] = useState<PaymentSettings | null>(null);
@@ -70,7 +84,19 @@ export default function PaymentsSettingsPage() {
       supabase.from('bank_accounts').select('id,name,institution_name,account_last4,account_number,ifsc_code,branch_name,account_holder_name,linked_account_id,is_active').eq('business_id', active.business_id).eq('is_active', true).order('is_primary', { ascending: false }).order('name'),
     ]);
     if (settingsResult.error) setError(settingsResult.error.message);
-    else setSettings({ ...emptySettings(active.business_id), ...(settingsResult.data as Partial<PaymentSettings>) });
+    else {
+      const loadedSettings = settingsResult.data as Partial<PaymentSettings>;
+      setSettings({
+        ...emptySettings(active.business_id),
+        ...loadedSettings,
+        settlement_display_mode: resolveSettlementDisplayMode(
+          loadedSettings.settlement_display_mode,
+          loadedSettings.upi_id,
+          loadedSettings.payment_qr_enabled,
+          Boolean(banksResult.data?.length),
+        ),
+      });
+    }
     if (banksResult.error) setError(banksResult.error.message);
     else setBanks((banksResult.data || []) as BankAccount[]);
     setLoading(false);
@@ -96,7 +122,21 @@ export default function PaymentsSettingsPage() {
     setSaving(true); setError(''); setMessage('');
     const result = await supabase.rpc('save_payment_settings', { p_business_id: businessId, p_payload: { ...settings, razorpay_key_secret: settings.razorpay_key_secret || undefined, razorpay_webhook_secret: settings.razorpay_webhook_secret || undefined, cashfree_secret_key: settings.cashfree_secret_key || undefined, cashfree_webhook_secret: settings.cashfree_webhook_secret || undefined, stripe_secret_key: settings.stripe_secret_key || undefined, stripe_webhook_secret: settings.stripe_webhook_secret || undefined } });
     if (result.error) setError(result.error.message);
-    else { setSettings({ ...settings, ...(result.data as PaymentSettings), razorpay_key_secret:'', razorpay_webhook_secret:'', cashfree_secret_key:'', cashfree_webhook_secret:'', stripe_secret_key:'', stripe_webhook_secret:'' }); setMessage('Payment settings saved and synchronized.'); }
+    else {
+      const savedSettings = result.data as PaymentSettings;
+      setSettings({
+        ...settings,
+        ...savedSettings,
+        settlement_display_mode: resolveSettlementDisplayMode(
+          savedSettings.settlement_display_mode,
+          savedSettings.upi_id,
+          savedSettings.payment_qr_enabled,
+          banks.length > 0,
+        ),
+        razorpay_key_secret:'', razorpay_webhook_secret:'', cashfree_secret_key:'', cashfree_webhook_secret:'', stripe_secret_key:'', stripe_webhook_secret:'',
+      });
+      setMessage('Payment settings saved and synchronized.');
+    }
     setSaving(false);
   };
 
