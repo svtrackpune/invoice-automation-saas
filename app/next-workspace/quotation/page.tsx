@@ -1,5 +1,7 @@
-import QuotationWorkspaceControlled from './QuotationWorkspaceControlled';
+'use client';
 
-export default function QuotationPage(){
-  return <QuotationWorkspaceControlled />;
+import QuotationEditorCore from './QuotationEditorCore';
+
+export default function QuotationPage() {
+  return <QuotationEditorCore />;
 }
