@@ -283,3 +283,20 @@ test('notification dispatch shares only balance-aware INR UPI intent and configu
  assert.match(worker,/sendDocument/);
  assert.match(worker,/attachments/);
 });
+
+test('notification worker requires a Vault cron token or a permission-checked manual-test session',async()=>{
+ const worker=await read('supabase/functions/process-notifications/index.ts');
+ const migration=await read('supabase/migrations/20261012065500_protect_notification_worker_endpoint.sql');
+ assert.match(worker,/x-moneymatters-worker-token/);
+ assert.match(worker,/is_notification_worker_token_valid/);
+ assert.match(worker,/admin\.auth\.getUser\(bearer\)/);
+ assert.match(worker,/authorize_notification_test_dispatch/);
+ assert.match(worker,/Unauthorized", 401/);
+ assert.match(migration,/vault\.create_secret/);
+ assert.match(migration,/cron\.alter_job/);
+ assert.match(migration,/notification_worker_token/);
+ assert.match(migration,/j\.notification_type = 'manual_test'/);
+ assert.match(migration,/mm_private\.has_business_permission/);
+ assert.match(migration,/GRANT EXECUTE ON FUNCTION public\.is_notification_worker_token_valid\(text\)\s+TO service_role/);
+ assert.match(migration,/GRANT EXECUTE ON FUNCTION public\.authorize_notification_test_dispatch\(uuid,uuid\)\s+TO service_role/);
+});
