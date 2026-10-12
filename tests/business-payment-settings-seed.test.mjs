@@ -12,7 +12,9 @@ test('Vijay Industries payment seed uses the live schema and targets the exact b
   assert.match(migration, /institution_name = 'State Bank of India'/);
   assert.match(migration, /account_holder_name = 'Vijay Industries'/);
   assert.match(migration, /is_primary = true/);
-  assert.match(migration, /default_bank_account_id = v_account_id/);
+  assert.match(migration, /default_bank_account_id,\\s+enable_upi/);
+  assert.match(migration, /default_bank_account_id = EXCLUDED\\.default_bank_account_id/);
+  assert.match(migration, /business_settings\\.default_bank_account_id points to public\\.accounts/);
   assert.match(migration, /payment_qr_enabled = true/);
   assert.match(migration, /upi_id = '9922040001@upi'/);
   assert.match(migration, /document_type IN \('invoice', 'quotation'\)[\s\S]*?show_bank_details = true/);
