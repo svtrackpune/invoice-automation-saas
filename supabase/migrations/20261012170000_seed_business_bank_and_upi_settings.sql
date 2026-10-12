@@ -7,7 +7,6 @@ DECLARE
   v_business_id uuid;
   v_business_matches integer;
   v_account_id uuid;
-  v_updated_rows integer;
 BEGIN
   SELECT count(DISTINCT id)
     INTO v_business_matches
@@ -122,15 +121,9 @@ BEGIN
     AND id <> v_account_id
     AND is_primary = true;
 
-  UPDATE public.business_settings
-  SET default_bank_account_id = v_account_id,
-      updated_at = now()
-  WHERE business_id = v_business_id;
-
-  GET DIAGNOSTICS v_updated_rows = ROW_COUNT;
-  IF v_updated_rows = 0 THEN
-    RAISE EXCEPTION 'Business settings row is missing for Vijay Industries';
-  END IF;
+  -- business_settings.default_bank_account_id points to public.accounts (the
+  -- ledger account), not public.bank_accounts. Keep that accounting reference intact;
+  -- document_payment_settings.default_bank_account_id stores the settlement bank row.
 
   INSERT INTO public.document_payment_settings (
     business_id,
