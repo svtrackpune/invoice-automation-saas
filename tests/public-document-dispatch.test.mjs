@@ -126,7 +126,7 @@ test('customer-facing shares use canonical token URLs instead of merchant worksp
  const viewer=await read('app/next-workspace/documents/DocumentViewer.tsx');
  const invoices=await read('app/next-workspace/invoices/page.tsx');
  const receipts=await read('app/next-workspace/receipts/page.tsx');
- const quotations=await read('app/next-workspace/quotation/QuotationWorkspaceControlled.tsx');
+ const quotations=await read('app/next-workspace/quotation/QuotationEditorCore.tsx');
  const review=await read('app/next-workspace/documents/DocumentReviewCenter.tsx');
  const challengedRoute=await read('app/delivery-challan/[token]/page.tsx');
  const linkRpc=await read('supabase/migrations/20261011132212_public_document_link_rpc_and_challan_route.sql');
