@@ -508,6 +508,33 @@ async function send(
   throw new Error("Notification provider is not supported by this worker.");
 }
 
+async function authorizeWorkerRequest(req: Request, body: Record<string, unknown>): Promise<boolean> {
+  const workerToken = req.headers.get("x-moneymatters-worker-token");
+  if (workerToken) {
+    const { data, error } = await admin.rpc("is_notification_worker_token_valid", {
+      p_token: workerToken,
+    });
+    if (!error && data === true) return true;
+  }
+
+  // The workspace's "Test connection" flow is the only user-JWT entry point.
+  // Require a real Supabase session and an owned settings.manage manual-test job.
+  const authorization = req.headers.get("authorization") || "";
+  const bearer = authorization.match(/^Bearer\\s+(.+)$/i)?.[1];
+  const jobId = typeof body.job_id === "string" ? body.job_id.trim() : "";
+  if (!bearer || !jobId) return false;
+
+  const { data: userData, error: userError } = await admin.auth.getUser(bearer);
+  const user = userData?.user;
+  if (userError || !user) return false;
+
+  const { data: allowed, error: permissionError } = await admin.rpc(
+    "authorize_notification_test_dispatch",
+    { p_job_id: jobId, p_user_id: user.id },
+  );
+  return !permissionError && allowed === true;
+}
+
 async function markConnectionHealth(
   connectionId: string,
   healthStatus: "healthy" | "degraded" | "failing",
@@ -531,6 +558,9 @@ Deno.serve(async (req) => {
 
   try {
     const body = (await req.json().catch(() => ({}))) as Record<string, unknown>;
+    if (!(await authorizeWorkerRequest(req, body))) {
+      return json({ error: "Unauthorized" }, 401);
+    }
     const requestedJobId = typeof body.job_id === "string" && body.job_id.trim()
       ? body.job_id.trim()
       : null;
