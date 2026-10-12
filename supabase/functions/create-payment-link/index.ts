@@ -9,6 +9,8 @@ Deno.serve(async(req)=>{
   let reservationId:string|null=null;
   let businessIdForCleanup:string|null=null;
   let admin:ReturnType<typeof createClient>|null=null;
+  let nativeUpiConfigured=false;
+  const nativeUpiSkipped=()=>json({status:"skipped",reason:"native_upi_configured",upi_qr_available:true},200);
   try{
     const auth=req.headers.get("Authorization");if(!auth)return json({error:"Authorization required"},401);
     const supabaseUrl=Deno.env.get("SUPABASE_URL")!,anonKey=Deno.env.get("SUPABASE_ANON_KEY")!,serviceKey=Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
@@ -26,12 +28,17 @@ Deno.serve(async(req)=>{
     const {data:existing}=await admin.from("payment_links").select("*").eq("business_id",businessId).eq("invoice_id",invoice.id).in("status",["creating","created","paid","partially_paid"]).order("created_at",{ascending:false}).limit(1).maybeSingle();
     if(existing?.short_url)return json({payment_link:existing});
     if(existing?.status==="creating")return json({error:"Payment link creation is already in progress. Please retry shortly."},409);
-    const {data:settings}=await admin.from("document_payment_settings").select("payment_gateway_provider,payment_link_enabled,cashfree_environment").eq("business_id",businessId).maybeSingle();
+    const {data:settings}=await admin.from("document_payment_settings").select("payment_gateway_provider,payment_link_enabled,payment_qr_enabled,upi_id,enable_upi,default_bank_account_id,cashfree_environment,razorpay_enabled,razorpay_key_id,razorpay_secret_ref,cashfree_enabled,cashfree_app_id,cashfree_secret_ref,stripe_enabled,stripe_publishable_key,stripe_secret_ref").eq("business_id",businessId).maybeSingle();
+    nativeUpiConfigured=settings?.payment_qr_enabled===true&&settings?.enable_upi!==false&&typeof settings?.upi_id==="string"&&settings.upi_id.trim().length>0;
     const provider=requestedProvider||String(settings?.payment_gateway_provider||"").toLowerCase();
-    if(!["razorpay","cashfree","stripe"].includes(provider))return json({error:"Select a payment gateway in Payment Settings before generating a payment link."},409);
-    if(settings?.payment_link_enabled!==true)return json({error:"Payment link generation is disabled in Payment Settings."},409);
+    const gatewayEnabled=provider==="razorpay"?settings?.razorpay_enabled===true:provider==="cashfree"?settings?.cashfree_enabled===true:provider==="stripe"?settings?.stripe_enabled===true:false;
+    // Direct UPI/bank settlement is a valid payment mode, not a failed checkout.
+    // Skip the aggregator when a third-party provider is not configured and enabled.
+    if(nativeUpiConfigured&&(settings?.payment_link_enabled!==true||!gatewayEnabled||!["razorpay","cashfree","stripe"].includes(provider)))return nativeUpiSkipped();
+    if(!["razorpay","cashfree","stripe"].includes(provider))return nativeUpiConfigured?nativeUpiSkipped():json({error:"Select a payment gateway in Payment Settings before generating a payment link."},409);
+    if(settings?.payment_link_enabled!==true||!gatewayEnabled)return nativeUpiConfigured?nativeUpiSkipped():json({error:"Payment link generation is disabled in Payment Settings."},409);
     const {data:credentials,error:credentialError}=await admin.rpc("resolve_payment_gateway_credentials",{p_business_id:businessId,p_provider:provider});
-    if(credentialError||!credentials?.enabled||typeof credentials.secret!=="string"||!credentials.secret)return json({error:"Merchant "+provider+" credentials are not fully configured."},503);
+    if(credentialError||!credentials?.enabled||typeof credentials.secret!=="string"||!credentials.secret)return nativeUpiConfigured?nativeUpiSkipped():json({error:"Merchant "+provider+" credentials are not fully configured."},503);
     const customer=invoice.customer_id?(await admin.from("customers").select("display_name,email,phone").eq("id",invoice.customer_id).eq("business_id",businessId).maybeSingle()).data:null;
     reservationId=crypto.randomUUID();const amount=Number(invoice.balance_due);
     const {data:reservation,error:reservationError}=await admin.from("payment_links").insert({id:reservationId,business_id:businessId,invoice_id:invoice.id,provider,amount,currency_code:invoice.currency_code||"INR",status:"creating",created_by:user.id,metadata:{state:"creating",requested_provider:provider}}).select("*").single();
@@ -72,6 +79,9 @@ Deno.serve(async(req)=>{
     if(admin&&reservationId){
       await admin.from("payment_links").update({status:"failed",metadata:{state:"failed",error:error instanceof Error?error.message:"Unexpected error"},updated_at:new Date().toISOString()}).eq("id",reservationId).eq("business_id",businessIdForCleanup);
     }
+    // A gateway exception must not turn invoice posting into a non-2xx failure
+    // when the merchant's configured native UPI QR is available.
+    if(nativeUpiConfigured)return nativeUpiSkipped();
     return json({error:error instanceof Error?error.message:"Unexpected error"},500);
   }
 });
