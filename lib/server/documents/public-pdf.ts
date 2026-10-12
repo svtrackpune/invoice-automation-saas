@@ -247,7 +247,7 @@ export async function buildPublicDocumentPdf(doc: PublicDocument): Promise<Buffe
       });
       c.line(M + colW + gap / 2, top - 1, M + colW + gap / 2, top + 72, C.border, 0.6);
       c.text(rx, top, 'INVOICE SUMMARY', 8, true, C.muted);
-      c.text(rx, top + 16, 'Template: Business default', 7.5, false, C.muted);
+      c.text(rx, top + 16, 'Template: ' + (doc.templateName || 'Business default'), 7.5, false, C.muted);
       c.roundRect(rx, top + 28, colW, 31, 6, [1, 0.97, 0.94] as RGB, [0.98, 0.87, 0.78] as RGB);
       c.text(rx + 9, top + 38, 'Balance due', 7.2, true, C.amber);
       c.text(rx + colW - 9, top + 36, money(canonical.financials.balanceDue, canonical.document.currency), 9.1, true, C.amber, 'right');
@@ -342,7 +342,6 @@ export async function buildPublicDocumentPdf(doc: PublicDocument): Promise<Buffe
     y += 14;
     const summaryTop = y;
     const totalW = 205, totalX = right - totalW;
-    const leftW = totalX - M - 24;
     c.text(M, summaryTop, 'NOTES', 8, true, C.navy);
     let leftY = summaryTop + 14;
     if (doc.notes) {
@@ -451,6 +450,7 @@ export async function buildPublicDocumentPdf(doc: PublicDocument): Promise<Buffe
         c.text(bankX + 10, bankY + 57, 'IFSC: ' + (b.ifscCode || '-'), 7.0, false, C.muted);
         if (b.branchName) c.text(bankX + 10, bankY + 72, 'Branch: ' + b.branchName, 7.0, false, C.muted);
         if (b.accountType) c.text(bankX + 10, bankY + 87, 'Account type: ' + b.accountType, 7.0, false, C.muted);
+        if (doc.upiId) c.text(bankX + 10, bankY + 102, 'UPI: ' + doc.upiId, 7.0, false, C.muted);
 
         const payX = bankX + bankW + 10, payW = cardX + cardW - 12 - payX;
         const buttonW = Math.min(142, payW - 8), buttonH = 22, buttonX = payX + (payW - buttonW) / 2;
@@ -491,9 +491,6 @@ export async function buildPublicDocumentPdf(doc: PublicDocument): Promise<Buffe
       y += sectionH + 12;
     }
   } else {
-  y+=5;
-  const qrData=canonical.financials.upiQrString
-    || (doc.type==='invoice'&&doc.balanceDue>0&&doc.paymentQrPayload?.startsWith('upi://pay?')?doc.paymentQrPayload:null);
   if(doc.bankDetails||qrData){
     const sectionH=qrData?100:76;
     if(y+sectionH>FOOTER_TOP-4){c.newPage();header(true);y=80;}
