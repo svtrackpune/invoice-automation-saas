@@ -64,13 +64,16 @@ test('canonical view model normalizes GST invoice data and produces a payable UP
   assert.equal(qr.get('tn'), 'INV-000018');
 });
 
-test('canonical UPI intent is not emitted for fully paid invoices, quotes, or non-INR invoices', () => {
+test('canonical UPI intent is balance-aware for invoices and quotations and INR-only', () => {
   const base = {
     type: 'invoice', invoice_number: 'INV-1', currency_code: 'INR', total: 100, amount_paid: 100, balance_due: 0,
     business: { name: 'Sample', address: 'Main Road' }, customer: { display_name: 'Buyer' },
   };
   assert.equal(createCanonicalDocumentViewModel(base, { upiId: 'sample@upi' }).financials.upiQrString, undefined);
-  assert.equal(createCanonicalDocumentViewModel({ ...base, type: 'quotation', balance_due: 100 }, { upiId: 'sample@upi' }).financials.upiQrString, undefined);
+  const quote = createCanonicalDocumentViewModel({ ...base, type: 'quotation', quotation_number: 'EST-1', amount_paid: 0, balance_due: 100 }, { upiId: 'sample@upi' });
+  assert.ok(quote.financials.upiQrString?.startsWith('upi://pay?'));
+  assert.equal(new URLSearchParams(quote.financials.upiQrString.split('?')[1]).get('am'), '100.00');
+  assert.equal(new URLSearchParams(quote.financials.upiQrString.split('?')[1]).get('tn'), 'EST-1');
   assert.equal(createCanonicalDocumentViewModel({ ...base, currency_code: 'USD', balance_due: 100 }, { upiId: 'sample@upi' }).financials.upiQrString, undefined);
 });
 
