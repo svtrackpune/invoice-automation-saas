@@ -45,7 +45,7 @@ const kindLabel: Record<string, string> = {
 const navigation: NavResult[] = [
   { id: 'dashboard', title: 'Dashboard', subtitle: 'Business cockpit', kind: 'navigation', href: '/next-workspace', keywords: 'home dashboard overview' },
   { id: 'invoices', title: 'Invoices', subtitle: 'Create and manage invoices', kind: 'navigation', href: '/next-workspace/invoices', keywords: 'invoice invoices billing sales bill' },
-  { id: 'estimates', title: 'Estimates', subtitle: 'Create and manage estimates', kind: 'navigation', href: '/next-workspace/quotation', keywords: 'estimate estimates quotation quotations quote' },
+  { id: 'estimates', title: 'Estimates', subtitle: 'Search and manage quotations', kind: 'navigation', href: '/next-workspace/quotations', keywords: 'estimate estimates quotation quotations quote' },
   { id: 'customers', title: 'Customers', subtitle: 'Customer relationships and statements', kind: 'navigation', href: '/next-workspace/customers', keywords: 'customer customers clients contacts' },
   { id: 'products', title: 'Products & Services', subtitle: 'Items, pricing and catalogue', kind: 'navigation', href: '/next-workspace/items', keywords: 'product products service services items catalogue catalog' },
   { id: 'vendors', title: 'Vendors', subtitle: 'Suppliers and vendor records', kind: 'navigation', href: '/next-workspace/vendors', keywords: 'vendor vendors supplier suppliers purchase' },
