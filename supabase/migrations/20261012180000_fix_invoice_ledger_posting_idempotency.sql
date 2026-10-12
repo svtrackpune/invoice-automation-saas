@@ -72,7 +72,8 @@ BEGIN
   PERFORM public.validate_journal_entry_balance(v_entry);$new$;
   IF position(v_old IN v_definition) > 0 THEN
     v_definition := replace(v_definition, v_old, v_new);
-  ELSIF position('UPDATE public.journal_entries' || E'\n  SET status = \'posted\'' IN v_definition) = 0 THEN
+  ELSIF position($check$UPDATE public.journal_entries
+  SET status = 'posted'$check$ IN v_definition) = 0 THEN
     RAISE EXCEPTION 'Invoice posting patch aborted: final balance-validation point not found';
   END IF;
 
