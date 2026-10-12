@@ -89,7 +89,7 @@ if (releaseSigningAvailable) {
 
 android {
     namespace "in.nilanga.moneymatters"
-    compileSdk rootProject.ext.compileSdkVersion
+    compileSdk 36
     defaultConfig {
         applicationId "in.nilanga.moneymatters"
         minSdkVersion rootProject.ext.minSdkVersion
