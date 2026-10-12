@@ -306,8 +306,8 @@ function Paper({ type, payload, business, customer, items, theme, fields, logoUr
 
 export default function DocumentViewer({ type, id }: { type: string; id: string }) {
   const [job, setJob] = useState<any>(null), [template, setTemplate] = useState<any>(null), [preferences, setPreferences] = useState<any>(null), [business, setBusiness] = useState<any>(null), [receiptItems, setReceiptItems] = useState<any[]>([]), [receiptAllocations, setReceiptAllocations] = useState<ReceiptAllocation[]>([]), [taxLines, setTaxLines] = useState<TaxLine[]>([]), [originalInvoice, setOriginalInvoice] = useState({ number:'', date:'' }), [cashBillFormat, setCashBillFormat] = useState<'a4'|'a5'|'thermal80'|'thermal58'>('a4'), [paymentSelection, setPaymentSelection] = useState<any>(null), [paymentSettings, setPaymentSettings] = useState<any>(null), [customerBalance, setCustomerBalance] = useState(0), [paymentQrDataUrl, setPaymentQrDataUrl] = useState<string>(''), [loading, setLoading] = useState(true), [error, setError] = useState(''), [notice, setNotice] = useState(''), [isCopied, setIsCopied] = useState(false), [toastMessage, setToastMessage] = useState('');
-  const copyTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const copyTimer = useRef<number | null>(null);
+  const toastTimer = useRef<number | null>(null);
 
   useEffect(() => () => {
     if (copyTimer.current) window.clearTimeout(copyTimer.current);
