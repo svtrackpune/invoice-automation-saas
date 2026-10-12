@@ -160,6 +160,44 @@ export async function buildPublicDocumentPdf(doc: PublicDocument): Promise<Buffe
   const logoId = logo ? add('') : null;
 
   const header = (continued: boolean) => {
+    if (doc.type === 'invoice') {
+      if (logo && logoId) {
+        const scale = Math.min(58 / logo.width, 45 / logo.height);
+        c.imageLogo(M, 36, logo.width * scale, logo.height * scale);
+      } else {
+        c.roundRect(M, 37, 54, 43, 7, C.pale, C.border);
+        c.text(M + 27, 51, wrap(doc.business.name, 2)[0].slice(0, 2).toUpperCase(), 12, true, C.purple, 'center');
+      }
+      const bx = M + 70;
+      c.roundRect(bx, 32, 60, 16, 8, C.purple);
+      c.text(bx + 30, 35, 'INVOICE', 7.4, true, C.white, 'center');
+      c.text(bx, 52, doc.number, 18, true, C.navy);
+      c.text(bx, 76, doc.business.name, 9.1, true, C.navy);
+      let leftY = 88;
+      if (doc.business.legalName && doc.business.legalName.toLowerCase() !== doc.business.name.toLowerCase()) {
+        drawWrap(c, bx, leftY, doc.business.legalName, 38, 7.0, false, C.muted, 1);
+        leftY += 10;
+      }
+      const address = addressParts(doc.business.address);
+      if (address.length) {
+        drawWrap(c, bx, leftY, address.join(', '), 42, 6.7, false, C.muted, 2);
+        leftY += Math.min(address.length, 2) * 8;
+      }
+      const contact = [doc.business.phone, doc.business.email].filter(Boolean).join(' | ');
+      if (contact) c.text(bx, Math.min(124, leftY + 1), contact, 6.7, false, C.muted);
+      if (doc.business.taxRegistrationNumber) c.text(bx, 132, 'GSTIN: ' + doc.business.taxRegistrationNumber, 6.6, false, C.muted);
+
+      const rx = right - 158;
+      c.text(rx, 39, 'Invoice date: ' + dateLabel(doc.date), 7.5, false, C.muted);
+      c.text(rx, 54, 'Due date: ' + dateLabel(doc.dueDate), 7.5, false, C.muted);
+      const st = doc.status.replace(/_/g, ' ').toUpperCase();
+      const badgeW = Math.min(110, Math.max(48, st.length * 5 + 18));
+      c.roundRect(rx, 70, badgeW, 18, 9, C.pale, C.border);
+      c.text(rx + badgeW / 2, 75, st, 7.2, true, C.muted, 'center');
+      c.line(M, 140, right, 140, C.border, 0.8);
+      return;
+    }
+
     c.rect(M,32,4,92,C.indigo);
     if (logo && logoId) {
       const scale = Math.min(66 / logo.width, 48 / logo.height);
@@ -192,6 +230,31 @@ export async function buildPublicDocumentPdf(doc: PublicDocument): Promise<Buffe
   const partyRows=(address:unknown,phone:string|null,email:string|null,taxId:string|null)=>
     [...addressParts(address).slice(0,2),phone||'',email||'',taxId?'GSTIN: '+taxId:''].filter(Boolean);
   const drawParties=(top:number)=>{
+    if (doc.type === 'invoice') {
+      const gap = 22, colW = (CW - gap) / 2, rx = M + colW + gap;
+      c.text(M, top, 'BILL TO', 8, true, C.muted);
+      c.text(M, top + 15, canonical.customer.name, 10, true, C.navy);
+      let billY = top + 29;
+      const billRows = [
+        ...addressParts(canonical.customer.billingAddress || canonicalAddress(doc.customer.address)),
+        canonical.customer.phone || '',
+        canonical.customer.email || '',
+        canonical.customer.gstin ? 'GSTIN: ' + canonical.customer.gstin : ''
+      ].filter(Boolean).slice(0, 5);
+      billRows.forEach((v) => {
+        drawWrap(c, M, billY, v, 48, 7.2, false, C.muted, 1);
+        billY += 9;
+      });
+      c.line(M + colW + gap / 2, top - 1, M + colW + gap / 2, top + 72, C.border, 0.6);
+      c.text(rx, top, 'INVOICE SUMMARY', 8, true, C.muted);
+      c.text(rx, top + 16, 'Template: Business default', 7.5, false, C.muted);
+      c.roundRect(rx, top + 28, colW, 31, 6, [1, 0.97, 0.94] as RGB, [0.98, 0.87, 0.78] as RGB);
+      c.text(rx + 9, top + 38, 'Balance due', 7.2, true, C.amber);
+      c.text(rx + colW - 9, top + 36, money(canonical.financials.balanceDue, canonical.document.currency), 9.1, true, C.amber, 'right');
+      c.line(M, top + 78, right, top + 78, C.border, 0.65);
+      return top + 90;
+    }
+
     const gap=10,colW=(CW-gap)/2,boxH=100;
     const list=[
       {x:M,label:'BILLED TO',name:canonical.customer.name,rows:partyRows(canonical.customer.billingAddress||canonicalAddress(doc.customer.address),canonical.customer.phone||null,canonical.customer.email||null,canonical.customer.gstin||null)},
@@ -215,6 +278,7 @@ export async function buildPublicDocumentPdf(doc: PublicDocument): Promise<Buffe
     }
     return top+(doc.type==='invoice'&&doc.supplyType?134:124);
   };
+
   const widths=[22,144,47,39,60,52,82,77];
   const labels=['#','Item Description','HSN/SAC','Qty','Unit Rate','Discount','Taxable Amt','Total'];
   const tableHeader=(top:number)=>{
