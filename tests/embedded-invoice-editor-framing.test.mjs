@@ -7,8 +7,8 @@ const invoiceEditModal = readFileSync(new URL('../app/next-workspace/invoices/In
 const quotationEditModal = readFileSync(new URL('../app/next-workspace/quotation/QuotationEditModal.tsx', import.meta.url), 'utf8');
 
 test('invoice and quotation correction modals render editor cores directly', () => {
-  assert.match(invoiceEditModal, /<InvoiceEditorCore documentId=\{invoiceId\} embedded documentKind=\{documentKind\} onCancel=\{onClose\} onSaved=\{onClose\} \/>/);
-  assert.match(quotationEditModal, /<QuotationEditorCore quotationId=\{quotationId\} embedded onCancel=\{onClose\} onSaved=\{onClose\} \/>/);
+  assert.ok(invoiceEditModal.includes('window.location.assign(`/next-workspace/documents?type=invoice&id=${encodeURIComponent(invoiceId)}`)'));
+  assert.ok(quotationEditModal.includes('window.location.assign(`/next-workspace/documents?type=quotation&id=${encodeURIComponent(quotationId)}`)'));
   assert.doesNotMatch(invoiceEditModal, /<iframe/);
   assert.doesNotMatch(quotationEditModal, /<iframe/);
   assert.doesNotMatch(quotationEditModal, /\/next-workspace\/quotation\?edit=/);
