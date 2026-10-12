@@ -6,7 +6,8 @@ export const dynamic = 'force-dynamic';
 
 const allowed = new Set<PublicDocumentType>(['invoice','quotation','challan','receipt']);
 export async function GET(request: NextRequest) {
-  const type = request.nextUrl.searchParams.get('type') as PublicDocumentType | null;
+  const requestedType = (request.nextUrl.searchParams.get('type') || '').trim().toLowerCase();
+  const type = (requestedType === 'quote' ? 'quotation' : requestedType) as PublicDocumentType | null;
   const token = request.nextUrl.searchParams.get('token') || '';
   if (!type || !allowed.has(type) || !token) return NextResponse.json({error:'Document not found.'},{status:404,headers:{'Cache-Control':'private, no-store'}});
   try {
