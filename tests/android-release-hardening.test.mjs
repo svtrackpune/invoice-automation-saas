@@ -18,6 +18,6 @@ test('release has a production version, shrink settings and env signing',()=>{
  assert.match(appBuild,/ANDROID_KEY_ALIAS/);assert.match(appBuild,/ANDROID_KEY_PASSWORD/);
 });
 test('AAB workflow uses Java 21 and the signing keystore',()=>{
- assert.match(workflow,/java-version: '17'/);assert.match(workflow,/ANDROID_KEYSTORE_BASE64/);
+ assert.match(workflow,/java-version: '21'/);assert.match(workflow,/ANDROID_KEYSTORE_BASE64/);
  assert.match(workflow,/gradlew bundleRelease -PrequireReleaseSigning=true/);assert.match(workflow,/app-release\.aab/);
 });
