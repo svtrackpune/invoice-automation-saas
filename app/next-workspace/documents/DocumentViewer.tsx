@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { createCanonicalDocumentViewModel } from '@/lib/shared/document-view-model';
 import { buildPublicDocumentShareMessage, canSharePublicDocument, getPublicDocumentUrl } from '@/lib/client/share-document';
@@ -168,17 +168,19 @@ function BankDetails({ bank }: { bank: any }) {
   return <div className="bank-details"><label>BANK DETAILS</label><strong>{text(bank?.name || 'Bank account')}</strong>{bank?.institution_name && <span>{text(bank.institution_name)}</span>}{accountNumber && <div>{accountNumber}</div>}{ifsc && <div>IFSC: {ifsc}</div>}{branch && <div>{branch}</div>}{upi && <div>UPI: {upi}</div>}</div>;
 }
 
-function PaymentSection({ paymentMode, paymentLink, paymentSelection, balance, currency, premium = false, showBankDetails = false, showPaymentLink = true, showPaymentQr = true, qrDataUrl = '', upiIntentUrl = '' }: any) {
-  const hasBank = showBankDetails && !!paymentSelection?.bank;
-  const hasOnline = (showPaymentLink && !!paymentLink) || (showPaymentQr && !!qrDataUrl) || !!upiIntentUrl;
+function PaymentSection({ paymentMode, paymentLink, paymentSelection, balance, currency, premium = false, settlementDisplayMode = 'none', showBankDetails = false, showPaymentLink = true, showPaymentQr = true, qrDataUrl = '', upiIntentUrl = '' }: any) {
+  const allowsBank = settlementDisplayMode === 'bank_transfer' || settlementDisplayMode === 'both';
+  const allowsUpi = settlementDisplayMode === 'upi_qr' || settlementDisplayMode === 'both';
+  const hasBank = allowsBank && showBankDetails && !!paymentSelection?.bank;
+  const hasOnline = allowsUpi && ((showPaymentLink && !!paymentLink) || (showPaymentQr && !!qrDataUrl) || !!upiIntentUrl);
   if (!hasBank && !hasOnline) return null;
-  return <section className={`payment ${hasBank && hasOnline ? 'payment-combined' : hasBank ? 'bank-payment' : 'online-payment'} ${premium ? 'payment-premium' : ''}`}>
+  return <section className={`payment ${hasBank && hasOnline ? 'payment-combined' : hasBank ? 'bank-payment' : 'online-payment'} ${settlementDisplayMode === 'upi_qr' ? 'payment-upi-only' : ''} ${premium ? 'payment-premium' : ''}`}>
     {hasBank && <div className="bank-payment-column"><BankDetails bank={paymentSelection.bank} /></div>}
-    {hasOnline && <div className="online-payment-column"><div><label>PAYMENT OPTIONS</label><strong>Pay this invoice easily</strong><span>Amount due: {money(balance, currency)}</span>{showPaymentLink && paymentLink && <div><a href={paymentLink} target="_blank" rel="noreferrer">Pay now online</a></div>}{upiIntentUrl && <div><a href={upiIntentUrl}>Pay Now via UPI</a></div>}{showPaymentQr && qrDataUrl && <div className="qr"><img src={qrDataUrl} alt="Payment QR" /></div>}</div></div>}
+    {hasOnline && <div className="online-payment-column"><div style={settlementDisplayMode === 'upi_qr' ? { display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', gap: '8px' } : undefined}><label>{settlementDisplayMode === 'upi_qr' ? 'PAYMENT' : 'PAYMENT OPTIONS'}</label><strong>Pay this invoice easily</strong><span>Amount due: {money(balance, currency)}</span>{showPaymentLink && paymentLink && <div><a href={paymentLink} target="_blank" rel="noreferrer">Pay now online</a></div>}{upiIntentUrl && <div><a href={upiIntentUrl}>Pay Now via UPI</a></div>}{showPaymentQr && qrDataUrl && <div className="qr"><img src={qrDataUrl} alt="Payment QR" /></div>}</div></div>}
   </section>;
 }
 
-function Paper({ type, payload, business, customer, items, theme, fields, logoUrl, paymentSelection, paymentQrDataUrl, upiIntentUrl='', showLogo=true, showBusinessAddress=true, showTaxDetails=true, showBankDetails=false, showPaymentLink=false, showPaymentQr=false, showSignature=false, showTerms=true, showCustomerBalance=false, customerBalance=0, showAuthorizedSignatory=false, minItemRows=0, showSerialNumbers=false, documentTitleOverride='', studioTheme={}, taxLines=[], receiptAllocations=[], originalInvoice={number:'',date:''}, cashBillFormat='a4' }: any) {
+function Paper({ type, payload, business, customer, items, theme, fields, logoUrl, paymentSelection, paymentQrDataUrl, settlementDisplayMode='none', upiIntentUrl='', showLogo=true, showBusinessAddress=true, showTaxDetails=true, showBankDetails=false, showPaymentLink=false, showPaymentQr=false, showSignature=false, showTerms=true, showCustomerBalance=false, customerBalance=0, showAuthorizedSignatory=false, minItemRows=0, showSerialNumbers=false, documentTitleOverride='', studioTheme={}, taxLines=[], receiptAllocations=[], originalInvoice={number:'',date:''}, cashBillFormat='a4' }: any) {
   const receipt=type==='receipt', cashBill=type==='cash_bill'||payload.document_kind==='cash_bill', taxInvoice=type==='tax_invoice'||payload.document_kind==='tax_invoice', currency=text(payload.currency_code||business.currency_code||'INR').trim()||'INR';
   const studio=studioTheme||{};
   const accentColor=text(studio.accent_color||'').trim()||theme.accent;
@@ -230,7 +232,7 @@ function Paper({ type, payload, business, customer, items, theme, fields, logoUr
         <CashBillCompliance payload={payload} cashierName={cashierName} paymentReference={paymentReference}/>
         <LineItems items={items} payload={payload} receipt={false} showTaxDetails={showTaxDetails} minRows={minItemRows} showSerialNumbers={showSerialNumbers}/>
         <div className="post-table-grid"><div className="invoice-notes-area">{notes&&<section className="document-notes"><label>NOTES</label><p>{notes}</p></section>}{showTerms&&terms&&<section className="document-terms"><label>TERMS & CONDITIONS</label><p>{terms}</p></section>}</div><DocumentTotals payload={payload} currency={currency} showTaxDetails={false}/></div>
-        <PaymentSection paymentMode={paymentMode} paymentLink="" paymentSelection={paymentSelection} balance={0} currency={currency} showBankDetails={false} showPaymentLink={false} showPaymentQr={showPaymentQr} qrDataUrl={paymentQrDataUrl}/>
+        <PaymentSection paymentMode={paymentMode} paymentLink="" paymentSelection={paymentSelection} balance={0} currency={currency} settlementDisplayMode="upi_qr" showBankDetails={false} showPaymentLink={false} showPaymentQr={showPaymentQr} qrDataUrl={paymentQrDataUrl}/>
         <div className="cash-bill-footer"><strong>Thank You — Visit Again</strong><span>Cashier: {cashierName}</span>{paymentReference&&<span>UPI / Transaction Ref: {paymentReference}</span>}</div>
       </>}
     </article>;
@@ -293,7 +295,7 @@ function Paper({ type, payload, business, customer, items, theme, fields, logoUr
     <LineItems items={items} payload={payload} receipt={false} showTaxDetails={showTaxDetails} minRows={minItemRows} showSerialNumbers={showSerialNumbers} showPackages={type==='delivery_challan'}/>
     {(taxInvoice || type==='credit_note') && <TaxSummaryGrid items={items} taxLines={taxLines} money={(v:number)=>money(v,currency)}/>} 
     <div className='post-table-grid'><div className='invoice-notes-area'>{notes&&<section className='document-notes'><label>NOTES</label><p>{notes}</p></section>}{showTerms&&terms&&<section className='document-terms'><label>TERMS & CONDITIONS</label><p>{terms}</p></section>}{isGstDocument&&<div className='compliance-note'><span>{payload.reverse_charge?'Reverse charge applicable.':'Tax calculated based on the selected tax profile and invoice items.'}</span></div>}</div><DocumentTotals payload={payload} currency={currency} showTaxDetails={showTaxDetails}/></div>
-    {(type==='invoice'||taxInvoice||cashBill||type==='quotation'||paymentSelection?.bank)&&<PaymentSection paymentMode={paymentMode} paymentLink={paymentLink} paymentSelection={paymentSelection} balance={Number(payload.balance_due??0)} currency={currency} premium={false} showBankDetails={showBankDetails} showPaymentLink={showPaymentLink} showPaymentQr={showPaymentQr} qrDataUrl={paymentQrDataUrl} upiIntentUrl={upiIntentUrl}/>} 
+    {(type==='invoice'||taxInvoice||cashBill||type==='quotation'||paymentSelection?.bank)&&<PaymentSection paymentMode={paymentMode} paymentLink={paymentLink} paymentSelection={paymentSelection} balance={Number(payload.balance_due??0)} currency={currency} premium={false} settlementDisplayMode={settlementDisplayMode} showBankDetails={showBankDetails} showPaymentLink={showPaymentLink} showPaymentQr={showPaymentQr} qrDataUrl={paymentQrDataUrl} upiIntentUrl={upiIntentUrl}/>} 
     {showSignature&&<div className='signature-row'><div/><div className='signature-box'><span>{showAuthorizedSignatory?'Authorized Signatory':'Signature'}</span>{fields.signature_label&&<em>{text(fields.signature_label)}</em>}</div></div>}
     {type==='delivery_challan' && <div className='signature-row'><div className='receiver-note'>Receiver's Acknowledgment</div><div className='signature-box'><span>Receiver Signature</span></div></div>}
     {jurisdictionClause && <div className='jurisdiction-clause'><strong>Jurisdiction</strong><span>{jurisdictionClause}</span></div>}
@@ -303,7 +305,14 @@ function Paper({ type, payload, business, customer, items, theme, fields, logoUr
 }
 
 export default function DocumentViewer({ type, id }: { type: string; id: string }) {
-  const [job, setJob] = useState<any>(null), [template, setTemplate] = useState<any>(null), [preferences, setPreferences] = useState<any>(null), [business, setBusiness] = useState<any>(null), [receiptItems, setReceiptItems] = useState<any[]>([]), [receiptAllocations, setReceiptAllocations] = useState<ReceiptAllocation[]>([]), [taxLines, setTaxLines] = useState<TaxLine[]>([]), [originalInvoice, setOriginalInvoice] = useState({ number:'', date:'' }), [cashBillFormat, setCashBillFormat] = useState<'a4'|'a5'|'thermal80'|'thermal58'>('a4'), [paymentSelection, setPaymentSelection] = useState<any>(null), [paymentSettings, setPaymentSettings] = useState<any>(null), [customerBalance, setCustomerBalance] = useState(0), [paymentQrDataUrl, setPaymentQrDataUrl] = useState<string>(''), [loading, setLoading] = useState(true), [error, setError] = useState(''), [notice, setNotice] = useState('');
+  const [job, setJob] = useState<any>(null), [template, setTemplate] = useState<any>(null), [preferences, setPreferences] = useState<any>(null), [business, setBusiness] = useState<any>(null), [receiptItems, setReceiptItems] = useState<any[]>([]), [receiptAllocations, setReceiptAllocations] = useState<ReceiptAllocation[]>([]), [taxLines, setTaxLines] = useState<TaxLine[]>([]), [originalInvoice, setOriginalInvoice] = useState({ number:'', date:'' }), [cashBillFormat, setCashBillFormat] = useState<'a4'|'a5'|'thermal80'|'thermal58'>('a4'), [paymentSelection, setPaymentSelection] = useState<any>(null), [paymentSettings, setPaymentSettings] = useState<any>(null), [customerBalance, setCustomerBalance] = useState(0), [paymentQrDataUrl, setPaymentQrDataUrl] = useState<string>(''), [loading, setLoading] = useState(true), [error, setError] = useState(''), [notice, setNotice] = useState(''), [isCopied, setIsCopied] = useState(false), [toastMessage, setToastMessage] = useState('');
+  const copyTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => () => {
+    if (copyTimer.current) window.clearTimeout(copyTimer.current);
+    if (toastTimer.current) window.clearTimeout(toastTimer.current);
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -332,7 +341,7 @@ export default function DocumentViewer({ type, id }: { type: string; id: string 
         loaded.data?.template_id ? supabase.from('document_templates').select('template_key,template_name').eq('id', loaded.data.template_id).maybeSingle() : Promise.resolve({ data: null } as any),
         businessId ? supabase.from('business_document_preferences').select('custom_fields,show_logo,show_business_address,show_tax_details,show_payment_qr,show_payment_link,show_signature,show_terms,show_bank_details,document_title_override,min_item_rows,prefill_upi_amount,show_customer_balance,show_authorized_signatory,show_serial_numbers').eq('business_id', businessId).eq('document_type', renderType).maybeSingle() : Promise.resolve({ data: null } as any),
         businessId ? supabase.from('businesses').select('id,name,legal_name,registration_number,tax_registration_number,tax_enabled,tax_mode,tax_type,currency_code,address,phone,alternate_phone,contact_person_name,contact_person_designation,email,alternate_email,website,google_location_link,logo_storage_path,logo_url').eq('id', businessId).maybeSingle() : Promise.resolve({ data: null } as any),
-        businessId ? supabase.from('document_payment_settings').select('upi_id,payment_qr_enabled,payment_link_enabled,payment_instructions,default_bank_account_id').eq('business_id', businessId).maybeSingle() : Promise.resolve({ data: null } as any),
+        businessId ? supabase.from('document_payment_settings').select('upi_id,payment_qr_enabled,payment_link_enabled,payment_instructions,default_bank_account_id,settlement_display_mode').eq('business_id', businessId).maybeSingle() : Promise.resolve({ data: null } as any),
       ]);
       if (!active) return;
       setJob(loaded.data); setTemplate(templateResult.data); setPreferences(preferenceResult.data); setPaymentSettings(paymentSettingsResult.data || null); if (businessResult.data) setBusiness(businessResult.data);
@@ -383,8 +392,9 @@ export default function DocumentViewer({ type, id }: { type: string; id: string 
         const invoiceResult = await supabase.from('invoices').select('payment_display_mode,payment_bank_account_id,payment_link,payment_qr_payload').eq('id', invoiceId).eq('business_id', businessId).maybeSingle();
         if (invoiceResult.data) {
           let bank = null;
-          if (invoiceResult.data.payment_display_mode === 'bank' && invoiceResult.data.payment_bank_account_id) {
-            const bankResult = await supabase.from('bank_accounts').select('id,name,institution_name,account_number,account_last4,account_holder_name,ifsc_code,branch_name,account_type,currency_code,metadata').eq('id', invoiceResult.data.payment_bank_account_id).eq('business_id', businessId).maybeSingle();
+          const settlementBankId = invoiceResult.data.payment_bank_account_id || selectedBank?.id || paymentSettingsResult.data?.default_bank_account_id || null;
+          if (settlementBankId) {
+            const bankResult = await supabase.from('bank_accounts').select('id,name,institution_name,account_number,account_last4,account_holder_name,ifsc_code,branch_name,account_type,currency_code,metadata').eq('id', settlementBankId).eq('business_id', businessId).eq('is_active', true).maybeSingle();
             bank = bankResult.data || null;
           }
           setPaymentSelection({ ...invoiceResult.data, bank: bank || selectedBank || null });
@@ -440,6 +450,7 @@ export default function DocumentViewer({ type, id }: { type: string; id: string 
   const configuredUpiId = canonicalPaymentEnabled && paymentSettings?.payment_qr_enabled !== false
     ? paymentSettings?.upi_id || paymentSelection?.bank?.upi_id || paymentSelection?.bank?.metadata?.upi_id || paymentSelection?.bank?.metadata?.upiId || null
     : null;
+  const configuredSettlementMode = paymentSettings?.settlement_display_mode || (configuredUpiId ? 'upi_qr' : paymentSelection?.bank ? 'bank_transfer' : 'none');
   const canonical = useMemo(() => createCanonicalDocumentViewModel({
     ...model,
     type: canonicalType,
@@ -450,11 +461,15 @@ export default function DocumentViewer({ type, id }: { type: string; id: string 
     customer_outstanding: type === 'receipt' ? customerBalance : undefined,
     balance_due: type === 'receipt' ? customerBalance : model.balance_due,
     upiId: configuredUpiId,
+    payment_qr_payload: paymentSettings?.payment_qr_enabled === false ? null : model.payment_qr_payload,
+    settlement_display_mode: configuredSettlementMode,
   }, {
     type: canonicalType,
     upiId: configuredUpiId,
+    paymentQrEnabled: paymentSettings?.payment_qr_enabled !== false,
+    settlementDisplayMode: configuredSettlementMode,
     prefillUpiAmount: preferences?.prefill_upi_amount !== false,
-  }), [model, type, canonicalType, mergedBusiness, customer, items, paymentSelection, paymentSettings, preferences, configuredUpiId, customerBalance]);
+  }), [model, type, canonicalType, mergedBusiness, customer, items, paymentSelection, paymentSettings, preferences, configuredUpiId, configuredSettlementMode, customerBalance]);
   const canonicalPayload = useMemo(() => ({
     ...model,
     invoice_number: canonical.document.number,
@@ -556,12 +571,24 @@ export default function DocumentViewer({ type, id }: { type: string; id: string 
     currencyCode: text(model.currency_code || 'INR'),
     publicUrl,
   });
+  const toast = {
+    success: (message: string) => {
+      setToastMessage(message);
+      if (toastTimer.current) window.clearTimeout(toastTimer.current);
+      toastTimer.current = window.setTimeout(() => setToastMessage(''), 3000);
+    },
+  };
   const copyLink = async () => {
     try {
       const publicUrl = await getPublicDocumentUrl(type, id);
       await navigator.clipboard.writeText(publicUrl);
-      setNotice('Public customer link copied.');
+      setNotice('');
+      setIsCopied(true);
+      if (copyTimer.current) window.clearTimeout(copyTimer.current);
+      copyTimer.current = window.setTimeout(() => setIsCopied(false), 2000);
+      toast.success('Customer link copied to clipboard!');
     } catch (error) {
+      setIsCopied(false);
       setNotice(error instanceof Error ? error.message : 'Unable to create a public customer link.');
     }
   };
@@ -594,7 +621,8 @@ export default function DocumentViewer({ type, id }: { type: string; id: string 
     const doc = frame.contentDocument;
     if (!doc) { frame.remove(); return; }
     doc.open();
-    const styles = Array.from(document.head.querySelectorAll('style')).map((style) => style.textContent || '').join('');
+    // Component-scoped invoice styles may be emitted outside <head>; include every style node in the print document.
+    const styles = Array.from(document.querySelectorAll('style')).map((style) => style.textContent || '').join('');
     const links = Array.from(document.head.querySelectorAll<HTMLLinkElement>('link[rel="stylesheet"]'))
       .map((link) => `<link rel="stylesheet" href="${link.href}">`).join('');
     doc.write(`<!doctype html><html><head><meta charset="utf-8">${links}<style>${styles}
@@ -611,7 +639,15 @@ export default function DocumentViewer({ type, id }: { type: string; id: string 
       .paper:not(.receipt-paper) .qr img{width:68px!important;height:68px!important;object-fit:contain!important;}
     </style></head><body>${paper.outerHTML}</body></html>`);
     doc.close();
+    const stylesheetReady = Array.from(doc.querySelectorAll<HTMLLinkElement>('link[rel="stylesheet"]')).map((link) => new Promise<void>((resolve) => {
+      if (link.sheet) { resolve(); return; }
+      const done = () => resolve();
+      link.addEventListener('load', done, { once: true });
+      link.addEventListener('error', done, { once: true });
+      window.setTimeout(done, 3000);
+    }));
     const printWhenReady = async () => {
+      await Promise.all(stylesheetReady);
       try { if (doc.fonts?.ready) await doc.fonts.ready; } catch {}
       const images = Array.from(doc.images);
       await Promise.all(images.map((img) => img.complete ? Promise.resolve() : new Promise<void>((resolve) => { img.addEventListener('load', () => resolve(), { once: true }); img.addEventListener('error', () => resolve(), { once: true }); })));
@@ -623,12 +659,14 @@ export default function DocumentViewer({ type, id }: { type: string; id: string 
   };
   if (loading) return <div className="center">Preparing document…</div>;
   if (error) return <div className="center error">{error}</div>;
-  return <main className="page"><div className="toolbar"><div><small>DOCUMENT CENTER</small><h1>{title} {number}</h1><p>{template?.template_name || theme.label} · Print-ready</p></div><div className="actions">{type==='cash_bill'&&<select aria-label="Cash Bill print format" value={cashBillFormat} onChange={e=>setCashBillFormat(e.target.value as typeof cashBillFormat)}><option value="a4">A4 Modern</option><option value="a5">A5 Modern</option><option value="thermal80">Thermal 80mm</option><option value="thermal58">Thermal 58mm</option></select>}<button onClick={back}>Back</button>{canShareDocument && <button onClick={copyLink}>Copy customer link</button>}{canShareDocument && <button onClick={share}>Share public link</button>}<button onClick={print}>Print / Save PDF</button></div></div>
-    <Paper type={type} payload={canonicalPayload} business={canonicalBusiness} customer={canonicalCustomer} items={canonicalItems} theme={theme} fields={fields} logoUrl={logoUrl} paymentSelection={paymentSelection} paymentQrDataUrl={paymentQrDataUrl} upiIntentUrl={canonicalPaymentEnabled ? canonical.financials.upiQrString || '' : ''}
+  return <main className="page"><div className="toolbar"><div><small>DOCUMENT CENTER</small><h1>{title} {number}</h1><p>{template?.template_name || theme.label} · Print-ready</p></div><div className="actions">{type==='cash_bill'&&<select aria-label="Cash Bill print format" value={cashBillFormat} onChange={e=>setCashBillFormat(e.target.value as typeof cashBillFormat)}><option value="a4">A4 Modern</option><option value="a5">A5 Modern</option><option value="thermal80">Thermal 80mm</option><option value="thermal58">Thermal 58mm</option></select>}<button type="button" onClick={back} className="inline-flex items-center justify-center gap-1.5 rounded-full border border-slate-200 bg-white px-3.5 py-2 text-xs font-semibold text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500 focus-visible:ring-offset-2"><svg aria-hidden="true" viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>Back</button>{canShareDocument && <button type="button" onClick={copyLink} aria-live="polite" className="inline-flex items-center justify-center gap-1.5 rounded-full border border-slate-200 bg-white px-3.5 py-2 text-xs font-semibold text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500 focus-visible:ring-offset-2">{isCopied ? <svg aria-hidden="true" viewBox="0 0 24 24" className="h-4 w-4 text-emerald-600" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="m5 12 4 4L19 6"/></svg> : <svg aria-hidden="true" viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="8" y="8" width="13" height="13" rx="2"/><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3"/></svg>}{isCopied ? 'Copied!' : 'Copy customer link'}</button>}{canShareDocument && <button type="button" onClick={share} className="inline-flex items-center justify-center gap-1.5 rounded-full border border-slate-200 bg-white px-3.5 py-2 text-xs font-semibold text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500 focus-visible:ring-offset-2"><svg aria-hidden="true" viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="m8.6 10.6 6.8-4.2M8.6 13.4l6.8 4.2"/></svg>Share link</button>}<button type="button" onClick={print} className="inline-flex items-center justify-center gap-1.5 rounded-full bg-purple-600 px-3.5 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-purple-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500 focus-visible:ring-offset-2"><svg aria-hidden="true" viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 9V3h12v6M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><path d="M6 14h12v7H6z"/></svg>Print / Save PDF</button></div></div>
+    {toastMessage && <div role="status" aria-live="polite" className="fixed right-5 top-5 z-[100] flex items-center gap-2 rounded-xl border border-emerald-200 bg-white px-4 py-3 text-sm font-semibold text-slate-800 shadow-lg"><svg aria-hidden="true" viewBox="0 0 24 24" className="h-5 w-5 text-emerald-600" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m5 12 4 4L19 6"/></svg>{toastMessage}</div>}
+    <Paper type={type} payload={canonicalPayload> business={canonicalBusiness} customer={canonicalCustomer} items={canonicalItems} theme={theme} fields={fields} logoUrl={logoUrl} paymentSelection={paymentSelection} paymentQrDataUrl={paymentQrDataUrl} upiIntentUrl={canonicalPaymentEnabled ? canonical.financials.upiQrString || '' : ''}
       showLogo={preferences?.show_logo !== false} showBusinessAddress={preferences?.show_business_address !== false} showTaxDetails={preferences?.show_tax_details !== false}
-      showBankDetails={paymentSelection?.payment_display_mode === 'bank' || preferences?.show_bank_details === true}
-      showPaymentLink={preferences?.show_payment_link !== false && (paymentSelection?.payment_display_mode === 'online' || paymentSettings?.payment_link_enabled === true)}
-      showPaymentQr={preferences?.show_payment_qr !== false && paymentSettings?.payment_qr_enabled !== false && (paymentSelection?.payment_display_mode === 'online' || paymentSettings?.payment_qr_enabled !== false)}
+      settlementDisplayMode={canonical.settlementDisplayMode}
+      showBankDetails={canonical.settlementDisplayMode === 'bank_transfer' || canonical.settlementDisplayMode === 'both'}
+      showPaymentLink={false}
+      showPaymentQr={paymentSettings?.payment_qr_enabled !== false && (canonical.settlementDisplayMode === 'upi_qr' || canonical.settlementDisplayMode === 'both')}
       showSignature={preferences?.show_signature === true || preferences?.show_authorized_signatory === true} showTerms={preferences?.show_terms !== false}
       showCustomerBalance={preferences?.show_customer_balance !== false && !['delivery_challan','purchase_order'].includes(type)} customerBalance={customerBalance} showAuthorizedSignatory={preferences?.show_authorized_signatory === true}
       minItemRows={Number(preferences?.min_item_rows || 0)} showSerialNumbers={preferences?.show_serial_numbers === true} documentTitleOverride={documentTitleOverride} studioTheme={studioTheme} taxLines={taxLines} receiptAllocations={receiptAllocations} originalInvoice={originalInvoice} cashBillFormat={cashBillFormat} />
