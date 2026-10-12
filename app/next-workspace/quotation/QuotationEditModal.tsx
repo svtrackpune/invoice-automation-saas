@@ -22,7 +22,7 @@ export default function QuotationEditModal({ quotationId, quotationNumber, onClo
           <button type="button" onClick={onClose} className="shrink-0 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">Close</button>
         </header>
         <div className="min-h-0 flex-1 overflow-y-auto bg-[#f7f6fb]">
-          <QuotationEditorCore quotationId={quotationId} embedded onCancel={onClose} onSaved={onClose} />
+          <QuotationEditorCore quotationId={quotationId} embedded onCancel={onClose} onSaved={() => { onClose(); window.location.assign(`/next-workspace/documents?type=quotation&id=${encodeURIComponent(quotationId)}`); }} />
         </div>
       </div>
     </div>
