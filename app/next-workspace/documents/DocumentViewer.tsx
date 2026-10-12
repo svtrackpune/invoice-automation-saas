@@ -293,7 +293,7 @@ function Paper({ type, payload, business, customer, items, theme, fields, logoUr
     <LineItems items={items} payload={payload} receipt={false} showTaxDetails={showTaxDetails} minRows={minItemRows} showSerialNumbers={showSerialNumbers} showPackages={type==='delivery_challan'}/>
     {(taxInvoice || type==='credit_note') && <TaxSummaryGrid items={items} taxLines={taxLines} money={(v:number)=>money(v,currency)}/>} 
     <div className='post-table-grid'><div className='invoice-notes-area'>{notes&&<section className='document-notes'><label>NOTES</label><p>{notes}</p></section>}{showTerms&&terms&&<section className='document-terms'><label>TERMS & CONDITIONS</label><p>{terms}</p></section>}{isGstDocument&&<div className='compliance-note'><span>{payload.reverse_charge?'Reverse charge applicable.':'Tax calculated based on the selected tax profile and invoice items.'}</span></div>}</div><DocumentTotals payload={payload} currency={currency} showTaxDetails={showTaxDetails}/></div>
-    {(type==='invoice'||taxInvoice||cashBill||paymentSelection?.bank)&&<PaymentSection paymentMode={paymentMode} paymentLink={paymentLink} paymentSelection={paymentSelection} balance={Number(payload.balance_due??0)} currency={currency} premium={false} showBankDetails={showBankDetails} showPaymentLink={showPaymentLink} showPaymentQr={showPaymentQr} qrDataUrl={paymentQrDataUrl} upiIntentUrl={upiIntentUrl}/>} 
+    {(type==='invoice'||taxInvoice||cashBill||type==='quotation'||paymentSelection?.bank)&&<PaymentSection paymentMode={paymentMode} paymentLink={paymentLink} paymentSelection={paymentSelection} balance={Number(payload.balance_due??0)} currency={currency} premium={false} showBankDetails={showBankDetails} showPaymentLink={showPaymentLink} showPaymentQr={showPaymentQr} qrDataUrl={paymentQrDataUrl} upiIntentUrl={upiIntentUrl}/>} 
     {showSignature&&<div className='signature-row'><div/><div className='signature-box'><span>{showAuthorizedSignatory?'Authorized Signatory':'Signature'}</span>{fields.signature_label&&<em>{text(fields.signature_label)}</em>}</div></div>}
     {type==='delivery_challan' && <div className='signature-row'><div className='receiver-note'>Receiver's Acknowledgment</div><div className='signature-box'><span>Receiver Signature</span></div></div>}
     {jurisdictionClause && <div className='jurisdiction-clause'><strong>Jurisdiction</strong><span>{jurisdictionClause}</span></div>}
@@ -438,7 +438,7 @@ export default function DocumentViewer({ type, id }: { type: string; id: string 
       : type === 'receipt' ? 'receipt' : 'invoice';
   const canonicalPaymentEnabled = ['invoice','tax_invoice','cash_bill','quotation'].includes(type);
   const configuredUpiId = canonicalPaymentEnabled && paymentSettings?.payment_qr_enabled !== false
-    ? paymentSettings?.upi_id || paymentSelection?.bank?.upi_id || null
+    ? paymentSettings?.upi_id || paymentSelection?.bank?.upi_id || paymentSelection?.bank?.metadata?.upi_id || paymentSelection?.bank?.metadata?.upiId || null
     : null;
   const canonical = useMemo(() => createCanonicalDocumentViewModel({
     ...model,
@@ -477,7 +477,7 @@ export default function DocumentViewer({ type, id }: { type: string; id: string 
   }), [model, canonical]);
   useEffect(() => {
     let active = true;
-    const upiId = text(paymentSettings?.payment_qr_enabled === false ? '' : (paymentSettings?.upi_id || paymentSelection?.bank?.upi_id || ''));
+    const upiId = text(paymentSettings?.payment_qr_enabled === false ? '' : (paymentSettings?.upi_id || paymentSelection?.bank?.upi_id || paymentSelection?.bank?.metadata?.upi_id || paymentSelection?.bank?.metadata?.upiId || ''));
     const currency = text(job?.payload?.currency_code || 'INR').trim() || 'INR';
     const source = {
       ...model,
