@@ -1,6 +1,6 @@
 'use client';
 
-import { use, useEffect, useMemo, useState } from 'react';
+import { use, useCallback, useEffect, useMemo, useState } from 'react';
 import QRCode from 'qrcode';
 import { supabase } from '@/lib/supabase';
 import { createCanonicalDocumentViewModel } from '@/lib/shared/document-view-model';
