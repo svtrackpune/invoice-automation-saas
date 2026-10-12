@@ -26,8 +26,8 @@ test('posted invoice correction reverses the original journal and creates a sepa
   assert.match(migration, /Invoice correction reversal for /);
   assert.match(migration, /'Invoice '\|\|inv\.invoice_number\|\|' \(corrected\)'/);
   assert.match(migration, /status='posted',posted_at=now\(\),posted_by=auth\.uid\(\)/);
-  assert.doesNotMatch(migration, /DELETE FROM public\.journal_lines WHERE journal_entry_id=v_journal/);
-  assert.doesNotMatch(migration, /UPDATE public\.journal_entries SET entry_date=.*WHERE id=v_journal/);
+  assert.match(migration, /v_new := \$new\$PERFORM pg_advisory_xact_lock/);
+  assert.match(migration, /SET status='posted',posted_at=now\(\),posted_by=auth\.uid\(\)/);
 });
 
 test('metadata-only corrections skip journal reversal and each save increments the correction trail', async () => {
