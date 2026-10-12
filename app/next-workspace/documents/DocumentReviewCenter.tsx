@@ -34,13 +34,17 @@ export default function DocumentReviewCenter({ type, id }: { type: string; id: s
   useEffect(() => {
     let active = true;
     (async () => {
+      try {
       if (!id) { if (active) setStatus('missing'); return; }
       const context = await supabase.rpc('get_my_business_context');
       if (context.error || !context.data?.[0]?.business_id) {
         if (active) { setError(context.error?.message || 'Business context not found.'); setStatus('error'); }
         return;
       }
-      const currentBusinessId = context.data[0].business_id;
+      const contextRows=(context.data||[]) as Array<{business_id:string}>;
+      const preferredBusinessId=window.localStorage.getItem('moneymatters.activeBusinessId');
+      const currentBusinessId=contextRows.find((row)=>row.business_id===preferredBusinessId)?.business_id||contextRows[0]?.business_id;
+      if(!currentBusinessId){if(active){setError('Business context not found.');setStatus('error')}return}
       setBusinessId(currentBusinessId);
       if (type === 'quotation') {
         const result = await supabase.from('quotations').select('status,quotation_number,public_accept_token,customer_id').eq('id', id).eq('business_id', currentBusinessId).maybeSingle();
@@ -67,7 +71,8 @@ export default function DocumentReviewCenter({ type, id }: { type: string; id: s
       const result = await supabase.from('invoices').select('invoice_number,document_kind,status,amount_paid,balance_due,customer_id,payment_display_mode,payment_link,payment_qr_payload').eq('id', id).eq('business_id', currentBusinessId).maybeSingle();
       if (!active) return;
       if (result.error) { setError(result.error.message); setStatus('error'); return; }
-      setStatus(result.data?.status || 'missing');
+      if (!result.data) { setError('Invoice not found in the active business.'); setStatus('missing'); return; }
+      setStatus(result.data.status || 'missing');
       setAmountPaid(Number(result.data?.amount_paid || 0));
       setBalanceDue(Number(result.data?.balance_due || 0));
       setCustomerId(String(result.data?.customer_id || ''));
@@ -78,7 +83,12 @@ export default function DocumentReviewCenter({ type, id }: { type: string; id: s
       setInvoiceNumber(String(result.data?.invoice_number || ''));
       setInvoicePaymentLink(String(result.data?.payment_link || '').trim());
       setDocumentKind(result.data?.document_kind === 'cash_bill' ? 'cash_bill' : 'invoice');
-      if (new URLSearchParams(window.location.search).get('edit') === '1' && result.data?.status !== 'void') setEditOpen(true);
+      if (new URLSearchParams(window.location.search).get('edit') === '1' && result.data.status !== 'void') setEditOpen(true);
+      } catch (cause) {
+        if (!active) return;
+        setError(cause instanceof Error ? cause.message : 'Unable to load the document for correction.');
+        setStatus('error');
+      }
     })();
     return () => { active = false; };
   }, [id, type]);
@@ -222,7 +232,9 @@ export default function DocumentReviewCenter({ type, id }: { type: string; id: s
 
   const quotationEditable = type === 'quotation' && ['draft','sent'].includes(status);
   const draft = type === 'invoice' && status === 'draft';
-  const editable = type === 'invoice' && status !== 'void' && status !== 'missing' && status !== 'error';
+  // This is a controlled correction workflow, not an unrestricted draft edit. The database RPC
+  // permits non-void corrections and enforces sales.edit / accounting.adjust permissions.
+  const editable = type === 'invoice' && !['loading','void','missing','error'].includes(status);
   const voidable = type === 'invoice' && !draft && !['void','paid'].includes(status) && amountPaid <= 0;
   const openEdit = () => { if (editable && id) { setError(''); setNotice(''); setEditOpen(true); } };
   const closeEdit = () => { setEditOpen(false); window.location.reload(); };

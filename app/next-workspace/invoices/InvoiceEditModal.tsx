@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 type Props = {
   invoiceId: string;
@@ -12,6 +12,10 @@ type Props = {
 };
 
 export default function InvoiceEditModal({ invoiceId, invoiceNumber, isCashBill, documentKind = isCashBill ? 'cash_bill' : 'invoice', amountPaid = 0, onClose }: Props) {
+  const iframeRef = useRef<HTMLIFrameElement | null>(null);
+  const [frameError, setFrameError] = useState('');
+  const editorUrl = `/next-workspace/invoices/new?edit=${encodeURIComponent(invoiceId)}&embedded=1${documentKind === 'cash_bill' ? '&cash_bill=1' : ''}`;
+
   useEffect(() => {
     const previous = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
@@ -22,6 +26,26 @@ export default function InvoiceEditModal({ invoiceId, invoiceNumber, isCashBill,
     window.addEventListener('message', onMessage);
     return () => { document.body.style.overflow = previous; window.removeEventListener('message', onMessage); };
   }, [invoiceId, onClose]);
+
+  const handleEditorLoad = () => {
+    const frame = iframeRef.current;
+    if (!frame) return;
+    try {
+      const frameWindow = frame.contentWindow;
+      if (!frameWindow || frameWindow.location.origin !== window.location.origin) {
+        setFrameError('The correction form was blocked by the browser or server frame-security policy.');
+        return;
+      }
+      const bodyText = frame.contentDocument?.body?.textContent?.trim() || '';
+      if (!bodyText) {
+        setFrameError('The correction form returned an empty page instead of editable fields.');
+        return;
+      }
+      setFrameError('');
+    } catch {
+      setFrameError('The correction form was blocked by the browser or server frame-security policy.');
+    }
+  };
 
   return (
     <div className="fixed inset-0 z-[200] bg-slate-950/55 p-2 backdrop-blur-[2px] sm:p-4" role="dialog" aria-modal="true" aria-label={documentKind === 'cash_bill' ? 'Edit Cash Bill' : 'Edit invoice'}>
@@ -39,11 +63,28 @@ export default function InvoiceEditModal({ invoiceId, invoiceNumber, isCashBill,
           <button type="button" onClick={onClose} className="shrink-0 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">Close</button>
         </header>
         <div className="min-h-0 flex-1 bg-[#f7f6fb]">
-          <iframe
-            title={`Edit ${invoiceNumber || 'invoice'}`}
-            src={`/next-workspace/invoices/new?edit=${encodeURIComponent(invoiceId)}&embedded=1${documentKind === 'cash_bill' ? '&cash_bill=1' : ''}`}
-            className="h-full w-full border-0"
-          />
+          {frameError ? (
+            <div className="grid h-full place-items-center p-6">
+              <section role="alert" className="max-w-lg rounded-2xl border border-red-200 bg-white p-6 text-sm text-slate-700 shadow-sm">
+                <h3 className="font-semibold text-red-700">Correction form unavailable</h3>
+                <p className="mt-2">{frameError}</p>
+                <p className="mt-2 text-slate-500">The invoice has not been changed. Open the editor directly to continue the correction.</p>
+                <div className="mt-5 flex flex-wrap gap-2">
+                  <a href={editorUrl.replace('&embedded=1', '')} className="inline-flex items-center rounded-xl bg-violet-600 px-4 py-2.5 font-semibold text-white">Open correction editor</a>
+                  <button type="button" onClick={onClose} className="rounded-xl border border-slate-200 px-4 py-2.5 font-semibold text-slate-700">Cancel</button>
+                </div>
+              </section>
+            </div>
+          ) : (
+            <iframe
+              ref={iframeRef}
+              title={`Edit ${invoiceNumber || 'invoice'}`}
+              src={editorUrl}
+              onLoad={handleEditorLoad}
+              onError={() => setFrameError('The correction form could not be loaded. Check the application connection and try again.')}
+              className="h-full w-full border-0"
+            />
+          )}
         </div>
       </div>
     </div>
