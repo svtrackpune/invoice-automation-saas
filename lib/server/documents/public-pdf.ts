@@ -515,26 +515,27 @@ export async function buildPublicDocumentPdf(doc: PublicDocument): Promise<Buffe
   }
 
   }
-  const legalTerms = doc.terms || (doc.type === 'invoice' ? 'Payment due as per agreed terms. Subject to applicable jurisdiction.' : null);
-  if(doc.notes||legalTerms){
-    const lines=[...(doc.notes?wrap('Notes: '+doc.notes,100):[]),...(legalTerms?wrap('Terms: '+legalTerms,100):[])],needed=22+lines.length*10;
-    if(y+needed>FOOTER_TOP-4){c.newPage();header(true);y=80;}
-    c.line(M,y,right,y);y+=8;c.text(M,y,'TERMS & CONDITIONS',7.8,true,C.navy);y+=13;
-    lines.slice(0,6).forEach(s=>{c.text(M,y,s,7,false,C.muted);y+=10;});
-  }
-  if(doc.type==='invoice'){
-    if(y+36>FOOTER_TOP-4){c.newPage();header(true);y=90;}
-    const sx=right-150,sy=Math.min(y+22,FOOTER_TOP-20);
-    c.line(sx,sy,right,sy,C.border);c.text(sx,Math.min(y+25,FOOTER_TOP-17),'For '+doc.business.name,7.5,true,C.ink);
-    c.text(sx+18,Math.min(y+40,FOOTER_TOP-6),'Authorized Signatory',7,false,C.muted);
+  if (doc.type !== 'invoice') {
+    const legalTerms = doc.terms || null;
+    if(doc.notes||legalTerms){
+      const lines=[...(doc.notes?wrap('Notes: '+doc.notes,100):[]),...(legalTerms?wrap('Terms: '+legalTerms,100):[])],needed=22+lines.length*10;
+      if(y+needed>FOOTER_TOP-4){c.newPage();header(true);y=80;}
+      c.line(M,y,right,y);y+=8;c.text(M,y,'TERMS & CONDITIONS',7.8,true,C.navy);y+=13;
+      lines.slice(0,6).forEach(s=>{c.text(M,y,s,7,false,C.muted);y+=10;});
+    }
   }
   const pageCount=c.pages.length;
-  const footerText = 'Generated via Moneymatters FinOps | Join Moneymatters for free at mm.nilanga.in';
+  const footerText = doc.type === 'invoice'
+    ? 'This is a customer-facing invoice shared by ' + doc.business.name + '.'
+    : 'Generated via Moneymatters FinOps | Join Moneymatters for free at mm.nilanga.in';
   const footerX = (W - approxWidth(footerText, 6.8, false)) / 2;
+  const poweredText = 'Powered by Moneymatters | mm.nilanga.in';
+  const poweredX = (W - approxWidth(poweredText, 6.8, false)) / 2;
   for(let i=0;i<pageCount;i++){
     c.pages[i].commands.push(rgb(C.border)+' RG 0.55 w '+M+' 31 m '+right+' 31 l S');
-    c.pages[i].commands.push(rgb(C.muted)+' rg BT /F1 6.8 Tf 1 0 0 1 '+footerX.toFixed(2)+' 17 Tm ('+esc(footerText)+') Tj ET');
-    c.pages[i].commands.push(rgb(C.muted)+' rg BT /F1 7 Tf 1 0 0 1 '+(right-47).toFixed(2)+' 17 Tm (Page '+(i+1)+' of '+pageCount+') Tj ET');
+    c.pages[i].commands.push(rgb(C.muted)+' rg BT /F1 6.8 Tf 1 0 0 1 '+footerX.toFixed(2)+' 25 Tm ('+esc(footerText)+') Tj ET');
+    if (doc.type === 'invoice') c.pages[i].commands.push(rgb(C.purple)+' rg BT /F2 6.8 Tf 1 0 0 1 '+poweredX.toFixed(2)+' 14 Tm ('+esc(poweredText)+') Tj ET');
+    else c.pages[i].commands.push(rgb(C.muted)+' rg BT /F1 7 Tf 1 0 0 1 '+(right-47).toFixed(2)+' 17 Tm (Page '+(i+1)+' of '+pageCount+') Tj ET');
   }
   if(logo&&logoId)objects[logoId-1]=Buffer.concat([
     Buffer.from('<< /Type /XObject /Subtype /Image /Width '+logo.width+' /Height '+logo.height+' /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length '+logo.bytes.length+' >>\nstream\n','ascii'),
@@ -544,10 +545,19 @@ export async function buildPublicDocumentPdf(doc: PublicDocument): Promise<Buffe
   for(const p of c.pages){
     const xObjects=logo&&logoId&&p.usesLogo?'/XObject << /Logo '+logoId+' 0 R >>':'';
     const resources='<< /Font << /F1 '+font1+' 0 R /F2 '+font2+' 0 R >> '+xObjects+' >>';
-    const stream=Buffer.from(p.commands.join('\n')+'\n','ascii');
-    const pid=add(''),sid=add(Buffer.concat([Buffer.from('<< /Length '+stream.length+' >>\nstream\n','ascii'),stream,Buffer.from('endstream','ascii')]));
+    const pid=add('');
     pageIds.push(pid);
-    objects[pid-1]='<< /Type /Page /Parent '+pagesId+' 0 R /MediaBox [0 0 '+W+' '+H+'] /Resources '+resources+' /Contents '+sid+' 0 R >>';
+    const annotationIds:number[]=[];
+    for (const link of p.links) {
+      const aid=add('');
+      const rect='['+link.x.toFixed(2)+' '+(H-link.top-link.height).toFixed(2)+' '+(link.x+link.width).toFixed(2)+' '+(H-link.top).toFixed(2)+']';
+      objects[aid-1]='<< /Type /Annot /Subtype /Link /Rect '+rect+' /Border [0 0 0] /A << /S /URI /URI ('+esc(link.uri)+') >> /P '+pid+' 0 R >>';
+      annotationIds.push(aid);
+    }
+    const stream=Buffer.from(p.commands.join('\n')+'\n','ascii');
+    const sid=add(Buffer.concat([Buffer.from('<< /Length '+stream.length+' >>\nstream\n','ascii'),stream,Buffer.from('endstream','ascii')]));
+    const annots=annotationIds.length?' /Annots ['+annotationIds.map(id=>id+' 0 R').join(' ')+']':'';
+    objects[pid-1]='<< /Type /Page /Parent '+pagesId+' 0 R /MediaBox [0 0 '+W+' '+H+'] /Resources '+resources+' /Contents '+sid+' 0 R'+annots+' >>';
   }
   objects[catalogId-1]='<< /Type /Catalog /Pages '+pagesId+' 0 R >>';
   objects[pagesId-1]='<< /Type /Pages /Kids ['+pageIds.map(id=>id+' 0 R').join(' ')+'] /Count '+pageIds.length+' >>';
