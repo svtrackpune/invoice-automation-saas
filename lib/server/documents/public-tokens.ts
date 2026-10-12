@@ -65,8 +65,8 @@ function statusAllowed(type: PublicDocumentType, status: string, validUntil: str
   const s = status.toLowerCase();
   if (type === 'invoice') return ['sent', 'partially_paid', 'paid'].includes(s);
   if (type === 'quotation') {
-    return ['sent', 'accepted', 'converted'].includes(s)
-      && (!validUntil || ['accepted', 'converted'].includes(s) || validUntil.slice(0, 10) >= new Date().toISOString().slice(0, 10));
+    // Expiry blocks acceptance, not access to the already-shared quotation document.
+    return ['sent', 'accepted', 'converted'].includes(s);
   }
   if (type === 'challan') return !['draft', 'void', 'cancelled', 'deleted'].includes(s);
   return true;
