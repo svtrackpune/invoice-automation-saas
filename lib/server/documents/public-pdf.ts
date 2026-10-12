@@ -285,7 +285,7 @@ export async function buildPublicDocumentPdf(doc: PublicDocument): Promise<Buffe
     : ['#','Item Description','HSN/SAC','Qty','Unit Rate','Discount','Taxable Amt','Total'];
   const tableHeader=(top:number)=>{
     if (doc.type === 'invoice') {
-      c.roundRect(M, top, CW, 24, 2, C.purple);
+      c.rect(M, top, CW, 24, C.purple);
       c.line(M, top + 24, right, top + 24, C.border, 0.65);
       let x = M;
       widths.forEach((w, i) => {
@@ -439,7 +439,7 @@ export async function buildPublicDocumentPdf(doc: PublicDocument): Promise<Buffe
       if (y + sectionH > FOOTER_TOP - 4) { c.newPage(); header(true); y = 154; }
       const cardX = M, cardW = CW;
       c.roundRect(cardX, y, cardW, sectionH, 9, C.white, [0.796, 0.835, 0.882] as RGB, 0.75);
-      c.text(W / 2, y + 10, 'PAYMENT', 10, true, C.navy, 'center');
+      c.text(W / 2, y + 10, canonical.settlementDisplayMode === 'bank_transfer' ? 'BANK DETAILS' : 'PAYMENT', 10, true, C.navy, 'center');
 
       if (showQrSettlement && showBankSettlement) {
         const bankX = cardX + 12, bankY = y + 29, bankW = 218, bankH = sectionH - 41;
