@@ -84,18 +84,34 @@ export default function PublicInvoice({params}:{params:Promise<{token:string}>})
         <div className="space-y-2 text-sm"><div className="flex justify-between"><span>Subtotal</span><span>{money(canonical?.financials.subtotal??invoice.subtotal,invoice.currency_code)}</span></div>{invoice.discount_total!==0&&<div className="flex justify-between"><span>Discount</span><span>-{money(canonical?.financials.totalDiscount??invoice.discount_total,invoice.currency_code)}</span></div>}{invoice.igst_amount>0?<div className="flex justify-between"><span>IGST</span><span>{money(invoice.igst_amount,invoice.currency_code)}</span></div>:<>{invoice.cgst_amount>0&&<div className="flex justify-between"><span>CGST</span><span>{money(invoice.cgst_amount,invoice.currency_code)}</span></div>}{invoice.sgst_amount>0&&<div className="flex justify-between"><span>SGST</span><span>{money(invoice.sgst_amount,invoice.currency_code)}</span></div>}{invoice.tax_total!==0&&invoice.cgst_amount===0&&invoice.sgst_amount===0&&<div className="flex justify-between"><span>Tax / GST</span><span>{money(invoice.tax_total,invoice.currency_code)}</span></div>}</>}<div className="flex justify-between border-t border-slate-200 pt-3 text-lg font-bold"><span>Total</span><span>{money(canonical?.financials.grandTotal??invoice.total,invoice.currency_code)}</span></div>{invoice.amount_paid>0&&<div className="flex justify-between"><span>Amount paid</span><span>{money(canonical?.financials.amountPaid??invoice.amount_paid,invoice.currency_code)}</span></div>}<div className="flex justify-between font-semibold"><span>Balance due</span><span>{money(canonical?.financials.balanceDue??invoice.balance_due,invoice.currency_code)}</span></div></div>
       </section>
 
-      {paymentBox&&<section className="mx-6 mb-8 max-w-sm rounded-xl border border-black p-4 sm:mx-8 print:mx-0">
-        {invoice.payment_display_mode==='bank'&&invoice.bank&&<div className="text-sm text-slate-800"><h3 className="font-bold uppercase tracking-wider">Bank Details</h3>{invoice.bank.account_holder_name&&<div className="mt-2"><b>Account Name:</b> {invoice.bank.account_holder_name}</div>}<div><b>Bank:</b> {invoice.bank.institution_name||invoice.bank.name}</div>{invoice.bank.account_number&&<div><b>Account No:</b> {invoice.bank.account_number}</div>}{invoice.bank.account_type&&<div><b>Account Type:</b> {invoice.bank.account_type}</div>}{invoice.bank.branch_name&&<div><b>Branch:</b> {invoice.bank.branch_name}</div>}{invoice.bank.ifsc_code&&<div><b>IFSC:</b> {invoice.bank.ifsc_code}</div>}{invoice.bank.upi_id&&<div><b>UPI:</b> {invoice.bank.upi_id}</div>}{canonical?.financials.upiQrString&&<a href={canonical.financials.upiQrString} className="mt-3 inline-flex rounded-lg border border-violet-200 px-4 py-2.5 text-sm font-bold text-violet-700">Pay Now via UPI</a>}</div>}
-        {(invoice.payment_display_mode==='online'||(!invoice.bank&&invoice.payment_display_mode==='bank'))&&<div className="text-center"><h3 className="font-bold uppercase tracking-wider">Payment</h3>{invoice.payment_link&&<a href={invoice.payment_link} target="_blank" rel="noreferrer" className="mt-3 inline-flex rounded-lg bg-violet-600 px-5 py-2.5 text-sm font-bold text-white">Pay Now Online</a>}{canonical?.financials.upiQrString&&<a href={canonical.financials.upiQrString} className="mt-3 ml-2 inline-flex rounded-lg border border-violet-200 px-4 py-2.5 text-sm font-bold text-violet-700">Pay Now via UPI</a>}{qr&&<div className="mt-3"><Image src={qr} alt="Payment QR" width={144} height={144} unoptimized className="mx-auto h-36 w-36"/><p className="mt-1 text-[11px] text-slate-500">Scan to pay the invoice amount.</p></div>}</div>}
+      {paymentBox&&<section className="mx-6 mb-8 max-w-3xl rounded-2xl border border-slate-300 bg-white p-5 sm:mx-8 sm:p-6 print:mx-0">
+        <h3 className="text-center text-xs font-bold tracking-[0.16em] text-slate-900">PAYMENT</h3>
+        <div className={invoice.bank?'mt-4 grid gap-4 sm:grid-cols-2':'mt-4'}>
+          {invoice.bank&&<div className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
+            <h4 className="text-xs font-bold uppercase tracking-wider text-slate-900">Bank settlement details</h4>
+            {invoice.bank.account_holder_name&&<div className="mt-3"><b>Account Name:</b> {invoice.bank.account_holder_name}</div>}
+            <div><b>Bank:</b> {invoice.bank.institution_name||invoice.bank.name}</div>
+            {invoice.bank.account_number&&<div><b>Account No:</b> {invoice.bank.account_number}</div>}
+            {invoice.bank.account_type&&<div><b>Account Type:</b> {invoice.bank.account_type}</div>}
+            {invoice.bank.branch_name&&<div><b>Branch:</b> {invoice.bank.branch_name}</div>}
+            {invoice.bank.ifsc_code&&<div><b>IFSC:</b> {invoice.bank.ifsc_code}</div>}
+            {invoice.bank.upi_id&&<div><b>UPI:</b> {invoice.bank.upi_id}</div>}
+          </div>}
+          <div className="flex flex-col items-center justify-start text-center">
+            {invoice.payment_link&&<a href={invoice.payment_link} target="_blank" rel="noreferrer" className="inline-flex rounded-full bg-violet-600 px-5 py-2.5 text-sm font-bold text-white hover:bg-violet-700">Pay Now Online</a>}
+            {canonical?.financials.upiQrString&&<a href={canonical.financials.upiQrString} className="mt-2 inline-flex rounded-full bg-violet-600 px-5 py-2.5 text-sm font-bold text-white hover:bg-violet-700">Pay Now via UPI</a>}
+            {qr&&<div className="mt-3"><Image src={qr} alt="Payment QR" width={180} height={180} unoptimized className="mx-auto h-36 w-36"/><p className="mt-2 text-xs text-slate-500">Scan to pay the invoice amount.</p></div>}
+            {!canonical?.financials.upiQrString&&!invoice.payment_link&&<p className="mt-3 text-sm text-slate-500">Please use the bank settlement details shown here.</p>}
+          </div>
+        </div>
       </section>}
-
 
       <section className="flex flex-col gap-3 border-t border-slate-200 p-6 sm:flex-row sm:items-center sm:justify-between sm:p-8 print:hidden">
         <div><p className="font-semibold text-slate-900">Need a copy for your records?</p><p className="mt-1 text-xs text-slate-500">Download a PDF copy of this invoice.</p></div>
         <a href={'/api/public-documents/pdf?type=invoice&token=' + encodeURIComponent(token)} className="inline-flex min-h-12 items-center justify-center rounded-xl bg-violet-600 px-6 py-3 text-sm font-semibold text-white hover:bg-violet-700">Download Official PDF</a>
       </section>
 
-      <footer className="border-t border-slate-200 bg-slate-50 p-6 text-center text-xs text-slate-400"><div>This is a customer-facing invoice shared by {invoice.business.name}.</div><div className="mt-3 flex items-center justify-center gap-2 border-t border-slate-200 pt-3"><span className="inline-grid h-4 w-4 place-items-center rounded bg-violet-600 text-[9px] font-black text-white">M</span><span>Powered by <strong className="text-violet-600">Moneymatters</strong></span></div></footer>
+      <footer className="border-t border-slate-200 bg-slate-50 p-6 text-center text-xs text-slate-400"><div>This is a customer-facing invoice shared by {invoice.business.name}.</div><div className="mt-3 flex items-center justify-center gap-2 border-t border-slate-200 pt-3"><span className="inline-grid h-4 w-4 place-items-center rounded bg-violet-600 text-[9px] font-black text-white">M</span><span><strong className="text-violet-600">⚡ Powered by Moneymatters</strong> | mm.nilanga.in</span></div></footer>
     </article>
   </main>;
 }
