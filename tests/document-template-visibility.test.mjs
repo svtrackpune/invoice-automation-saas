@@ -25,7 +25,7 @@ test('document settings uses the canonical production template catalog', async (
 
 test('invoice and quotation editors link directly to template management and preview', async () => {
   const invoice = await read('app/next-workspace/invoices/InvoiceEditorCore.tsx');
-  const quotation = await read('app/next-workspace/quotation/QuotationWorkspaceControlled.tsx');
+  const quotation = await read('app/next-workspace/quotation/QuotationEditorCore.tsx');
   assert.match(invoice, /\/next-workspace\/brand\?type=invoice/);
   assert.match(quotation, /\/next-workspace\/brand\?type=quotation/);
 });
