@@ -291,7 +291,7 @@ test('notification worker requires a Vault cron token or a permission-checked ma
  assert.match(worker,/is_notification_worker_token_valid/);
  assert.match(worker,/admin\.auth\.getUser\(bearer\)/);
  assert.match(worker,/authorize_notification_test_dispatch/);
- assert.match(worker,/return json\\(\\{ error: "Unauthorized" \\}, 401\\)/);
+ assert.match(worker,/return json\(\{ error: "Unauthorized" \}, 401\)/);
  assert.match(migration,/vault\.create_secret/);
  assert.match(migration,/cron\.alter_job/);
  assert.match(migration,/notification_worker_token/);
