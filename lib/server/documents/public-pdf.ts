@@ -338,7 +338,7 @@ export async function buildPublicDocumentPdf(doc: PublicDocument): Promise<Buffe
     }
   });
   if (doc.type === 'invoice') {
-    if (y + 172 > FOOTER_TOP - 4) { c.newPage(); header(true); y = tableHeader(78); }
+    if (y + 172 > FOOTER_TOP - 4) { c.newPage(); header(true); y = 154; }
     y += 14;
     const summaryTop = y;
     const totalW = 205, totalX = right - totalW;
@@ -421,7 +421,7 @@ export async function buildPublicDocumentPdf(doc: PublicDocument): Promise<Buffe
 
   }
   if(doc.type==='challan'){
-    if(y+38>FOOTER_TOP-4){c.newPage();header(true);y=80;}
+    if(y+38>FOOTER_TOP-4){c.newPage();header(true);y=154;}
     c.rect(M,y,CW,30,C.pale,C.border);
     c.text(M+8,y+5,'SUPPLY ON APPROVAL / JOB WORK / EXHIBITION / TRANSPORTATION ONLY',7.1,true,C.navy);
     c.text(M+8,y+17,'NOT FOR SALE / NOT A TAX INVOICE',8,true,C.red);
@@ -493,7 +493,7 @@ export async function buildPublicDocumentPdf(doc: PublicDocument): Promise<Buffe
   } else {
   if(doc.bankDetails||qrData){
     const sectionH=qrData?100:76;
-    if(y+sectionH>FOOTER_TOP-4){c.newPage();header(true);y=80;}
+    if(y+sectionH>FOOTER_TOP-4){c.newPage();header(true);y=154;}
     c.line(M,y,right,y,C.border,0.75);y+=8;c.text(M,y,'PAYMENT / SETTLEMENT DETAILS',8,true,C.navy);y+=15;
     if(doc.bankDetails){
       const b=doc.bankDetails;
@@ -516,7 +516,7 @@ export async function buildPublicDocumentPdf(doc: PublicDocument): Promise<Buffe
     const legalTerms = doc.terms || null;
     if(doc.notes||legalTerms){
       const lines=[...(doc.notes?wrap('Notes: '+doc.notes,100):[]),...(legalTerms?wrap('Terms: '+legalTerms,100):[])],needed=22+lines.length*10;
-      if(y+needed>FOOTER_TOP-4){c.newPage();header(true);y=80;}
+      if(y+needed>FOOTER_TOP-4){c.newPage();header(true);y=154;}
       c.line(M,y,right,y);y+=8;c.text(M,y,'TERMS & CONDITIONS',7.8,true,C.navy);y+=13;
       lines.slice(0,6).forEach(s=>{c.text(M,y,s,7,false,C.muted);y+=10;});
     }
