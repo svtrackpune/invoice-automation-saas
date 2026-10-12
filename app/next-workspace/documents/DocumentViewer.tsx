@@ -161,7 +161,7 @@ function DocumentTotals({ payload, currency='INR', receipt=false, showTaxDetails
 
 function BankDetails({ bank }: { bank: any }) {
   const metadata = bank?.metadata || {};
-  const accountNumber = metadata.account_number || metadata.account_no || metadata.accountNumber || (bank.account_last4 ? `•••• ${bank.account_last4}` : '');
+  const accountNumber = metadata.account_number || metadata.account_no || metadata.accountNumber || bank?.account_number || (bank.account_last4 ? `•••• ${bank.account_last4}` : '');
   const ifsc = metadata.ifsc || metadata.ifsc_code || metadata.ifscCode || bank?.ifsc_code;
   const branch = metadata.branch || metadata.branch_name || bank?.branch_name;
   const upi = metadata.upi_id || metadata.upiId;
@@ -341,7 +341,7 @@ export default function DocumentViewer({ type, id }: { type: string; id: string 
       if (businessId) {
         const selectedBankId = payload?.document_context?.selected_bank_account_id || null;
         if (selectedBankId) {
-          const bankResult = await supabase.from('bank_accounts').select('id,name,institution_name,account_last4,account_holder_name,ifsc_code,branch_name,account_type,currency_code,metadata').eq('id', selectedBankId).eq('business_id', businessId).maybeSingle();
+          const bankResult = await supabase.from('bank_accounts').select('id,name,institution_name,account_number,account_last4,account_holder_name,ifsc_code,branch_name,account_type,currency_code,metadata').eq('id', selectedBankId).eq('business_id', businessId).maybeSingle();
           selectedBank = bankResult.data || null;
         }
         if (selectedBank) setPaymentSelection({ payment_display_mode: 'bank', bank: selectedBank });
@@ -365,13 +365,13 @@ export default function DocumentViewer({ type, id }: { type: string; id: string 
         let quotationBank: any = null;
         if (quotationBankId) {
           const preferredBank = await supabase.from('bank_accounts')
-            .select('id,name,institution_name,account_last4,account_holder_name,ifsc_code,branch_name,account_type,currency_code,metadata')
+            .select('id,name,institution_name,account_number,account_last4,account_holder_name,ifsc_code,branch_name,account_type,currency_code,metadata')
             .eq('id', quotationBankId).eq('business_id', businessId).eq('is_active', true).maybeSingle();
           if (!preferredBank.error) quotationBank = preferredBank.data || null;
         }
         if (!quotationBank) {
           const fallbackBank = await supabase.from('bank_accounts')
-            .select('id,name,institution_name,account_last4,account_holder_name,ifsc_code,branch_name,account_type,currency_code,metadata')
+            .select('id,name,institution_name,account_number,account_last4,account_holder_name,ifsc_code,branch_name,account_type,currency_code,metadata')
             .eq('business_id', businessId).eq('is_active', true)
             .order('is_primary', { ascending: false }).order('created_at', { ascending: true })
             .limit(1).maybeSingle();
@@ -384,7 +384,7 @@ export default function DocumentViewer({ type, id }: { type: string; id: string 
         if (invoiceResult.data) {
           let bank = null;
           if (invoiceResult.data.payment_display_mode === 'bank' && invoiceResult.data.payment_bank_account_id) {
-            const bankResult = await supabase.from('bank_accounts').select('id,name,institution_name,account_last4,account_holder_name,ifsc_code,branch_name,account_type,currency_code,metadata').eq('id', invoiceResult.data.payment_bank_account_id).eq('business_id', businessId).maybeSingle();
+            const bankResult = await supabase.from('bank_accounts').select('id,name,institution_name,account_number,account_last4,account_holder_name,ifsc_code,branch_name,account_type,currency_code,metadata').eq('id', invoiceResult.data.payment_bank_account_id).eq('business_id', businessId).maybeSingle();
             bank = bankResult.data || null;
           }
           setPaymentSelection({ ...invoiceResult.data, bank: bank || selectedBank || null });
