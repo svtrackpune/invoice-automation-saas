@@ -220,7 +220,7 @@ export async function buildPublicDocumentPdf(doc: PublicDocument): Promise<Buffe
     const st=doc.status.replace(/_/g,' ').toUpperCase(), badgeW=Math.min(84,Math.max(44,st.length*5+14));
     c.rect(right-badgeW-10,64,badgeW,15,statusColor(doc.status));
     c.text(right-badgeW/2-10,67,st,7,true,C.white,'center');
-    c.text(rx+12,67,doc.type==='invoice'?'INVOICE NO.':'DOCUMENT NO.',6.5,true,[0.78,0.82,0.91]);
+    c.text(rx+12,67,'DOCUMENT NO.',6.5,true,[0.78,0.82,0.91]);
     c.text(rx+12,77,doc.number,9.2,true,C.white);
     c.text(rx+12,93,'DATE  '+dateLabel(doc.date),7.2,false,C.white);
     if(doc.dueDate)c.text(rx+12,106,'DUE  '+dateLabel(doc.dueDate),7.2,false,C.white);
@@ -265,10 +265,10 @@ export async function buildPublicDocumentPdf(doc: PublicDocument): Promise<Buffe
       c.text(p.x+10,top+5,p.label,8,true,C.indigo); c.text(p.x+10,top+25,p.name,9.1,true,C.navy);
       p.rows.slice(0,5).forEach((v,i)=>drawWrap(c,p.x+10,top+40+i*10,v,43,7.3,false,C.muted,1));
     }
-    c.text(M,top+113,doc.type==='invoice'?'GOODS / SERVICES':'DOCUMENT DETAILS',8,true,C.navy);
+    c.text(M,top+113,'DOCUMENT DETAILS',8,true,C.navy);
     const state=stateLabel(doc.placeOfSupplyStateCode);
     if(state)c.text(right,top+113,'PLACE OF SUPPLY: '+state,7.3,true,C.muted,'right');
-    if(doc.type==='invoice'&&doc.supplyType)c.text(right,top+124,'Supply: '+doc.supplyType.replace(/_/g,' '),7,false,C.muted,'right');
+    
     if(doc.type==='challan') {
       let detailsTop=top+128;
       if(doc.vehicleNumber)c.text(M,detailsTop,'Vehicle No: '+doc.vehicleNumber,7.2,false,C.muted);
@@ -276,7 +276,7 @@ export async function buildPublicDocumentPdf(doc: PublicDocument): Promise<Buffe
       if(doc.ewayBillNumber)c.text(M,detailsTop+12,'E-Way Bill: '+doc.ewayBillNumber,7.2,false,C.muted);
       return top+(doc.ewayBillNumber?160:(doc.vehicleNumber||doc.transporterName?148:124));
     }
-    return top+(doc.type==='invoice'&&doc.supplyType?134:124);
+    return top+124;
   };
 
   const widths = doc.type === 'invoice' ? [270, 60, 92, CW - 422] : [22,144,47,39,60,52,82,77];
@@ -408,7 +408,6 @@ export async function buildPublicDocumentPdf(doc: PublicDocument): Promise<Buffe
       ]));
     }
     summary.push(['Round Off',canonical.financials.roundOff,false],['Grand Total',canonical.financials.grandTotal,true]);
-    if(doc.type==='invoice')summary.push(['Amount Paid',canonical.financials.amountPaid,false],['Balance Due',canonical.financials.balanceDue,true]);
   }
   for(const [label,value,bold] of summary){
     if(y+15>FOOTER_TOP-4){c.newPage();header(true);y=154;}
