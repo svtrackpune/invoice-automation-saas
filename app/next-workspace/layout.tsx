@@ -18,7 +18,7 @@ const baseGroups: NavGroup[] = [
   { id: 'sales', name: 'Sales & Billing', items: [
     { label: 'Cash Bill (POS)', href: '/next-workspace/cash-bill', icon: 'cash' },
     { label: 'Invoices', href: '/next-workspace/invoices', icon: 'invoice' },
-    { label: 'Quotations', href: '/next-workspace/quotation', icon: 'quote' },
+    { label: 'Quotations', href: '/next-workspace/quotations', icon: 'quote' },
     { label: 'Receipts', href: '/next-workspace/receipts', icon: 'cash' },
     { label: 'Customers', href: '/next-workspace/customers', icon: 'customer' },
     { label: 'Products & Services', href: '/next-workspace/items', icon: 'invoice' },
@@ -105,7 +105,8 @@ function getActiveNavHref(pathname: string): string | null {
 const titles: Record<string, string> = {
   '/next-workspace': 'Dashboard',
   '/next-workspace/invoices': 'Invoices',
-  '/next-workspace/quotation': 'Quotations',
+  '/next-workspace/quotation': 'Quotation editor',
+  '/next-workspace/quotations': 'Quotations',
   '/next-workspace/customers': 'Customers',
   '/next-workspace/vendors': 'Vendors',
   '/next-workspace/items': 'Products & Services',
