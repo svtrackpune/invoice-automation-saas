@@ -70,7 +70,7 @@ test('canonical UPI intent is balance-aware for invoices and quotations and INR-
     business: { name: 'Sample', address: 'Main Road' }, customer: { display_name: 'Buyer' },
   };
   assert.equal(createCanonicalDocumentViewModel(base, { upiId: 'sample@upi' }).financials.upiQrString, undefined);
-  const quote = createCanonicalDocumentViewModel({ ...base, type: 'quotation', quotation_number: 'EST-1', amount_paid: 0, balance_due: 100 }, { upiId: 'sample@upi' });
+  const quote = createCanonicalDocumentViewModel({ ...base, type: 'quotation', invoice_number: undefined, quotation_number: 'EST-1', amount_paid: 0, balance_due: 100 }, { upiId: 'sample@upi' });
   assert.ok(quote.financials.upiQrString?.startsWith('upi://pay?'));
   assert.equal(new URLSearchParams(quote.financials.upiQrString.split('?')[1]).get('am'), '100.00');
   assert.equal(new URLSearchParams(quote.financials.upiQrString.split('?')[1]).get('tn'), 'EST-1');
