@@ -9,6 +9,7 @@ type Row = Record<string, unknown>;
 
 export type PublicDocument = {
   type: PublicDocumentType;
+  templateName?: string | null;
   id: string;
   businessId: string;
   number: string;
@@ -148,6 +149,7 @@ export async function loadPublicDocumentById(
   let row: Row;
   let customerId: string;
   let typeToken: string;
+  let templateName: string | null = null;
   let number: string;
   let date: string;
   let dueDate: string | null = null;
@@ -166,10 +168,16 @@ export async function loadPublicDocumentById(
 
   if (type === 'invoice') {
     const result = await db.from('invoices')
-      .select('id,business_id,customer_id,invoice_number,invoice_date,due_date,status,currency_code,subtotal,discount_total,tax_total,total,amount_paid,balance_due,notes,terms,payment_display_mode,payment_link,payment_qr_payload,public_share_token,place_of_supply_state_code,supply_type,cgst_amount,sgst_amount,igst_amount,payment_bank_account_id')
+      .select('id,business_id,customer_id,invoice_number,invoice_date,due_date,status,currency_code,subtotal,discount_total,tax_total,total,amount_paid,balance_due,notes,terms,payment_display_mode,payment_link,payment_qr_payload,public_share_token,place_of_supply_state_code,supply_type,cgst_amount,sgst_amount,igst_amount,payment_bank_account_id,template_id')
       .eq('id', id).eq('business_id', businessId).maybeSingle();
     if (result.error || !result.data) return null;
     row = result.data as Row;
+    const templateId = nullable(row.template_id);
+    if (templateId) {
+      const templateResult = await db.from('document_templates').select('template_name')
+        .eq('id', templateId).maybeSingle();
+      if (!templateResult.error && templateResult.data) templateName = nullable(templateResult.data.template_name);
+    }
     typeToken = text(row.public_share_token);
     customerId = text(row.customer_id); number = text(row.invoice_number); date = text(row.invoice_date);
     status = text(row.status); dueDate = nullable(row.due_date); currencyCode = text(row.currency_code || 'INR') || 'INR';
@@ -322,6 +330,7 @@ export async function loadPublicDocumentById(
   const parties = await loadParties(db, businessId, customerId || null);
   return {
     type, id, businessId, number, date, dueDate, validUntil, status, currencyCode,
+    ...(type === 'invoice' ? { templateName } : {}),
     subtotal, discountTotal, taxTotal, total, amountPaid, balanceDue, notes, terms,
     paymentLink, paymentQrPayload, vehicleNumber, transporterName, ewayBillNumber,
     placeOfSupplyStateCode, supplyType, cgstAmount, sgstAmount, igstAmount, bankDetails, upiId,
