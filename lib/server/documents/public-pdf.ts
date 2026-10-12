@@ -428,6 +428,69 @@ export async function buildPublicDocumentPdf(doc: PublicDocument): Promise<Buffe
     c.text(M+8,y+17,'NOT FOR SALE / NOT A TAX INVOICE',8,true,C.red);
     y+=38;
   }
+  y += 5;
+  const qrData = canonical.financials.upiQrString
+    || (doc.type === 'invoice' && String(doc.currencyCode).toUpperCase() === 'INR' && doc.balanceDue > 0
+      && doc.paymentQrPayload?.startsWith('upi://pay?') ? doc.paymentQrPayload : null);
+
+  if (doc.type === 'invoice') {
+    if (doc.bankDetails || qrData) {
+      const sectionH = qrData ? 174 : 104;
+      if (y + sectionH > FOOTER_TOP - 4) { c.newPage(); header(true); y = 80; }
+      const cardX = M, cardW = CW;
+      c.roundRect(cardX, y, cardW, sectionH, 9, C.white, [0.796, 0.835, 0.882] as RGB, 0.75);
+      c.text(W / 2, y + 10, 'PAYMENT', 10, true, C.navy, 'center');
+
+      if (qrData && doc.bankDetails) {
+        const bankX = cardX + 12, bankY = y + 29, bankW = 218, bankH = sectionH - 41;
+        c.roundRect(bankX, bankY, bankW, bankH, 7, C.pale, C.border, 0.6);
+        const b = doc.bankDetails;
+        c.text(bankX + 10, bankY + 10, b.institutionName || b.name || 'Bank', 8.1, true, C.navy);
+        c.text(bankX + 10, bankY + 27, 'Account holder: ' + (b.accountHolderName || doc.business.name), 7.0, false, C.muted);
+        c.text(bankX + 10, bankY + 42, 'A/C No: ' + (b.accountNumber || (b.accountLast4 ? 'XXXX ' + b.accountLast4 : '-')), 7.0, false, C.muted);
+        c.text(bankX + 10, bankY + 57, 'IFSC: ' + (b.ifscCode || '-'), 7.0, false, C.muted);
+        if (b.branchName) c.text(bankX + 10, bankY + 72, 'Branch: ' + b.branchName, 7.0, false, C.muted);
+        if (b.accountType) c.text(bankX + 10, bankY + 87, 'Account type: ' + b.accountType, 7.0, false, C.muted);
+
+        const payX = bankX + bankW + 10, payW = cardX + cardW - 12 - payX;
+        const buttonW = Math.min(142, payW - 8), buttonH = 22, buttonX = payX + (payW - buttonW) / 2;
+        const buttonY = y + 28;
+        c.roundRect(buttonX, buttonY, buttonW, buttonH, 11, C.purple);
+        c.text(buttonX + buttonW / 2, buttonY + 6, 'Pay Now via UPI', 7.8, true, C.white, 'center');
+        c.addLink(buttonX, buttonY, buttonW, buttonH, qrData);
+        const qrOuter = 90, qrX = payX + (payW - qrOuter) / 2, qrY = buttonY + buttonH + 7;
+        c.rect(qrX, qrY, qrOuter, qrOuter, C.white, C.border, 0.4);
+        const q = QRCode.create(qrData, { errorCorrectionLevel: 'M' }), n = q.modules.size;
+        const area = 72, quiet = 9, cell = area / n, qx = qrX + quiet, qy = qrY + quiet;
+        for (let row = 0; row < n; row++) for (let col = 0; col < n; col++) {
+          if (q.modules.data[row * n + col]) c.rect(qx + col * cell, qy + row * cell, cell + 0.025, cell + 0.025, C.navy);
+        }
+        c.text(qrX + qrOuter / 2, qrY + qrOuter + 2, 'Scan to pay the invoice amount.', 7, false, C.muted, 'center');
+      } else if (qrData) {
+        const buttonW = 142, buttonH = 22, buttonX = cardX + (cardW - buttonW) / 2, buttonY = y + 28;
+        c.roundRect(buttonX, buttonY, buttonW, buttonH, 11, C.purple);
+        c.text(buttonX + buttonW / 2, buttonY + 6, 'Pay Now via UPI', 7.8, true, C.white, 'center');
+        c.addLink(buttonX, buttonY, buttonW, buttonH, qrData);
+        const qrOuter = 90, qrX = cardX + (cardW - qrOuter) / 2, qrY = buttonY + buttonH + 7;
+        c.rect(qrX, qrY, qrOuter, qrOuter, C.white, C.border, 0.4);
+        const q = QRCode.create(qrData, { errorCorrectionLevel: 'M' }), n = q.modules.size;
+        const area = 72, quiet = 9, cell = area / n, qx = qrX + quiet, qy = qrY + quiet;
+        for (let row = 0; row < n; row++) for (let col = 0; col < n; col++) {
+          if (q.modules.data[row * n + col]) c.rect(qx + col * cell, qy + row * cell, cell + 0.025, cell + 0.025, C.navy);
+        }
+        c.text(qrX + qrOuter / 2, qrY + qrOuter + 2, 'Scan to pay the invoice amount.', 7, false, C.muted, 'center');
+      } else if (doc.bankDetails) {
+        const b = doc.bankDetails, bx = cardX + 20, by = y + 32;
+        c.roundRect(bx, by, cardW - 40, 58, 7, C.pale, C.border, 0.6);
+        c.text(bx + 12, by + 9, b.institutionName || b.name || 'Bank', 8.2, true, C.navy);
+        c.text(bx + 12, by + 24, 'Account holder: ' + (b.accountHolderName || doc.business.name), 7.2, false, C.muted);
+        c.text(bx + 12, by + 39, 'A/C No: ' + (b.accountNumber || (b.accountLast4 ? 'XXXX ' + b.accountLast4 : '-')), 7.2, false, C.muted);
+        c.text(bx + 270, by + 24, 'IFSC: ' + (b.ifscCode || '-'), 7.2, false, C.muted);
+        c.text(bx + 270, by + 39, 'Branch: ' + (b.branchName || '-'), 7.2, false, C.muted);
+      }
+      y += sectionH + 12;
+    }
+  } else {
   y+=5;
   const qrData=canonical.financials.upiQrString
     || (doc.type==='invoice'&&doc.balanceDue>0&&doc.paymentQrPayload?.startsWith('upi://pay?')?doc.paymentQrPayload:null);
@@ -449,6 +512,8 @@ export async function buildPublicDocumentPdf(doc: PublicDocument): Promise<Buffe
       c.text(qx+area/2,qy+area+5,'SCAN TO PAY',6.5,true,C.muted,'center');
     }
     y+=qrData?88:45;
+  }
+
   }
   const legalTerms = doc.terms || (doc.type === 'invoice' ? 'Payment due as per agreed terms. Subject to applicable jurisdiction.' : null);
   if(doc.notes||legalTerms){
