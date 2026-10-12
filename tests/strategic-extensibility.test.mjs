@@ -12,6 +12,7 @@ const customers=await readFile(new URL('app/api/v1/customers/route.ts',root),'ut
 const items=await readFile(new URL('app/api/v1/items/route.ts',root),'utf8');
 const balances=await readFile(new URL('app/api/v1/inventory/balances/route.ts',root),'utf8');
 const worker=await readFile(new URL('supabase/functions/process-webhooks/index.ts',root),'utf8');
+const workerAuthMigration=await readFile(new URL('supabase/migrations/20261012071200_protect_webhook_worker_endpoint.sql',root),'utf8');
 
 test('API key boundary is hashed, scoped, and revocable',()=>{
   assert.match(migration,/CREATE TABLE IF NOT EXISTS public\.api_keys/i);
@@ -47,6 +48,15 @@ test('webhooks have HTTPS targets, HMAC signatures and bounded retries',()=>{
   assert.match(worker,/attempt/);
   assert.match(worker,/2\*\*/);
   assert.match(migration,/attempt < 5/);
+});
+
+test('scheduled webhook worker requires the Vault service token',()=>{
+  assert.match(worker,/is_notification_worker_token_valid/);
+  assert.match(worker,/x-moneymatters-worker-token/);
+  assert.match(worker,/Unauthorized/);
+  assert.match(workerAuthMigration,/moneymatters-webhook-worker/);
+  assert.match(workerAuthMigration,/vault\.decrypted_secrets/);
+  assert.match(workerAuthMigration,/x-moneymatters-worker-token/);
 });
 
 test('financial webhook hooks swallow subsystem failures',()=>{
