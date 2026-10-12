@@ -76,7 +76,7 @@ const MODULES: Record<WorkspaceModule, Omit<WorkspaceModuleConfig, 'priority'>> 
   dashboard: { module: 'dashboard', label: 'Dashboard', href: '/next-workspace' },
   sales: { module: 'sales', label: 'Sales & Payments', href: '/next-workspace/sales' },
   invoices: { module: 'invoices', label: 'Invoices', href: '/next-workspace/invoices' },
-  estimates: { module: 'estimates', label: 'Estimates', href: '/next-workspace/quotation' },
+  estimates: { module: 'estimates', label: 'Estimates', href: '/next-workspace/quotations' },
   customers: { module: 'customers', label: 'Customers', href: '/next-workspace/customers' },
   recurring: { module: 'recurring', label: 'Recurring', href: '/next-workspace/recurring' },
   purchases: { module: 'purchases', label: 'Purchases & Bills', href: '/next-workspace/purchases' },
