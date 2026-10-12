@@ -210,6 +210,11 @@ test('public invoice renderer creates a vector-rendered A4 GST PDF with QR and b
  assert.equal(raw.slice(Number(match[1]),Number(match[1])+4),'xref');
  const qr=QRCodePlaceholderForTest(pdf);
  assert.ok(qr);
+ assert.match(raw,/\/URI \(upi:\/\/pay\?/);
+ const annotationRect=raw.match(/\/Subtype \/Link \/Rect \[([0-9.]+) ([0-9.]+)/);
+ assert.ok(annotationRect,'UPI action must have a clickable PDF annotation');
+ assert.ok(Number(annotationRect[1])>200,'UPI action must be positioned inside the payment card, not the page top-left');
+ assert.ok(Number(annotationRect[2])>100,'UPI action must be positioned in the document body, not the top margin');
 
  const challan={...doc,type:'challan',number:'DC-0004',status:'dispatched',dueDate:null,validUntil:null,amountPaid:0,balanceDue:0,
   placeOfSupplyStateCode:null,supplyType:null,cgstAmount:0,sgstAmount:0,igstAmount:0,bankDetails:null,upiId:null,
