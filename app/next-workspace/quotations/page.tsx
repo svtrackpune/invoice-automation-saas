@@ -81,6 +81,7 @@ export default function QuotationsListPage() {
       const url = await getPublicDocumentUrl('quotation', row.id);
       await navigator.clipboard.writeText(url);
       setNotice('Customer link copied for ' + row.quotation_number + '.');
+      await refresh(businessId);
     } catch (cause) {
       setLoadError(cause instanceof Error ? cause.message : 'Unable to create a public quotation link.');
     } finally {
