@@ -262,49 +262,47 @@ export async function loadPublicDocumentById(
       .eq('business_id', businessId).maybeSingle();
     if (settingsResult.error) throw new Error('Document payment settings are unavailable.');
 
-    let selectedBankId = type === 'invoice' ? paymentBankAccountId : null;
-    if (type === 'quotation') {
+    // Respect an invoice's explicit bank selection, then fall back to the document
+    // mapping and business defaults so existing invoices without a selected bank render correctly.
+    let selectedBankId: string | null = type === 'invoice' ? paymentBankAccountId : null;
+    if (!selectedBankId) {
       const preferred = await db.from('business_document_bank_accounts')
         .select('bank_account_id,display_order,created_at')
-        .eq('business_id', businessId).eq('document_type', 'quotation')
+        .eq('business_id', businessId).eq('document_type', type)
         .order('display_order', { ascending: true }).order('created_at', { ascending: true })
         .limit(1).maybeSingle();
-      if (preferred.error) throw new Error('Quotation bank-account preferences are unavailable.');
-      selectedBankId = nullable(preferred.data?.bank_account_id) || nullable(settingsResult.data?.default_bank_account_id);
-      if (!selectedBankId) {
-        const businessSettings = await db.from('business_settings').select('default_bank_account_id')
-          .eq('business_id', businessId).maybeSingle();
-        if (businessSettings.error) throw new Error('Business settlement preferences are unavailable.');
-        selectedBankId = nullable(businessSettings.data?.default_bank_account_id);
-      }
+      if (preferred.error) throw new Error('Document bank-account preferences are unavailable.');
+      selectedBankId = nullable(preferred.data?.bank_account_id);
+    }
+    if (!selectedBankId) selectedBankId = nullable(settingsResult.data?.default_bank_account_id);
+    if (!selectedBankId) {
+      const businessSettings = await db.from('business_settings').select('default_bank_account_id')
+        .eq('business_id', businessId).maybeSingle();
+      if (businessSettings.error) throw new Error('Business settlement preferences are unavailable.');
+      selectedBankId = nullable(businessSettings.data?.default_bank_account_id);
     }
 
-    let bankResult: { data: Row | null; error: { message?: string } | null };
+    let bankResult: { data: Row | null; error: { message?: string } | null } = { data: null, error: null };
     if (selectedBankId) {
       const result = await db.from('bank_accounts')
         .select('id,name,institution_name,account_holder_name,account_number,account_last4,ifsc_code,branch_name,metadata,is_active')
         .eq('id', selectedBankId).eq('business_id', businessId).eq('is_active', true).maybeSingle();
-      bankResult = { data: result.data as Row | null, error: result.error };
-    } else if (type === 'quotation') {
-      const result = await db.from('bank_accounts')
-        .select('id,name,institution_name,account_holder_name,account_number,account_last4,ifsc_code,branch_name,metadata,is_active')
-        .eq('business_id', businessId).eq('is_active', true)
-        .order('is_primary', { ascending: false }).order('created_at', { ascending: true })
-        .limit(1).maybeSingle();
-      bankResult = { data: result.data as Row | null, error: result.error };
-    } else {
-      bankResult = { data: null, error: null };
+      if (result.error) throw new Error('Document settlement details are unavailable.');
+      bankResult = { data: result.data as Row | null, error: null };
     }
-    if (bankResult.error) throw new Error('Document settlement details are unavailable.');
-    if (!bankResult.data && type === 'quotation' && selectedBankId) {
+
+    // If an old document points to a deleted or inactive account, fail over only
+    // to an active account belonging to the same business.
+    if (!bankResult.data) {
       const fallback = await db.from('bank_accounts')
         .select('id,name,institution_name,account_holder_name,account_number,account_last4,ifsc_code,branch_name,metadata,is_active')
         .eq('business_id', businessId).eq('is_active', true)
         .order('is_primary', { ascending: false }).order('created_at', { ascending: true })
         .limit(1).maybeSingle();
       if (fallback.error) throw new Error('Document settlement details are unavailable.');
-      bankResult = { data: fallback.data as Row | null, error: fallback.error };
+      bankResult = { data: fallback.data as Row | null, error: null };
     }
+
     if (bankResult.data) {
       const b = bankResult.data;
       bankDetails = {
