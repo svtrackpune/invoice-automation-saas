@@ -53,3 +53,11 @@ test('live journal cleanup removes only the redundant delete from the new draft 
   assert.ok(cleanup.includes("v_definition := replace(v_definition,v_old,'')"));
   assert.match(cleanup, /expected exactly one redundant deletion against the new draft entry/);
 });
+
+test('corrected journal uses a distinct source identity to satisfy the invoice journal uniqueness constraint', async () => {
+  const sourceFix = await read('supabase/migrations/20261012154500_invoice_correction_source_unique_fix.sql');
+  assert.match(sourceFix, /UNIQUE \(business_id, source_type, source_id\)/);
+  assert.ok(sourceFix.includes("'Invoice '||inv.invoice_number||' (corrected)','invoice',inv.id,'draft'"));
+  assert.ok(sourceFix.includes("'Invoice '||inv.invoice_number||' (corrected)','invoice_correction',inv.id,'draft'"));
+  assert.match(sourceFix, /expected exactly one corrected-entry source identity/);
+});
