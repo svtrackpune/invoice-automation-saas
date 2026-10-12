@@ -12,7 +12,7 @@ const customers=await readFile(new URL('app/api/v1/customers/route.ts',root),'ut
 const items=await readFile(new URL('app/api/v1/items/route.ts',root),'utf8');
 const balances=await readFile(new URL('app/api/v1/inventory/balances/route.ts',root),'utf8');
 const worker=await readFile(new URL('supabase/functions/process-webhooks/index.ts',root),'utf8');
-const workerAuthMigration=await readFile(new URL('supabase/migrations/20261012071200_protect_webhook_worker_endpoint.sql',root),'utf8');
+const workerAuthMigration=await readFile(new URL('supabase/migrations/20261012071426_protect_webhook_worker_endpoint.sql',root),'utf8');
 
 test('API key boundary is hashed, scoped, and revocable',()=>{
   assert.match(migration,/CREATE TABLE IF NOT EXISTS public\.api_keys/i);
