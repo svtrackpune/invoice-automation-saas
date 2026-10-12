@@ -4,6 +4,7 @@
  * authorization, token validation, and fetching tenant-scoped source records.
  */
 export type CanonicalDocumentType = 'invoice' | 'quotation' | 'receipt' | 'challan';
+export type SettlementDisplayMode = 'upi_qr' | 'bank_transfer' | 'both' | 'none';
 
 export interface CanonicalDocumentViewModel {
   business: {
@@ -31,6 +32,7 @@ export interface CanonicalDocumentViewModel {
     email?: string;
     gstin?: string;
   };
+  settlementDisplayMode: SettlementDisplayMode;
   document: {
     type: CanonicalDocumentType;
     number: string;
@@ -158,7 +160,7 @@ function normalizeItems(input: unknown): CanonicalDocumentViewModel['items'] {
 
 export function createCanonicalDocumentViewModel(
   input: unknown,
-  options: { type?: CanonicalDocumentType; publicUrl?: string; upiId?: string | null; prefillUpiAmount?: boolean } = {},
+  options: { type?: CanonicalDocumentType; publicUrl?: string; upiId?: string | null; prefillUpiAmount?: boolean; settlementDisplayMode?: SettlementDisplayMode | null; paymentQrEnabled?: boolean } = {},
 ): CanonicalDocumentViewModel {
   const root = record(input);
   const payload = record(root.payload);
@@ -192,7 +194,7 @@ export function createCanonicalDocumentViewModel(
   const businessName = str(first(businessSource.legalName, businessSource.legal_name, businessSource.name, businessSource.business_name), 'Business');
   const customerName = str(first(customerSource.legalName, customerSource.legal_name, customerSource.display_name, customerSource.name, customerSource.customer_name), 'Customer');
   const publicUrl = str(first(options.publicUrl, source.publicUrl, source.public_url, root.publicUrl));
-  const explicitQr = nullableText(source.upiQrString, source.payment_qr_payload, source.paymentQrPayload, source.payment_qr_payload);
+  const explicitQr = options.paymentQrEnabled === false ? undefined : nullableText(source.upiQrString, source.payment_qr_payload, source.paymentQrPayload, source.payment_qr_payload);
   const qrUpi = ['invoice', 'quotation'].includes(documentType) && currency === 'INR' && balance > 0 && bankUpi
     ? 'upi://pay?' + new URLSearchParams({
       pa: bankUpi,
@@ -202,6 +204,18 @@ export function createCanonicalDocumentViewModel(
       tn: str(first(source.number, source.document_number, source.invoice_number, source.quotation_number, source.receipt_number)),
     }).toString()
     : undefined;
+  const usableQr = Boolean(qrUpi || (explicitQr && /^upi:\/\/pay\?/i.test(explicitQr) && currency === 'INR' && balance > 0));
+  const usableBank = Boolean(bankDetails && (bankDetails.accountNumber || bankDetails.ifsc || bankDetails.bankName));
+  const requestedSettlementMode = str(first(options.settlementDisplayMode, source.settlement_display_mode, source.settlementDisplayMode)).toLowerCase();
+  let settlementDisplayMode: SettlementDisplayMode;
+  if (requestedSettlementMode === 'both' && usableQr && usableBank) settlementDisplayMode = 'both';
+  else if (requestedSettlementMode === 'upi_qr' && usableQr) settlementDisplayMode = 'upi_qr';
+  else if (requestedSettlementMode === 'bank_transfer' && usableBank) settlementDisplayMode = 'bank_transfer';
+  else if (requestedSettlementMode === 'none') settlementDisplayMode = 'none';
+  else if (usableQr) settlementDisplayMode = 'upi_qr';
+  else if (usableBank) settlementDisplayMode = 'bank_transfer';
+  else settlementDisplayMode = 'none';
+
   const taxArray = Array.isArray(source.taxBreakdown || source.tax_breakdown)
     ? (source.taxBreakdown || source.tax_breakdown) as unknown[]
     : [];
@@ -223,6 +237,7 @@ export function createCanonicalDocumentViewModel(
   }
 
   return {
+    settlementDisplayMode,
     business: {
       legalName: str(first(businessSource.legalName, businessSource.legal_name, businessSource.name, businessSource.business_name), 'Business'),
       ...(nullableText(businessSource.name, businessSource.tradeName, businessSource.trade_name) ? { tradeName: str(first(businessSource.name, businessSource.tradeName, businessSource.trade_name)) } : {}),
