@@ -29,7 +29,6 @@ type Quote = {
   items:Array<{description:string|null;quantity:number;unit_price:number;discount_type:string|null;discount_value:number|null;tax_rate:number}>;
 };
 
-const money=(n:number)=>new Intl.NumberFormat('en-IN',{style:'currency',currency:'INR',maximumFractionDigits:2}).format(Number(n||0));
 const addressLines=(value:any)=>{if(!value)return [];if(typeof value==='string')return value.split(/\n|,/).map(x=>x.trim()).filter(Boolean);return [value.line1,value.line2,[value.city,value.state,value.postal_code||value.pin||value.pincode].filter(Boolean).join(', '),value.country].filter(Boolean).map(String)};
 
 export default function PublicQuotation({params}:{params:Promise<{token:string}>}){
@@ -41,6 +40,7 @@ export default function PublicQuotation({params}:{params:Promise<{token:string}>
   const [accepting,setAccepting]=useState(false);
   const [acceptanceMessage,setAcceptanceMessage]=useState('');
   const [qrDataUrl,setQrDataUrl]=useState('');
+  const money=useCallback((n:number)=>{const raw=String(quote?.currency_code||'INR').toUpperCase();const currency=/^[A-Z]{3}$/.test(raw)?raw:'INR';return new Intl.NumberFormat('en-IN',{style:'currency',currency,maximumFractionDigits:2}).format(Number(n||0));},[quote?.currency_code]);
 
   useEffect(()=>{(async()=>{
     const r=await supabase.rpc('get_public_quotation',{p_public_accept_token:token});
