@@ -8,7 +8,7 @@ const read = (path) => readFile(new URL(path, root), 'utf8');
 test('invoice posting creates a draft journal and transitions to posted after all lines', async () => {
   const migration = await read('supabase/migrations/20261012180000_fix_invoice_ledger_posting_idempotency.sql');
 
-  assert.match(migration, /public\.post_invoice\(uuid,uuid\)::regprocedure/);
+  assert.match(migration, /public\.post_invoice\(uuid,uuid\)'::regprocedure/);
   assert.match(migration, /v_old := \$old\$\s+'posted',[\s\S]*?inv\.currency_code,\$old\$/);
   assert.match(migration, /v_new := \$new\$\s+'draft',[\s\S]*?inv\.currency_code,\$new\$/);
   assert.match(migration, /UPDATE public\.journal_entries[\s\S]*?SET status = 'posted',[\s\S]*?WHERE id = v_entry[\s\S]*?AND status = 'draft'/);
