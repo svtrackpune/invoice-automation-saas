@@ -36,7 +36,7 @@ test('quotation correction modal renders editor core and calls back on successfu
   const modal = await read('app/next-workspace/quotation/QuotationEditModal.tsx');
   const core = await read('app/next-workspace/quotation/QuotationEditorCore.tsx');
   assert.ok(modal.includes("import QuotationEditorCore from './QuotationEditorCore'"));
-  assert.ok(modal.includes('<QuotationEditorCore quotationId={quotationId} embedded onCancel={onClose} onSaved={onClose} />'));
+  assert.ok(modal.includes('window.location.assign(`/next-workspace/documents?type=quotation&id=${encodeURIComponent(quotationId)}`)'));
   assert.ok(!modal.includes('<iframe'));
   assert.ok(core.includes('onSaved?: () => void'));
   assert.ok(core.includes('if(onSaved)onSaved()'));
