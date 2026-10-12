@@ -24,7 +24,7 @@ function getSupabaseOrigin(): string | null {
 
 function createNonce(): string { return btoa(crypto.randomUUID()); }
 
-function buildContentSecurityPolicy(nonce: string, supabaseOrigin: string | null): string {
+function buildContentSecurityPolicy(nonce: string, supabaseOrigin: string | null, allowSameOriginFrames = false): string {
   const connectSources = ["'self'", 'https://*.supabase.co', 'wss://*.supabase.co', 'https://mm.nilanga.in', supabaseOrigin]
     .filter((value): value is string => Boolean(value)).join(' ');
   return [
@@ -34,7 +34,7 @@ function buildContentSecurityPolicy(nonce: string, supabaseOrigin: string | null
     "img-src 'self' blob: data: https:",
     "font-src 'self' data:",
     `connect-src ${connectSources}`,
-    "frame-ancestors 'none'",
+    allowSameOriginFrames ? "frame-ancestors 'self'" : "frame-ancestors 'none'",
     "object-src 'none'",
     "base-uri 'self'",
     "form-action 'self'",
@@ -54,12 +54,17 @@ const PUBLIC_RECIPIENT_ROUTES = [
 
 export function middleware(request: NextRequest): NextResponse {
   const pathname = request.nextUrl.pathname;
+  // InvoiceEditModal intentionally embeds the existing invoice editor in a same-origin
+  // iframe. Permit framing only for that edit-only URL; all other routes stay denied.
+  const isEmbeddedInvoiceEditor = pathname === '/next-workspace/invoices/new'
+    && request.nextUrl.searchParams.get('embedded') === '1'
+    && Boolean(request.nextUrl.searchParams.get('edit'));
   const isApi = pathname.startsWith(API_PREFIX);
   const isProduction = process.env.NODE_ENV === 'production';
   const allowedOrigin = getAllowedOrigin();
   const requestOrigin = request.headers.get('origin');
   const nonce = createNonce();
-  const csp = buildContentSecurityPolicy(nonce, getSupabaseOrigin());
+  const csp = buildContentSecurityPolicy(nonce, getSupabaseOrigin(), isEmbeddedInvoiceEditor);
   const requestHeaders = new Headers(request.headers);
   requestHeaders.set('x-nonce', nonce);
   // Next.js uses the incoming CSP header to discover the per-request nonce
@@ -68,7 +73,7 @@ export function middleware(request: NextRequest): NextResponse {
   const response = NextResponse.next({ request: { headers: requestHeaders } });
 
   response.headers.set('X-Content-Type-Options', 'nosniff');
-  response.headers.set('X-Frame-Options', 'DENY');
+  response.headers.set('X-Frame-Options', isEmbeddedInvoiceEditor ? 'SAMEORIGIN' : 'DENY');
   response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
   response.headers.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
   response.headers.set('Content-Security-Policy', csp);
