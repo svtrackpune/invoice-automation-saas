@@ -65,8 +65,8 @@ function statusAllowed(type: PublicDocumentType, status: string, validUntil: str
   const s = status.toLowerCase();
   if (type === 'invoice') return ['sent', 'partially_paid', 'paid'].includes(s);
   if (type === 'quotation') {
-    return ['sent', 'accepted'].includes(s)
-      && (!validUntil || s === 'accepted' || validUntil.slice(0, 10) >= new Date().toISOString().slice(0, 10));
+    return ['sent', 'accepted', 'converted'].includes(s)
+      && (!validUntil || ['accepted', 'converted'].includes(s) || validUntil.slice(0, 10) >= new Date().toISOString().slice(0, 10));
   }
   if (type === 'challan') return !['draft', 'void', 'cancelled', 'deleted'].includes(s);
   return true;
@@ -244,28 +244,69 @@ export async function loadPublicDocumentById(
 
   if (!statusAllowed(type, status, validUntil)) return null;
   if (typeToken.length < 48) return null;
-  if (type === 'invoice') {
-    const [bankResult, settingsResult] = await Promise.all([
-      paymentBankAccountId
-        ? db.from('bank_accounts').select('name,institution_name,account_holder_name,account_number,account_last4,ifsc_code,branch_name').eq('id', paymentBankAccountId).eq('business_id', businessId).maybeSingle()
-        : Promise.resolve({ data: null, error: null }),
-      db.from('document_payment_settings').select('upi_id,payment_qr_enabled').eq('business_id', businessId).maybeSingle(),
-    ]);
-    if (bankResult.error) throw new Error('Invoice settlement details are unavailable.');
-    if (settingsResult.error) throw new Error('Invoice payment settings are unavailable.');
+  if (type === 'invoice' || type === 'quotation') {
+    const settingsResult = await db.from('document_payment_settings')
+      .select('upi_id,payment_qr_enabled,default_bank_account_id')
+      .eq('business_id', businessId).maybeSingle();
+    if (settingsResult.error) throw new Error('Document payment settings are unavailable.');
+
+    let selectedBankId = type === 'invoice' ? paymentBankAccountId : null;
+    if (type === 'quotation') {
+      const preferred = await db.from('business_document_bank_accounts')
+        .select('bank_account_id,display_order,created_at')
+        .eq('business_id', businessId).eq('document_type', 'quotation')
+        .order('display_order', { ascending: true }).order('created_at', { ascending: true })
+        .limit(1).maybeSingle();
+      if (preferred.error) throw new Error('Quotation bank-account preferences are unavailable.');
+      selectedBankId = nullable(preferred.data?.bank_account_id) || nullable(settingsResult.data?.default_bank_account_id);
+      if (!selectedBankId) {
+        const businessSettings = await db.from('business_settings').select('default_bank_account_id')
+          .eq('business_id', businessId).maybeSingle();
+        if (businessSettings.error) throw new Error('Business settlement preferences are unavailable.');
+        selectedBankId = nullable(businessSettings.data?.default_bank_account_id);
+      }
+    }
+
+    let bankResult: { data: Row | null; error: { message?: string } | null };
+    if (selectedBankId) {
+      const result = await db.from('bank_accounts')
+        .select('id,name,institution_name,account_holder_name,account_number,account_last4,ifsc_code,branch_name,metadata,is_active')
+        .eq('id', selectedBankId).eq('business_id', businessId).eq('is_active', true).maybeSingle();
+      bankResult = { data: result.data as Row | null, error: result.error };
+    } else if (type === 'quotation') {
+      const result = await db.from('bank_accounts')
+        .select('id,name,institution_name,account_holder_name,account_number,account_last4,ifsc_code,branch_name,metadata,is_active')
+        .eq('business_id', businessId).eq('is_active', true)
+        .order('is_primary', { ascending: false }).order('created_at', { ascending: true })
+        .limit(1).maybeSingle();
+      bankResult = { data: result.data as Row | null, error: result.error };
+    } else {
+      bankResult = { data: null, error: null };
+    }
+    if (bankResult.error) throw new Error('Document settlement details are unavailable.');
+    if (!bankResult.data && type === 'quotation' && selectedBankId) {
+      const fallback = await db.from('bank_accounts')
+        .select('id,name,institution_name,account_holder_name,account_number,account_last4,ifsc_code,branch_name,metadata,is_active')
+        .eq('business_id', businessId).eq('is_active', true)
+        .order('is_primary', { ascending: false }).order('created_at', { ascending: true })
+        .limit(1).maybeSingle();
+      if (fallback.error) throw new Error('Document settlement details are unavailable.');
+      bankResult = { data: fallback.data as Row | null, error: fallback.error };
+    }
     if (bankResult.data) {
-      const b = bankResult.data as Row;
+      const b = bankResult.data;
       bankDetails = {
         name: nullable(b.name), institutionName: nullable(b.institution_name),
         accountHolderName: nullable(b.account_holder_name), accountNumber: nullable(b.account_number),
         accountLast4: nullable(b.account_last4), ifscCode: nullable(b.ifsc_code), branchName: nullable(b.branch_name),
       };
+      upiId = nullable(settingsResult.data?.upi_id) || nullable((b.metadata as Row | null)?.upi_id);
+    } else {
+      upiId = nullable(settingsResult.data?.upi_id);
     }
     if (settingsResult.data?.payment_qr_enabled === false) {
       upiId = null;
-      paymentQrPayload = null;
-    } else {
-      upiId = nullable(settingsResult.data?.upi_id);
+      if (type === 'invoice') paymentQrPayload = null;
     }
   }
   const parties = await loadParties(db, businessId, customerId || null);
