@@ -441,7 +441,7 @@ export async function buildPublicDocumentPdf(doc: PublicDocument): Promise<Buffe
       c.roundRect(cardX, y, cardW, sectionH, 9, C.white, [0.796, 0.835, 0.882] as RGB, 0.75);
       c.text(W / 2, y + 10, canonical.settlementDisplayMode === 'bank_transfer' ? 'BANK DETAILS' : 'PAYMENT', 10, true, C.navy, 'center');
 
-      if (showQrSettlement && showBankSettlement) {
+      if (showQrSettlement && showBankSettlement && doc.bankDetails && qrData) {
         const bankX = cardX + 12, bankY = y + 29, bankW = 218, bankH = sectionH - 41;
         c.roundRect(bankX, bankY, bankW, bankH, 7, C.pale, C.border, 0.6);
         const b = doc.bankDetails;
@@ -467,7 +467,7 @@ export async function buildPublicDocumentPdf(doc: PublicDocument): Promise<Buffe
           if (q.modules.data[row * n + col]) c.rect(qx + col * cell, qy + row * cell, cell + 0.025, cell + 0.025, C.navy);
         }
         c.text(qrX + qrOuter / 2, qrY + qrOuter + 2, 'Scan to pay the invoice amount.', 7, false, C.muted, 'center');
-      } else if (showQrSettlement) {
+      } else if (showQrSettlement && qrData) {
         const buttonW = 142, buttonH = 22, buttonX = cardX + (cardW - buttonW) / 2, buttonY = y + 28;
         c.roundRect(buttonX, buttonY, buttonW, buttonH, 11, C.purple);
         c.text(buttonX + buttonW / 2, buttonY + 6, 'Pay Now via UPI', 7.8, true, C.white, 'center');
@@ -480,7 +480,7 @@ export async function buildPublicDocumentPdf(doc: PublicDocument): Promise<Buffe
           if (q.modules.data[row * n + col]) c.rect(qx + col * cell, qy + row * cell, cell + 0.025, cell + 0.025, C.navy);
         }
         c.text(qrX + qrOuter / 2, qrY + qrOuter + 2, 'Scan to pay the invoice amount.', 7, false, C.muted, 'center');
-      } else if (showBankSettlement) {
+      } else if (showBankSettlement && doc.bankDetails) {
         const b = doc.bankDetails, bx = cardX + 20, by = y + 32;
         c.roundRect(bx, by, cardW - 40, 58, 7, C.pale, C.border, 0.6);
         c.text(bx + 12, by + 9, b.institutionName || b.name || 'Bank', 8.2, true, C.navy);
