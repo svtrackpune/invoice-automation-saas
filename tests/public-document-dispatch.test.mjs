@@ -219,6 +219,7 @@ test('public invoice renderer creates a vector-rendered A4 GST PDF with QR and b
  const bankOnlyPdf=await buildPublicDocumentPdf({...doc,settlementDisplayMode:'bank_transfer'});
  const bankOnlyText=bankOnlyPdf.toString('latin1');
  assert.match(bankOnlyText,/Sample Bank/,'bank_transfer mode must show bank settlement details');
+ assert.match(bankOnlyText,/BANK DETAILS/,'bank-only card must have a clear heading');
  assert.doesNotMatch(bankOnlyText,/Pay Now via UPI|Scan to pay the invoice amount\./,'bank_transfer mode must not show a UPI QR panel');
  const bothPdf=await buildPublicDocumentPdf({...doc,settlementDisplayMode:'both'});
  const bothText=bothPdf.toString('latin1');
