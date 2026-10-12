@@ -337,6 +337,55 @@ export async function buildPublicDocumentPdf(doc: PublicDocument): Promise<Buffe
       y+=rh;
     }
   });
+  if (doc.type === 'invoice') {
+    if (y + 172 > FOOTER_TOP - 4) { c.newPage(); header(true); y = tableHeader(78); }
+    y += 14;
+    const summaryTop = y;
+    const totalW = 205, totalX = right - totalW;
+    const leftW = totalX - M - 24;
+    c.text(M, summaryTop, 'NOTES', 8, true, C.navy);
+    let leftY = summaryTop + 14;
+    if (doc.notes) {
+      const noteLines = wrap(doc.notes, 48).slice(0, 4);
+      noteLines.forEach(line => { c.text(M, leftY, line, 7.3, false, C.muted); leftY += 10; });
+      leftY += 7;
+    } else {
+      c.text(M, leftY, '—', 7.3, false, C.muted); leftY += 10;
+      leftY += 7;
+    }
+    c.text(M, leftY, 'TERMS & CONDITIONS', 8, true, C.navy);
+    leftY += 14;
+    const terms = doc.terms ? wrap(doc.terms, 48).slice(0, 5) : ['Payment due as per agreed terms.'];
+    terms.forEach(line => { c.text(M, leftY, line, 7.3, false, C.muted); leftY += 10; });
+
+    const rows: Array<[string, number, 'normal'|'total'|'balance']> = [
+      ['Subtotal', canonical.financials.subtotal, 'normal']
+    ];
+    if (canonical.financials.totalDiscount !== 0) rows.push(['Discount', -Math.abs(canonical.financials.totalDiscount), 'normal']);
+    if (canonical.financials.taxBreakdown.length) {
+      canonical.financials.taxBreakdown.forEach(line => rows.push([
+        line.rate > 0 ? line.name + ' (' + line.rate + '%)' : line.name,
+        line.amount, 'normal'
+      ]));
+    } else if (doc.taxTotal !== 0) rows.push(['Tax / GST', doc.taxTotal, 'normal']);
+    rows.push(['Total', canonical.financials.grandTotal, 'total']);
+    if (canonical.financials.amountPaid > 0) rows.push(['Amount paid', canonical.financials.amountPaid, 'normal']);
+    rows.push(['Balance due', canonical.financials.balanceDue, 'balance']);
+
+    c.line(totalX, summaryTop, right, summaryTop, C.border, 0.7);
+    let totalY = summaryTop + 5;
+    for (const [label, value, kind] of rows) {
+      const rowH = kind === 'normal' ? 15 : 19;
+      if (kind === 'total') c.roundRect(totalX, totalY, totalW, rowH, 4, C.pale);
+      if (kind === 'balance') c.roundRect(totalX, totalY, totalW, rowH, 4, [1, 0.97, 0.94] as RGB);
+      const col = kind === 'balance' ? C.amber : C.navy;
+      c.text(totalX + 8, totalY + 4, label, kind === 'normal' ? 7.6 : 8.3, kind !== 'normal', col);
+      c.text(right - 8, totalY + 4, (value < 0 ? '-' : '') + money(Math.abs(value), doc.currencyCode),
+        kind === 'normal' ? 7.6 : 8.3, kind !== 'normal', col, 'right');
+      totalY += rowH + 1;
+    }
+    y = Math.max(leftY, totalY) + 12;
+  } else {
   if(y+190>FOOTER_TOP-4){c.newPage();header(true);y=82;}else y+=12;
 
   const totalX=342,totalW=right-totalX,wordX=M;
@@ -369,6 +418,8 @@ export async function buildPublicDocumentPdf(doc: PublicDocument): Promise<Buffe
     c.text(totalX+7,y+2,label,label==='Grand Total'?8.1:7.5,bold,color);
     c.text(right-7,y+2,(value<0?'-':'')+money(Math.abs(value),doc.currencyCode),label==='Grand Total'?8.2:7.4,bold,color,'right');
     y+=16;
+  }
+
   }
   if(doc.type==='challan'){
     if(y+38>FOOTER_TOP-4){c.newPage();header(true);y=80;}
