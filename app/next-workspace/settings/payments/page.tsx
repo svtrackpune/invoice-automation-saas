@@ -12,6 +12,7 @@ type BankAccount = {
 };
 type PaymentSettings = {
   business_id: string; upi_id: string; merchant_name: string; default_bank_account_id: string | null;
+  settlement_display_mode: 'upi_qr' | 'bank_transfer' | 'both';
   enable_cash: boolean; enable_upi: boolean; enable_card: boolean; enable_credit: boolean;
   prefill_bill_amount: boolean; payment_qr_enabled: boolean; payment_instructions: string; qr_code_notes: string;
   payment_gateway_provider:'razorpay'|'cashfree'|'stripe'|null; payment_link_enabled:boolean;
@@ -21,7 +22,7 @@ type PaymentSettings = {
   gateway_convenience_fee_pct:number;
 };
 const emptySettings = (businessId: string): PaymentSettings => ({
-  business_id: businessId, upi_id: '', merchant_name: '', default_bank_account_id: null,
+  business_id: businessId, upi_id: '', merchant_name: '', default_bank_account_id: null, settlement_display_mode: 'upi_qr',
   enable_cash: true, enable_upi: true, enable_card: true, enable_credit: true,
   prefill_bill_amount: true, payment_qr_enabled: true,
   payment_instructions: 'Scan with any UPI app to pay instantly', qr_code_notes: '',
@@ -165,6 +166,7 @@ export default function PaymentsSettingsPage() {
               <label className="block"><span className="text-xs font-semibold text-slate-700">Primary UPI VPA / ID</span><input value={settings.upi_id} onChange={e => patch('upi_id', e.target.value.trim())} placeholder="svtrack@icici" className="mt-1.5 w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"/><span className={'mt-1 block text-[10px] ' + (validVpa ? 'text-emerald-600' : 'text-amber-600')}>{settings.upi_id ? (validVpa ? 'Valid VPA syntax.' : 'Expected format: name@provider') : 'Configure a VPA to enable UPI.'}</span></label>
               <label className="block"><span className="text-xs font-semibold text-slate-700">Merchant Payee Name</span><input value={settings.merchant_name} onChange={e => patch('merchant_name', e.target.value)} placeholder="Legal / trade name" className="mt-1.5 w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"/></label>
             </div>
+            <label className="mt-4 block"><span className="text-xs font-semibold text-slate-700">Invoice settlement display</span><select value={settings.settlement_display_mode} onChange={e => patch('settlement_display_mode', e.target.value as PaymentSettings['settlement_display_mode'])} className="mt-1.5 w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"><option value="upi_qr">UPI QR + Pay Now (hide bank details)</option><option value="bank_transfer">Bank transfer details only (hide QR)</option><option value="both">Both UPI QR and bank details</option></select><span className="mt-1 block text-[10px] text-slate-500">Both methods appear together only when explicitly selected. If a method is not configured, the available method is used.</span></label>
             <label className="mt-4 block"><span className="text-xs font-semibold text-slate-700">Payment Instructions / Footer Note</span><textarea rows={2} value={settings.payment_instructions} onChange={e => patch('payment_instructions', e.target.value)} className="mt-1.5 w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"/></label>
             <div className="mt-4 grid gap-2 sm:grid-cols-2">
               <Toggle label="Prefill Bill Amount by Default" checked={settings.prefill_bill_amount} onChange={v => patch('prefill_bill_amount', v)}/>
