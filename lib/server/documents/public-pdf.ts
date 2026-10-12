@@ -4,13 +4,15 @@ import QRCode from 'qrcode';
 
 const W = 595.28, H = 841.89, M = 36, CW = W - M * 2, FOOTER_TOP = H - 36;
 type RGB = readonly [number, number, number];
-type Page = { commands: string[]; usesLogo: boolean };
+type PdfLink = { x: number; top: number; width: number; height: number; uri: string };
+type Page = { commands: string[]; usesLogo: boolean; links: PdfLink[] };
 const C = {
-  navy: [0.10, 0.16, 0.27] as RGB, indigo: [0.24, 0.29, 0.67] as RGB,
-  ink: [0.12, 0.16, 0.22] as RGB, muted: [0.39, 0.43, 0.49] as RGB,
-  border: [0.84, 0.87, 0.90] as RGB, pale: [0.95, 0.96, 0.975] as RGB,
-  white: [1, 1, 1] as RGB, green: [0.08, 0.40, 0.27] as RGB,
-  amber: [0.64, 0.36, 0.06] as RGB, red: [0.68, 0.18, 0.20] as RGB,
+  purple: [0.486, 0.227, 0.929] as RGB, indigo: [0.486, 0.227, 0.929] as RGB,
+  navy: [0.059, 0.090, 0.165] as RGB, ink: [0.059, 0.090, 0.165] as RGB,
+  muted: [0.392, 0.455, 0.545] as RGB, border: [0.886, 0.910, 0.941] as RGB,
+  pale: [0.945, 0.957, 0.976] as RGB, white: [1, 1, 1] as RGB,
+  green: [0.08, 0.40, 0.27] as RGB, amber: [0.918, 0.345, 0.047] as RGB,
+  red: [0.68, 0.18, 0.20] as RGB,
 };
 const ascii = (v: unknown) => String(v ?? '').replace(/₹/g, 'INR ').replace(/[—–]/g, '-')
   .replace(/[•·]/g, ' ').normalize('NFKD').replace(/[^\x20-\x7E]/g, '')
@@ -61,11 +63,11 @@ function stateLabel(code: string | null): string {
 }
 function approxWidth(s: string, size: number, bold = false) { return ascii(s).length * size * (bold ? 0.56 : 0.51); }
 class Canvas {
-  pages: Page[] = [{ commands: [], usesLogo: false }];
+  pages: Page[] = [{ commands: [], usesLogo: false, links: [] }];
   index = 0;
   get p() { return this.pages[this.index]; }
   get cmd() { return this.p.commands; }
-  newPage() { this.pages.push({ commands: [], usesLogo: false }); this.index++; }
+  newPage() { this.pages.push({ commands: [], usesLogo: false, links: [] }); this.index++; }
   text(x: number, top: number, value: unknown, size = 8.5, bold = false, color: RGB = C.ink, align: 'left'|'right'|'center' = 'left') {
     const s = ascii(value); if (!s) return;
     const width = approxWidth(s, size, bold);
@@ -84,6 +86,29 @@ class Canvas {
     ops.push(x.toFixed(2) + ' ' + (H-top-h).toFixed(2) + ' ' + w.toFixed(2) + ' ' + h.toFixed(2) + ' re');
     ops.push(fill && stroke ? 'B' : fill ? 'f' : 'S', 'Q');
     this.cmd.push(ops.join(' '));
+  }
+  roundRect(x: number, top: number, w: number, h: number, radius = 8, fill?: RGB, stroke?: RGB, lineWidth = 0.6) {
+    const r = Math.max(0, Math.min(radius, w / 2, h / 2));
+    const k = 0.5522847498 * r;
+    const y = H - top, b = H - top - h;
+    const ops = ['q'];
+    if (fill) ops.push(rgb(fill) + ' rg');
+    if (stroke) ops.push(rgb(stroke) + ' RG ' + lineWidth.toFixed(2) + ' w');
+    ops.push((x + r).toFixed(2) + ' ' + y.toFixed(2) + ' m');
+    ops.push((x + w - r).toFixed(2) + ' ' + y.toFixed(2) + ' l');
+    ops.push((x + w - r + k).toFixed(2) + ' ' + y.toFixed(2) + ' ' + (x + w).toFixed(2) + ' ' + (y - r + k).toFixed(2) + ' ' + (x + w).toFixed(2) + ' ' + (y - r).toFixed(2) + ' c');
+    ops.push((x + w).toFixed(2) + ' ' + (b + r).toFixed(2) + ' l');
+    ops.push((x + w).toFixed(2) + ' ' + (b + r - k).toFixed(2) + ' ' + (x + w - r + k).toFixed(2) + ' ' + b.toFixed(2) + ' ' + (x + w - r).toFixed(2) + ' ' + b.toFixed(2) + ' c');
+    ops.push((x + r).toFixed(2) + ' ' + b.toFixed(2) + ' l');
+    ops.push((x + r - k).toFixed(2) + ' ' + b.toFixed(2) + ' ' + x.toFixed(2) + ' ' + (b + r - k).toFixed(2) + ' ' + x.toFixed(2) + ' ' + (b + r).toFixed(2) + ' c');
+    ops.push(x.toFixed(2) + ' ' + (y - r).toFixed(2) + ' l');
+    ops.push(x.toFixed(2) + ' ' + (y - r + k).toFixed(2) + ' ' + (x + r - k).toFixed(2) + ' ' + y.toFixed(2) + ' ' + (x + r).toFixed(2) + ' ' + y.toFixed(2) + ' c');
+    ops.push(fill && stroke ? 'B' : fill ? 'f' : 'S', 'Q');
+    this.cmd.push(ops.join(' '));
+  }
+  addLink(x: number, top: number, width: number, height: number, uri: string) {
+    if (!uri || !/^(https?:|upi:)/i.test(uri)) return;
+    this.p.links.push({ x, top, width, height, uri });
   }
   imageLogo(x: number, top: number, w: number, h: number) {
     this.p.usesLogo = true;
