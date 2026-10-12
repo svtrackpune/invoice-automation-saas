@@ -22,21 +22,17 @@ test('middleware injects production security headers', () => {
   assert.equal(response.headers.get('Strict-Transport-Security'), 'max-age=63072000; includeSubDomains; preload');
 });
 
-test('middleware permits same-origin framing only for an embedded invoice edit', () => {
-  const embeddedRequest = new NextRequest('https://app.example.com/next-workspace/invoices/new?edit=invoice-123&embedded=1');
-  const embeddedResponse = middleware(embeddedRequest);
-  assert.equal(embeddedResponse.headers.get('X-Frame-Options'), 'SAMEORIGIN');
-  assert.match(embeddedResponse.headers.get('Content-Security-Policy') || '', /frame-ancestors 'self'/);
-
-  const missingEditRequest = new NextRequest('https://app.example.com/next-workspace/invoices/new?embedded=1');
-  const missingEditResponse = middleware(missingEditRequest);
-  assert.equal(missingEditResponse.headers.get('X-Frame-Options'), 'DENY');
-  assert.match(missingEditResponse.headers.get('Content-Security-Policy') || '', /frame-ancestors 'none'/);
-
-  const nonEmbeddedRequest = new NextRequest('https://app.example.com/next-workspace/invoices/new?edit=invoice-123');
-  const nonEmbeddedResponse = middleware(nonEmbeddedRequest);
-  assert.equal(nonEmbeddedResponse.headers.get('X-Frame-Options'), 'DENY');
-  assert.match(nonEmbeddedResponse.headers.get('Content-Security-Policy') || '', /frame-ancestors 'none'/);
+test('middleware denies framing for all workspace edit routes', () => {
+  const requests = [
+    new NextRequest('https://app.example.com/next-workspace/invoices/new?edit=invoice-123&embedded=1'),
+    new NextRequest('https://app.example.com/next-workspace/invoices/new?edit=invoice-123'),
+    new NextRequest('https://app.example.com/next-workspace/documents?type=invoice&id=invoice-123&edit=1'),
+  ];
+  for (const request of requests) {
+    const response = middleware(request);
+    assert.equal(response.headers.get('X-Frame-Options'), 'DENY');
+    assert.match(response.headers.get('Content-Security-Policy') || '', /frame-ancestors 'none'/);
+  }
 });
 
 test('middleware rejects unauthorized cross-origin API mutations', async () => {

@@ -26,8 +26,8 @@ test('cash bill creation uses the atomic database workflow', async () => {
 });
 
 test('cash bill correction is routed through the correction popup', async () => {
-  const modal = await read('app/next-workspace/invoices/InvoiceEditModal.tsx'); const review = await read('app/next-workspace/documents/DocumentReviewCenter.tsx'); const editor = await read('app/next-workspace/invoices/new/page.tsx');
-  assert.match(modal, /cash_bill=1/); assert.match(modal, /moneymatters:transaction-updated/); assert.match(review, /document_kind/); assert.match(review, /Edit Cash Bill/); assert.match(editor, /update_cash_bill_any_state/); assert.match(editor, /cashBillEdit/);
+  const modal = await read('app/next-workspace/invoices/InvoiceEditModal.tsx'); const review = await read('app/next-workspace/documents/DocumentReviewCenter.tsx'); const editor = await read('app/next-workspace/invoices/InvoiceEditorCore.tsx');
+  assert.match(modal, /documentKind === 'cash_bill'/); assert.match(modal, /<InvoiceEditorCore/); assert.doesNotMatch(modal, /<iframe/); assert.match(review, /document_kind/); assert.match(review, /Edit Cash Bill/); assert.match(editor, /update_cash_bill_any_state/); assert.match(editor, /cashBillEdit/);
 });
 
 test('payment correction keeps cash bills inside their transaction workflow', async () => {

@@ -6,7 +6,7 @@ const challans = readFileSync('app/next-workspace/delivery-challans/page.tsx', '
 const sidebar = readFileSync('app/next-workspace/layout.tsx', 'utf8');
 const itemModal = readFileSync('app/next-workspace/invoices/new/ItemServiceModal.tsx', 'utf8');
 const catalog = readFileSync('app/next-workspace/items/page.tsx', 'utf8');
-const invoiceEditor = readFileSync('app/next-workspace/invoices/new/page.tsx', 'utf8');
+const invoiceEditor = readFileSync('app/next-workspace/invoices/InvoiceEditorCore.tsx', 'utf8');
 
 test('delivery challans disambiguates the customer embed by the direct foreign key', () => {
   assert.match(challans, /customers!delivery_challans_customer_id_fkey\(display_name\)/);

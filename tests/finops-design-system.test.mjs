@@ -71,7 +71,7 @@ test('operational workspace headers use the standardized PageHeader primitive', 
   const headerRoutes = [
     'app/next-workspace/page.tsx',
     'app/next-workspace/invoices/page.tsx',
-    'app/next-workspace/invoices/new/page.tsx',
+    'app/next-workspace/invoices/InvoiceEditorCore.tsx',
     'app/next-workspace/quotation/QuotationWorkspaceControlled.tsx',
     'app/next-workspace/customers/Customer360Controlled.tsx',
     'app/next-workspace/vendors/Vendor360Controlled.tsx',
@@ -121,7 +121,7 @@ test('financial summary-card migrations use the shared StatCard primitive', () =
   const metricRoutes = [
     'app/next-workspace/page.tsx',
     'app/next-workspace/invoices/page.tsx',
-    'app/next-workspace/invoices/new/page.tsx',
+    'app/next-workspace/invoices/InvoiceEditorCore.tsx',
     'app/next-workspace/quotation/QuotationWorkspaceControlled.tsx',
     'app/next-workspace/customers/Customer360Controlled.tsx',
     'app/next-workspace/vendors/Vendor360Controlled.tsx',
@@ -149,7 +149,7 @@ test('financial summary-card migrations use the shared StatCard primitive', () =
 });
 
 test('invoice and purchase entry/detail routes retain their finance workflows and page wrappers', () => {
-  const invoiceEditor = readFileSync('app/next-workspace/invoices/new/page.tsx', 'utf8');
+  const invoiceEditor = readFileSync('app/next-workspace/invoices/InvoiceEditorCore.tsx', 'utf8');
   const purchaseEntry = readFileSync('app/next-workspace/purchases/new/page.tsx', 'utf8');
   const purchaseDetail = readFileSync('app/next-workspace/purchases/[id]/page.tsx', 'utf8');
   const dashboard = readFileSync('app/next-workspace/page.tsx', 'utf8');
