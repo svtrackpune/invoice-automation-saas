@@ -149,7 +149,7 @@ const statusColor = (s: string): RGB => ['paid','accepted','delivered'].includes
   ['overdue','void','cancelled'].includes(s.toLowerCase()) ? C.red : C.amber;
 
 export async function buildPublicDocumentPdf(doc: PublicDocument): Promise<Buffer> {
-  const canonical = createCanonicalDocumentViewModel(doc, { type: doc.type, upiId: doc.upiId });
+  const canonical = createCanonicalDocumentViewModel(doc, { type: doc.type, upiId: doc.upiId, settlementDisplayMode: doc.settlementDisplayMode });
   const c = new Canvas(), right = W - M;
   const objects: Array<Buffer|string> = [];
   const add = (v: Buffer|string) => { objects.push(v); return objects.length; };
@@ -285,13 +285,12 @@ export async function buildPublicDocumentPdf(doc: PublicDocument): Promise<Buffe
     : ['#','Item Description','HSN/SAC','Qty','Unit Rate','Discount','Taxable Amt','Total'];
   const tableHeader=(top:number)=>{
     if (doc.type === 'invoice') {
-      c.rect(M, top, CW, 24, C.pale);
-      c.line(M, top, right, top, C.border, 0.65);
+      c.roundRect(M, top, CW, 24, 2, C.purple);
       c.line(M, top + 24, right, top + 24, C.border, 0.65);
       let x = M;
       widths.forEach((w, i) => {
         const align = i > 0 ? 'right' : 'left';
-        c.text(align === 'right' ? x + w - 8 : x + 8, top + 8, labels[i], 7.1, true, C.muted, align);
+        c.text(align === 'right' ? x + w - 8 : x + 8, top + 8, labels[i], 7.1, true, C.white, align);
         x += w;
       });
     } else {
@@ -427,19 +426,22 @@ export async function buildPublicDocumentPdf(doc: PublicDocument): Promise<Buffe
     y+=38;
   }
   y += 5;
-  const qrData = canonical.financials.upiQrString
+  const qrCandidate = canonical.financials.upiQrString
     || (doc.type === 'invoice' && String(doc.currencyCode).toUpperCase() === 'INR' && doc.balanceDue > 0
       && doc.paymentQrPayload?.startsWith('upi://pay?') ? doc.paymentQrPayload : null);
+  const qrData = qrCandidate?.startsWith('upi://pay?') ? qrCandidate : null;
+  const showQrSettlement = Boolean(qrData && (canonical.settlementDisplayMode === 'upi_qr' || canonical.settlementDisplayMode === 'both'));
+  const showBankSettlement = Boolean(doc.bankDetails && (canonical.settlementDisplayMode === 'bank_transfer' || canonical.settlementDisplayMode === 'both'));
 
   if (doc.type === 'invoice') {
-    if (doc.bankDetails || qrData) {
-      const sectionH = qrData ? 174 : 104;
+    if (showBankSettlement || showQrSettlement) {
+      const sectionH = showQrSettlement ? 174 : 104;
       if (y + sectionH > FOOTER_TOP - 4) { c.newPage(); header(true); y = 154; }
       const cardX = M, cardW = CW;
       c.roundRect(cardX, y, cardW, sectionH, 9, C.white, [0.796, 0.835, 0.882] as RGB, 0.75);
       c.text(W / 2, y + 10, 'PAYMENT', 10, true, C.navy, 'center');
 
-      if (qrData && doc.bankDetails) {
+      if (showQrSettlement && showBankSettlement) {
         const bankX = cardX + 12, bankY = y + 29, bankW = 218, bankH = sectionH - 41;
         c.roundRect(bankX, bankY, bankW, bankH, 7, C.pale, C.border, 0.6);
         const b = doc.bankDetails;
@@ -457,7 +459,7 @@ export async function buildPublicDocumentPdf(doc: PublicDocument): Promise<Buffe
         c.roundRect(buttonX, buttonY, buttonW, buttonH, 11, C.purple);
         c.text(buttonX + buttonW / 2, buttonY + 6, 'Pay Now via UPI', 7.8, true, C.white, 'center');
         c.addLink(buttonX, buttonY, buttonW, buttonH, qrData);
-        const qrOuter = 90, qrX = payX + (payW - qrOuter) / 2, qrY = buttonY + buttonH + 7;
+        const qrOuter = 90, qrX = payX + (payW - qrOuter) / 2, qrY = buttonY + buttonH + 7; // relative to the right-hand payment panel
         c.rect(qrX, qrY, qrOuter, qrOuter, C.white, C.border, 0.4);
         const q = QRCode.create(qrData, { errorCorrectionLevel: 'M' }), n = q.modules.size;
         const area = 72, quiet = 9, cell = area / n, qx = qrX + quiet, qy = qrY + quiet;
@@ -465,12 +467,12 @@ export async function buildPublicDocumentPdf(doc: PublicDocument): Promise<Buffe
           if (q.modules.data[row * n + col]) c.rect(qx + col * cell, qy + row * cell, cell + 0.025, cell + 0.025, C.navy);
         }
         c.text(qrX + qrOuter / 2, qrY + qrOuter + 2, 'Scan to pay the invoice amount.', 7, false, C.muted, 'center');
-      } else if (qrData) {
+      } else if (showQrSettlement) {
         const buttonW = 142, buttonH = 22, buttonX = cardX + (cardW - buttonW) / 2, buttonY = y + 28;
         c.roundRect(buttonX, buttonY, buttonW, buttonH, 11, C.purple);
         c.text(buttonX + buttonW / 2, buttonY + 6, 'Pay Now via UPI', 7.8, true, C.white, 'center');
         c.addLink(buttonX, buttonY, buttonW, buttonH, qrData);
-        const qrOuter = 90, qrX = cardX + (cardW - qrOuter) / 2, qrY = buttonY + buttonH + 7;
+        const qrOuter = 90, qrX = cardX + (cardW - qrOuter) / 2, qrY = buttonY + buttonH + 7; // centered inside the active payment card
         c.rect(qrX, qrY, qrOuter, qrOuter, C.white, C.border, 0.4);
         const q = QRCode.create(qrData, { errorCorrectionLevel: 'M' }), n = q.modules.size;
         const area = 72, quiet = 9, cell = area / n, qx = qrX + quiet, qy = qrY + quiet;
@@ -478,7 +480,7 @@ export async function buildPublicDocumentPdf(doc: PublicDocument): Promise<Buffe
           if (q.modules.data[row * n + col]) c.rect(qx + col * cell, qy + row * cell, cell + 0.025, cell + 0.025, C.navy);
         }
         c.text(qrX + qrOuter / 2, qrY + qrOuter + 2, 'Scan to pay the invoice amount.', 7, false, C.muted, 'center');
-      } else if (doc.bankDetails) {
+      } else if (showBankSettlement) {
         const b = doc.bankDetails, bx = cardX + 20, by = y + 32;
         c.roundRect(bx, by, cardW - 40, 58, 7, C.pale, C.border, 0.6);
         c.text(bx + 12, by + 9, b.institutionName || b.name || 'Bank', 8.2, true, C.navy);
