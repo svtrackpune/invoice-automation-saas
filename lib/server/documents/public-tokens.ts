@@ -42,7 +42,8 @@ export type PublicDocument = {
   placeOfSupplyStateCode: string | null; supplyType: string | null;
   cgstAmount: number; sgstAmount: number; igstAmount: number;
   bankDetails: { name: string | null; institutionName: string | null; accountHolderName: string | null;
-    accountNumber: string | null; accountLast4: string | null; ifscCode: string | null; branchName: string | null } | null;
+    accountNumber: string | null; accountLast4: string | null; ifscCode: string | null; branchName: string | null;
+    accountType?: string | null } | null;
   upiId: string | null;
   items: Array<{
     description: string; quantity: number; unit: string | null; unitPrice: number;
@@ -293,7 +294,7 @@ export async function loadPublicDocumentById(
     let bankResult: { data: Row | null; error: { message?: string } | null } = { data: null, error: null };
     if (selectedBankId) {
       const result = await db.from('bank_accounts')
-        .select('id,name,institution_name,account_holder_name,account_number,account_last4,ifsc_code,branch_name,metadata,is_active')
+        .select('id,name,institution_name,account_holder_name,account_number,account_last4,ifsc_code,branch_name,account_type,metadata,is_active')
         .eq('id', selectedBankId).eq('business_id', businessId).eq('is_active', true).maybeSingle();
       if (result.error) throw new Error('Document settlement details are unavailable.');
       bankResult = { data: result.data as Row | null, error: null };
@@ -303,7 +304,7 @@ export async function loadPublicDocumentById(
     // to an active account belonging to the same business.
     if (!bankResult.data) {
       const fallback = await db.from('bank_accounts')
-        .select('id,name,institution_name,account_holder_name,account_number,account_last4,ifsc_code,branch_name,metadata,is_active')
+        .select('id,name,institution_name,account_holder_name,account_number,account_last4,ifsc_code,branch_name,account_type,metadata,is_active')
         .eq('business_id', businessId).eq('is_active', true)
         .order('is_primary', { ascending: false }).order('created_at', { ascending: true })
         .limit(1).maybeSingle();
@@ -317,6 +318,7 @@ export async function loadPublicDocumentById(
         name: nullable(b.name), institutionName: nullable(b.institution_name),
         accountHolderName: nullable(b.account_holder_name), accountNumber: nullable(b.account_number),
         accountLast4: nullable(b.account_last4), ifscCode: nullable(b.ifsc_code), branchName: nullable(b.branch_name),
+        accountType: nullable(b.account_type),
       };
       upiId = nullable(settingsResult.data?.upi_id) || nullable((b.metadata as Row | null)?.upi_id);
     } else {
