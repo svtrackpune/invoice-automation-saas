@@ -10,6 +10,7 @@ type Row = Record<string, unknown>;
 export type PublicDocument = {
   type: PublicDocumentType;
   templateName?: string | null;
+  settlementDisplayMode?: 'upi_qr' | 'bank_transfer' | 'both' | 'none' | null;
   id: string;
   businessId: string;
   number: string;
@@ -165,6 +166,7 @@ export async function loadPublicDocumentById(
   let cgstAmount = 0, sgstAmount = 0, igstAmount = 0;
   let bankDetails: PublicDocument['bankDetails'] = null, upiId: string | null = null;
   let paymentBankAccountId: string | null = null;
+  let settlementDisplayMode: PublicDocument['settlementDisplayMode'] = null;
   let items: PublicDocument['items'] = [];
 
   if (type === 'invoice') {
@@ -267,7 +269,7 @@ export async function loadPublicDocumentById(
   if (typeToken.length < 48) return null;
   if (type === 'invoice' || type === 'quotation') {
     const settingsResult = await db.from('document_payment_settings')
-      .select('upi_id,payment_qr_enabled,default_bank_account_id')
+      .select('upi_id,payment_qr_enabled,default_bank_account_id,settlement_display_mode')
       .eq('business_id', businessId).maybeSingle();
     if (settingsResult.error) throw new Error('Document payment settings are unavailable.');
 
@@ -328,11 +330,19 @@ export async function loadPublicDocumentById(
       upiId = null;
       if (type === 'invoice') paymentQrPayload = null;
     }
+    const requestedMode = text(settingsResult.data?.settlement_display_mode);
+    if (requestedMode === 'both' && upiId && bankDetails) settlementDisplayMode = 'both';
+    else if (requestedMode === 'bank_transfer' && bankDetails) settlementDisplayMode = 'bank_transfer';
+    else if (requestedMode === 'upi_qr' && upiId) settlementDisplayMode = 'upi_qr';
+    else if (upiId) settlementDisplayMode = 'upi_qr';
+    else if (bankDetails) settlementDisplayMode = 'bank_transfer';
+    else settlementDisplayMode = 'none';
   }
   const parties = await loadParties(db, businessId, customerId || null);
   return {
     type, id, businessId, number, date, dueDate, validUntil, status, currencyCode,
     ...(type === 'invoice' ? { templateName } : {}),
+    ...(settlementDisplayMode ? { settlementDisplayMode } : {}),
     subtotal, discountTotal, taxTotal, total, amountPaid, balanceDue, notes, terms,
     paymentLink, paymentQrPayload, vehicleNumber, transporterName, ewayBillNumber,
     placeOfSupplyStateCode, supplyType, cgstAmount, sgstAmount, igstAmount, bankDetails, upiId,
