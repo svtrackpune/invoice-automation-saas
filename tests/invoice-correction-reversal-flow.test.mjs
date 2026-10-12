@@ -48,8 +48,8 @@ test('invoice correction API uses a same-origin endpoint and accounting reversal
 
 test('live journal cleanup removes only the redundant delete from the new draft journal', async () => {
   const cleanup = await read('supabase/migrations/20261012153000_invoice_correction_draft_cleanup.sql');
-  assert.match(cleanup, /v_old text := E'    DELETE FROM public\\.journal_lines WHERE journal_entry_id=v_journal;/);
-  assert.match(cleanup, /position\('RETURNING id INTO v_journal;' IN v_definition\)/);
-  assert.match(cleanup, /v_definition := replace\(v_definition,v_old,''\)/);
+  assert.ok(cleanup.includes("v_old text := E'    DELETE FROM public.journal_lines WHERE journal_entry_id=v_journal;"));
+  assert.ok(cleanup.includes("position('RETURNING id INTO v_journal;' IN v_definition)"));
+  assert.ok(cleanup.includes("v_definition := replace(v_definition,v_old,'')"));
   assert.match(cleanup, /expected exactly one redundant deletion against the new draft entry/);
 });
