@@ -254,11 +254,24 @@ export default function DocumentReviewCenter({ type, id }: { type: string; id: s
     setStatus('sent');
     if (paymentMode === 'online') {
       const link = await supabase.functions.invoke('create-payment-link', { body: { invoice_id: id } });
-      if (link.error || link.data?.error) { setError(link.error?.message || link.data?.error || 'Invoice posted, but the payment link could not be created.'); setNotice('Invoice finalized and posted. Payment link generation can be retried below.'); setBusy(false); return; }
-      setNotice('Invoice finalized and posted. Payment link and QR are ready.');
+      if (link.data?.status === 'skipped' && link.data?.reason === 'native_upi_configured') {
+        setNotice('Invoice finalized and posted. Native UPI payment and bank settlement details are available on the refreshed document.');
+        setBusy(false);
+        window.setTimeout(() => { window.location.assign('/next-workspace/documents?type=invoice&id=' + encodeURIComponent(id)); }, 650);
+        return;
+      }
+      if (link.error || link.data?.error) {
+        // Invoice posting is already committed. A failed optional gateway call must
+        // not be presented as a posting failure or block the native settlement view.
+        setNotice('Invoice finalized and posted. The document has been refreshed with its currently configured payment options.');
+        setBusy(false);
+        window.setTimeout(() => { window.location.assign('/next-workspace/documents?type=invoice&id=' + encodeURIComponent(id)); }, 650);
+        return;
+      }
+      setNotice(link.data?.payment_link ? 'Invoice finalized and posted. Payment link and QR are ready.' : 'Invoice finalized and posted. The configured payment options are ready.');
     } else setNotice('Invoice finalized and posted. Accounting impact has been created.');
     setBusy(false);
-    setTimeout(() => { location.href = '/next-workspace/invoices'; }, 1000);
+    window.setTimeout(() => { window.location.assign('/next-workspace/documents?type=invoice&id=' + encodeURIComponent(id)); }, 650);
   };
   const canCreateCreditNote = type === 'invoice' && documentKind === 'invoice' && status !== 'void' && status !== 'missing' && status !== 'error' && !draft && balanceDue > 0.005 && !!customerId && invoiceItems.length > 0;
   const voidInvoice = async () => {
