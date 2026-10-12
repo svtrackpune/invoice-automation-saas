@@ -259,7 +259,7 @@ test('public quotation acceptance is token-authorized, idempotent, and never byp
  assert.match(migration,/delivery_idempotency_key/);
  assert.match(convertedPreview,/q\.status NOT IN \('sent', 'accepted', 'converted'\)/);
  assert.match(convertedPreview,/invoice_number/);
- assert.match(page,/supabase\.rpc\('accept_public_quotation'/);
+ assert.match(page,/supabase\.rpc\('rpc_accept_public_quotation'/);
  assert.doesNotMatch(page,/mailto:/);
  assert.match(page,/The official Tax Invoice is dispatched only after the business posts it/);
 });
