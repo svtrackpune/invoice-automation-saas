@@ -237,6 +237,15 @@ test('public invoice renderer creates a vector-rendered A4 GST PDF with QR and b
 });
 function QRCodePlaceholderForTest(pdf){const raw=pdf.toString('latin1');return raw.includes('/Subtype /Link')&&raw.includes('Pay Now via UPI')&&raw.includes('/Annots [');}
 
+test('public invoice view gates bank and UPI payment cards by the configured settlement mode',async()=>{
+ const page=await read('app/invoice/[token]/page.tsx');
+ assert.match(page,/settlementDisplayMode:invoice\.settlement_display_mode/);
+ assert.match(page,/showBankSettlement&&invoice\.bank/);
+ assert.match(page,/showUpiSettlement&&/);
+ assert.doesNotMatch(page,/Pay Now Online/);
+ assert.match(page,/settlementDisplayMode==='bank_transfer'\?'BANK DETAILS':'PAYMENT'/);
+});
+
 test('document toolbar exposes styled actions, copied feedback, and print iframe copies component styles',async()=>{
  const viewer=await read('app/next-workspace/documents/DocumentViewer.tsx');
  assert.match(viewer,/rounded-full bg-purple-600/);
