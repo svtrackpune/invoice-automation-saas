@@ -1,8 +1,8 @@
 BEGIN;
 
--- The invoice source identity is unique per business. The original posted journal
--- must retain source_type='invoice'; a replacement correction entry needs its own
--- source_type so it does not collide with the original invoice journal.
+-- The journal_entry_source_unique constraint enforces UNIQUE (business_id, source_type, source_id).
+-- The original posted journal must retain source_type='invoice'; a replacement correction
+-- entry needs its own source_type so it does not collide with the original invoice journal.
 DO $fix_invoice_correction_source$
 DECLARE
   v_target regprocedure := 'public.update_invoice_any_state(uuid,uuid,date,date,jsonb,text,numeric,text,text,uuid,date,uuid,text,uuid)'::regprocedure;
