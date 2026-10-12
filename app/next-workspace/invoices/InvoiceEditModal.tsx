@@ -35,7 +35,7 @@ export default function InvoiceEditModal({ invoiceId, invoiceNumber, isCashBill,
           <button type="button" onClick={onClose} className="shrink-0 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">Close</button>
         </header>
         <div className="min-h-0 flex-1 overflow-y-auto bg-[#f7f6fb]">
-          <InvoiceEditorCore documentId={invoiceId} embedded documentKind={documentKind} onCancel={onClose} onSaved={onClose} />
+          <InvoiceEditorCore documentId={invoiceId} embedded documentKind={documentKind} onCancel={onClose} onSaved={() => { onClose(); window.location.assign(`/next-workspace/documents?type=invoice&id=${encodeURIComponent(invoiceId)}`); }} />
         </div>
       </div>
     </div>
