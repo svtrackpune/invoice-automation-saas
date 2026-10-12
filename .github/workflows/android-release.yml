@@ -52,7 +52,7 @@ jobs:
         run: ./gradlew bundleRelease -PrequireReleaseSigning=true
 
       - name: Upload signed AAB artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: moneymatters-release-aab
           path: android/app/build/outputs/bundle/release/app-release.aab
