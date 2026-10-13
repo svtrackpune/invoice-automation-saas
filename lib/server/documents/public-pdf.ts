@@ -182,7 +182,7 @@ export async function buildPublicDocumentPdf(doc: PublicDocument): Promise<Buffe
       }
       const bx = M + 70;
       c.roundRect(bx, 32, 60, 16, 8, C.purple);
-      c.text(bx + 30, 35, 'INVOICE', 7.4, true, C.white, 'center');
+      c.text(bx + 30, 35, 'TAX INVOICE', 7.4, true, C.white, 'center');
       c.text(bx, 52, doc.number, 18, true, C.navy);
       c.text(bx, 76, doc.business.name, 9.1, true, C.navy);
       let leftY = 88;
