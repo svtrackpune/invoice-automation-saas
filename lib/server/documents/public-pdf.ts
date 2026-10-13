@@ -153,7 +153,17 @@ function drawWrap(c: Canvas, x: number, top: number, value: unknown, max: number
   lines.forEach((line, i) => c.text(x, top + i * (size + 3), line, size, bold, color));
   return lines.length * (size + 3);
 }
-const docTitle = (type: string) => type === 'invoice' ? 'TAX INVOICE' : type === 'quotation' ? 'ESTIMATE / QUOTATION' : type === 'challan' ? 'DELIVERY CHALLAN' : 'PAYMENT RECEIPT';
+const docTitle = (type: string, business?: PublicDocument['business']) => {
+  if (type === 'invoice') {
+    const registration = String(business?.gstRegistrationType || '').trim().toUpperCase();
+    if (registration === 'COMPOSITION') return 'BILL OF SUPPLY';
+    const noGst = !registration || ['NONE', 'UNREGISTERED', 'NON_GST', 'NOT_REGISTERED'].includes(registration);
+    return !noGst && Boolean(String(business?.taxRegistrationNumber || '').trim()) ? 'TAX INVOICE' : 'INVOICE';
+  }
+  if (type === 'quotation') return 'QUOTATION';
+  if (type === 'challan') return 'DELIVERY CHALLAN';
+  return 'PAYMENT RECEIPT';
+};
 const statusColor = (s: string): RGB => ['paid','accepted','delivered'].includes(s.toLowerCase()) ? C.green :
   ['overdue','void','cancelled'].includes(s.toLowerCase()) ? C.red : C.amber;
 
@@ -181,8 +191,10 @@ export async function buildPublicDocumentPdf(doc: PublicDocument): Promise<Buffe
         c.text(M + 27, 54, wrap(doc.business.name, 2)[0].slice(0, 2).toUpperCase(), 12, true, C.purple, 'center');
       }
       const bx = M + 70;
-      c.roundRect(bx, 32, 60, 16, 8, C.purple);
-      c.text(bx + 30, 35, 'TAX INVOICE', 7.4, true, C.white, 'center');
+      const invoiceLabel = docTitle('invoice', doc.business);
+      const invoiceBadgeWidth = Math.max(60, invoiceLabel.length * 4.7 + 12);
+      c.roundRect(bx, 32, invoiceBadgeWidth, 16, 8, C.purple);
+      c.text(bx + invoiceBadgeWidth / 2, 35, invoiceLabel, 7.4, true, C.white, 'center');
       c.text(bx, 52, doc.number, 18, true, C.navy);
       c.text(bx, 76, doc.business.name, 9.1, true, C.navy);
       let leftY = 88;
@@ -228,7 +240,7 @@ export async function buildPublicDocumentPdf(doc: PublicDocument): Promise<Buffe
     if(canonical.business.pan)c.text(bx,dy+10,'PAN: '+canonical.business.pan,7.3,false,C.muted);
     const rx=363,rw=right-rx;
     c.rect(rx,32,rw,92,C.navy);
-    c.text(rx+12,42,continued?docTitle(doc.type)+' (CONTINUED)':docTitle(doc.type),14,true,C.white);
+    c.text(rx+12,42,continued?docTitle(doc.type, doc.business)+' (CONTINUED)':docTitle(doc.type, doc.business),14,true,C.white);
     const st=doc.status.replace(/_/g,' ').toUpperCase(), badgeW=Math.min(84,Math.max(44,st.length*5+14));
     c.rect(right-badgeW-10,64,badgeW,15,statusColor(doc.status));
     c.text(right-badgeW/2-10,67,st,7,true,C.white,'center');
@@ -302,7 +314,7 @@ export async function buildPublicDocumentPdf(doc: PublicDocument): Promise<Buffe
   header(false);
   let y=drawParties(147)+4;
   y=tableHeader(y);
-  const items=canonical.items.length?canonical.items:[{name:'No line items supplied',description:'',unit:'pcs',quantity:0,unitPrice:0,discount:0,taxRate:0,amount:0,hsn:undefined}];
+  const items=canonical.items;
   items.forEach((it,i)=>{
     const originalItem=doc.items[i];
     if (doc.type === 'invoice' || doc.type === 'quotation') {
