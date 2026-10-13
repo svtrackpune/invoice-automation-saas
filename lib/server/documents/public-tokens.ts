@@ -111,7 +111,7 @@ async function loadParties(db: SupabaseClient, businessId: string, customerId: s
   const gstRegistrationMode = ['REGULAR', 'CASUAL', 'NON_RESIDENT', 'SEZ', 'COMPOSITION'].includes(gstType);
   const registeredGstin = taxRegime === 'GST' && gstRegistrationMode && hasValidGstin ? gstin : null;
   const nonIndianTaxId = countryCode !== 'IN' && ['VAT', 'SALES_TAX', 'OTHER'].includes(taxRegime)
-    ? nullable(taxProfile.tax_id || b.tax_registration_number)
+    ? nullable(taxProfile.tax_id)
     : null;
   const taxRegistrationNumber = registeredGstin || nonIndianTaxId;
   return {
