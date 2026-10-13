@@ -140,19 +140,19 @@ test('product and service selectors dismiss after selection, outside click, and 
 });
 
 test('copy button shows copied state, checkmark, and transient success/failure feedback', () => {
-  assert.match(copyButton,/copyTextToClipboard\\(text\\)/);
-  assert.match(shareHelper,/export async function copyTextToClipboard/);
-  assert.match(shareHelper,/navigator\\.clipboard\\.writeText\\(text\\)/);
-  assert.match(shareHelper,/document\\.execCommand\\('copy'\\)/);
+  assert.match(copyButton,/copyTextToClipboard\(text\)/);
+  assert.match(shareHelper,/await copyTextToClipboard\(message\)/);
+  assert.match(shareHelper,/navigator\.clipboard\.writeText\(text\)/);
+  assert.match(shareHelper,/document\.execCommand\('copy'\)/);
   assert.match(shareHelper,/export async function sharePublicDocument/);
-  assert.match(shareHelper,/await copyTextToClipboard\\(message\\)/);
+  assert.match(shareHelper,/await copyTextToClipboard\(message\)/);
   assert.match(copyButton,/copiedLabel = 'Copied!'/);
   assert.match(copyButton,/setTimeout\(\(\) => \{/);
   assert.match(copyButton,/Link copied to clipboard!/);
   assert.match(copyButton,/Failed to copy link\./);
   assert.match(copyButton,/mr-2 inline-block h-4 w-4 text-emerald-600/);
   assert.match(invoice,/CopyButton getValue=\{\(\) => window\.location\.href\}/);
-  assert.match(quote,/CopyButton getValue=\{\(\) => window\.location\.href\}/);
+  assert.match(quote,/CopyButton getValue=\{\(\) => publicDocumentUrlFromToken\('quotation',token\)\} label="Copy customer link"/);
   assert.match(quotationEditor,/CopyButton getValue=\{\(\) => getPublicDocumentUrlForQuotation\(quote\.id\)\}/);
   assert.match(cashBillPage,/const copyUpiLink=\(\)=>\{/);
   assert.doesNotMatch(cashBillPage,/navigator\.clipboard\.writeText\(link\)/);
