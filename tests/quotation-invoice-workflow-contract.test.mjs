@@ -16,6 +16,7 @@ const notificationComponent = read('components/layout/HeaderNotifications.tsx');
 const workspaceLayout = read('app/next-workspace/layout.tsx');
 const acceptanceMigration = read('supabase/migrations/20261013190000_quotation_acceptance_notification.sql');
 const notificationGrantMigration = read('supabase/migrations/20261013191500_notifications_read_column_grant.sql');
+const securityMigration = read('supabase/migrations/20261013200000_internalize_public_token_definers.sql');
 
 test('invoice and quotation web/PDF item grids use six separate columns', () => {
   assert.ok(pdf.includes("['#', 'ITEM / DESCRIPTION', 'QTY', 'UNIT', 'RATE', 'AMOUNT']"));
@@ -77,6 +78,21 @@ test('accepted quotation returns a safe invoice URL and writes a tenant notifica
   assert.match(notificationComponent,/setInterval\(\(\) => \{ void refresh\(\); \}, 30000\)/);
   assert.match(workspaceLayout,/<HeaderNotifications businessId=\{activeBusinessId\} \/>/);
   assert.match(notificationGrantMigration,/GRANT UPDATE \(is_read\)/);
+});
+
+
+test('public token RPC wrappers delegate to private validated implementations', () => {
+  assert.match(securityMigration,/CREATE SCHEMA IF NOT EXISTS mm_private/);
+  assert.match(securityMigration,/FUNCTION mm_private\.accept_public_quotation_by_token/);
+  assert.match(securityMigration,/FUNCTION mm_private\.get_public_invoice_by_token/);
+  assert.match(securityMigration,/FUNCTION mm_private\.get_public_quotation_by_token/);
+  assert.match(securityMigration,/FUNCTION mm_private\.rpc_accept_public_quotation_by_token/);
+  assert.match(securityMigration,/CREATE OR REPLACE FUNCTION public\.get_public_invoice\(p_public_share_token text\)[\s\S]*?SECURITY INVOKER/);
+  assert.match(securityMigration,/CREATE OR REPLACE FUNCTION public\.get_public_quotation\(p_public_accept_token text\)[\s\S]*?SECURITY INVOKER/);
+  assert.match(securityMigration,/CREATE OR REPLACE FUNCTION public\.rpc_accept_public_quotation\(p_token text\)[\s\S]*?SECURITY INVOKER/);
+  assert.match(securityMigration,/p_public_share_token, ''\) IS NULL[\s\S]*?\^\[A-Fa-f0-9\]\{48,128\}\$/);
+  assert.match(securityMigration,/REVOKE ALL ON FUNCTION public\.accept_public_quotation\(text\)\s+FROM PUBLIC, anon, authenticated, service_role/);
+  assert.match(securityMigration,/REVOKE CREATE ON SCHEMA mm_private FROM PUBLIC, anon, authenticated/);
 });
 
 test('copy button shows copied state, checkmark, and transient success/failure feedback', () => {
