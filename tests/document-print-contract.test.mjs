@@ -32,3 +32,10 @@ test('receipt PDF carries allocation and ledger acknowledgement data',()=>{
   assert.match(receiptPdf,/Received with thanks from/);
   assert.match(receiptPdf,/Invoice Allocation/);
 });
+
+
+test('receipt and POS print helpers use a consistent 80mm width',()=>{
+  assert.match(viewer,/receipt \? '80mm'/);
+  assert.match(viewer,/\.receipt-paper\{width:80mm/);
+  assert.doesNotMatch(viewer,/2\.5in/);
+});
