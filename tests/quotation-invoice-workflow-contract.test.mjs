@@ -21,6 +21,7 @@ const shareHelper = read('lib/client/share-document.ts');
 const quotationList = read('app/next-workspace/quotations/page.tsx');
 const itemCatalogue = read('app/next-workspace/items/page.tsx');
 const invoiceEditor = read('app/next-workspace/invoices/InvoiceEditorCore.tsx');
+const businessSettings = read('app/next-workspace/business-settings/page.tsx');
 const itemServiceModal = read('app/next-workspace/invoices/new/ItemServiceModal.tsx');
 const publicTokens = read('lib/server/documents/public-tokens.ts');
 const gstBoundaryMigration = read('supabase/migrations/20261013234500_harden_gst_registration_rpc_boundary.sql');
@@ -181,4 +182,13 @@ test('copy button shows copied state, checkmark, and transient success/failure f
   assert.match(cashBillPage,/const copyUpiLink=\(\)=>\{/);
   assert.doesNotMatch(cashBillPage,/navigator\.clipboard\.writeText\(link\)/);
   assert.match(cashBillViewer,/CopyButton getValue=\{p\.copyUpiLink\}/);
+});
+
+test('business settings require registration details before tax is enabled', () => {
+  assert.ok(businessSettings.includes("select('tax_regime,gst_registration_type,gstin,tax_id,pan,tax_state,accounting_basis,books_mode,presumptive_section')"));
+  assert.ok(businessSettings.includes("label=\"Tax registration ID\""));
+  assert.ok(businessSettings.includes("Boolean(String(tax.tax_id||'').trim())"));
+  assert.ok(businessSettings.includes("['REGULAR','CASUAL','NON_RESIDENT','SEZ'].includes(registration)&&validGstin"));
+  assert.ok(invoiceEditor.includes("Boolean(String(profile.tax_id||'').trim())"));
+  assert.ok(invoiceEditor.includes("source_provider"));
 });
