@@ -195,7 +195,7 @@ test('public invoice renderer creates a vector-rendered A4 GST PDF with QR and b
   subtotal:200,discountTotal:10,taxTotal:34.2,total:224.2,amountPaid:50,balanceDue:174.2,notes:'Payment due within agreed terms.',terms:'Subject to jurisdiction.',paymentLink:null,paymentQrPayload:null,
   vehicleNumber:null,transporterName:null,ewayBillNumber:null,placeOfSupplyStateCode:'27',supplyType:'intra_state',cgstAmount:17.1,sgstAmount:17.1,igstAmount:0,
   bankDetails:{name:'Primary Account',institutionName:'Sample Bank',accountHolderName:'Sample Industries',accountNumber:'1234567890',accountLast4:'7890',ifscCode:'SBIN0001234',branchName:'Nilanga'},upiId:'sample@upi',
-  business:{name:'Sample Industries',legalName:'Sample Industries Private Limited',email:'billing@example.test',phone:'9999999999',website:'https://example.test',address:{line1:'Main Road',city:'Nilanga',state:'Maharashtra',postal_code:'413521',country:'India'},taxRegistrationNumber:'27ABCDE1234F1Z5',logoStoragePath:null,pan:'ABCDE1234F'},
+  business:{name:'Sample Industries',legalName:'Sample Industries Private Limited',email:'billing@example.test',phone:'9999999999',website:'https://example.test',address:{line1:'Main Road',city:'Nilanga',state:'Maharashtra',postal_code:'413521',country:'India'},taxRegistrationNumber:'27ABCDE1234F1Z5',gstRegistrationType:'REGULAR',logoStoragePath:null,pan:'ABCDE1234F'},
   customer:{name:'Example Customer',legalName:'Example Customer LLP',email:'customer@example.test',phone:'8888888888',address:{line1:'Market Road',city:'Latur',state:'Maharashtra',postal_code:'413512'},billingAddress:{line1:'Market Road',city:'Latur',state:'Maharashtra',postal_code:'413512'},shippingAddress:{line1:'Industrial Estate',city:'Latur',state:'Maharashtra',postal_code:'413512'},taxId:'27AACCE1234A1Z7'},
   items:[{description:'Industrial Equipment',quantity:2,unit:'pcs',unitPrice:100,discount:10,taxAmount:34.2,lineTotal:224.2,hsnSac:'8479'}]
  };
@@ -245,7 +245,7 @@ test('public invoice renderer creates a vector-rendered A4 GST PDF with QR and b
  for(const value of ['DELIVERY CHALLAN','Vehicle No: MH24AB1234','Transporter: Sample Transport','E-Way Bill: EWB-12345','NOT FOR SALE / NOT A TAX INVOICE']) assert.ok(challanText.includes(value),'Challan PDF is missing '+value);
  const quotationPdf=await buildPublicDocumentPdf({...doc,type:'quotation',number:'EST-0007',status:'sent',dueDate:null,validUntil:'2026-10-31',amountPaid:0,balanceDue:0,settlementDisplayMode:'none'});
  const quotationText=quotationPdf.toString('latin1');
- for(const value of ['ESTIMATE / QUOTATION','EST-0007','BILL TO','SHIP TO','#','ITEM / DESCRIPTION','AMOUNT IN WORDS:','Authorized Signatory','This is a computer-generated quotation and does not require signature.']) assert.ok(quotationText.includes(value),'Quotation PDF is missing '+value);
+ for(const value of ['QUOTATION','EST-0007','BILL TO','SHIP TO','#','ITEM / DESCRIPTION','AMOUNT IN WORDS:','Authorized Signatory','This is a computer-generated quotation and does not require signature.']) assert.ok(quotationText.includes(value),'Quotation PDF is missing '+value);
  assert.doesNotMatch(quotationText,/INVOICE SUMMARY/);
  assert.doesNotMatch(quotationText,/Sample Bank|Pay Now via UPI/,'settlement mode none must not render bank or UPI details');
 
@@ -277,7 +277,7 @@ test('public invoice view gates bank and UPI payment cards by the configured set
 
 test('public invoice page follows the print blueprint for parties, purple table, settlement, statutory fields, and footer',async()=>{
  const page=await read('app/invoice/[token]/page.tsx');
- for(const value of ['TAX INVOICE','BILL TO','SHIP TO','ITEM / DESCRIPTION','QTY','RATE','AMOUNT','bg-[#7c3aed]','text-orange-700','AMOUNT IN WORDS','Authorized Signatory','This is a computer-generated invoice and does not require signature.']) assert.ok(page.includes(value),'Public invoice is missing '+value);
+ for(const value of ['invoiceHeading','taxRegistered','showGstBreakdown','BILL TO','SHIP TO','ITEM / DESCRIPTION','QTY','RATE','AMOUNT','bg-[#7c3aed]','text-orange-700','AMOUNT IN WORDS','Authorized Signatory','This is a computer-generated invoice and does not require signature.']) assert.ok(page.includes(value),'Public invoice is missing '+value);
  assert.doesNotMatch(page,/This is a customer-facing invoice shared by/);
  const settlement=page.indexOf('PAYMENT SETTLEMENT');
  const notes=page.indexOf('>NOTES</h3>');
