@@ -93,8 +93,6 @@ export default function PublicInvoice({params}:{params:Promise<{token:string}>})
         </div>
       </section>
 
-      <section className="overflow-x-auto px-6 sm:px-8"><table className="w-full min-w-[620px] text-sm"><thead className="border-b border-slate-200 bg-slate-50 text-xs uppercase tracking-wider text-slate-500"><tr><th className="p-3 text-left">Item / Description</th><th className="p-3 text-right">Qty</th><th className="p-3 text-right">Rate</th><th className="p-3 text-right">Amount</th></tr></thead><tbody>{invoice.items.map((item,i)=><tr key={i} className="border-b border-slate-100"><td className="p-3"><div className="font-medium text-slate-900">{item.item_name||item.description||'Item'}</div>{item.item_name&&item.description&&item.item_name!==item.description&&<div className="text-xs text-slate-500">{item.description}</div>}{item.hsn_sac&&<div className="text-[11px] text-slate-400">HSN / SAC: {item.hsn_sac}</div>}</td><td className="p-3 text-right">{item.quantity}{item.unit&&<span className="ml-1 text-xs text-slate-400">{item.unit}</span>}</td><td className="p-3 text-right">{money(item.unit_price,invoice.currency_code)}</td><td className="p-3 text-right font-semibold">{money(item.line_total,invoice.currency_code)}</td></tr>)}</tbody></table></section>
-
       <section className="overflow-x-auto px-6 sm:px-8">
         <table className="w-full min-w-[620px] border-collapse text-sm">
           <thead className="bg-[#7c3aed] text-xs uppercase tracking-wider text-white">

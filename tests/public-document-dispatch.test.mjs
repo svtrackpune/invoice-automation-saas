@@ -252,6 +252,7 @@ test('public PDF download uses a sanitized entity-type-number filename',async()=
 
 test('public invoice view gates bank and UPI payment cards by the configured settlement mode',async()=>{
  const page=await read('app/invoice/[token]/page.tsx');
+ assert.equal((page.match(/<table className=/g)||[]).length,1,'Public invoice must render only one line-item table');
  assert.match(page,/settlementDisplayMode:invoice\.settlement_display_mode/);
  assert.match(page,/showBankSettlement&&invoice\.bank/);
  assert.match(page,/showUpiSettlement&&/);
