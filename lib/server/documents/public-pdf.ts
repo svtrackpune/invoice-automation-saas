@@ -352,7 +352,7 @@ export async function buildPublicDocumentPdf(doc: PublicDocument): Promise<Buffe
         line.amount, 'normal'
       ]));
     } else if (doc.taxTotal !== 0) rows.push(['Tax / GST', doc.taxTotal, 'normal']);
-    rows.push(['Total', canonical.financials.grandTotal, 'total']);
+    rows.push(['Net Payable', canonical.financials.grandTotal, 'total']);
     if (canonical.financials.amountPaid > 0) rows.push(['Amount paid', canonical.financials.amountPaid, 'normal']);
     rows.push(['Balance due', canonical.financials.balanceDue, 'balance']);
 
