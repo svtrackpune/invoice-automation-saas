@@ -122,7 +122,7 @@ BEGIN
     UPDATE public.quotations
     SET status = 'accepted',
         accepted_at = coalesce(accepted_at, now()),
-        accepted_via = 'customer_web',
+        accepted_via = 'public_link',
         updated_at = now()
     WHERE id = q.id;
   END IF;
