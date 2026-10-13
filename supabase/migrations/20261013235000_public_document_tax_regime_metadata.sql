@@ -48,7 +48,7 @@ SELECT pg_temp.patch_function_definition(
             WHEN upper(coalesce((SELECT tp.gst_registration_type
                                    FROM public.business_tax_profiles tp
                                   WHERE tp.business_id = i.business_id), 'NONE'))
-                 IN ('REGULAR', 'CASUAL', 'NON_RESIDENT', 'SEZ')
+                 IN ('REGULAR', 'CASUAL', 'NON_RESIDENT', 'SEZ', 'COMPOSITION')
              AND CASE
                WHEN upper(coalesce(b.country_code, 'IN')) = 'IN'
                  THEN upper(btrim(coalesce((SELECT tp.gstin
@@ -111,7 +111,7 @@ SELECT pg_temp.patch_function_definition(
           WHEN upper(coalesce(tp.tax_regime, 'NONE')) = 'GST'
             THEN CASE
               WHEN upper(coalesce(tp.gst_registration_type, 'NONE'))
-                   IN ('REGULAR', 'CASUAL', 'NON_RESIDENT', 'SEZ')
+                   IN ('REGULAR', 'CASUAL', 'NON_RESIDENT', 'SEZ', 'COMPOSITION')
                AND CASE
                  WHEN upper(coalesce(b.country_code, 'IN')) = 'IN'
                    THEN upper(btrim(coalesce(tp.gstin, '')))
