@@ -127,7 +127,7 @@ test('invoice title and tax presentation follow explicit GST registration mode',
   assert.ok(invoice.includes('showGstBreakdown=taxRegistered&&registrationType!==\'COMPOSITION\''));
   assert.ok(pdf.includes("const docTitle = (type: string, business?: PublicDocument['business'])"));
   assert.ok(pdf.includes("if (registration === 'COMPOSITION') return 'BILL OF SUPPLY'"));
-  assert.ok(pdf.includes("return !noGst && Boolean(String(business?.taxRegistrationNumber || '').trim()) ? 'TAX INVOICE' : 'INVOICE'"));
+  assert.ok(pdf.includes("return !noGst && /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][0-9A-Z]Z[0-9A-Z]$/.test(String(business?.taxRegistrationNumber || '').trim().toUpperCase()) ? 'TAX INVOICE' : 'INVOICE'"));
   assert.ok(!pdf.includes('No line items supplied'));
 });
 
