@@ -145,12 +145,12 @@ export default function PublicInvoice({params}:{params:Promise<{token:string}>})
           </section>}
           <section className="rounded-xl border border-amber-200 bg-amber-50/70 p-4">
             <div>
-              <h3 className="text-xs font-extrabold uppercase tracking-[0.16em] text-amber-900">NOTES</h3>
-              <p className="mt-2 whitespace-pre-line text-sm leading-5 text-slate-700">{invoice.notes||'—'}</p>
+              <h3 className="text-xs font-extrabold uppercase tracking-[0.16em] text-violet-700">TERMS &amp; CONDITIONS</h3>
+              <p className="mt-2 whitespace-pre-line text-sm leading-5 text-slate-700">{invoice.terms||'—'}</p>
             </div>
             <div className="mt-4 border-t border-amber-200 pt-3">
-              <h3 className="text-xs font-extrabold uppercase tracking-[0.16em] text-amber-900">TERMS &amp; CONDITIONS</h3>
-              <p className="mt-2 whitespace-pre-line text-sm leading-5 text-slate-700">{invoice.terms||'—'}</p>
+              <h3 className="text-xs font-extrabold uppercase tracking-[0.16em] text-violet-700">NOTES</h3>
+              <p className="mt-2 whitespace-pre-line text-sm leading-5 text-slate-700">{invoice.notes||'—'}</p>
             </div>
           </section>
         </div>
