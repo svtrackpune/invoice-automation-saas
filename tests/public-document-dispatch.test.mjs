@@ -259,8 +259,8 @@ test('public PDF download uses a sanitized entity-type-number filename',async()=
  assert.match(route,/Content-Disposition.*filename="\$\{filename\}"/);
  const receiptRoute=await read('app/api/receipts/pdf/route.ts');
  assert.match(receiptRoute,/Content-Disposition.*attachment/);
- assert.match(receiptRoute,/const filename = `\\$\\{entitySlug\\}-receipt-\\$\\{numberSlug\\}\\.pdf`;/);
- assert.match(receiptRoute,/replace\\(\/\\^\\(\\?:REC/);
+ assert.ok(receiptRoute.includes("const filename = `${entitySlug}-receipt-${numberSlug}.pdf`"));
+ assert.ok(receiptRoute.includes("replace(/^(?:REC(?:EIPT)?|RCPT|RCT)[-_ ]*/i, '')"));
  assert.match(receiptRoute,/entitySlug/);
  assert.match(route,/replace\(\/\[\^a-z0-9\]\+\/g, '-'/);
 });
