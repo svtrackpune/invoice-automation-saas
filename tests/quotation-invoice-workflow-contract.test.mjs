@@ -90,7 +90,7 @@ test('public token RPC wrappers delegate to private validated implementations', 
   assert.match(securityMigration,/CREATE OR REPLACE FUNCTION public\.get_public_invoice\(p_public_share_token text\)[\s\S]*?SECURITY INVOKER/);
   assert.match(securityMigration,/CREATE OR REPLACE FUNCTION public\.get_public_quotation\(p_public_accept_token text\)[\s\S]*?SECURITY INVOKER/);
   assert.match(securityMigration,/CREATE OR REPLACE FUNCTION public\.rpc_accept_public_quotation\(p_token text\)[\s\S]*?SECURITY INVOKER/);
-  assert.match(securityMigration,/p_public_share_token, ''\) IS NULL[\s\S]*?\^\[A-Fa-f0-9\]\{48,128\}\$/);
+  assert.ok(securityMigration.includes("OR btrim(p_public_share_token) !~ '^[A-Fa-f0-9]{48,128}$'"));
   assert.match(securityMigration,/REVOKE ALL ON FUNCTION public\.accept_public_quotation\(text\)\s+FROM PUBLIC, anon, authenticated, service_role/);
   assert.match(securityMigration,/REVOKE CREATE ON SCHEMA mm_private FROM PUBLIC, anon, authenticated/);
 });
