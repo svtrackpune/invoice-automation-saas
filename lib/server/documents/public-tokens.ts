@@ -34,7 +34,8 @@ export type PublicDocument = {
   ewayBillNumber: string | null;
   business: {
     name: string; legalName: string | null; email: string | null; phone: string | null;
-    website: string | null; address: unknown; taxRegistrationNumber: string | null; gstRegistrationType?: string | null; logoStoragePath: string | null; pan: string | null;
+    website: string | null; address: unknown; taxRegistrationNumber: string | null; gstRegistrationType?: string | null;
+    taxRegime?: string | null; countryCode?: string | null; taxId?: string | null; logoStoragePath: string | null; pan: string | null;
   };
   customer: {
     name: string; legalName: string | null; email: string | null; phone: string | null; address: unknown;
@@ -86,13 +87,13 @@ function statusAllowed(type: PublicDocumentType, status: string, validUntil: str
 async function loadParties(db: SupabaseClient, businessId: string, customerId: string | null) {
   const [businessResult, customerResult, taxProfileResult] = await Promise.all([
     db.from('businesses')
-      .select('id,name,legal_name,email,phone,website,address,tax_registration_number,logo_storage_path')
+      .select('id,name,legal_name,email,phone,website,address,country_code,tax_registration_number,logo_storage_path')
       .eq('id', businessId).maybeSingle(),
     customerId
       ? db.from('customers').select('id,display_name,legal_name,email,phone,billing_address,shipping_address,tax_id')
           .eq('id', customerId).eq('business_id', businessId).maybeSingle()
       : Promise.resolve({ data: null, error: null }),
-    db.from('business_tax_profiles').select('gstin,pan,gst_registration_type').eq('business_id', businessId).maybeSingle(),
+    db.from('business_tax_profiles').select('gstin,pan,gst_registration_type,tax_regime,tax_id').eq('business_id', businessId).maybeSingle(),
   ]);
   if (businessResult.error || !businessResult.data) throw new Error('Public document business is unavailable.');
   if (customerId && (customerResult.error || !customerResult.data)) throw new Error('Public document customer is unavailable.');
@@ -101,14 +102,28 @@ async function loadParties(db: SupabaseClient, businessId: string, customerId: s
   const c = (customerResult.data ?? {}) as Row;
   const taxProfile = (taxProfileResult.data ?? {}) as Row;
   const gstType = text(taxProfile.gst_registration_type).toUpperCase() || 'NONE';
-  const nonGst = ['NONE', 'UNREGISTERED', 'NON_GST', 'NOT_REGISTERED'].includes(gstType);
+  const taxRegime = text(taxProfile.tax_regime).toUpperCase() || 'NONE';
+  const countryCode = text(b.country_code).toUpperCase() || 'IN';
+  const gstin = text(taxProfile.gstin).toUpperCase();
+  const hasValidGstin = countryCode === 'IN'
+    ? /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][0-9A-Z]Z[0-9A-Z]$/.test(gstin)
+    : Boolean(gstin);
+  const gstRegistrationMode = ['REGULAR', 'CASUAL', 'NON_RESIDENT', 'SEZ', 'COMPOSITION'].includes(gstType);
+  const registeredGstin = taxRegime === 'GST' && gstRegistrationMode && hasValidGstin ? gstin : null;
+  const nonIndianTaxId = countryCode !== 'IN' && ['VAT', 'SALES_TAX', 'OTHER'].includes(taxRegime)
+    ? nullable(taxProfile.tax_id || b.tax_registration_number)
+    : null;
+  const taxRegistrationNumber = registeredGstin || nonIndianTaxId;
   return {
     business: {
       name: text(b.legal_name || b.name) || 'Business',
       legalName: nullable(b.legal_name), email: nullable(b.email), phone: nullable(b.phone),
       website: nullable(b.website), address: b.address ?? null,
-      taxRegistrationNumber: nonGst ? null : nullable(taxProfile.gstin || b.tax_registration_number),
+      taxRegistrationNumber,
       gstRegistrationType: gstType,
+      taxRegime,
+      countryCode,
+      taxId: nonIndianTaxId,
       logoStoragePath: nullable(b.logo_storage_path), pan: nullable(taxProfile.pan),
     },
     customer: {
@@ -142,7 +157,7 @@ export async function loadPublicDocumentById(
         name: text(data.business?.legal_name || data.business?.name) || 'Business',
         legalName: nullable(data.business?.legal_name), email: nullable(data.business?.email),
         phone: nullable(data.business?.phone), website: nullable(data.business?.website), address: data.business?.address ?? null,
-        taxRegistrationNumber: nullable(data.business?.tax_registration_number), logoStoragePath: nullable(data.business?.logo_storage_path), pan: null,
+        taxRegistrationNumber: null, gstRegistrationType: 'NONE', taxRegime: 'NONE', countryCode: nullable(data.business?.country_code) || 'IN', taxId: null, logoStoragePath: nullable(data.business?.logo_storage_path), pan: null,
       },
       customer: {
         name: text(data.customer?.legal_name || data.customer?.display_name) || 'Customer',
