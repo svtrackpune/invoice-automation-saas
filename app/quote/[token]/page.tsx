@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import QRCode from 'qrcode';
 import CopyButton from '@/components/ui/copy-button';
 import { supabase } from '@/lib/supabase';
+import { sharePublicDocument } from '@/lib/client/share-document';
 import { createCanonicalDocumentViewModel } from '@/lib/shared/document-view-model';
 
 type Quote = {
@@ -73,6 +74,29 @@ export default function PublicQuotation({params}:{params:Promise<{token:string}>
     total:canonical?.financials.grandTotal||0,
   }),[canonical]);
 
+  const shareQuotation=async()=>{
+    if(!quote)return;
+    try {
+      const result=await sharePublicDocument({
+        documentType:'quotation',
+        businessName:quote.business.name||quote.business.legal_name||'Business',
+        customerName:quote.customer.legal_name||quote.customer.display_name||'Customer',
+        documentNumber:quote.quotation_number,
+        documentDate:quote.quotation_date,
+        totalAmount:Number(canonical?.financials.grandTotal??quote.total??0),
+        currencyCode:quote.currency_code||'INR',
+        publicUrl:window.location.href,
+      },'Quotation '+quote.quotation_number);
+      if(result==='shared')setRedirectToast('Quotation shared using your device share sheet.');
+      else if(result==='copied')setRedirectToast('Customer-ready quotation message copied to clipboard.');
+      if(result!=='cancelled')window.setTimeout(()=>setRedirectToast(''),3000);
+    } catch(cause) {
+      setError(cause instanceof Error?cause.message:'Unable to share this quotation.');
+      setRedirectToast('Failed to share quotation.');
+      window.setTimeout(()=>setRedirectToast(''),3000);
+    }
+  };
+
   const acceptQuotation=async()=>{
     if(!quote||accepting||quote.status==='converted')return;
     setAccepting(true);setError('');setAcceptanceMessage('');setRedirectToast('');
@@ -121,7 +145,7 @@ export default function PublicQuotation({params}:{params:Promise<{token:string}>
           <div className="flex items-start gap-4">
             {logoUrl&&<img src={logoUrl} alt="Business logo" className="h-16 w-20 rounded-lg border border-slate-100 object-contain"/>}
             <div>
-              <p className="text-xs font-extrabold uppercase tracking-[0.18em] text-violet-700">ESTIMATE / QUOTATION</p>
+              <p className="text-xs font-extrabold uppercase tracking-[0.18em] text-violet-700">QUOTATION</p>
               <h1 className="mt-1 text-2xl font-bold text-slate-900">{canonical?.document.number||quote.quotation_number}</h1>
               <p className="mt-1 text-sm font-semibold text-slate-700">{quote.business.name}</p>
               {quote.business.legal_name&&quote.business.legal_name!==quote.business.name&&<p className="text-xs text-slate-500">{quote.business.legal_name}</p>}
@@ -139,7 +163,8 @@ export default function PublicQuotation({params}:{params:Promise<{token:string}>
       <section className="border-b border-slate-200 px-6 py-4 sm:px-8 print:hidden">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
           <a href={'/api/public-documents/pdf?type=quotation&token='+encodeURIComponent(token)} className="inline-flex min-h-11 items-center justify-center rounded-xl border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50">Download Official PDF</a>
-          <CopyButton getValue={() => window.location.href} label="Copy Quotation Link" successMessage="Quotation link copied to clipboard!" className="inline-flex min-h-11 items-center justify-center rounded-xl border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50" />
+          <CopyButton getValue={() => window.location.href} label="Copy customer link" successMessage="Quotation customer link copied to clipboard!" className="inline-flex min-h-11 items-center justify-center rounded-xl border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50" />
+          <button type="button" onClick={shareQuotation} className="inline-flex min-h-11 items-center justify-center rounded-xl border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50">Share quotation</button>
           {quote.status==='sent'&&!expired&&<button type="button" onClick={acceptQuotation} disabled={accepting} className="inline-flex min-h-11 items-center justify-center rounded-xl bg-violet-600 px-5 py-3 text-sm font-semibold text-white hover:bg-violet-700 disabled:cursor-wait disabled:opacity-60">{accepting?'Accepting securely…':'Accept Quotation & Request Invoice'}</button>}
           {expired&&<div role="status" className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-900">This quotation expired on {quote.valid_until}. Please contact the business to extend its validity.</div>}
           {quote.status==='converted'&&<div role="status" className="text-sm font-semibold text-emerald-800">Accepted · Invoice {quote.invoice_number||'created'}{quote.invoice_status==='draft'?' · Awaiting business posting':''}</div>}
