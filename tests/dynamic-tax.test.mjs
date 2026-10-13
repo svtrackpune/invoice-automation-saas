@@ -85,6 +85,7 @@ test('database dynamic-tax RPCs enforce the same registration gate for every tax
   assert.match(registrationBoundary,/IF NOT mm_private\.business_tax_enabled\(p_business_id\)/);
   assert.match(registrationBoundary,/jsonb_array_length\(v_meta\) > 0/);
   assert.equal((registrationGuard.match(/Tax cannot be charged without a valid business tax registration/g)||[]).length,3);
+  assert.equal((registrationBoundary.match(/Tax cannot be charged without a valid business tax registration/g)||[]).length,3);
 });
 
 test('non-Indian tax enablement always requires an explicit profile tax ID',()=>{
