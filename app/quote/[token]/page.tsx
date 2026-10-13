@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import QRCode from 'qrcode';
 import CopyButton from '@/components/ui/copy-button';
 import { supabase } from '@/lib/supabase';
-import { sharePublicDocument } from '@/lib/client/share-document';
+import { publicDocumentUrlFromToken, sharePublicDocument } from '@/lib/client/share-document';
 import { createCanonicalDocumentViewModel } from '@/lib/shared/document-view-model';
 
 type Quote = {
@@ -85,7 +85,7 @@ export default function PublicQuotation({params}:{params:Promise<{token:string}>
         documentDate:quote.quotation_date,
         totalAmount:Number(canonical?.financials.grandTotal??quote.total??0),
         currencyCode:quote.currency_code||'INR',
-        publicUrl:window.location.href,
+        publicUrl:publicDocumentUrlFromToken('quotation',token),
       },'Quotation '+quote.quotation_number);
       if(result==='shared')setRedirectToast('Quotation shared using your device share sheet.');
       else if(result==='copied')setRedirectToast('Customer-ready quotation message copied to clipboard.');
@@ -163,7 +163,7 @@ export default function PublicQuotation({params}:{params:Promise<{token:string}>
       <section className="border-b border-slate-200 px-6 py-4 sm:px-8 print:hidden">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
           <a href={'/api/public-documents/pdf?type=quotation&token='+encodeURIComponent(token)} className="inline-flex min-h-11 items-center justify-center rounded-xl border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50">Download Official PDF</a>
-          <CopyButton getValue={() => window.location.href} label="Copy customer link" successMessage="Quotation customer link copied to clipboard!" className="inline-flex min-h-11 items-center justify-center rounded-xl border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50" />
+          <CopyButton getValue={() => publicDocumentUrlFromToken('quotation',token)} label="Copy customer link" successMessage="Quotation customer link copied to clipboard!" className="inline-flex min-h-11 items-center justify-center rounded-xl border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50" />
           <button type="button" onClick={shareQuotation} className="inline-flex min-h-11 items-center justify-center rounded-xl border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50">Share quotation</button>
           {quote.status==='sent'&&!expired&&<button type="button" onClick={acceptQuotation} disabled={accepting} className="inline-flex min-h-11 items-center justify-center rounded-xl bg-violet-600 px-5 py-3 text-sm font-semibold text-white hover:bg-violet-700 disabled:cursor-wait disabled:opacity-60">{accepting?'Accepting securely…':'Accept Quotation & Request Invoice'}</button>}
           {expired&&<div role="status" className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-900">This quotation expired on {quote.valid_until}. Please contact the business to extend its validity.</div>}
