@@ -139,16 +139,16 @@ function DocumentTotals({ payload, currency='INR', receipt=false, showTaxDetails
   }
 
   return <div className="document-summary">
-    <div><span>Subtotal</span><strong>{money(subtotal,currency)}</strong></div>
+    <div style={{color:"#ea580c",fontWeight:800}}><span>Subtotal</span><strong>{money(subtotal,currency)}</strong></div>
     {discount !== 0 && <div><span>Discount</span><strong>-{money(discount,currency)}</strong></div>}
-    {showTaxDetails && tax !== 0 && !showComponents && <div><span>GST</span><strong>{money(tax,currency)}</strong></div>}
-    {showComponents && cgst !== 0 && <div><span>CGST</span><strong>{money(cgst,currency)}</strong></div>}
-    {showComponents && sgst !== 0 && <div><span>SGST</span><strong>{money(sgst,currency)}</strong></div>}
-    {showComponents && igst !== 0 && <div><span>IGST</span><strong>{money(igst,currency)}</strong></div>}
-    <div className="summary-total"><span>Net Payable</span><strong>{money(total,currency)}</strong></div>
+    {showTaxDetails && tax !== 0 && !showComponents && <div style={{color:"#ea580c",fontWeight:800}}><span>GST</span><strong>{money(tax,currency)}</strong></div>}
+    {showComponents && cgst !== 0 && <div style={{color:"#ea580c",fontWeight:800}}><span>CGST</span><strong>{money(cgst,currency)}</strong></div>}
+    {showComponents && sgst !== 0 && <div style={{color:"#ea580c",fontWeight:800}}><span>SGST</span><strong>{money(sgst,currency)}</strong></div>}
+    {showComponents && igst !== 0 && <div style={{color:"#ea580c",fontWeight:800}}><span>IGST</span><strong>{money(igst,currency)}</strong></div>}
+    <div className="summary-total" style={{color:"#ea580c",fontWeight:800}}><span>Net Payable</span><strong>{money(total,currency)}</strong></div>
     {Math.abs(roundOff) >= 0.005 && <div><span>Round-Off</span><strong>{roundOff > 0 ? '+' : ''}{money(roundOff,currency)}</strong></div>}
     {paid > 0 && <div><span>Amount Paid</span><strong>{money(paid,currency)}</strong></div>}
-    <div className={balance > 0 ? 'balance-due' : 'balance-paid'}>
+    <div className={balance > 0 ? 'balance-due' : 'balance-paid'} style={balance > 0 ? {color:'#ea580c',fontWeight:800} : undefined}>
       <span>{balance > 0 ? 'Balance Due' : 'Paid in Full'}</span>
       <strong>{money(balance,currency)}</strong>
     </div>
