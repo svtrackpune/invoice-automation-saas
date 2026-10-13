@@ -68,6 +68,22 @@ SELECT pg_temp.patch_function_definition(
          OR EXISTS ($new$
 );
 
+SELECT pg_temp.patch_function_definition(
+  'public.create_invoice_with_dynamic_tax(uuid,uuid,date,date,jsonb,text,text,text,boolean)'::regprocedure,
+  $old$GST cannot be charged for an Indian business without a valid registered GSTIN. Configure the GST registration or issue a non-GST invoice.$old$,
+  $new$Tax cannot be charged without a valid business tax registration. Configure the business tax profile or issue a non-taxable invoice.$new$
+);
+SELECT pg_temp.patch_function_definition(
+  'public.create_invoice_with_dynamic_tax(uuid,uuid,uuid,date,date,jsonb,text,text,text,boolean)'::regprocedure,
+  $old$GST cannot be charged for an Indian business without a valid registered GSTIN. Configure the GST registration or issue a non-GST invoice.$old$,
+  $new$Tax cannot be charged without a valid business tax registration. Configure the business tax profile or issue a non-taxable invoice.$new$
+);
+SELECT pg_temp.patch_function_definition(
+  'public.api_create_invoice_with_dynamic_tax(text,uuid,uuid,date,date,jsonb,text,text,text,boolean)'::regprocedure,
+  $old$GST cannot be charged for an Indian business without a valid registered GSTIN. Configure the GST registration or issue a non-GST invoice.$old$,
+  $new$Tax cannot be charged without a valid business tax registration. Configure the business tax profile or issue a non-taxable invoice.$new$
+);
+
 DROP FUNCTION pg_temp.patch_function_definition(regprocedure,text,text);
 
 COMMIT;
