@@ -5,6 +5,7 @@ import QRCode from 'qrcode';
 import Image from 'next/image';
 import { supabase } from '@/lib/supabase';
 import { createCanonicalDocumentViewModel } from '@/lib/shared/document-view-model';
+import CopyButton from '@/components/ui/copy-button';
 
 type AddressValue = string | {
   line1?: string | number | null; address_line1?: string | number | null;
@@ -94,12 +95,13 @@ export default function PublicInvoice({params}:{params:Promise<{token:string}>})
       </section>
 
       <section className="overflow-x-auto px-6 sm:px-8">
-        <table className="w-full min-w-[620px] border-collapse text-sm">
+        <table className="w-full min-w-[760px] border-collapse text-sm">
           <thead className="bg-[#7c3aed] text-xs uppercase tracking-wider text-white">
             <tr>
               <th className="w-10 p-3 text-center font-extrabold">#</th>
               <th className="p-3 text-left font-extrabold">ITEM / DESCRIPTION</th>
-              <th className="w-20 p-3 text-right font-extrabold">QTY</th>
+              <th className="w-16 p-3 text-center font-extrabold">QTY</th>
+              <th className="w-20 p-3 text-center font-extrabold">UNIT</th>
               <th className="w-28 p-3 text-right font-extrabold">RATE</th>
               <th className="w-32 p-3 text-right font-extrabold">AMOUNT</th>
             </tr>
@@ -107,14 +109,15 @@ export default function PublicInvoice({params}:{params:Promise<{token:string}>})
           <tbody>
             {invoice.items.map((item,i)=><tr key={i} className="border-b border-slate-100 align-top">
               <td className="p-3 text-center text-slate-500">{i+1}</td>
-              <td className="p-3">
-                <div className="font-medium text-slate-900">{item.item_name||item.description||'Item'}</div>
-                {item.item_name&&item.description&&item.item_name!==item.description&&<div className="mt-1 text-xs text-slate-500">{item.description}</div>}
+              <td className="px-4 py-3 text-left">
+                <div className="text-sm font-semibold text-slate-900">{item.item_name||item.description||'Item'}</div>
+                {item.description&&item.item_name&&item.item_name!==item.description&&<div className="mt-0.5 whitespace-pre-line text-xs text-slate-500">{item.description}</div>}
                 {item.hsn_sac&&<div className="mt-1 text-[11px] text-slate-400">HSN / SAC: {item.hsn_sac}</div>}
               </td>
-              <td className="p-3 text-right">{item.quantity}{item.unit&&<span className="ml-1 text-xs text-slate-400">{item.unit}</span>}</td>
-              <td className="p-3 text-right tabular-nums">{money(item.unit_price,invoice.currency_code)}</td>
-              <td className="p-3 text-right font-semibold tabular-nums">{money(item.line_total,invoice.currency_code)}</td>
+              <td className="px-4 py-3 text-center text-sm text-slate-700">{item.quantity}</td>
+              <td className="px-4 py-3 text-center text-xs font-medium uppercase text-slate-500">{item.unit||'pcs'}</td>
+              <td className="px-4 py-3 text-right text-sm tabular-nums text-slate-700">{money(item.unit_price,invoice.currency_code)}</td>
+              <td className="px-4 py-3 text-right text-sm font-semibold tabular-nums text-slate-900">{money(item.line_total,invoice.currency_code)}</td>
             </tr>)}
           </tbody>
         </table>
@@ -175,7 +178,10 @@ export default function PublicInvoice({params}:{params:Promise<{token:string}>})
 
       <section className="flex flex-col gap-3 border-t border-slate-200 p-6 sm:flex-row sm:items-center sm:justify-between sm:p-8 print:hidden">
         <div><p className="font-semibold text-slate-900">Need a copy for your records?</p><p className="mt-1 text-xs text-slate-500">Download a PDF copy of this invoice.</p></div>
-        <a href={'/api/public-documents/pdf?type=invoice&token=' + encodeURIComponent(token)} className="inline-flex min-h-12 items-center justify-center rounded-xl bg-violet-600 px-6 py-3 text-sm font-semibold text-white hover:bg-violet-700">Download Official PDF</a>
+        <div className="flex flex-wrap items-center gap-3">
+          <a href={'/api/public-documents/pdf?type=invoice&token=' + encodeURIComponent(token)} className="inline-flex min-h-12 items-center justify-center rounded-xl bg-violet-600 px-6 py-3 text-sm font-semibold text-white hover:bg-violet-700">Download Official PDF</a>
+          <CopyButton getValue={() => window.location.href} label="Copy Invoice Link" className="inline-flex min-h-12 items-center justify-center rounded-xl border border-slate-200 bg-white px-6 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50" />
+        </div>
       </section>
 
       <footer className="border-t border-slate-200 bg-slate-50 px-6 py-5 text-center text-xs text-slate-500">
