@@ -159,3 +159,74 @@ export function buildPublicDocumentSmsMessage(input: PublicDocumentShareInput): 
   const link = input.publicUrl ? ' View: ' + input.publicUrl : '';
   return label + ' #' + number + ' from ' + business + '. Amount ' + amount + '.' + balance + link + ' - Moneymatters FinOps';
 }
+
+
+/**
+ * Clipboard helper with a legacy DOM fallback for browsers/contexts where
+ * navigator.clipboard is unavailable or denied.
+ */
+export async function copyTextToClipboard(value: string): Promise<void> {
+  const text = String(value ?? '');
+  if (!text) throw new Error('There is no text to copy.');
+
+  if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
+    try {
+      await navigator.clipboard.writeText(text);
+      return;
+    } catch {
+      // Try the DOM fallback below.
+    }
+  }
+
+  if (typeof document === 'undefined' || !document.body) {
+    throw new Error('Clipboard access is unavailable in this browser.');
+  }
+
+  const textarea = document.createElement('textarea');
+  textarea.value = text;
+  textarea.readOnly = true;
+  textarea.setAttribute('aria-hidden', 'true');
+  textarea.style.position = 'fixed';
+  textarea.style.opacity = '0';
+  textarea.style.pointerEvents = 'none';
+  textarea.style.left = '-9999px';
+  document.body.appendChild(textarea);
+  textarea.focus();
+  textarea.select();
+  textarea.setSelectionRange(0, textarea.value.length);
+  let copied = false;
+  try {
+    copied = document.execCommand('copy');
+  } finally {
+    textarea.remove();
+  }
+  if (!copied) throw new Error('The browser could not copy to the clipboard.');
+}
+
+export type PublicShareResult = 'shared' | 'copied' | 'cancelled';
+
+/**
+ * Share a customer-ready document message. On desktop browsers without a
+ * native share sheet, copies the complete message—including the public URL.
+ */
+export async function sharePublicDocument(
+  input: PublicDocumentShareInput,
+  title: string,
+): Promise<PublicShareResult> {
+  const publicUrl = String(input.publicUrl || '').trim();
+  if (!publicUrl) throw new Error('A public document link is required to share this document.');
+  const message = buildPublicDocumentShareMessage({ ...input, publicUrl });
+
+  if (typeof navigator !== 'undefined' && typeof navigator.share === 'function') {
+    try {
+      await navigator.share({ title, text: message, url: publicUrl });
+      return 'shared';
+    } catch (error) {
+      if (error instanceof Error && error.name === 'AbortError') return 'cancelled';
+      // Web Share can exist but fail in an unsupported browsing context.
+    }
+  }
+
+  await copyTextToClipboard(message);
+  return 'copied';
+}
