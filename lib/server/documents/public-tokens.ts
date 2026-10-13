@@ -47,7 +47,7 @@ export type PublicDocument = {
     accountType?: string | null } | null;
   upiId: string | null;
   items: Array<{
-    description: string; quantity: number; unit: string | null; unitPrice: number;
+    name?: string | null; description: string; quantity: number; unit: string | null; unitPrice: number;
     discount: number; taxAmount: number; lineTotal: number; hsnSac: string | null;
   }>;
   receiptDetails?: {
@@ -226,14 +226,19 @@ export async function loadPublicDocumentById(
     if (itemResult.error) throw new Error('Invoice items are unavailable.');
     const productIds = Array.from(new Set(((itemResult.data || []) as Row[]).map(x => text(x.product_service_id)).filter(Boolean)));
     const productsResult = productIds.length
-      ? await db.from('products_services').select('id,name,unit').eq('business_id', businessId).in('id', productIds)
+      ? await db.from('products_services').select('id,name,description,unit').eq('business_id', businessId).in('id', productIds)
       : { data: [], error: null };
     if (productsResult.error) throw new Error('Invoice products are unavailable.');
     const products = new Map(((productsResult.data || []) as Row[]).map(p => [text(p.id), p]));
     items = ((itemResult.data || []) as Row[]).map(item => {
       const product = products.get(text(item.product_service_id));
+      const itemName = text(product?.name) || text(item.description) || 'Item';
+      const itemDescription = text(item.description);
+      const productDescription = text(product?.description);
+      const detail = itemDescription && itemDescription !== itemName ? itemDescription
+        : productDescription && productDescription !== itemName ? productDescription : '';
       return {
-        description: text(product?.name || item.description) || 'Item', quantity: n(item.quantity),
+        name: itemName, description: detail, quantity: n(item.quantity),
         unit: nullable(product?.unit), unitPrice: n(item.unit_price), discount: n(item.discount),
         taxAmount: n(item.tax_amount), lineTotal: n(item.line_total), hsnSac: nullable(item.hsn_sac),
       };
@@ -250,19 +255,30 @@ export async function loadPublicDocumentById(
     subtotal = n(row.subtotal); discountTotal = n(row.discount_amount); taxTotal = n(row.tax_amount); total = n(row.total);
     balanceDue = total; notes = nullable(row.notes); terms = nullable(row.terms);
     const itemResult = await db.from('quotation_items')
-      .select('description,quantity,unit_price,discount_type,discount_value,tax_rate_id,sort_order,line_discount,line_tax,line_total')
+      .select('description,quantity,unit_price,discount_type,discount_value,tax_rate_id,product_service_id,sort_order,line_discount,line_tax,line_total')
       .eq('quotation_id', id).order('sort_order');
     if (itemResult.error) throw new Error('Quotation items are unavailable.');
+    const productIds = Array.from(new Set(((itemResult.data || []) as Row[]).map(item => text(item.product_service_id)).filter(Boolean)));
+    const productsResult = productIds.length
+      ? await db.from('products_services').select('id,name,description,unit').eq('business_id', businessId).in('id', productIds)
+      : { data: [], error: null };
+    if (productsResult.error) throw new Error('Quotation products are unavailable.');
+    const products = new Map(((productsResult.data || []) as Row[]).map(product => [text(product.id), product]));
     items = ((itemResult.data || []) as Row[]).map(item => {
+      const product = products.get(text(item.product_service_id));
       const base = n(item.quantity) * n(item.unit_price);
       const computedDiscount = text(item.discount_type) === 'percentage' ? base * n(item.discount_value) / 100 : n(item.discount_value);
       const discount = item.line_discount == null ? computedDiscount : n(item.line_discount);
       const taxAmount = n(item.line_tax);
       const computedLineTotal = Math.max(0, base - discount) + taxAmount;
+      const name = text(product?.name) || text(item.description) || 'Item';
+      const lineDescription = text(item.description);
+      const productDescription = text(product?.description);
       return {
-        description: text(item.description) || 'Item',
+        name,
+        description: lineDescription && lineDescription !== name ? lineDescription : productDescription && productDescription !== name ? productDescription : '',
         quantity: n(item.quantity),
-        unit: null,
+        unit: nullable(product?.unit),
         unitPrice: n(item.unit_price),
         discount,
         taxAmount,
