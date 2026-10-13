@@ -55,6 +55,8 @@ test('quotation actions are visible before acceptance and footer is standardized
   assert.match(quote,/This is a computer-generated quotation and does not require signature\./);
   assert.match(quote,/Powered by Moneymatters FinOps \| mm\.nilanga\.in/);
   assert.doesNotMatch(quote,/Customer ledger balance|merchant outstanding balance/i);
+  assert.match(quote,/money\(item\.unitPrice\)/);
+  assert.doesNotMatch(quote,/money\(item\.unit_price\)/);
   assert.match(quote,/router\.push\(outcome\.redirect_url as string\)/);
   assert.match(quote,/catch \(cause\)/);
   assert.match(quote,/Failed to accept quotation\./);
