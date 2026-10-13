@@ -162,7 +162,7 @@ function DocumentTotals({ payload, currency='INR', receipt=false, showTaxDetails
   const cgst = Number(payload.cgst_amount ?? 0);
   const sgst = Number(payload.sgst_amount ?? 0);
   const igst = Number(payload.igst_amount ?? 0);
-  const showComponents = showTaxDetails && (cgst !== 0 || sgst !== 0 || igst !== 0);
+  const showComponents = showTaxDetails && taxLabel === 'GST' && (cgst !== 0 || sgst !== 0 || igst !== 0);
   const whole = numberToWords(total);
   const paise = Math.round((Math.max(0,total) - Math.floor(Math.max(0,total))) * 100);
 
