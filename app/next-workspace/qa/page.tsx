@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 
 const scenarios = [
-  ['S01','Customer → Product → Estimate → Invoice','Create a customer, add an item, create an estimate, accept it and convert it to an invoice.','/next-workspace/customers'],
+  ['S01','Customer → Product → Quotation → Invoice','Create a customer, add an item, create a quotation, accept it and convert it to an invoice.','/next-workspace/customers'],
   ['S02','Invoice → Partial Payment → Receipt','Create an invoice, record a partial payment, verify the balance and receipt, then record the remainder.','/next-workspace/sales'],
   ['S03','Invoice → Full Payment → Accounting','Pay an invoice in full and verify it becomes paid with exactly one accounting posting.','/next-workspace/payments'],
   ['S04','Vendor → Bill → Payment','Create a vendor bill, record the payment and verify the payable balance falls correctly.','/next-workspace/purchases'],
@@ -15,7 +15,7 @@ const scenarios = [
   ['S09','Tenant Isolation','Switch businesses and verify records, metrics and actions are scoped to the selected business.','/next-workspace'],
   ['S10','Mobile UX','Test at a narrow viewport: navigation, create menu, forms, tables and document preview.','/next-workspace'],
   ['S11','Refresh / Idempotency','Repeat refresh/back/submit actions after mutations; no duplicate business or ledger records.','/next-workspace/payments'],
-  ['S12','Documents & Branding','Configure logo/color/template and generate invoice/estimate/receipt previews.','/next-workspace/brand'],
+  ['S12','Documents & Branding','Configure logo/color/template and generate invoice/quotation/receipt previews.','/next-workspace/brand'],
   ['S13','Cash Bill Correction','Create a Cash Bill, correct item/rate/quantity and verify the same bill/payment/receipt identities remain synchronized.','/next-workspace/cash-bill'],
   ['S14','Invoice Correction','Post an invoice, correct it from the document popup, then verify payment balance, journal and inventory remain consistent.','/next-workspace/invoices'],
   ['S15','Purchase Bill Correction','Post a purchase bill, correct it from the bill popup, and verify AP, journal and inventory remain consistent.','/next-workspace/purchases'],
@@ -26,7 +26,7 @@ const scenarios = [
 const features = [
   ['Business cockpit','Dashboard metrics, attention queue, recent activity, search and create actions'],
   ['Sales','Invoices, payment state, customer allocation and accounting linkage'],
-  ['Estimates','Quotation workflow and invoice conversion'],
+  ['Quotations','Quotation workflow and invoice conversion'],
   ['Customers','Customer 360, statements, activity and balances'],
   ['Vendors','Supplier profiles, bills, payments and balances'],
   ['Products','Products/services, pricing, tax and inventory controls'],
