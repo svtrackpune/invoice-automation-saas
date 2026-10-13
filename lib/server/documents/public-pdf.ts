@@ -158,7 +158,7 @@ const docTitle = (type: string, business?: PublicDocument['business']) => {
     const registration = String(business?.gstRegistrationType || '').trim().toUpperCase();
     if (registration === 'COMPOSITION') return 'BILL OF SUPPLY';
     const noGst = !registration || ['NONE', 'UNREGISTERED', 'NON_GST', 'NOT_REGISTERED'].includes(registration);
-    return !noGst && Boolean(String(business?.taxRegistrationNumber || '').trim()) ? 'TAX INVOICE' : 'INVOICE';
+    return !noGst && /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][0-9A-Z]Z[0-9A-Z]$/.test(String(business?.taxRegistrationNumber || '').trim().toUpperCase()) ? 'TAX INVOICE' : 'INVOICE';
   }
   if (type === 'quotation') return 'QUOTATION';
   if (type === 'challan') return 'DELIVERY CHALLAN';
@@ -170,7 +170,7 @@ const statusColor = (s: string): RGB => ['paid','accepted','delivered'].includes
 export async function buildPublicDocumentPdf(doc: PublicDocument): Promise<Buffer> {
   const registration = String(doc.business.gstRegistrationType || '').trim().toUpperCase();
   const gstBreakdownAllowed = !['NONE', 'UNREGISTERED', 'NON_GST', 'NOT_REGISTERED', 'COMPOSITION'].includes(registration)
-    && Boolean(String(doc.business.taxRegistrationNumber || '').trim());
+    && /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][0-9A-Z]Z[0-9A-Z]$/.test(String(doc.business.taxRegistrationNumber || '').trim().toUpperCase());
   const canonical = createCanonicalDocumentViewModel(doc, { type: doc.type, upiId: doc.upiId, settlementDisplayMode: doc.settlementDisplayMode });
   const c = new Canvas(), right = W - M;
   const objects: Array<Buffer|string> = [];
