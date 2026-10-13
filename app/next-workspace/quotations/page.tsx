@@ -1,8 +1,8 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { supabase, type BusinessContext } from '@/lib/supabase';
-import { getPublicDocumentUrl } from '@/lib/client/share-document';
+import { getPublicDocumentUrl, sharePublicDocument } from '@/lib/client/share-document';
 import CopyButton from '@/components/ui/copy-button';
 import { PageHeader } from '@/components/ui/finops/PageHeader';
 import { Button, Card } from '@/components/moneymatters';
@@ -31,6 +31,11 @@ export default function QuotationsListPage() {
   const [loadError, setLoadError] = useState('');
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [businessName, setBusinessName] = useState('Business');
+  const [openActionsId, setOpenActionsId] = useState<string | null>(null);
+  const [sharingId, setSharingId] = useState<string | null>(null);
+  const [actionFeedback, setActionFeedback] = useState<{ kind: 'success' | 'error'; message: string } | null>(null);
+  const actionsRef = useRef<HTMLDivElement | null>(null);
 
   const refresh = useCallback(async (preferredBusinessId?: string) => {
     setLoading(true);
@@ -42,6 +47,7 @@ export default function QuotationsListPage() {
     const context = contexts.find(item => item.business_id === preferred) || contexts[0];
     if (!context?.business_id) { setLoadError('Business context not found. Select a business and try again.'); setLoading(false); return; }
     setBusinessId(context.business_id);
+    setBusinessName(context.business_name || 'Business');
     setCurrencyCode(context.currency_code || 'INR');
     const quotationResult = await supabase.from('quotations')
       .select('id,customer_id,quotation_number,quotation_date,valid_until,status,currency_code,total,public_accept_token,invoice_id')
@@ -75,17 +81,81 @@ export default function QuotationsListPage() {
   const pdfUrl = (row: QuotationRow) => row.public_accept_token
     ? '/api/public-documents/pdf?type=quotation&token=' + encodeURIComponent(row.public_accept_token) : '';
 
+  useEffect(() => {
+    if (!openActionsId) return;
+    const closeOnOutsideClick = (event: MouseEvent) => {
+      if (!actionsRef.current?.contains(event.target as Node)) setOpenActionsId(null);
+    };
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setOpenActionsId(null);
+    };
+    document.addEventListener('mousedown', closeOnOutsideClick);
+    document.addEventListener('keydown', closeOnEscape);
+    return () => {
+      document.removeEventListener('mousedown', closeOnOutsideClick);
+      document.removeEventListener('keydown', closeOnEscape);
+    };
+  }, [openActionsId]);
+
+  const publicShareAvailable = (row: QuotationRow) => {
+    const expired = row.status === 'sent' && Boolean(row.valid_until && row.valid_until < today());
+    return ['sent', 'accepted', 'converted'].includes(row.status) && !expired;
+  };
+
+  const downloadPdf = async (row: QuotationRow) => {
+    setActionFeedback(null);
+    try {
+      let token = row.public_accept_token || '';
+      if (!token) {
+        const publicUrl = await getPublicDocumentUrl('quotation', row.id);
+        token = new URL(publicUrl).pathname.split('/').filter(Boolean).pop() || '';
+      }
+      if (!/^[A-Fa-f0-9]{48,128}$/.test(token)) throw new Error('The quotation does not have a valid public PDF token.');
+      window.location.href = '/api/public-documents/pdf?type=quotation&token=' + encodeURIComponent(token);
+      setOpenActionsId(null);
+    } catch (error) {
+      setActionFeedback({ kind: 'error', message: error instanceof Error ? error.message : 'Unable to download this quotation PDF.' });
+    }
+  };
+
+  const shareQuotation = async (row: QuotationRow) => {
+    setActionFeedback(null);
+    setSharingId(row.id);
+    try {
+      const publicUrl = await getPublicDocumentUrl('quotation', row.id);
+      const customer = customers[row.customer_id];
+      const result = await sharePublicDocument({
+        documentType: 'quotation',
+        businessName,
+        customerName: customer?.legal_name || customer?.display_name || 'Customer',
+        documentNumber: row.quotation_number,
+        documentDate: row.quotation_date,
+        totalAmount: Number(row.total || 0),
+        currencyCode: row.currency_code || currencyCode,
+        publicUrl,
+      }, 'Quotation ' + row.quotation_number);
+      setOpenActionsId(null);
+      if (result === 'shared') setActionFeedback({ kind: 'success', message: 'Quotation shared using your device share sheet.' });
+      else if (result === 'copied') setActionFeedback({ kind: 'success', message: 'Customer-ready quotation message copied to the clipboard.' });
+    } catch (error) {
+      setActionFeedback({ kind: 'error', message: error instanceof Error ? error.message : 'Unable to share this quotation.' });
+    } finally {
+      setSharingId(null);
+    }
+  };
+
   return (
     <main className="min-h-screen bg-[#fbfaff] p-4 sm:p-6 lg:p-8">
       <div className="mx-auto max-w-[1500px] space-y-5">
         <PageHeader
           breadcrumbs={[{ label: 'Workspace', href: '/next-workspace' }, { label: 'Sales & billing' }, { label: 'Quotations' }]}
           title="Quotations"
-          subtitle="Search, review, share and convert customer estimates."
+          subtitle="Manage customer quotations, edit the same document, download PDFs, and share secure links."
           badge={{ label: 'SALES', variant: 'pending' }}
           actions={<Button onClick={() => { window.location.href = '/next-workspace/quotation'; }}>+ New Quotation</Button>}
         />
         {loadError && <div role="alert" className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-800">{loadError}</div>}
+        {actionFeedback && <div role={actionFeedback.kind === 'error' ? 'alert' : 'status'} className={'rounded-xl border p-3 text-sm ' + (actionFeedback.kind === 'error' ? 'border-rose-200 bg-rose-50 text-rose-800' : 'border-emerald-200 bg-emerald-50 text-emerald-800')}>{actionFeedback.message}</div>}
 
         <Card className="overflow-hidden p-0">
           <div className="grid gap-3 border-b border-slate-200 p-4 sm:grid-cols-[minmax(0,1fr)_220px_auto] sm:items-center">
@@ -117,13 +187,25 @@ export default function QuotationsListPage() {
                         <td className="px-4 py-4 text-right font-medium tabular-nums">{money(Number(row.total), row.currency_code || currencyCode)}</td>
                         <td className="px-4 py-4"><span className={'inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ' + (row.status === 'converted' || row.status === 'accepted' ? 'bg-emerald-50 text-emerald-700' : row.status === 'sent' ? 'bg-sky-50 text-sky-700' : row.status === 'cancelled' || row.status === 'rejected' ? 'bg-rose-50 text-rose-700' : 'bg-slate-100 text-slate-700')}>{statusLabel(row.status, row.valid_until)}</span></td>
                         <td className="px-4 py-4">
-                          <div className="flex flex-wrap justify-end gap-2">
-                            <a className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50" href={'/next-workspace/documents?type=quotation&id=' + encodeURIComponent(row.id)}>View</a>
-                            {isEditable && <a className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50" href={'/next-workspace/documents?type=quotation&id=' + encodeURIComponent(row.id) + '&edit=1'}>Edit</a>}
-                            {isPublic && pdf ? <a className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50" href={pdf}>Download PDF</a>
-                              : <button type="button" title={expired ? 'Extend validity before sharing this expired quotation.' : 'Send the quotation before enabling the public PDF.'} disabled className="cursor-not-allowed rounded-lg border border-slate-100 px-2.5 py-1.5 text-xs font-semibold text-slate-400">Download PDF</button>}
-                            {isPublic ? <CopyButton getValue={() => getPublicDocumentUrl('quotation', row.id)} label="Copy link" successMessage={'Customer link copied for ' + row.quotation_number + '.'} className="rounded-lg bg-violet-600 px-2.5 py-1.5 text-xs font-semibold text-white hover:bg-violet-700" />
-                              : <button type="button" title={expired ? 'Extend validity before sharing this expired quotation.' : 'Send the quotation before sharing.'} disabled className="cursor-not-allowed rounded-lg border border-slate-100 px-2.5 py-1.5 text-xs font-semibold text-slate-400">Share</button>}
+                          <div className="relative flex justify-end" ref={openActionsId === row.id ? actionsRef : null}>
+                            <button type="button" aria-haspopup="menu" aria-expanded={openActionsId === row.id} aria-label={'Actions for quotation ' + row.quotation_number} onClick={() => setOpenActionsId(current => current === row.id ? null : row.id)} className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-semibold text-slate-800 shadow-sm hover:border-violet-300 hover:bg-violet-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500">
+                              Actions <span aria-hidden="true" className="text-slate-500">▾</span>
+                            </button>
+                            {openActionsId === row.id && <div role="menu" aria-label={'Quotation actions for ' + row.quotation_number} className="absolute right-0 top-full z-50 mt-2 w-52 overflow-hidden rounded-xl border border-slate-200 bg-white p-1.5 shadow-xl">
+                              <a role="menuitem" className="block rounded-lg px-3 py-2.5 text-left text-sm text-slate-700 hover:bg-slate-50" href={'/next-workspace/documents?type=quotation&id=' + encodeURIComponent(row.id)}>View quotation</a>
+                              {isEditable
+                                ? <a role="menuitem" className="block rounded-lg px-3 py-2.5 text-left text-sm text-slate-700 hover:bg-slate-50" href={'/next-workspace/quotation?edit=' + encodeURIComponent(row.id)}>Edit quotation</a>
+                                : <button role="menuitem" type="button" disabled title="Accepted or converted quotations are locked against editing." className="block w-full cursor-not-allowed rounded-lg px-3 py-2.5 text-left text-sm text-slate-400">Edit quotation</button>}
+                              {isPublic
+                                ? <button role="menuitem" type="button" onClick={() => void downloadPdf(row)} className="block w-full rounded-lg px-3 py-2.5 text-left text-sm text-slate-700 hover:bg-slate-50">Download PDF</button>
+                                : <button role="menuitem" type="button" disabled title="Send the quotation before creating a customer PDF." className="block w-full cursor-not-allowed rounded-lg px-3 py-2.5 text-left text-sm text-slate-400">Download PDF</button>}
+                              {publicShareAvailable(row)
+                                ? <CopyButton getValue={() => getPublicDocumentUrl('quotation', row.id)} label="Copy customer link" successMessage={'Customer link copied for ' + row.quotation_number + '.'} className="block w-full rounded-lg px-3 py-2.5 text-left text-sm text-slate-700 hover:bg-violet-50" />
+                                : <button role="menuitem" type="button" disabled title={expired ? 'Extend validity before sharing this expired quotation.' : 'Send the quotation before sharing.'} className="block w-full cursor-not-allowed rounded-lg px-3 py-2.5 text-left text-sm text-slate-400">Copy customer link</button>}
+                              {publicShareAvailable(row)
+                                ? <button role="menuitem" type="button" disabled={sharingId === row.id} onClick={() => void shareQuotation(row)} className="block w-full rounded-lg px-3 py-2.5 text-left text-sm text-slate-700 hover:bg-violet-50 disabled:opacity-50">{sharingId === row.id ? 'Preparing share…' : 'Share document'}</button>
+                                : <button role="menuitem" type="button" disabled title={expired ? 'Extend validity before sharing this expired quotation.' : 'Send the quotation before sharing.'} className="block w-full cursor-not-allowed rounded-lg px-3 py-2.5 text-left text-sm text-slate-400">Share document</button>}
+                            </div>}
                           </div>
                         </td>
                       </tr>
