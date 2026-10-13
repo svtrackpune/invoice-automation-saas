@@ -29,11 +29,12 @@ test('expired sent quotations remain viewable but cannot be accepted', async () 
   const route = await read('app/api/public-documents/pdf/route.ts');
   const tokens = await read('lib/server/documents/public-tokens.ts');
   const pdf = await read('lib/server/documents/public-pdf.ts');
-  const quoteReader = await read('supabase/migrations/20261011193431_public_quotation_converted_preview.sql');
+  const quoteReader = await read('supabase/migrations/20261012165000_quotation_public_acceptance_and_payment_remediation.sql');
   assert.ok(route.includes("requestedType === 'quote' ? 'quotation' : requestedType"));
   assert.ok(tokens.includes("return ['sent', 'accepted', 'converted'].includes(s);"));
   assert.ok(tokens.includes('Expiry blocks acceptance, not access to the already-shared quotation document.'));
-  assert.ok(!quoteReader.includes("RAISE EXCEPTION 'Quotation has expired'"));
+  assert.ok(quoteReader.includes('Keep expired SENT quotations viewable'));
+  assert.ok(quoteReader.includes("v_definition := replace(v_definition,v_old,'');"));
   assert.ok(pdf.includes("if (doc.bankDetails || qrData)"), 'non-invoice PDFs should only draw a settlement block when a bank or QR rail exists');
   assert.ok(pdf.includes('QRCode.create(qrData'));
 });
