@@ -82,7 +82,7 @@ test('receipt copy/share actions use short-lived public receipt links, not works
  assert.ok(helper.includes("supabase.rpc('get_public_document_link'"));
  assert.ok(helper.includes("'path' in data"));
  assert.ok(helper.includes('[A-Fa-f0-9]{48,128}'));
- assert.ok(ui.includes('const copyLink=async(id:string)=>{'));
+ assert.ok(ui.includes('<CopyButton getValue={()=>getPublicReceiptUrl(r.id)} label="Copy link"'));
  assert.ok(ui.includes('const shareReceipt=async(id:string)=>{'));
  assert.ok(sql.includes("public._issue_receipt_access_token(p_receipt_id, 'customer_download')"));
  assert.ok(sql.includes('REVOKE ALL ON FUNCTION public.create_public_receipt_link(uuid) FROM PUBLIC, anon'));
@@ -144,7 +144,8 @@ test('customer-facing shares use canonical token URLs instead of merchant worksp
  assert.ok(invoiceShare.includes("getPublicDocumentUrl('invoice'"));
  assert.ok(!invoiceShare.includes('/next-workspace/documents?type=invoice&id='));
  assert.ok(receipts.includes("getPublicDocumentUrl('receipt',id)"));
- assert.ok(quotations.includes("getPublicDocumentUrl('quotation',quote.id)"));
+ assert.ok(quotations.includes("publicDocumentUrlFromToken('quotation',current.public_accept_token)"));
+  assert.ok(quotations.includes('CopyButton getValue={() => getPublicDocumentUrlForQuotation(quote.id)}'));
  assert.ok(review.includes('getPublicDocumentUrl(canonicalType, id)'));
  assert.ok(review.includes('p_action_url: null'));
  assert.ok(challengedRoute.includes('Download Official PDF'));
@@ -356,7 +357,7 @@ test('public quotation acceptance is token-authorized, idempotent, and never byp
  assert.match(convertedPreview,/invoice_number/);
  assert.match(page,/supabase\.rpc\('rpc_accept_public_quotation'/);
  assert.doesNotMatch(page,/mailto:/);
- assert.match(page,/The official Tax Invoice is dispatched only after the business posts it/);
+ assert.match(page,/must post the invoice before its secure customer invoice link becomes available/);
 });
 
 test('notification dispatch shares only balance-aware INR UPI intent and configured payment link',async()=>{
