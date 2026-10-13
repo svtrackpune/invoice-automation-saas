@@ -119,7 +119,9 @@ test('invoice title and tax presentation follow explicit GST registration mode',
   assert.ok(viewer.includes('const invoiceDocumentTitle = (party: any) =>'));
   assert.ok(viewer.includes("registrationType(party) === 'COMPOSITION') return 'BILL OF SUPPLY'"));
   assert.ok(viewer.includes("return isTaxRegistered(party) ? 'TAX INVOICE' : 'INVOICE'"));
-  assert.ok(viewer.includes('documentShowTaxDetails=showTaxDetails'));
+  assert.ok(quote.includes("const quotationTaxEnabled=Boolean(quote && !['NONE','UNREGISTERED','NON_GST','NOT_REGISTERED','COMPOSITION'].includes(quotationRegistrationType)"));
+  assert.ok(quote.includes('quotationTaxEnabled&&canonical?.financials.taxBreakdown.map'));
+  assert.ok(viewer.includes('showTaxDetails={documentShowTaxDetails}'));
   assert.ok(viewer.includes('show_customer_balance === true'));
   assert.ok(invoice.includes("const invoiceHeading=registrationType==='COMPOSITION'?'BILL OF SUPPLY':taxRegistered?'TAX INVOICE':'INVOICE'"));
   assert.ok(invoice.includes('showGstBreakdown=taxRegistered&&registrationType!==\'COMPOSITION\''));
