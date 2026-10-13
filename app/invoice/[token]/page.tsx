@@ -66,7 +66,7 @@ export default function PublicInvoice({params}:{params:Promise<{token:string}>})
         <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
           <div className="flex items-start gap-4">
             {logoUrl&&<Image src={logoUrl} alt="Business logo" width={96} height={64} unoptimized className="h-16 w-24 rounded-lg object-contain"/>}
-            <div><p className="text-xs font-bold uppercase tracking-[0.18em] text-violet-600">Invoice</p><h1 className="mt-1 text-2xl font-bold text-slate-900">{canonical?.document.number||invoice.invoice_number}</h1><p className="mt-1 text-sm font-medium text-slate-600">{invoice.business.name}</p>{invoice.business.legal_name&&invoice.business.legal_name!==invoice.business.name&&<p className="text-xs text-slate-500">{invoice.business.legal_name}</p>}</div>
+            <div><p className="text-xs font-bold uppercase tracking-[0.18em] text-violet-600">TAX INVOICE</p><h1 className="mt-1 text-2xl font-bold text-slate-900">{canonical?.document.number||invoice.invoice_number}</h1><p className="mt-1 text-sm font-medium text-slate-600">{invoice.business.name}</p>{invoice.business.legal_name&&invoice.business.legal_name!==invoice.business.name&&<p className="text-xs text-slate-500">{invoice.business.legal_name}</p>}</div>
           </div>
           <div className="text-sm text-slate-500 sm:text-right"><div>Invoice date: {date(canonical?.document.date||invoice.invoice_date)}</div><div>Due date: {date(invoice.due_date)}</div><div className="mt-2 inline-flex rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-slate-700">{invoice.status.replace('_',' ')}</div></div>
         </div>
