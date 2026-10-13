@@ -237,6 +237,16 @@ test('public invoice renderer creates a vector-rendered A4 GST PDF with QR and b
  const bankFallback=await buildPublicDocumentPdf({...doc,upiId:null,settlementDisplayMode:undefined});
  assert.match(bankFallback.toString('latin1'),/Sample Bank/,'when UPI is absent the renderer should default to bank transfer');
 
+  const unregisteredPdf=await buildPublicDocumentPdf({...doc,total:190,taxTotal:0,cgstAmount:0,sgstAmount:0,igstAmount:0,business:{...doc.business,taxRegistrationNumber:null,gstRegistrationType:'NONE'},items:[{...doc.items[0],taxAmount:0,lineTotal:190}]});
+  const unregisteredText=unregisteredPdf.toString('latin1');
+  assert.ok(unregisteredText.includes('(INVOICE)'),'unregistered supplier must receive an ordinary invoice title');
+  assert.doesNotMatch(unregisteredText,/TAX INVOICE|CGST|SGST|IGST|Tax \/ GST/,'unregistered invoice must not claim tax-invoice status or expose GST rows');
+
+  const compositionPdf=await buildPublicDocumentPdf({...doc,total:190,taxTotal:0,cgstAmount:0,sgstAmount:0,igstAmount:0,business:{...doc.business,gstRegistrationType:'COMPOSITION'},items:[{...doc.items[0],taxAmount:0,lineTotal:190}]});
+  const compositionText=compositionPdf.toString('latin1');
+  assert.ok(compositionText.includes('BILL OF SUPPLY'),'composition-scheme supplier with GSTIN should use Bill of Supply');
+  assert.doesNotMatch(compositionText,/TAX INVOICE|CGST|SGST|IGST|Tax \/ GST/,'composition-scheme documents must not show tax-invoice status or GST rows');
+
  const challan={...doc,type:'challan',number:'DC-0004',status:'dispatched',dueDate:null,validUntil:null,amountPaid:0,balanceDue:0,
   placeOfSupplyStateCode:null,supplyType:null,cgstAmount:0,sgstAmount:0,igstAmount:0,bankDetails:null,upiId:null,
   vehicleNumber:'MH24AB1234',transporterName:'Sample Transport',ewayBillNumber:'EWB-12345'};
