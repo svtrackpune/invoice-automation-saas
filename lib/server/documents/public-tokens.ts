@@ -50,6 +50,14 @@ export type PublicDocument = {
     description: string; quantity: number; unit: string | null; unitPrice: number;
     discount: number; taxAmount: number; lineTotal: number; hsnSac: string | null;
   }>;
+  receiptDetails?: {
+    paymentMethod: string | null;
+    referenceNumber: string | null;
+    paymentDate: string | null;
+    invoice: { invoiceNumber: string; invoiceDate: string; total: number } | null;
+    allocations: Array<{ invoiceNumber: string; invoiceDate: string | null; totalDue: number; amountApplied: number; remainingBalance: number }>;
+    customerOutstanding: number;
+  };
 };
 
 const text = (v: unknown) => String(v ?? '').trim();
@@ -145,6 +153,24 @@ export async function loadPublicDocumentById(
         description: text(item.name) || 'Item', quantity: n(item.quantity), unit: null,
         unitPrice: n(item.unit_price), discount: 0, taxAmount: 0, lineTotal: n(item.line_total), hsnSac: null,
       })),
+      receiptDetails: {
+        paymentMethod: nullable(data.receipt.payment_method),
+        referenceNumber: nullable(data.receipt.reference_number),
+        paymentDate: nullable(data.receipt.receipt_date),
+        invoice: data.invoice ? {
+          invoiceNumber: text(data.invoice.invoice_number),
+          invoiceDate: text(data.invoice.invoice_date),
+          total: n(data.invoice.total),
+        } : null,
+        allocations: data.allocations.map(row => ({
+          invoiceNumber: text(row.invoice_number),
+          invoiceDate: nullable(row.invoice_date),
+          totalDue: n(row.total_due),
+          amountApplied: n(row.amount_applied),
+          remainingBalance: n(row.remaining_balance),
+        })),
+        customerOutstanding: n(data.customer_outstanding),
+      },
     };
   }
 
