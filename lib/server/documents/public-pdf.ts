@@ -168,6 +168,9 @@ const statusColor = (s: string): RGB => ['paid','accepted','delivered'].includes
   ['overdue','void','cancelled'].includes(s.toLowerCase()) ? C.red : C.amber;
 
 export async function buildPublicDocumentPdf(doc: PublicDocument): Promise<Buffer> {
+  const registration = String(doc.business.gstRegistrationType || '').trim().toUpperCase();
+  const gstBreakdownAllowed = !['NONE', 'UNREGISTERED', 'NON_GST', 'NOT_REGISTERED', 'COMPOSITION'].includes(registration)
+    && Boolean(String(doc.business.taxRegistrationNumber || '').trim());
   const canonical = createCanonicalDocumentViewModel(doc, { type: doc.type, upiId: doc.upiId, settlementDisplayMode: doc.settlementDisplayMode });
   const c = new Canvas(), right = W - M;
   const objects: Array<Buffer|string> = [];
@@ -362,12 +365,12 @@ export async function buildPublicDocumentPdf(doc: PublicDocument): Promise<Buffe
       ['Subtotal', canonical.financials.subtotal, 'normal']
     ];
     if (canonical.financials.totalDiscount !== 0) rows.push(['Discount', -Math.abs(canonical.financials.totalDiscount), 'normal']);
-    if (canonical.financials.taxBreakdown.length) {
+    if (gstBreakdownAllowed && canonical.financials.taxBreakdown.length) {
       canonical.financials.taxBreakdown.forEach(line => rows.push([
         line.rate > 0 ? line.name + ' (' + line.rate + '%)' : line.name,
         line.amount, 'normal'
       ]));
-    } else if (doc.taxTotal !== 0) rows.push(['Tax / GST', doc.taxTotal, 'normal']);
+    } else if (gstBreakdownAllowed && doc.taxTotal !== 0) rows.push(['Tax / GST', doc.taxTotal, 'normal']);
     rows.push(['Net Payable', canonical.financials.grandTotal, 'total']);
     if (canonical.financials.amountPaid > 0) rows.push(['Amount paid', canonical.financials.amountPaid, 'normal']);
     rows.push(['Balance due', canonical.financials.balanceDue, 'balance']);
@@ -414,10 +417,10 @@ export async function buildPublicDocumentPdf(doc: PublicDocument): Promise<Buffe
     : [
       ['Subtotal',canonical.financials.subtotal,false],
       ['Trade Discount',-Math.abs(canonical.financials.totalDiscount),false],
-      ['Taxable Value',Math.max(0,canonical.financials.subtotal-canonical.financials.totalDiscount),false]
+      ...(doc.type === 'quotation' && !gstBreakdownAllowed ? [] : [['Taxable Value',Math.max(0,canonical.financials.subtotal-canonical.financials.totalDiscount),false] as [string,number,boolean]])
     ];
   if(doc.type !== 'challan') {
-    if(canonical.financials.taxBreakdown.length) {
+    if(gstBreakdownAllowed && canonical.financials.taxBreakdown.length) {
       canonical.financials.taxBreakdown.forEach(line => summary.push([
         line.rate>0 ? line.name+' ('+line.rate+'%)' : line.name,
         line.amount,
