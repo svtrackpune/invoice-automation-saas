@@ -42,6 +42,7 @@ export default function PublicQuotation({params}:{params:Promise<{token:string}>
   const [error,setError]=useState('');
   const [accepting,setAccepting]=useState(false);
   const [acceptanceMessage,setAcceptanceMessage]=useState('');
+  const [redirectToast,setRedirectToast]=useState('');
   const [qrDataUrl,setQrDataUrl]=useState('');
   const money=useCallback((n:number)=>{const raw=String(quote?.currency_code||'INR').toUpperCase();const currency=/^[A-Z]{3}$/.test(raw)?raw:'INR';return new Intl.NumberFormat('en-IN',{style:'currency',currency,maximumFractionDigits:2}).format(Number(n||0));},[quote?.currency_code]);
 
@@ -81,11 +82,18 @@ export default function PublicQuotation({params}:{params:Promise<{token:string}>
       setAccepting(false);
       return;
     }
-    const outcome=result.data as {accepted?:boolean;already_processed?:boolean;quotation_number?:string;invoice_id?:string;invoice_number?:string;invoice_status?:string;delivery_pending_posting?:boolean;message?:string};
+    const outcome=result.data as {accepted?:boolean;already_processed?:boolean;quotation_id?:string;quotation_number?:string;invoice_id?:string;invoice_number?:string;invoice_status?:string;public_token?:string|null;redirect_url?:string|null;delivery_pending_posting?:boolean;message?:string};
     setQuote({...quote,status:'converted',invoice_id:outcome.invoice_id||quote.invoice_id||null,invoice_number:outcome.invoice_number||quote.invoice_number||null,invoice_status:outcome.invoice_status||quote.invoice_status||null});
+    if (outcome.redirect_url) {
+      setAcceptanceMessage('');
+      setRedirectToast('Quotation accepted! Redirecting to your Tax Invoice...');
+      setAccepting(false);
+      window.setTimeout(() => router.push(outcome.redirect_url as string), 700);
+      return;
+    }
     setAcceptanceMessage(outcome.delivery_pending_posting
-      ? `Thank you. Quotation ${outcome.quotation_number||quote.quotation_number} was accepted and converted to invoice ${outcome.invoice_number||'successfully'}. The official Tax Invoice will be shared after the business posts it.`
-      : `Thank you. Quotation ${outcome.quotation_number||quote.quotation_number} has been accepted and converted to invoice ${outcome.invoice_number||'successfully'}.`);
+      ? `Quotation ${outcome.quotation_number||quote.quotation_number} was accepted and converted to invoice ${outcome.invoice_number||'successfully'}. Your business must post the invoice before its secure customer invoice link becomes available.`
+      : `Quotation ${outcome.quotation_number||quote.quotation_number} has been accepted and converted to invoice ${outcome.invoice_number||'successfully'}.`);
     setAccepting(false);
   };
 
@@ -99,6 +107,7 @@ export default function PublicQuotation({params}:{params:Promise<{token:string}>
   const billingAddress=addressLines(quote.customer.billing_address);
   const shippingAddress=addressLines(quote.customer.shipping_address);
   return <main className="min-h-screen bg-slate-100 p-4 sm:p-8 print:bg-white print:p-0">
+    {redirectToast&&<div role="status" aria-live="polite" className="fixed bottom-5 right-5 z-[200] rounded-xl border border-emerald-200 bg-white px-4 py-3 text-sm font-semibold text-emerald-800 shadow-lg">{redirectToast}</div>}
     <article className="mx-auto max-w-4xl overflow-hidden rounded-2xl bg-white shadow-sm print:max-w-none print:rounded-none print:shadow-none">
       <header className="border-b border-slate-200 p-6 sm:p-8">
         <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
@@ -119,6 +128,18 @@ export default function PublicQuotation({params}:{params:Promise<{token:string}>
           </div>
         </div>
       </header>
+
+      <section className="border-b border-slate-200 px-6 py-4 sm:px-8 print:hidden">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+          <a href={'/api/public-documents/pdf?type=quotation&token='+encodeURIComponent(token)} className="inline-flex min-h-11 items-center justify-center rounded-xl border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50">Download Official PDF</a>
+          <CopyButton getValue={() => window.location.href} label="Copy Quotation Link" successMessage="Quotation link copied to clipboard!" className="inline-flex min-h-11 items-center justify-center rounded-xl border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50" />
+          {quote.status==='sent'&&!expired&&<button type="button" onClick={acceptQuotation} disabled={accepting} className="inline-flex min-h-11 items-center justify-center rounded-xl bg-violet-600 px-5 py-3 text-sm font-semibold text-white hover:bg-violet-700 disabled:cursor-wait disabled:opacity-60">{accepting?'Accepting securely…':'Accept Quotation & Request Invoice'}</button>}
+          {expired&&<div role="status" className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-900">This quotation expired on {quote.valid_until}. Please contact the business to extend its validity.</div>}
+          {quote.status==='converted'&&<div role="status" className="text-sm font-semibold text-emerald-800">Accepted · Invoice {quote.invoice_number||'created'}{quote.invoice_status==='draft'?' · Awaiting business posting':''}</div>}
+        </div>
+        {error&&<p role="alert" className="mt-3 rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-800">{error}</p>}
+        {acceptanceMessage&&<p role="status" className="mt-3 rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-center text-sm text-emerald-800">{acceptanceMessage}</p>}
+      </section>
 
       <section className="grid gap-4 border-b border-slate-200 p-6 sm:grid-cols-2 sm:p-8">
         <div className="min-w-0 rounded-xl border border-slate-200 bg-white p-4">
@@ -206,22 +227,9 @@ export default function PublicQuotation({params}:{params:Promise<{token:string}>
         </div>
       </section>}
 
-      <section className="border-t border-slate-200 p-6 sm:p-8 print:hidden">
-        <a href={'/api/public-documents/pdf?type=quotation&token='+encodeURIComponent(token)} className="inline-flex w-full items-center justify-center rounded-xl border border-slate-200 bg-white px-5 py-3 font-semibold text-slate-700 hover:bg-slate-50 sm:w-auto">Download Official PDF</a>
-        <div className="mt-4 flex flex-col gap-3 sm:flex-row">
-          {quote.status==='sent'&&!expired&&<button type="button" onClick={acceptQuotation} disabled={accepting} className="rounded-xl bg-violet-600 px-5 py-4 font-semibold text-white hover:bg-violet-700 disabled:cursor-wait disabled:opacity-60">{accepting?'Accepting securely…':'Accept Quotation & Request Invoice'}</button>}
-          {expired&&<div role="status" className="rounded-xl border border-amber-200 bg-amber-50 px-5 py-4 text-sm font-semibold text-amber-900">This quotation expired on {quote.valid_until}. Please contact the business to extend its validity before accepting.</div>}
-          {quote.status==='converted'&&<div className="rounded-xl border border-emerald-200 bg-emerald-50 px-5 py-4 text-sm font-semibold text-emerald-800">Accepted · Invoice {quote.invoice_number||'created'}{quote.invoice_status==='draft'?' · Awaiting business posting':''}</div>}
-          <button type="button" onClick={()=>navigator.clipboard.writeText(window.location.href)} className="rounded-xl border border-slate-200 bg-white px-5 py-4 font-semibold text-slate-800 hover:bg-slate-50">Copy quotation link</button>
-        </div>
-        {error&&<p role="alert" className="mt-4 rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-800">{error}</p>}
-        {acceptanceMessage&&<p role="status" className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-center text-sm text-emerald-800">{acceptanceMessage}</p>}
-        <p className="mt-3 text-xs text-slate-500">Accepting records your response against this secure quotation link and creates an invoice using the business’s existing tax and numbering rules. The official Tax Invoice is dispatched only after the business posts it.</p>
-      </section>
-
-      <footer className="border-t border-slate-200 bg-slate-50 px-6 py-5 text-center text-xs text-slate-500">
-        <p className="font-medium text-slate-600">This is a computer-generated quotation and does not require signature.</p>
-        <div className="mt-3 flex items-center justify-center gap-2 border-t border-slate-200 pt-3 text-slate-500"><span className="inline-grid h-4 w-4 place-items-center rounded bg-violet-600 text-[9px] font-black text-white">M</span><span><strong className="text-violet-600">Powered by Moneymatters FinOps</strong> | mm.nilanga.in</span></div>
+      <footer className="mt-12 border-t border-slate-200 pt-4 text-center text-xs text-slate-500 space-y-1">
+        <p>This is a computer-generated quotation and does not require signature.</p>
+        <p className="text-[11px] text-slate-400">Powered by Moneymatters FinOps | mm.nilanga.in</p>
       </footer>
     </article>
   </main>;
