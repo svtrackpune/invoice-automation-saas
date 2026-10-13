@@ -9,6 +9,7 @@ import { BusinessConfigProvider, useBusinessConfig } from '@/lib/BusinessConfigC
 import { buildAdaptiveCreateRoutes } from '@/lib/adaptive-navigation';
 import { canAccessRoute, canShowCreateMenu } from '@/lib/rbac';
 import { FinOpsIcon, FinOpsPrimaryButton, FinOpsSecondaryButton } from '@/components/ui/finops/FinOpsPrimitives';
+import HeaderNotifications from '@/components/layout/HeaderNotifications';
 
 type NavItem = { label: string; href: string; icon: Parameters<typeof FinOpsIcon>[0]['name']; always?: boolean };
 type NavGroup = { id: string; name: string; items: NavItem[] };
@@ -296,7 +297,7 @@ function WorkspaceChrome({ children, businesses, activeBusinessId, setActiveBusi
 
         <div className="ml-auto flex items-center gap-2">
           {canShowCreateMenu(active) && <QuickActionMenu go={go} />}
-          <button type="button" title="Notifications" aria-label="Notifications" className="grid h-9 w-9 place-items-center rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-50"><FinOpsIcon name="bell" /></button>
+          <HeaderNotifications businessId={activeBusinessId} />
           <div ref={accountRef} className="relative">
             <button type="button" onClick={() => setAccountMenu(v => !v)} aria-haspopup="menu" aria-expanded={accountMenu} className="flex items-center gap-2 rounded-lg px-1.5 py-1 hover:bg-slate-100">
               <span className="hidden text-right sm:block"><span className="block max-w-28 truncate text-xs font-semibold text-slate-900">{userName}</span><span className="block text-[10px] text-slate-400">{active?.role || 'Account'}</span></span>
