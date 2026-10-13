@@ -17,7 +17,7 @@ export default function QuotationEditModal({ quotationId, quotationNumber, onClo
           <div className="min-w-0">
             <span className="text-[10px] font-bold uppercase tracking-[.16em] text-violet-600">Correction</span>
             <h2 className="truncate text-base font-semibold text-slate-900">Edit {quotationNumber || 'quotation'}</h2>
-            <p className="text-xs text-slate-500">Draft and sent estimates can be corrected before acceptance or conversion.</p>
+            <p className="text-xs text-slate-500">Draft and sent quotations can be corrected before acceptance or conversion.</p>
           </div>
           <button type="button" onClick={onClose} className="shrink-0 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">Close</button>
         </header>
