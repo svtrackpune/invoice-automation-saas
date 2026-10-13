@@ -52,9 +52,47 @@ export async function applyDynamicTax(params:{
   const totalInvoiceDiscount=invoiceDiscount(netValues.map(net=>({net})),params.invoiceDiscountType,Number(params.invoiceDiscountValue||0));
   const finalDiscounts:number[]=[];const finalNet:number[]=[];
   for(let i=0;i<params.items.length;i++){const base=round2(params.items[i].quantity*params.items[i].unit_price);const lineDisc=normalizeLineDiscount(params.items[i],base);const allocated=allocateDiscount(totalInvoiceDiscount,netValues,i);finalDiscounts.push(round2(lineDisc+allocated));finalNet.push(Math.max(0,round2(base-lineDisc-allocated)));}
+
+  // Never calculate GST for an Indian seller without an eligible registered GSTIN.
+  // Composition-scheme suppliers also issue Bills of Supply and do not collect GST.
+  const {data:taxProfile,error:taxProfileError}=await params.db.from('business_tax_profiles')
+    .select('tax_regime,gst_registration_type,gstin,tax_id')
+    .eq('business_id',params.businessId).maybeSingle();
+  if(taxProfileError)throw new Error('Business tax registration profile is unavailable.');
+  const countryCode=String(b.country_code||'IN').trim().toUpperCase();
+  const regime=String(taxProfile?.tax_regime||'NONE').trim().toUpperCase();
+  const registration=String(taxProfile?.gst_registration_type||'NONE').trim().toUpperCase();
+  const gstin=String(taxProfile?.gstin||'').trim().toUpperCase();
+  const validGstin=countryCode==='IN'
+    ? /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][0-9A-Z]Z[0-9A-Z]$/.test(gstin)
+    : Boolean(gstin);
+  const gstEligible=regime==='GST'
+    && ['REGULAR','CASUAL','NON_RESIDENT','SEZ'].includes(registration)
+    && validGstin;
+  const otherTaxEligible=countryCode!=='IN'
+    && ['VAT','SALES_TAX','OTHER'].includes(regime)
+    && Boolean(String(taxProfile?.tax_id||'').trim());
+  if(!gstEligible&&!otherTaxEligible){
+    const applied:AppliedLine[]=params.items.map((line,i)=>({
+      ...line,
+      discount:finalDiscounts[i],
+      tax_amount:0,
+      tax_category:'STANDARD',
+      dynamic_tax_snapshot:[],
+      jurisdiction_id:null,
+      tax_rule_id:null,
+      source_provider:'registration-gated-no-tax',
+      discount_type:finalDiscounts[i]>0?'fixed':null,
+    }));
+    return {items:applied,totalTax:0,supplierAddress,buyerAddress,provider:'registration-gated-no-tax'};
+  }
+
   const provider=new DynamicTaxDeterminationProvider(params.db);
   const supplierTax=await params.db.from('business_tax_registrations').select('registration_number,tax_system').eq('business_id',params.businessId).eq('is_primary',true).limit(1).maybeSingle();
-  const taxResult=await provider.calculateTaxes({businessId:params.businessId,invoiceDate:params.invoiceDate,supplierAddress,buyerAddress,supplierTaxId:supplierTax.data?.registration_number||null,buyerTaxId:c.tax_id||null,taxSystem:params.taxSystem||null,currencyCode:params.currencyCode,lines:params.items.map((line,i)=>({invoiceItemId:String(i),taxCode:line.tax_rate_id||null,netAmount:finalNet[i]}))});
+  const supplierTaxId=supplierTax.data?.registration_number
+    || (regime==='GST' ? taxProfile?.gstin : taxProfile?.tax_id)
+    || null;
+  const taxResult=await provider.calculateTaxes({businessId:params.businessId,invoiceDate:params.invoiceDate,supplierAddress,buyerAddress,supplierTaxId,buyerTaxId:c.tax_id||null,taxSystem:params.taxSystem||null,currencyCode:params.currencyCode,lines:params.items.map((line,i)=>({invoiceItemId:String(i),taxCode:line.tax_rate_id||null,netAmount:finalNet[i]}))});
   const byLine=new Map<string,any[]>();
   for(const line of taxResult.lines){if(!byLine.has(line.invoiceItemId))byLine.set(line.invoiceItemId,[]);byLine.get(line.invoiceItemId)!.push(line);}
   const applied:AppliedLine[]=params.items.map((line,i)=>{
