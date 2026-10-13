@@ -153,7 +153,7 @@ function drawWrap(c: Canvas, x: number, top: number, value: unknown, max: number
   lines.forEach((line, i) => c.text(x, top + i * (size + 3), line, size, bold, color));
   return lines.length * (size + 3);
 }
-const docTitle = (type: string) => type === 'invoice' ? 'TAX INVOICE' : type === 'quotation' ? 'QUOTATION' : type === 'challan' ? 'DELIVERY CHALLAN' : 'PAYMENT RECEIPT';
+const docTitle = (type: string) => type === 'invoice' ? 'TAX INVOICE' : type === 'quotation' ? 'ESTIMATE / QUOTATION' : type === 'challan' ? 'DELIVERY CHALLAN' : 'PAYMENT RECEIPT';
 const statusColor = (s: string): RGB => ['paid','accepted','delivered'].includes(s.toLowerCase()) ? C.green :
   ['overdue','void','cancelled'].includes(s.toLowerCase()) ? C.red : C.amber;
 
