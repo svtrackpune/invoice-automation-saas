@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { copyTextToClipboard } from '@/lib/client/share-document';
 
 type CopyButtonProps = {
   value?: string;
@@ -34,7 +35,7 @@ export default function CopyButton({
     try {
       const text = getValue ? await getValue() : value;
       if (!text) throw new Error('No link is available to copy.');
-      await navigator.clipboard.writeText(text);
+      await copyTextToClipboard(text);
       setCopied(true);
       setToast(successMessage);
       if (timer.current) clearTimeout(timer.current);
