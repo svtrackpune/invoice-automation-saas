@@ -53,6 +53,8 @@ test('quotation actions are visible before acceptance and footer is standardized
   assert.match(quote,/Powered by Moneymatters FinOps \| mm\.nilanga\.in/);
   assert.doesNotMatch(quote,/Customer ledger balance|merchant outstanding balance/i);
   assert.match(quote,/router\.push\(outcome\.redirect_url as string\)/);
+  assert.match(quote,/catch \(cause\)/);
+  assert.match(quote,/Failed to accept quotation\./);
   assert.match(quote,/Quotation accepted! Redirecting to your Tax Invoice\.\.\./);
 });
 
