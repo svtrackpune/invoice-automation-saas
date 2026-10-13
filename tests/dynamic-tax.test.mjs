@@ -59,3 +59,16 @@ test('India GST remains the legacy-compatible system while US and Canada use glo
   assert.equal(100*0.05+100*0.02,7);
   assert.equal(Number((100*0.05+(100+5)*0.08).toFixed(2)),13.4);
 });
+
+test('dynamic tax is zero unless the seller has an explicit eligible registration',()=>{
+  assert.match(apply,/business_tax_profiles/);
+  assert.match(apply,/select\('tax_regime,gst_registration_type,gstin,tax_id'\)/);
+  assert.match(apply,/const gstEligible=regime==='GST'/);
+  assert.match(apply,/\['REGULAR','CASUAL','NON_RESIDENT','SEZ'\]\.includes\(registration\)/);
+  assert.match(apply,/const otherTaxEligible=countryCode!=='IN'/);
+  assert.match(apply,/if\(!gstEligible&&!otherTaxEligible\)/);
+  assert.match(apply,/tax_amount:0/);
+  assert.match(apply,/dynamic_tax_snapshot:\[\]/);
+  assert.match(apply,/source_provider:'registration-gated-no-tax'/);
+  assert.match(apply,/supplierTaxId/);
+});
