@@ -78,9 +78,6 @@ export default function QuotationsListPage() {
     });
   }, [rows, customers, search, statusFilter]);
 
-  const pdfUrl = (row: QuotationRow) => row.public_accept_token
-    ? '/api/public-documents/pdf?type=quotation&token=' + encodeURIComponent(row.public_accept_token) : '';
-
   useEffect(() => {
     if (!openActionsId) return;
     const closeOnOutsideClick = (event: MouseEvent) => {
@@ -178,7 +175,6 @@ export default function QuotationsListPage() {
                     const expired = row.status === 'sent' && Boolean(row.valid_until && row.valid_until < today());
                     const isPublic = ['sent', 'accepted', 'converted'].includes(row.status);
                     const isEditable = ['draft', 'sent'].includes(row.status);
-                    const pdf = pdfUrl(row);
                     return (
                       <tr key={row.id} className="hover:bg-slate-50/80">
                         <td className="px-4 py-4 font-semibold text-slate-900">{row.quotation_number}</td>
