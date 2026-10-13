@@ -251,18 +251,17 @@ test('public invoice renderer creates a vector-rendered A4 GST PDF with QR and b
 });
 function QRCodePlaceholderForTest(pdf){const raw=pdf.toString('latin1');return raw.includes('/Subtype /Link')&&raw.includes('Pay Now via UPI')&&raw.includes('/Annots [');}
 
-test('public PDF download uses a sanitized entity-type-number filename',async()=>{
+test('public PDF downloads use standardized type-business-number attachment filenames',async()=>{
  const route=await read('app/api/public-documents/pdf/route.ts');
- assert.match(route,/const entitySlug = slug\(document\.business\.name/);
- assert.match(route,/const typeSlug = type === 'challan' \? 'delivery-challan' : type/);
- assert.match(route,/const rawNumber = document\.number\.replace/);
- assert.match(route,/Content-Disposition.*filename="\$\{filename\}"/);
+ assert.match(route,/export function buildDownloadFilename\(type: string, entityName: string, docNumber: string\)/);
+ assert.match(route,/return `\$\{cleanType\}-\$\{cleanEntity\}-\$\{cleanNum\}\.pdf`/);
+ assert.match(route,/buildDownloadFilename\(type, document\.business\.name \|\| document\.customer\.name/);
+ assert.match(route,/Content-Disposition.*attachment; filename=/);
+ assert.doesNotMatch(route,/inline; filename=/);
  const receiptRoute=await read('app/api/receipts/pdf/route.ts');
  assert.match(receiptRoute,/Content-Disposition.*attachment/);
  assert.ok(receiptRoute.includes("const filename = `${entitySlug}-receipt-${numberSlug}.pdf`"));
  assert.ok(receiptRoute.includes("replace(/^(?:REC(?:EIPT)?|RCPT|RCT)[-_ ]*/i, '')"));
- assert.match(receiptRoute,/entitySlug/);
- assert.match(route,/replace\(\/\[\^a-z0-9\]\+\/g, '-'/);
 });
 
 test('public invoice view gates bank and UPI payment cards by the configured settlement mode',async()=>{
