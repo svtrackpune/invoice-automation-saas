@@ -9,6 +9,7 @@ type CopyButtonProps = {
   copiedLabel?: string;
   successMessage?: string;
   className?: string;
+  disabled?: boolean;
 };
 
 export default function CopyButton({
@@ -18,6 +19,7 @@ export default function CopyButton({
   copiedLabel = 'Copied!',
   successMessage = 'Link copied to clipboard!',
   className = '',
+  disabled = false,
 }: CopyButtonProps) {
   const [copied, setCopied] = useState(false);
   const [toast, setToast] = useState('');
@@ -28,6 +30,7 @@ export default function CopyButton({
   }, []);
 
   const copy = async () => {
+    if (disabled) return;
     try {
       const text = getValue ? await getValue() : value;
       if (!text) throw new Error('No link is available to copy.');
@@ -48,7 +51,7 @@ export default function CopyButton({
   };
 
   return <>
-    <button type="button" onClick={copy} aria-live="polite" className={className}>
+    <button type="button" onClick={copy} disabled={disabled} aria-live="polite" className={className}>
       {copied
         ? <svg aria-hidden="true" viewBox="0 0 24 24" className="mr-2 inline-block h-4 w-4 text-emerald-600" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m5 12 4 4L19 6" /></svg>
         : <svg aria-hidden="true" viewBox="0 0 24 24" className="mr-2 inline-block h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="8" y="8" width="13" height="13" rx="2" /><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3" /></svg>}
