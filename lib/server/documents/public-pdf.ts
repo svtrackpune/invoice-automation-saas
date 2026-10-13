@@ -277,9 +277,9 @@ export async function buildPublicDocumentPdf(doc: PublicDocument): Promise<Buffe
     }
     return top+124;
   };
-  const widths = doc.type === 'invoice' || doc.type === 'quotation' ? [24, 245, 52, 88, CW - 409] : [21,140,45,38,58,49,82,82];
+  const widths = doc.type === 'invoice' || doc.type === 'quotation' ? [25, 225, 50, 50, 75, 90] : [21,140,45,38,58,49,82,82];
   const labels = doc.type === 'invoice' || doc.type === 'quotation'
-    ? ['#', 'ITEM / DESCRIPTION', 'QTY', 'RATE', 'AMOUNT']
+    ? ['#', 'ITEM / DESCRIPTION', 'QTY', 'UNIT', 'RATE', 'AMOUNT']
     : ['#','Item Description','HSN/SAC','Qty','Unit Rate','Discount','Taxable Amt','Total'];
   const tableHeader=(top:number)=>{
     if (doc.type === 'invoice' || doc.type === 'quotation') {
@@ -287,8 +287,9 @@ export async function buildPublicDocumentPdf(doc: PublicDocument): Promise<Buffe
       c.line(M, top + 20, right, top + 20, C.rowBorder, 0.65);
       let x = M;
       widths.forEach((w, i) => {
-        const align = i > 1 ? 'right' : 'left';
-        c.text(align === 'right' ? x + w - 7 : x + 7, top + 6, labels[i], 8, true, C.white, align);
+        const align = i === 2 || i === 3 ? 'center' : i >= 4 ? 'right' : 'left';
+        const tx = align === 'center' ? x + w / 2 : align === 'right' ? x + w - 7 : x + 7;
+        c.text(tx, top + 6, labels[i], 8, true, C.white, align);
         x += w;
       });
     } else {
@@ -305,17 +306,20 @@ export async function buildPublicDocumentPdf(doc: PublicDocument): Promise<Buffe
   items.forEach((it,i)=>{
     const originalItem=doc.items[i];
     if (doc.type === 'invoice' || doc.type === 'quotation') {
-      const desc = wrap(it.description, 41).slice(0, 2);
-      const rh = Math.max(28, desc.length * 10 + (it.hsn ? 8 : 0) + 8);
+      const nameLines = wrap(it.name || it.description || 'Item', 36).slice(0, 2);
+      const detailLines = it.description && it.description !== it.name ? wrap(it.description, 39).slice(0, 2) : [];
+      const rh = Math.max(32, nameLines.length * 10 + detailLines.length * 9 + (it.hsn ? 8 : 0) + 9);
       if (y + rh > FOOTER_TOP - 4) { c.newPage(); header(true); y = tableHeader(154); }
       c.line(M, y + rh, right, y + rh, C.rowBorder, 0.5);
       const xs: number[] = []; let xx = M; for (const w of widths) { xs.push(xx); xx += w; }
-      c.text(xs[0] + 8, y + 9, i + 1, 7.5, false, C.muted);
-      desc.forEach((v, j) => c.text(xs[1] + 7, y + 7 + j * 10, v, j === 0 ? 8.2 : 7.4, j === 0, j === 0 ? C.navy : C.muted));
-      if (it.hsn) c.text(xs[1] + 7, y + 7 + desc.length * 10, 'HSN / SAC: ' + it.hsn, 6.5, false, C.muted);
-      c.text(xs[2] + widths[2] - 7, y + 9, ascii(it.quantity) + (originalItem?.unit ? ' ' + ascii(originalItem.unit).slice(0, 5) : ''), 7.7, false, C.ink, 'right');
-      c.text(xs[3] + widths[3] - 7, y + 9, money(it.unitPrice, canonical.document.currency), 7.5, false, C.ink, 'right');
-      c.text(xs[4] + widths[4] - 7, y + 9, money(it.amount, canonical.document.currency), 7.8, true, C.navy, 'right');
+      c.text(xs[0] + 5, y + 9, i + 1, 7.5, false, C.muted);
+      nameLines.forEach((line, j) => c.text(xs[1] + 7, y + 7 + j * 10, line, 8.5, true, C.navy));
+      detailLines.forEach((line, j) => c.text(xs[1] + 7, y + 7 + nameLines.length * 10 + j * 9, line, 7.5, false, C.muted));
+      if (it.hsn) c.text(xs[1] + 7, y + 7 + nameLines.length * 10 + detailLines.length * 9, 'HSN / SAC: ' + it.hsn, 6.5, false, C.muted);
+      c.text(xs[2] + widths[2] / 2, y + 9, ascii(it.quantity), 7.7, false, C.ink, 'center');
+      c.text(xs[3] + widths[3] / 2, y + 9, ascii(originalItem?.unit || it.unit || 'pcs').toUpperCase(), 7.0, true, C.muted, 'center');
+      c.text(xs[4] + widths[4] - 6, y + 9, money(it.unitPrice, canonical.document.currency), 7.5, false, C.ink, 'right');
+      c.text(xs[5] + widths[5] - 6, y + 9, money(it.amount, canonical.document.currency), 7.8, true, C.navy, 'right');
       y += rh;
     } else {
       const desc=wrap(it.description,31).slice(0,3), rh=Math.max(25,desc.length*9+10);
