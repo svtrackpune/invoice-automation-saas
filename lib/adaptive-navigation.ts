@@ -21,7 +21,7 @@ const NAVIGATION: AdaptiveNavGroup[] = [
     name: 'Sales',
     items: [
       { label: 'Invoices', href: '/next-workspace/invoices', always: true },
-      { label: 'Estimates', href: '/next-workspace/documents/library?type=quotation', always: true },
+      { label: 'Quotations', href: '/next-workspace/documents/library?type=quotation', always: true },
       { label: 'Payments', href: '/next-workspace/payments', always: true },
       { label: 'Receipts', href: '/next-workspace/receipts', always: true },
       { label: 'Customers', href: '/next-workspace/customers', always: true },
@@ -90,7 +90,7 @@ export function buildAdaptiveNavigation(config: BusinessFeatureConfig, cashBillE
 
 export const CREATE_ROUTES: AdaptiveNavItem[] = [
   { label: 'Invoice', href: '/next-workspace/invoices/new', always: true },
-  { label: 'Estimate', href: '/next-workspace/documents/library?type=quotation&create=1', always: true },
+  { label: 'Quotation', href: '/next-workspace/documents/library?type=quotation&create=1', always: true },
   { label: 'Payment', href: '/next-workspace/payments', always: true },
   { label: 'Expense', href: '/next-workspace/expenses', always: true },
   { label: 'Customer', href: '/next-workspace/customers', always: true },
