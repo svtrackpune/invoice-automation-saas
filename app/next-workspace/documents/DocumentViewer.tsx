@@ -305,7 +305,7 @@ function Paper({ type, payload, business, customer, items, theme, fields, logoUr
 }
 
 export default function DocumentViewer({ type, id }: { type: string; id: string }) {
-  const [job, setJob] = useState<any>(null), [template, setTemplate] = useState<any>(null), [preferences, setPreferences] = useState<any>(null), [business, setBusiness] = useState<any>(null), [receiptItems, setReceiptItems] = useState<any[]>([]), [receiptAllocations, setReceiptAllocations] = useState<ReceiptAllocation[]>([]), [taxLines, setTaxLines] = useState<TaxLine[]>([]), [originalInvoice, setOriginalInvoice] = useState({ number:'', date:'' }), [cashBillFormat, setCashBillFormat] = useState<'a4'|'a5'|'thermal80'|'thermal58'>('a4'), [paymentSelection, setPaymentSelection] = useState<any>(null), [paymentSettings, setPaymentSettings] = useState<any>(null), [customerBalance, setCustomerBalance] = useState(0), [paymentQrDataUrl, setPaymentQrDataUrl] = useState<string>(''), [loading, setLoading] = useState(true), [error, setError] = useState(''), [notice, setNotice] = useState(''), [isCopied, setIsCopied] = useState(false), [toastMessage, setToastMessage] = useState('');
+  const [job, setJob] = useState<any>(null), [template, setTemplate] = useState<any>(null), [preferences, setPreferences] = useState<any>(null), [business, setBusiness] = useState<any>(null), [receiptItems, setReceiptItems] = useState<any[]>([]), [receiptAllocations, setReceiptAllocations] = useState<ReceiptAllocation[]>([]), [taxLines, setTaxLines] = useState<TaxLine[]>([]), [originalInvoice, setOriginalInvoice] = useState({ number:'', date:'' }), [cashBillFormat, setCashBillFormat] = useState<'a4'|'a5'|'thermal80'|'thermal58'>('a4'), [paymentSelection, setPaymentSelection] = useState<any>(null), [paymentSettings, setPaymentSettings] = useState<any>(null), [customerBalance, setCustomerBalance] = useState(0), [paymentQrDataUrl, setPaymentQrDataUrl] = useState<string>(''), [loading, setLoading] = useState(true), [error, setError] = useState(''), [notice, setNotice] = useState(''), [isCopied, setIsCopied] = useState(false), [toastMessage, setToastMessage] = useState(''), [shareOptions, setShareOptions] = useState<{ url: string; message: string; title: string } | null>(null);
   const copyTimer = useRef<number | null>(null);
   const toastTimer = useRef<number | null>(null);
 
@@ -583,6 +583,7 @@ export default function DocumentViewer({ type, id }: { type: string; id: string 
       const publicUrl = await getPublicDocumentUrl(type, id);
       await navigator.clipboard.writeText(publicUrl);
       setNotice('');
+      setShareOptions(null);
       setIsCopied(true);
       if (copyTimer.current) window.clearTimeout(copyTimer.current);
       copyTimer.current = window.setTimeout(() => setIsCopied(false), 2000);
@@ -593,17 +594,36 @@ export default function DocumentViewer({ type, id }: { type: string; id: string 
     }
   };
   const share = async () => {
+    if (shareOptions) { setShareOptions(null); return; }
     try {
       const publicUrl = await getPublicDocumentUrl(type, id);
       const message = shareMessage(publicUrl);
-      if (navigator.share) await navigator.share({ title: title + ' ' + number, text: message });
-      else {
-        await navigator.clipboard.writeText(message);
-        setNotice('Customer-ready public sharing message copied.');
+      const shareTitle = title + ' ' + number;
+      if (typeof navigator.share === 'function') {
+        try {
+          await navigator.share({ title: shareTitle, text: message, url: publicUrl });
+          setShareOptions(null);
+          return;
+        } catch (error) {
+          if (error instanceof Error && error.name === 'AbortError') return;
+          // Native sharing may exist but be unavailable in this browsing context; expose explicit fallbacks.
+        }
       }
+      setNotice('');
+      setShareOptions({ url: publicUrl, message, title: shareTitle });
     } catch (error) {
-      if (error instanceof Error && error.name === 'AbortError') return;
       setNotice(error instanceof Error ? error.message : 'Unable to share this document publicly.');
+    }
+  };
+  const copyShareMessage = async () => {
+    if (!shareOptions) return;
+    try {
+      await navigator.clipboard.writeText(shareOptions.message);
+      setShareOptions(null);
+      setNotice('');
+      toast.success('Share message copied to clipboard!');
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : 'Unable to copy the share message.');
     }
   };
   const print = () => {
@@ -659,7 +679,27 @@ export default function DocumentViewer({ type, id }: { type: string; id: string 
   };
   if (loading) return <div className="center">Preparing document…</div>;
   if (error) return <div className="center error">{error}</div>;
-  return <main className="page"><div className="toolbar"><div><small>DOCUMENT CENTER</small><h1>{title} {number}</h1><p>{template?.template_name || theme.label} · Print-ready</p></div><div className="actions">{type==='cash_bill'&&<select aria-label="Cash Bill print format" value={cashBillFormat} onChange={e=>setCashBillFormat(e.target.value as typeof cashBillFormat)}><option value="a4">A4 Modern</option><option value="a5">A5 Modern</option><option value="thermal80">Thermal 80mm</option><option value="thermal58">Thermal 58mm</option></select>}<button type="button" onClick={back} className="inline-flex items-center justify-center gap-1.5 rounded-full border border-slate-200 bg-white px-3.5 py-2 text-xs font-semibold text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500 focus-visible:ring-offset-2"><svg aria-hidden="true" viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>Back</button>{canShareDocument && <button type="button" onClick={copyLink} aria-live="polite" className="inline-flex items-center justify-center gap-1.5 rounded-full border border-slate-200 bg-white px-3.5 py-2 text-xs font-semibold text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500 focus-visible:ring-offset-2">{isCopied ? <svg aria-hidden="true" viewBox="0 0 24 24" className="h-4 w-4 text-emerald-600" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="m5 12 4 4L19 6"/></svg> : <svg aria-hidden="true" viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="8" y="8" width="13" height="13" rx="2"/><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3"/></svg>}{isCopied ? 'Copied!' : 'Copy customer link'}</button>}{canShareDocument && <button type="button" onClick={share} className="inline-flex items-center justify-center gap-1.5 rounded-full border border-slate-200 bg-white px-3.5 py-2 text-xs font-semibold text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500 focus-visible:ring-offset-2"><svg aria-hidden="true" viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="m8.6 10.6 6.8-4.2M8.6 13.4l6.8 4.2"/></svg>Share link</button>}<button type="button" onClick={print} className="inline-flex items-center justify-center gap-1.5 rounded-full bg-purple-600 px-3.5 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-purple-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500 focus-visible:ring-offset-2"><svg aria-hidden="true" viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 9V3h12v6M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><path d="M6 14h12v7H6z"/></svg>Print / Save PDF</button></div></div>
+  return <main className="page"><div className="toolbar"><div><small>DOCUMENT CENTER</small><h1>{title} {number}</h1><p>{template?.template_name || theme.label} · Print-ready</p></div><div className="actions">{type==='cash_bill'&&<select aria-label="Cash Bill print format" value={cashBillFormat} onChange={e=>setCashBillFormat(e.target.value as typeof cashBillFormat)}><option value="a4">A4 Modern</option><option value="a5">A5 Modern</option><option value="thermal80">Thermal 80mm</option><option value="thermal58">Thermal 58mm</option></select>}<button type="button" onClick={back} className="inline-flex items-center justify-center gap-1.5 rounded-full border border-slate-200 bg-white px-3.5 py-2 text-xs font-semibold text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500 focus-visible:ring-offset-2"><svg aria-hidden="true" viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>Back</button>{canShareDocument && <button type="button" onClick={copyLink} aria-live="polite" className="inline-flex items-center justify-center gap-1.5 rounded-full border border-slate-200 bg-white px-3.5 py-2 text-xs font-semibold text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500 focus-visible:ring-offset-2">{isCopied ? <svg aria-hidden="true" viewBox="0 0 24 24" className="h-4 w-4 text-emerald-600" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="m5 12 4 4L19 6"/></svg> : <svg aria-hidden="true" viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="8" y="8" width="13" height="13" rx="2"/><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3"/></svg>}{isCopied ? 'Copied!' : 'Copy customer link'}</button>}{canShareDocument && <div className="relative inline-flex">
+        <button type="button" onClick={share} aria-expanded={Boolean(shareOptions)} aria-haspopup="dialog" className="inline-flex items-center justify-center gap-1.5 rounded-full border border-slate-200 bg-white px-3.5 py-2 text-xs font-semibold text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500 focus-visible:ring-offset-2">
+          <svg aria-hidden="true" viewBox="0 0 24 24" className="h-4 w-4 text-slate-500" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="m8.6 10.6 6.8-4.2M8.6 13.4l6.8 4.2"/></svg>
+          Share link
+        </button>
+        {shareOptions && <div role="dialog" aria-label="Share public customer link" className="absolute right-0 top-full z-50 mt-2 w-64 rounded-xl border border-slate-200 bg-white p-3 shadow-xl">
+          <p className="px-1 pb-2 text-xs font-bold uppercase tracking-wider text-slate-500">Share public link</p>
+          <div className="grid gap-1">
+            <a href={'https://wa.me/?text=' + encodeURIComponent(shareOptions.message)} target="_blank" rel="noreferrer" onClick={() => setShareOptions(null)} className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
+              <span className="inline-grid h-6 w-6 place-items-center rounded-full bg-green-100 text-xs font-extrabold text-green-700">W</span> WhatsApp
+            </a>
+            <a href={'mailto:?subject=' + encodeURIComponent(shareOptions.title) + '&body=' + encodeURIComponent(shareOptions.message)} onClick={() => setShareOptions(null)} className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
+              <span className="inline-grid h-6 w-6 place-items-center rounded-full bg-slate-100 text-sm font-extrabold text-slate-700">@</span> Email
+            </a>
+            <button type="button" onClick={copyShareMessage} className="flex items-center gap-2 rounded-lg px-3 py-2 text-left text-sm font-medium text-slate-700 hover:bg-slate-50">
+              <svg aria-hidden="true" viewBox="0 0 24 24" className="h-4 w-4 text-slate-500" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="8" y="8" width="13" height="13" rx="2"/><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3"/></svg> Copy message
+            </button>
+          </div>
+          <p className="mt-2 break-all border-t border-slate-100 px-1 pt-2 text-[11px] leading-4 text-slate-500">{shareOptions.url}</p>
+        </div>}
+      </div>}<button type="button" onClick={print} className="inline-flex items-center justify-center gap-1.5 rounded-full bg-purple-600 px-3.5 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-purple-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500 focus-visible:ring-offset-2"><svg aria-hidden="true" viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 9V3h12v6M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><path d="M6 14h12v7H6z"/></svg>Print / Save PDF</button></div></div>
     {toastMessage && <div role="status" aria-live="polite" className="fixed right-5 top-5 z-[100] flex items-center gap-2 rounded-xl border border-emerald-200 bg-white px-4 py-3 text-sm font-semibold text-slate-800 shadow-lg"><svg aria-hidden="true" viewBox="0 0 24 24" className="h-5 w-5 text-emerald-600" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m5 12 4 4L19 6"/></svg>{toastMessage}</div>}
     <Paper type={type} payload={canonicalPayload} business={canonicalBusiness} customer={canonicalCustomer} items={canonicalItems} theme={theme} fields={fields} logoUrl={logoUrl} paymentSelection={paymentSelection} paymentQrDataUrl={paymentQrDataUrl} upiIntentUrl={canonicalPaymentEnabled ? canonical.financials.upiQrString || '' : ''}
       showLogo={preferences?.show_logo !== false} showBusinessAddress={preferences?.show_business_address !== false} showTaxDetails={preferences?.show_tax_details !== false}

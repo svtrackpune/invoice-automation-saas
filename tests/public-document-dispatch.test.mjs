@@ -256,9 +256,18 @@ test('public invoice view gates bank and UPI payment cards by the configured set
  assert.match(page,/showBankSettlement&&invoice\.bank/);
  assert.match(page,/showUpiSettlement&&/);
  assert.doesNotMatch(page,/Pay Now Online/);
- assert.match(page,/settlementDisplayMode==='bank_transfer'\?'BANK DETAILS':'PAYMENT'/);
+ assert.match(page,/showUpiSettlement&&!showBankSettlement\?'SCAN & PAY VIA UPI':showBankSettlement&&!showUpiSettlement\?'BANK DETAILS':'PAYMENT SETTLEMENT'/);
 });
 
+test('public invoice page follows the print blueprint for parties, purple table, settlement, statutory fields, and footer',async()=>{
+ const page=await read('app/invoice/[token]/page.tsx');
+ for(const value of ['BILL TO','SHIP TO','ITEM / DESCRIPTION','QTY','RATE','AMOUNT','bg-[#7c3aed]','AMOUNT IN WORDS','Authorized Signatory','This is a computer-generated invoice and does not require signature.']) assert.ok(page.includes(value),'Public invoice is missing '+value);
+ assert.doesNotMatch(page,/This is a customer-facing invoice shared by/);
+ const settlement=page.indexOf('PAYMENT SETTLEMENT');
+ const notes=page.indexOf('>NOTES</h3>');
+ const totals=page.indexOf('Subtotal');
+ assert.ok(settlement>=0&&notes>settlement&&totals>notes,'Expected payment block, notes/terms, then financial totals in the shared layout');
+});
 test('document toolbar exposes styled actions, copied feedback, and print iframe copies component styles',async()=>{
  const viewer=await read('app/next-workspace/documents/DocumentViewer.tsx');
  assert.match(viewer,/rounded-full bg-purple-600/);
@@ -269,6 +278,11 @@ test('document toolbar exposes styled actions, copied feedback, and print iframe
  assert.match(viewer,/document\.querySelectorAll\('style'\)/);
  assert.match(viewer,/stylesheetReady/);
  assert.match(viewer,/settlementDisplayMode=\{canonical\.settlementDisplayMode\}/);
+ assert.match(viewer,/aria-haspopup="dialog"/);
+ assert.match(viewer,/https:\/\/wa\.me\//);
+ assert.match(viewer,/mailto:\?subject=/);
+ assert.match(viewer,/copyShareMessage/);
+ assert.match(viewer,/Share public link/);
 });
 
 test('canonical view model powers invoice, quotation, receipt, challan, print and PDF surfaces',async()=>{
