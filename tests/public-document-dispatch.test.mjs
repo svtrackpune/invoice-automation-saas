@@ -206,6 +206,7 @@ test('public invoice renderer creates a vector-rendered A4 GST PDF with QR and b
  for(const text of ['TAX INVOICE','INV-000018','BILL TO','SHIP TO','Template: Premium','#','ITEM / DESCRIPTION','CGST','SGST','Total','Balance due','AMOUNT IN WORDS:','Authorized Signatory','SCAN & PAY VIA UPI','Pay Now via UPI','Scan to pay the invoice amount.','This is a computer-generated invoice and does not require signature.','Powered by Moneymatters FinOps | mm.nilanga.in']) assert.ok(raw.includes(text),'PDF is missing '+text);
  assert.doesNotMatch(raw,/Rs\./);
  assert.ok(raw.indexOf('Pay Now via UPI') < raw.indexOf('TERMS & CONDITIONS'),'payment settlement must be rendered before invoice terms');
+ assert.doesNotMatch(raw,/INVOICE SUMMARY/);
  assert.doesNotMatch(raw,/This is a customer-facing invoice shared by/);
  assert.match(raw,/0\.486 0\.227 0\.929 rg[^\n]* m [^\n]* l/,'PDF must include a filled purple vector accent');
  assert.match(raw,/0\.929 0\.914 0\.996 rg/,'PDF must include the light-purple header slant');
@@ -266,7 +267,7 @@ test('public invoice view gates bank and UPI payment cards by the configured set
 
 test('public invoice page follows the print blueprint for parties, purple table, settlement, statutory fields, and footer',async()=>{
  const page=await read('app/invoice/[token]/page.tsx');
- for(const value of ['BILL TO','SHIP TO','ITEM / DESCRIPTION','QTY','RATE','AMOUNT','bg-[#7c3aed]','AMOUNT IN WORDS','Authorized Signatory','This is a computer-generated invoice and does not require signature.']) assert.ok(page.includes(value),'Public invoice is missing '+value);
+ for(const value of ['TAX INVOICE','BILL TO','SHIP TO','ITEM / DESCRIPTION','QTY','RATE','AMOUNT','bg-[#7c3aed]','AMOUNT IN WORDS','Authorized Signatory','This is a computer-generated invoice and does not require signature.']) assert.ok(page.includes(value),'Public invoice is missing '+value);
  assert.doesNotMatch(page,/This is a customer-facing invoice shared by/);
  const settlement=page.indexOf('PAYMENT SETTLEMENT');
  const notes=page.indexOf('>NOTES</h3>');
@@ -297,6 +298,13 @@ test('public quotation uses the standard status, table, statutory blocks, CTA, a
  assert.match(page,/rpc\('rpc_accept_public_quotation'/);
  assert.match(pdf,/doc\.type === 'invoice' \|\| doc\.type === 'quotation'/);
  assert.match(pdf,/This is a computer-generated quotation and does not require signature\./);
+});
+test('public receipt page exposes allocations, payment acknowledgement, ledger balance, and disclaimer',async()=>{
+ const page=await read('app/receipt/[token]/page.tsx');
+ for(const value of ['Invoice Allocation','Invoice No.','Invoice Date','Original Amount','Amount Applied','Payment Mode','UTR / Transaction Ref','Payment Date','Customer Ledger Balance','This is a computer-generated payment receipt and does not require signature.']) assert.ok(page.includes(value),'Public receipt is missing '+value);
+ const resolver=await read('lib/server/documents/public-tokens.ts');
+ assert.match(resolver,/receiptDetails:/);
+ assert.match(resolver,/customerOutstanding/);
 });
 test('canonical view model powers invoice, quotation, receipt, challan, print and PDF surfaces',async()=>{
  const viewModel=await read('lib/shared/document-view-model.ts');
