@@ -43,7 +43,8 @@ test('receipt and POS print helpers use a consistent 80mm width',()=>{
 });
 
 test('workspace invoice blueprint puts payment before terms and always renders ship-to fallback',()=>{
-  const gridStart=viewer.indexOf("<div className='post-table-grid'>");
+  const standardHeader=viewer.indexOf("<header className='document-header'>");
+  const gridStart=viewer.indexOf("<div className='post-table-grid'>",standardHeader);
   const gridEnd=viewer.indexOf('{showSignature&&',gridStart);
   const grid=viewer.slice(gridStart,gridEnd);
   assert.ok(grid.indexOf('<PaymentSection')>=0 && grid.indexOf('<PaymentSection')<grid.indexOf('document-terms'));
