@@ -23,7 +23,7 @@ type PdfData = {
   customer: { display_name: string | null; legal_name: string | null; phone: string | null; email: string | null; billing_address: any; shipping_address: any; tax_id: string | null } | null;
   business: { name: string | null; legal_name: string | null; address: any; phone: string | null; email: string | null; website: string | null; tax_registration_number: string | null; logo_storage_path: string | null } | null;
   items: Array<{ name: string; sku: string | null; quantity: number; unit_price: number; line_total: number }>;
-  allocations: Array<{ invoice_number: string; total_due: number; amount_applied: number; remaining_balance: number }>;
+  allocations: Array<{ invoice_number: string; invoice_date: string | null; total_due: number; amount_applied: number; remaining_balance: number }>;
   customer_outstanding: number;
 };
 
@@ -231,9 +231,15 @@ const buildReceiptPdf = (data: PdfData) => {
   y -= 20;
   textLine(page, left, y, 'Retain this digital receipt as proof of purchase for warranty or guarantee claims.', 8.5);
   y -= 14;
-  textLine(page, left, y, 'This is a computer-generated receipt.', 8);
-  y -= 22;
   textLine(page, left, y, businessName, 8, true);
+  y -= 14;
+  const disclaimer = 'This is a computer-generated payment receipt and does not require signature.';
+  const disclaimerX = Math.max(left, (pageWidth - disclaimer.length * 4) / 2);
+  textLine(page, disclaimerX, y, disclaimer, 8);
+  y -= 14;
+  const powered = 'Powered by Moneymatters FinOps | mm.nilanga.in';
+  const poweredX = Math.max(left, (pageWidth - powered.length * 3.6) / 2);
+  textLine(page, poweredX, y, powered, 7.5, true);
 
   return encodePdf(pages, pageWidth, pageHeight);
 };
@@ -321,12 +327,13 @@ export async function loadReceiptPdfData(db: SupabaseClient, receiptId: string):
 
   const allocationInvoiceIds = Array.from(new Set((allocationResult.data || []).map((row: any) => row.invoice_id).filter(Boolean)));
   const allocationInvoiceResult = allocationInvoiceIds.length
-    ? await db.from('invoices').select('id,invoice_number,total,balance_due').in('id', allocationInvoiceIds).eq('business_id', receipt.business_id)
+    ? await db.from('invoices').select('id,invoice_number,invoice_date,total,balance_due').in('id', allocationInvoiceIds).eq('business_id', receipt.business_id)
     : { data: [] } as any;
   const allocations = (allocationResult.data || []).map((row: any) => {
     const source = (allocationInvoiceResult.data || []).find((invoice: any) => invoice.id === row.invoice_id);
     return {
       invoice_number: plain(source?.invoice_number || row.invoice_id || '—'),
+      invoice_date: source?.invoice_date ? plain(source.invoice_date) : null,
       total_due: Number(source?.total || 0),
       amount_applied: Number(row.amount || 0),
       remaining_balance: Math.max(0, Number(source?.balance_due || 0)),
