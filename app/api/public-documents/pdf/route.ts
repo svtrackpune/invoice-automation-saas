@@ -5,6 +5,13 @@ export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 const allowed = new Set<PublicDocumentType>(['invoice','quotation','challan','receipt']);
+
+export function buildDownloadFilename(type: string, entityName: string, docNumber: string): string {
+  const cleanType = type.charAt(0).toUpperCase() + type.slice(1).toLowerCase();
+  const cleanEntity = entityName.normalize('NFKD').replace(/[^a-zA-Z0-9]+/g, '-').replace(/(^-|-$)/g, '').slice(0, 80).replace(/-+$/g, '') || 'Business';
+  const cleanNum = docNumber.replace(/[^a-zA-Z0-9_-]+/g, '').slice(0, 80) || 'Document';
+  return `${cleanType}-${cleanEntity}-${cleanNum}.pdf`;
+}
 export async function GET(request: NextRequest) {
   const requestedType = (request.nextUrl.searchParams.get('type') || '').trim().toLowerCase();
   const type = (requestedType === 'quote' ? 'quotation' : requestedType) as PublicDocumentType | null;
@@ -14,13 +21,7 @@ export async function GET(request: NextRequest) {
     const document = await resolvePublicDocumentByToken(type, token);
     if (!document) return NextResponse.json({error:'Document not found or link expired.'},{status:404,headers:{'Cache-Control':'private, no-store'}});
     const pdf = await renderDocumentToBuffer(type, document.id, document.businessId);
-    const slug = (value: string) => value.normalize('NFKD').toLowerCase()
-      .replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 80) || 'document';
-    const entitySlug = slug(document.business.name || document.customer.name || 'entity');
-    const typeSlug = type === 'challan' ? 'delivery-challan' : type;
-    const rawNumber = document.number.replace(/^(?:TAX[-_ ]?)?(?:INV(?:OICE)?|QUO(?:TATION)?|QT|DC|CHALLAN|RCPT|RECEIPT)[-_ ]*/i, '');
-    const numberSlug = slug(rawNumber || document.number || document.id);
-    const filename = entitySlug + '-' + typeSlug + '-' + numberSlug + '.pdf';
+    const filename = buildDownloadFilename(type, document.business.name || document.customer.name || 'Business', document.number || document.id);
     return new NextResponse(new Uint8Array(pdf),{status:200,headers:{
       'Content-Type':'application/pdf',
       'Content-Disposition':`attachment; filename="${filename}"`,
