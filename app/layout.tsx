@@ -32,7 +32,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
         <style dangerouslySetInnerHTML={{ __html: `
           /* Screen document canvas: A4 for invoices/estimates, thermal for receipts. */
           .paper:not(.receipt-paper) { width:210mm!important; min-height:297mm!important; box-sizing:border-box!important; }
-          .receipt-paper { width:2.5in!important; max-width:2.5in!important; min-height:0!important; box-sizing:border-box!important; }
+          .receipt-paper { width:80mm!important; max-width:80mm!important; min-height:0!important; box-sizing:border-box!important; }
           .receipt-paper .receipt-head,.receipt-paper .receipt-title,.receipt-paper .receipt-customer,.receipt-paper .receipt-items,.receipt-paper .receipt-totals,.receipt-paper .payment-detail,.receipt-paper .receipt-thanks,.receipt-paper .receipt-footer { max-width:100%!important; box-sizing:border-box!important; margin-left:0!important; margin-right:0!important; }
           .receipt-paper .receipt-head,.receipt-paper .receipt-title { padding-left:8px!important; padding-right:8px!important; }
           .receipt-paper .receipt-customer { margin-left:8px!important; margin-right:8px!important; }
@@ -41,7 +41,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
 
           /* Explicit physical page contracts. Browsers use these when opening the print dialog/PDF flow. */
           @page a4-document { size: A4 portrait; margin: 0; }
-          @page receipt { size: 2.5in auto; margin: 0; }
+          @page receipt { size: 80mm auto; margin: 0; }
 
           @media print {
             html, body { margin:0!important; padding:0!important; background:#fff!important; }
@@ -59,8 +59,8 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
             }
             .receipt-paper {
               page:receipt;
-              width:2.5in!important;
-              max-width:2.5in!important;
+              width:80mm!important;
+              max-width:80mm!important;
               min-height:0!important;
               margin:0!important;
               box-shadow:none!important;
