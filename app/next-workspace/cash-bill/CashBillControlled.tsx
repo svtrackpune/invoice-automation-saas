@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import CameraBarcodeScanner from '@/components/barcode/CameraBarcodeScanner';
+import CopyButton from '@/components/ui/copy-button';
 import { PageHeader } from '@/components/ui/finops/PageHeader';
 
 type Product={id:string;name:string;sku:string|null;barcode:string|null;sales_price:number;default_tax_rate_id:string|null;inventory_tracked?:boolean;reorder_level?:number};
@@ -15,7 +16,7 @@ type Props={
  busy:boolean;cashAccount:any;upiAccount:any;upiBankLabel:string;tender:Tender;setTender:(v:Tender)=>void;amountReceived:number;setAmountReceived:(v:number)=>void;
  receiptFormat:ReceiptFormat;setReceiptFormat:(v:ReceiptFormat)=>void;error:string;success:string;createdInvoiceId:string;add:()=>void;change:(i:number,k:keyof Line,v:any)=>void;remove:(i:number)=>void;
  searchAndAdd:(query:string,quantity:number)=>void;save:()=>void;newBill:()=>void;
- inventoryByProduct:Record<string,{quantity:number;reorderLevel:number;tracked:boolean}>;locationName:string;stockWarning:string;upiId:string;upiQrSvg:string;upiQrError:string;upiReference:string;upiLinkReady:boolean;copyUpiLink:()=>void;online:boolean;offlineQueuedCount:number;offlinePosEnabled:boolean;syncingOffline:boolean;onSyncOffline:()=>void;printerName:string|null;printerConnected:boolean;openPrinterSetup:()=>void;instantThermalBill:()=>void;instantThermalBusy:boolean;
+ inventoryByProduct:Record<string,{quantity:number;reorderLevel:number;tracked:boolean}>;locationName:string;stockWarning:string;upiId:string;upiQrSvg:string;upiQrError:string;upiReference:string;upiLinkReady:boolean;copyUpiLink:()=>string;online:boolean;offlineQueuedCount:number;offlinePosEnabled:boolean;syncingOffline:boolean;onSyncOffline:()=>void;printerName:string|null;printerConnected:boolean;openPrinterSetup:()=>void;instantThermalBill:()=>void;instantThermalBusy:boolean;
 };
 const money=(n:number)=>new Intl.NumberFormat('en-IN',{style:'currency',currency:'INR',maximumFractionDigits:2}).format(Number(n||0));
 function I({n}:{n:string}){const c={viewBox:'0 0 24 24',fill:'none',stroke:'currentColor',strokeWidth:1.8,strokeLinecap:'round' as const,strokeLinejoin:'round' as const};const p:any={
@@ -61,7 +62,7 @@ export default function CashBillControlled(p:Props){
         {p.upiQrError&&<div className="mt-2 rounded bg-rose-50 px-2 py-1.5 text-[9px] text-rose-700">{p.upiQrError}</div>}
         {p.upiQrSvg&&<div className="mt-2 flex flex-col items-center rounded bg-white p-2">
           <div className="h-48 w-48 [&>svg]:h-full [&>svg]:w-full" dangerouslySetInnerHTML={{__html:p.upiQrSvg}} />
-          <button type="button" onClick={p.copyUpiLink} className="mt-2 rounded border border-slate-200 bg-white px-3 py-1.5 text-[9px] font-bold text-slate-700 hover:bg-slate-50">Copy UPI Link</button>
+          <CopyButton getValue={p.copyUpiLink} label="Copy UPI Link" successMessage="UPI payment link copied to clipboard!" className="mt-2 rounded border border-slate-200 bg-white px-3 py-1.5 text-[9px] font-bold text-slate-700 hover:bg-slate-50" />
         </div>}
         {!p.upiQrSvg&&!p.upiQrError&&<div className="mt-2 rounded bg-white px-2.5 py-3 text-center text-[9px] text-slate-500">Preparing customer QR…</div>}
       </div>}
