@@ -17,6 +17,11 @@ const workspaceLayout = read('app/next-workspace/layout.tsx');
 const acceptanceMigration = read('supabase/migrations/20261013190000_quotation_acceptance_notification.sql');
 const notificationGrantMigration = read('supabase/migrations/20261013191500_notifications_read_column_grant.sql');
 const securityMigration = read('supabase/migrations/20261013200000_internalize_public_token_definers.sql');
+const shareHelper = read('lib/client/share-document.ts');
+const quotationList = read('app/next-workspace/quotations/page.tsx');
+const itemCatalogue = read('app/next-workspace/items/page.tsx');
+const invoiceEditor = read('app/next-workspace/invoices/InvoiceEditorCore.tsx');
+const itemServiceModal = read('app/next-workspace/invoices/new/ItemServiceModal.tsx');
 
 test('invoice and quotation web/PDF item grids use six separate columns', () => {
   assert.ok(pdf.includes("['#', 'ITEM / DESCRIPTION', 'QTY', 'UNIT', 'RATE', 'AMOUNT']"));
@@ -51,7 +56,7 @@ test('quotation actions are visible before acceptance and footer is standardized
   const actions=quote.indexOf('Download Official PDF');
   const billTo=quote.indexOf('BILL TO');
   assert.ok(actions>0 && actions<billTo,'download/copy/accept action bar should appear before the itemized document');
-  assert.match(quote,/CopyButton getValue=\{\(\) => window\.location\.href\} label="Copy Quotation Link"/);
+  assert.match(quote,/CopyButton getValue=\{\(\) => publicDocumentUrlFromToken\('quotation',token\)\} label="Copy customer link"/);
   assert.match(quote,/Accept Quotation & Request Invoice/);
   assert.match(quote,/This is a computer-generated quotation and does not require signature\./);
   assert.match(quote,/Powered by Moneymatters FinOps \| mm\.nilanga\.in/);
@@ -95,8 +100,52 @@ test('public token RPC wrappers delegate to private validated implementations', 
   assert.match(securityMigration,/REVOKE CREATE ON SCHEMA mm_private FROM PUBLIC, anon, authenticated/);
 });
 
+test('quotation list menu routes each action through the public quotation workflow', () => {
+  assert.ok(quotationList.includes('Actions for quotation'));
+  assert.ok(quotationList.includes('View quotation'));
+  assert.ok(quotationList.includes("'/next-workspace/quotation?edit=' + encodeURIComponent(row.id)"));
+  assert.ok(quotationList.includes('onClick={() => void downloadPdf(row)}'));
+  assert.ok(quotationList.includes("getPublicDocumentUrl('quotation', row.id)"));
+  assert.ok(quotationList.includes('onClick={() => void shareQuotation(row)}'));
+  assert.ok(quotationList.includes('publicShareAvailable(row)'));
+  assert.ok(quotationList.includes('closeOnOutsideClick'));
+  assert.ok(quotationList.includes("event.key === 'Escape'"));
+  assert.ok(quotationEditor.includes("supabase.rpc('update_quotation_from_items',{p_quotation_id:editId"));
+  assert.ok(quotationEditor.includes('setQuote(q.data)'));
+});
+
+test('invoice title and tax presentation follow explicit GST registration mode', () => {
+  assert.ok(viewer.includes("business_tax_profiles').select('gstin,pan,tax_regime,gst_registration_type')"));
+  assert.ok(viewer.includes('const invoiceDocumentTitle = (party: any) =>'));
+  assert.ok(viewer.includes("registrationType(party) === 'COMPOSITION') return 'BILL OF SUPPLY'"));
+  assert.ok(viewer.includes("return isTaxRegistered(party) ? 'TAX INVOICE' : 'INVOICE'"));
+  assert.ok(viewer.includes('documentShowTaxDetails=showTaxDetails'));
+  assert.ok(viewer.includes('show_customer_balance === true'));
+  assert.ok(invoice.includes("const invoiceHeading=registrationType==='COMPOSITION'?'BILL OF SUPPLY':taxRegistered?'TAX INVOICE':'INVOICE'"));
+  assert.ok(invoice.includes('showGstBreakdown=taxRegistered&&registrationType!==\'COMPOSITION\''));
+  assert.ok(pdf.includes("const docTitle = (type: string, business?: PublicDocument['business'])"));
+  assert.ok(pdf.includes("if (registration === 'COMPOSITION') return 'BILL OF SUPPLY'"));
+  assert.ok(pdf.includes("return !noGst && Boolean(String(business?.taxRegistrationNumber || '').trim()) ? 'TAX INVOICE' : 'INVOICE'"));
+  assert.ok(!pdf.includes('No line items supplied'));
+});
+
+test('product and service selectors dismiss after selection, outside click, and Escape', () => {
+  assert.ok(itemCatalogue.includes('const rootRef=useRef<HTMLDivElement|null>(null)'));
+  assert.ok(itemCatalogue.includes("document.addEventListener('mousedown',closeOutside)"));
+  assert.ok(itemCatalogue.includes("document.addEventListener('keydown',closeOnEscape)"));
+  assert.ok(itemCatalogue.includes("if(event.key==='Escape')"));
+  assert.ok(invoiceEditor.includes('e.currentTarget.blur()'));
+  assert.ok(itemServiceModal.includes('event.currentTarget.blur()'));
+  assert.ok(quotationEditor.includes('e.currentTarget.blur()'));
+});
+
 test('copy button shows copied state, checkmark, and transient success/failure feedback', () => {
-  assert.match(copyButton,/navigator\.clipboard\.writeText\(text\)/);
+  assert.match(copyButton,/copyTextToClipboard\\(text\\)/);
+  assert.match(shareHelper,/export async function copyTextToClipboard/);
+  assert.match(shareHelper,/navigator\\.clipboard\\.writeText\\(text\\)/);
+  assert.match(shareHelper,/document\\.execCommand\\('copy'\\)/);
+  assert.match(shareHelper,/export async function sharePublicDocument/);
+  assert.match(shareHelper,/await copyTextToClipboard\\(message\\)/);
   assert.match(copyButton,/copiedLabel = 'Copied!'/);
   assert.match(copyButton,/setTimeout\(\(\) => \{/);
   assert.match(copyButton,/Link copied to clipboard!/);
