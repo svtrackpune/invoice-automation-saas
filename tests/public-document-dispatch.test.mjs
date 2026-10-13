@@ -195,7 +195,7 @@ test('public invoice renderer creates a vector-rendered A4 GST PDF with QR and b
   subtotal:200,discountTotal:10,taxTotal:34.2,total:224.2,amountPaid:50,balanceDue:174.2,notes:'Payment due within agreed terms.',terms:'Subject to jurisdiction.',paymentLink:null,paymentQrPayload:null,
   vehicleNumber:null,transporterName:null,ewayBillNumber:null,placeOfSupplyStateCode:'27',supplyType:'intra_state',cgstAmount:17.1,sgstAmount:17.1,igstAmount:0,
   bankDetails:{name:'Primary Account',institutionName:'Sample Bank',accountHolderName:'Sample Industries',accountNumber:'1234567890',accountLast4:'7890',ifscCode:'SBIN0001234',branchName:'Nilanga'},upiId:'sample@upi',
-  business:{name:'Sample Industries',legalName:'Sample Industries Private Limited',email:'billing@example.test',phone:'9999999999',website:'https://example.test',address:{line1:'Main Road',city:'Nilanga',state:'Maharashtra',postal_code:'413521',country:'India'},taxRegistrationNumber:'27ABCDE1234F1Z5',gstRegistrationType:'REGULAR',logoStoragePath:null,pan:'ABCDE1234F'},
+  business:{name:'Sample Industries',legalName:'Sample Industries Private Limited',email:'billing@example.test',phone:'9999999999',website:'https://example.test',address:{line1:'Main Road',city:'Nilanga',state:'Maharashtra',postal_code:'413521',country:'India'},taxRegistrationNumber:'27ABCDE1234F1Z5',gstRegistrationType:'REGULAR',taxRegime:'GST',countryCode:'IN',taxId:null,logoStoragePath:null,pan:'ABCDE1234F'},
   customer:{name:'Example Customer',legalName:'Example Customer LLP',email:'customer@example.test',phone:'8888888888',address:{line1:'Market Road',city:'Latur',state:'Maharashtra',postal_code:'413512'},billingAddress:{line1:'Market Road',city:'Latur',state:'Maharashtra',postal_code:'413512'},shippingAddress:{line1:'Industrial Estate',city:'Latur',state:'Maharashtra',postal_code:'413512'},taxId:'27AACCE1234A1Z7'},
   items:[{description:'Industrial Equipment',quantity:2,unit:'pcs',unitPrice:100,discount:10,taxAmount:34.2,lineTotal:224.2,hsnSac:'8479'}]
  };
@@ -241,6 +241,12 @@ test('public invoice renderer creates a vector-rendered A4 GST PDF with QR and b
   const unregisteredText=unregisteredPdf.toString('latin1');
   assert.ok(unregisteredText.includes('(INVOICE)'),'unregistered supplier must receive an ordinary invoice title');
   assert.doesNotMatch(unregisteredText,/TAX INVOICE|CGST|SGST|IGST|Tax \/ GST/,'unregistered invoice must not claim tax-invoice status or expose GST rows');
+
+  const vatPdf=await buildPublicDocumentPdf({...doc,type:'invoice',total:220,taxTotal:20,cgstAmount:0,sgstAmount:0,igstAmount:0,business:{...doc.business,countryCode:'AE',taxRegime:'VAT',gstRegistrationType:'NONE',taxRegistrationNumber:'TRN123456789',taxId:'TRN123456789'},items:[{...doc.items[0],taxAmount:20,lineTotal:220}]});
+  const vatText=vatPdf.toString('latin1');
+  assert.ok(vatText.includes('(TAX INVOICE)'),'registered non-Indian VAT business with a tax ID should use the tax-invoice title');
+  assert.ok(vatText.includes('Tax ID: TRN123456789'),'non-Indian tax registration should be labeled as Tax ID');
+  assert.doesNotMatch(vatText,/CGST|SGST|IGST|GSTIN:/,'VAT documents must not display Indian GST labels');
 
   const compositionPdf=await buildPublicDocumentPdf({...doc,total:190,taxTotal:0,cgstAmount:0,sgstAmount:0,igstAmount:0,business:{...doc.business,gstRegistrationType:'COMPOSITION'},items:[{...doc.items[0],taxAmount:0,lineTotal:190}]});
   const compositionText=compositionPdf.toString('latin1');
