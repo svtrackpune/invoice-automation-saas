@@ -277,7 +277,7 @@ export async function buildPublicDocumentPdf(doc: PublicDocument): Promise<Buffe
     }
     return top+124;
   };
-  const widths = doc.type === 'invoice' || doc.type === 'quotation' ? [25, 225, 50, 50, 75, 90] : [21,140,45,38,58,49,82,82];
+  const widths = doc.type === 'invoice' || doc.type === 'quotation' ? [25, 225, 50, 55, 70, 90] : [21,140,45,38,58,49,82,82];
   const labels = doc.type === 'invoice' || doc.type === 'quotation'
     ? ['#', 'ITEM / DESCRIPTION', 'QTY', 'UNIT', 'RATE', 'AMOUNT']
     : ['#','Item Description','HSN/SAC','Qty','Unit Rate','Discount','Taxable Amt','Total'];
