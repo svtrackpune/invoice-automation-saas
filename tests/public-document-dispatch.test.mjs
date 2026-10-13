@@ -230,7 +230,7 @@ test('public invoice renderer creates a vector-rendered A4 GST PDF with QR and b
  const bothPdf=await buildPublicDocumentPdf({...doc,settlementDisplayMode:'both'});
  const bothText=bothPdf.toString('latin1');
  assert.match(bothText,/Sample Bank/,'explicit both mode must show bank details');
- assert.match(bothText,/Pay Online/,'explicit both mode must show the UPI payment action');
+ assert.match(bothText,/Pay Now via UPI/,'explicit both mode must show the UPI payment action');
  const bankFallback=await buildPublicDocumentPdf({...doc,upiId:null,settlementDisplayMode:undefined});
  assert.match(bankFallback.toString('latin1'),/Sample Bank/,'when UPI is absent the renderer should default to bank transfer');
 
