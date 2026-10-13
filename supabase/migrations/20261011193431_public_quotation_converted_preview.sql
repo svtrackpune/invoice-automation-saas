@@ -33,6 +33,13 @@ BEGIN
     RAISE EXCEPTION 'Quotation is not available';
   END IF;
 
+  IF q.status <> 'converted'
+     AND q.valid_until IS NOT NULL
+     AND q.valid_until < current_date
+     AND q.status <> 'accepted' THEN
+    RAISE EXCEPTION 'Quotation has expired';
+  END IF;
+
   SELECT jsonb_build_object(
     'id', q.id,
     'quotation_number', q.quotation_number,
