@@ -85,7 +85,7 @@ function BusinessIdentity({ business, logoUrl, fields, showLogo = true, showAddr
   </div>;
 }
 
-function LineItems({ items, payload, receipt, showTaxDetails = true, minRows = 0, showSerialNumbers = false, showPackages = false, standardSales = false }: { items: any[]; payload: any; receipt: boolean; showTaxDetails?: boolean; minRows?: number; showSerialNumbers?: boolean; showPackages?: boolean; standardSales?: boolean }) {
+function LineItems({ items, payload, receipt, showTaxDetails = true, minRows = 0, showSerialNumbers = false, showPackages = false, standardSales = false, taxLabel = 'GST' }: { items: any[]; payload: any; receipt: boolean; showTaxDetails?: boolean; minRows?: number; showSerialNumbers?: boolean; showPackages?: boolean; standardSales?: boolean; taxLabel?: string }) {
   const currency = text(payload.currency_code || 'INR');
   const taxed = !receipt && showTaxDetails && Number(payload.tax_total || 0) > 0;
   const hasHsn = taxed && (items || []).some((it: any) => text(it.hsn_sac).trim());
@@ -116,7 +116,7 @@ function LineItems({ items, payload, receipt, showTaxDetails = true, minRows = 0
   return <table className={`items ${receiptClass} ${taxed ? 'tax-aware-items' : ''}`}><thead><tr>
     {!receipt && <th className='col-no'>#</th>}<th>{receipt ? 'Item' : 'Item / Description'}</th>
     {!receipt && taxed && hasHsn && <th>HSN / SAC</th>}{!receipt && <th className='col-type'>Type</th>}{!receipt && showPackages && <th className='col-packages'>Packages</th>}
-    <th className='col-qty'>Qty</th>{!receipt && <th className='col-rate'>Rate</th>}{taxed && <th className='col-taxable'>Taxable</th>}{taxed && <th className='col-tax'>GST</th>}<th className='col-amount'>Amount</th>
+    <th className='col-qty'>Qty</th>{!receipt && <th className='col-rate'>Rate</th>}{taxed && <th className='col-taxable'>Taxable</th>}{taxed && <th className='col-tax'>{taxLabel}</th>}<th className='col-amount'>Amount</th>
   </tr></thead><tbody>{rows.map((it:any, idx:number) => {
     const quantity=Number(it?.quantity ?? it?.qty ?? 1);
     const rate=Number(it?.unit_price ?? it?.rate ?? it?.price ?? 0);
@@ -150,7 +150,7 @@ const numberToWords = (value: number) => {
   return [crore?`${below100(crore)} Crore`:'',lakh?`${below100(lakh)} Lakh`:'',thousand?`${below100(thousand)} Thousand`:'',hundred?below1000(hundred):''].filter(Boolean).join(' ');
 }
 const formatDate=(value:any)=>{const raw=text(value);const match=raw.match(/^(\d{4})-(\d{2})-(\d{2})/);return match?`${match[3]}/${match[2]}/${match[1]}`:(raw||'—');};
-function DocumentTotals({ payload, currency='INR', receipt=false, showTaxDetails=true }: { payload:any; currency?:string; receipt?:boolean; showTaxDetails?:boolean }) {
+function DocumentTotals({ payload, currency='INR', receipt=false, showTaxDetails=true, taxLabel='GST' }: { payload:any; currency?:string; receipt?:boolean; showTaxDetails?:boolean; taxLabel?:string }) {
   const subtotal = Number(payload.subtotal ?? 0);
   const discount = Number(payload.discount_total ?? 0);
   const tax = Number(payload.tax_total ?? 0);
@@ -177,7 +177,7 @@ function DocumentTotals({ payload, currency='INR', receipt=false, showTaxDetails
   return <div className="document-summary">
     <div style={{color:"#ea580c",fontWeight:800}}><span>Subtotal</span><strong>{money(subtotal,currency)}</strong></div>
     {discount !== 0 && <div><span>Discount</span><strong>-{money(discount,currency)}</strong></div>}
-    {showTaxDetails && tax !== 0 && !showComponents && <div style={{color:"#ea580c",fontWeight:800}}><span>GST</span><strong>{money(tax,currency)}</strong></div>}
+    {showTaxDetails && tax !== 0 && !showComponents && <div style={{color:"#ea580c",fontWeight:800}}><span>{taxLabel}</span><strong>{money(tax,currency)}</strong></div>}
     {showComponents && cgst !== 0 && <div style={{color:"#ea580c",fontWeight:800}}><span>CGST</span><strong>{money(cgst,currency)}</strong></div>}
     {showComponents && sgst !== 0 && <div style={{color:"#ea580c",fontWeight:800}}><span>SGST</span><strong>{money(sgst,currency)}</strong></div>}
     {showComponents && igst !== 0 && <div style={{color:"#ea580c",fontWeight:800}}><span>IGST</span><strong>{money(igst,currency)}</strong></div>}
@@ -227,12 +227,13 @@ function Paper({ type, payload, business, customer, items, theme, fields, logoUr
   const rowPadding=Math.min(16,Math.max(4,Number(studio.row_padding||9)));
   const radius=Math.min(24,Math.max(0,Number(studio.corner_radius??14)));
   const resolvedLogoUrl=text(logoUrl||business.logo_url||(business.logo_storage_path?supabase.storage.from('business-branding-public').getPublicUrl(business.logo_storage_path).data.publicUrl:''));
-  const registration=registrationType(business),taxRegistered=isTaxRegistered(business),compositionScheme=registration==='COMPOSITION',invoiceTitle=invoiceDocumentTitle(business);
+  const registration=registrationType(business),regime=taxRegime(business),country=countryCode(business),taxRegistered=isTaxRegistered(business),compositionScheme=isCompositionRegistration(business),invoiceTitle=invoiceDocumentTitle(business),taxLabel=regime==='GST'?'GST':'Tax';
   const systemTitle=receipt?'Payment Receipt':cashBill?'CASH BILL':type==='tax_invoice'||type==='invoice'?invoiceTitle:type==='quotation'?'QUOTATION':type==='delivery_challan'?'DELIVERY CHALLAN':type==='purchase_order'?'PURCHASE ORDER':type==='credit_note'?'CREDIT NOTE':type==='debit_note'?'DEBIT NOTE':'DOCUMENT';
   const title=type==='invoice'||taxInvoice?invoiceTitle:text(payload.title||fields.title||documentTitleOverride||systemTitle);
   const salesTaxEligible=taxRegistered&&!compositionScheme;
-  const documentShowTaxDetails=showTaxDetails&&(!['invoice','tax_invoice','quotation'].includes(type)&&!taxInvoice||salesTaxEligible);
-  const notes=text(payload.notes||fields.notes||''),terms=text(payload.terms||fields.terms||''),paymentMode=paymentSelection?.payment_display_mode||'none',paymentLink=text(payload.payment_link||paymentSelection?.payment_link||''),isGstDocument=salesTaxEligible&&(taxInvoice||type==='invoice'||type==='credit_note'||type==='debit_note'),buyerTaxId=taxValue(customer),jurisdictionClause=text(payload.jurisdiction_clause||business.jurisdiction_clause||fields.jurisdiction_clause||'');
+  const registrationBoundTaxDocument=['invoice','tax_invoice','cash_bill','quotation','credit_note','debit_note'].includes(type)||taxInvoice;
+  const documentShowTaxDetails=showTaxDetails&&(!registrationBoundTaxDocument||salesTaxEligible);
+  const notes=text(payload.notes||fields.notes||''),terms=text(payload.terms||fields.terms||''),paymentMode=paymentSelection?.payment_display_mode||'none',paymentLink=text(payload.payment_link||paymentSelection?.payment_link||''),isRegisteredTaxDocument=salesTaxEligible&&(taxInvoice||['invoice','tax_invoice','cash_bill','credit_note','debit_note'].includes(type)),isGstDocument=isRegisteredTaxDocument&&regime==='GST'&&country==='IN',buyerTaxId=taxValue(customer),jurisdictionClause=text(payload.jurisdiction_clause||business.jurisdiction_clause||fields.jurisdiction_clause||'');
   const documentNumber=text(payload.document_number||payload.challan_number||payload.bill_number||payload.invoice_number||payload.quotation_number||payload.receipt_number||payload.number||'');
   const documentDate=payload.document_date||payload.challan_date||payload.bill_date||payload.invoice_date||payload.quotation_date||payload.receipt_date||payload.credit_date||payload.debit_date||payload.created_at;
   const numberLabel=type==='delivery_challan'?'Challan No.':type==='purchase_order'?'PO / Bill No.':type==='quotation'?'Quotation No.':type==='receipt'?'Receipt No.':type==='credit_note'?'Credit Note No.':type==='debit_note'?'Debit Note No.':'Invoice No.';
@@ -255,7 +256,7 @@ function Paper({ type, payload, business, customer, items, theme, fields, logoUr
       {thermal ? <div className="cash-thermal">
         <div className="cash-thermal-brand">{business.name||business.legal_name||'Business'}</div>
         {addressLines(business.address).map((line:string,i:number)=><div key={i}>{line}</div>)}
-        {taxValue(business)&&<div>GSTIN: {taxValue(business)}</div>}
+        {taxValue(business)&&<div>{taxLabel}: {taxValue(business)}</div>}
         <div className="cash-thermal-rule"/>
         <strong>CASH BILL / POS RECEIPT</strong>
         <div>{documentNumber||'—'} · {formatDate(documentDate)}</div>
@@ -270,8 +271,8 @@ function Paper({ type, payload, business, customer, items, theme, fields, logoUr
       </div> : <><div className="cash-bill-watermark">PAID IN FULL</div>
         <header className="document-header"><div className="identity-column"><BusinessIdentity business={business} logoUrl={resolvedLogoUrl} fields={fields} showLogo={showLogo} showAddress={showBusinessAddress}/></div><div className="invoice-heading"><div className="document-title">CASH BILL / POS RECEIPT</div><div className="document-meta">{meta.map(([label,value]:any)=><div className="meta-row" key={label}><span>{label}</span><strong>{text(value)||'—'}</strong></div>)}</div></div></header>
         <CashBillCompliance payload={payload} cashierName={cashierName} paymentReference={paymentReference}/>
-        <LineItems items={items} payload={payload} receipt={false} showTaxDetails={showTaxDetails} minRows={minItemRows} showSerialNumbers={showSerialNumbers}/>
-        <div className="post-table-grid"><div className="invoice-notes-area">{notes&&<section className="document-notes"><label>NOTES</label><p>{notes}</p></section>}{showTerms&&terms&&<section className="document-terms"><label>TERMS & CONDITIONS</label><p>{terms}</p></section>}</div><DocumentTotals payload={payload} currency={currency} showTaxDetails={false}/></div>
+        <LineItems items={items} payload={payload} receipt={false} showTaxDetails={documentShowTaxDetails} minRows={minItemRows} showSerialNumbers={showSerialNumbers} taxLabel={taxLabel}/>
+        <div className="post-table-grid"><div className="invoice-notes-area">{notes&&<section className="document-notes"><label>NOTES</label><p>{notes}</p></section>}{showTerms&&terms&&<section className="document-terms"><label>TERMS & CONDITIONS</label><p>{terms}</p></section>}</div><DocumentTotals payload={payload} currency={currency} showTaxDetails={documentShowTaxDetails} taxLabel={taxLabel}/></div>
         <PaymentSection paymentMode={paymentMode} paymentLink="" paymentSelection={paymentSelection} balance={0} currency={currency} settlementDisplayMode="upi_qr" showBankDetails={false} showPaymentLink={false} showPaymentQr={showPaymentQr} qrDataUrl={paymentQrDataUrl}/>
         <div className="cash-bill-footer"><strong>Thank You — Visit Again</strong><span>Cashier: {cashierName}</span>{paymentReference&&<span>UPI / Transaction Ref: {paymentReference}</span>}</div>
       </>}
@@ -327,14 +328,14 @@ function Paper({ type, payload, business, customer, items, theme, fields, logoUr
     {type==='delivery_challan' && <DeliveryChallanCompliance payload={payload} customer={customer}/>}
     {type==='purchase_order' && <PurchaseOrderCompliance payload={payload} business={business} vendor={customer}/>}
 
-    <section className='parties-grid'><div className='party-card'><label>{partyLabel}</label><strong>{text(customer.display_name||customer.legal_name||'Customer')}</strong>{customer.legal_name&&customer.legal_name!==customer.display_name&&<div>{text(customer.legal_name)}</div>}{buyerTaxId&&<div className='party-highlight'>GSTIN / Tax ID: {buyerTaxId}</div>}{customer.phone&&<div>{text(customer.phone)}</div>}{customer.email&&<div>{text(customer.email)}</div>}{addressLines(customer.billing_address||customer.address||customer.address_line1||customer.address_line).map((l:string,i:number)=><div key={i}>{l}</div>)}</div>
+    <section className='parties-grid'><div className='party-card'><label>{partyLabel}</label><strong>{text(customer.display_name||customer.legal_name||'Customer')}</strong>{customer.legal_name&&customer.legal_name!==customer.display_name&&<div>{text(customer.legal_name)}</div>}{buyerTaxId&&<div className='party-highlight'>{regime==='GST'?'GSTIN':'Tax ID'}: {buyerTaxId}</div>}{customer.phone&&<div>{text(customer.phone)}</div>}{customer.email&&<div>{text(customer.email)}</div>}{addressLines(customer.billing_address||customer.address||customer.address_line1||customer.address_line).map((l:string,i:number)=><div key={i}>{l}</div>)}</div>
       {showShipTo&&<div className='party-card'><label>SHIP TO</label>{addressLines(customer.shipping_address).length?addressLines(customer.shipping_address).map((l:string,i:number)=><div key={i}>{l}</div>):addressLines(customer.billing_address||customer.address||customer.address_line1||customer.address_line).length?<div>Same as billing address</div>:<div>No shipping address provided</div>}</div>}
       {isGstDocument&&<div className='tax-context'>{payload.place_of_supply_state_code&&<div><span>Place of Supply</span><strong>{text(payload.place_of_supply_state_code)}</strong></div>}{payload.supply_type&&<div><span>Supply Type</span><strong>{text(payload.supply_type)}</strong></div>}{payload.tax_inclusive!==undefined&&<div><span>Tax</span><strong>{payload.tax_inclusive?'Inclusive':'Exclusive'}</strong></div>}{payload.reverse_charge&&<div><span>Reverse Charge</span><strong>Yes</strong></div>}</div>}
     </section>
 
-    <LineItems items={items} payload={payload} receipt={false} showTaxDetails={documentShowTaxDetails} minRows={minItemRows} showSerialNumbers={showSerialNumbers} showPackages={type==='delivery_challan'} standardSales={type==='invoice'||taxInvoice||type==='quotation'}/>
-    {isGstDocument && (taxInvoice || type==='credit_note') && <TaxSummaryGrid items={items} taxLines={taxLines} money={(v:number)=>money(v,currency)}/>} 
-    <div className='post-table-grid'><div className='invoice-notes-area'>{(type==='invoice'||taxInvoice||cashBill||type==='quotation'||paymentSelection?.bank)&&<PaymentSection paymentMode={paymentMode} paymentLink={paymentLink} paymentSelection={paymentSelection} balance={Number(payload.balance_due??0)} currency={currency} premium={false} settlementDisplayMode={settlementDisplayMode} showBankDetails={showBankDetails} showPaymentLink={showPaymentLink} showPaymentQr={showPaymentQr} qrDataUrl={paymentQrDataUrl} upiIntentUrl={upiIntentUrl}/>}{showTerms&&terms&&<section className='document-terms'><label style={{color:'#7c3aed',fontWeight:800}}>TERMS & CONDITIONS</label><p>{terms}</p></section>}{notes&&<section className='document-notes'><label style={{color:'#7c3aed',fontWeight:800}}>NOTES</label><p>{notes}</p></section>}{isGstDocument&&<div className='compliance-note'><span>{payload.reverse_charge?'Reverse charge applicable.':'Tax calculated based on the selected tax profile and invoice items.'}</span></div>}</div><DocumentTotals payload={payload} currency={currency} showTaxDetails={showTaxDetails}/></div>
+    <LineItems items={items} payload={payload} receipt={false} showTaxDetails={documentShowTaxDetails} minRows={minItemRows} showSerialNumbers={showSerialNumbers} showPackages={type==='delivery_challan'} standardSales={type==='invoice'||taxInvoice||type==='quotation'} taxLabel={taxLabel}/>
+    {isGstDocument && ['invoice','tax_invoice','credit_note','debit_note'].includes(type) && <TaxSummaryGrid items={items} taxLines={taxLines} money={(v:number)=>money(v,currency)}/>} 
+    <div className='post-table-grid'><div className='invoice-notes-area'>{(type==='invoice'||taxInvoice||cashBill||type==='quotation'||paymentSelection?.bank)&&<PaymentSection paymentMode={paymentMode} paymentLink={paymentLink} paymentSelection={paymentSelection} balance={Number(payload.balance_due??0)} currency={currency} premium={false} settlementDisplayMode={settlementDisplayMode} showBankDetails={showBankDetails} showPaymentLink={showPaymentLink} showPaymentQr={showPaymentQr} qrDataUrl={paymentQrDataUrl} upiIntentUrl={upiIntentUrl}/>}{showTerms&&terms&&<section className='document-terms'><label style={{color:'#7c3aed',fontWeight:800}}>TERMS & CONDITIONS</label><p>{terms}</p></section>}{notes&&<section className='document-notes'><label style={{color:'#7c3aed',fontWeight:800}}>NOTES</label><p>{notes}</p></section>}{isRegisteredTaxDocument&&<div className='compliance-note'><span>{payload.reverse_charge?'Reverse charge applicable.':'Tax calculated based on the selected tax profile and invoice items.'}</span></div>}</div><DocumentTotals payload={payload} currency={currency} showTaxDetails={documentShowTaxDetails} taxLabel={taxLabel}/></div>
     {showSignature&&<div className='signature-row'><div/><div className='signature-box'><span>{showAuthorizedSignatory?'Authorized Signatory':'Signature'}</span>{fields.signature_label&&<em>{text(fields.signature_label)}</em>}</div></div>}
     {type==='delivery_challan' && <div className='signature-row'><div className='receiver-note'>Receiver's Acknowledgment</div><div className='signature-box'><span>Receiver Signature</span></div></div>}
     {jurisdictionClause && <div className='jurisdiction-clause'><strong>Jurisdiction</strong><span>{jurisdictionClause}</span></div>}
