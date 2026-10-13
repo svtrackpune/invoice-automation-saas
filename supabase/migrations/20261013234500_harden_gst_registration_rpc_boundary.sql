@@ -41,7 +41,7 @@ AS $function$
       WHEN upper(coalesce(tp.tax_regime, 'NONE')) = 'GST'
         THEN mm_private.has_valid_gst_registration(p_business_id)
       WHEN upper(coalesce(tp.tax_regime, 'NONE')) IN ('VAT', 'SALES_TAX', 'OTHER')
-        THEN lower(coalesce(b.tax_settings->>'enabled', 'false')) = 'true'
+        THEN nullif(btrim(coalesce(tp.tax_id, '')), '') IS NOT NULL
       ELSE false
     END
     FROM public.business_tax_profiles tp
@@ -182,10 +182,11 @@ SELECT pg_temp.patch_function_definition(
   'public.create_invoice_with_dynamic_tax(uuid,uuid,date,date,jsonb,text,text,text,boolean)'::regprocedure,
   $old$v_meta:=coalesce(v_item->'dynamic_tax_snapshot','[]'::jsonb);$old$,
   $new$v_meta:=coalesce(v_item->'dynamic_tax_snapshot','[]'::jsonb);
-    IF upper(coalesce((SELECT country_code FROM public.businesses WHERE id=p_business_id), 'IN')) = 'IN'
-       AND NOT mm_private.has_valid_gst_registration(p_business_id)
+    IF NOT mm_private.business_tax_enabled(p_business_id)
        AND (
          v_tax > 0
+         OR jsonb_array_length(v_meta) > 0
+         OR nullif(v_item->>'tax_rule_id','') IS NOT NULL
          OR EXISTS (
            SELECT 1 FROM jsonb_array_elements(v_meta) AS snapshot(value)
            JOIN public.tax_rules tr ON tr.id = nullif(snapshot.value->>'taxRuleId','')::uuid
@@ -205,10 +206,11 @@ SELECT pg_temp.patch_function_definition(
   'public.create_invoice_with_dynamic_tax(uuid,uuid,uuid,date,date,jsonb,text,text,text,boolean)'::regprocedure,
   $old$v_meta:=coalesce(v_item->'dynamic_tax_snapshot','[]'::jsonb);$old$,
   $new$v_meta:=coalesce(v_item->'dynamic_tax_snapshot','[]'::jsonb);
-    IF upper(coalesce((SELECT country_code FROM public.businesses WHERE id=p_business_id), 'IN')) = 'IN'
-       AND NOT mm_private.has_valid_gst_registration(p_business_id)
+    IF NOT mm_private.business_tax_enabled(p_business_id)
        AND (
          v_tax > 0
+         OR jsonb_array_length(v_meta) > 0
+         OR nullif(v_item->>'tax_rule_id','') IS NOT NULL
          OR EXISTS (
            SELECT 1 FROM jsonb_array_elements(v_meta) AS snapshot(value)
            JOIN public.tax_rules tr ON tr.id = nullif(snapshot.value->>'taxRuleId','')::uuid
@@ -228,10 +230,11 @@ SELECT pg_temp.patch_function_definition(
   'public.api_create_invoice_with_dynamic_tax(text,uuid,uuid,date,date,jsonb,text,text,text,boolean)'::regprocedure,
   $old$v_meta:=coalesce(v_item->'dynamic_tax_snapshot','[]'::jsonb);$old$,
   $new$v_meta:=coalesce(v_item->'dynamic_tax_snapshot','[]'::jsonb);
-    IF upper(coalesce((SELECT country_code FROM public.businesses WHERE id=p_business_id), 'IN')) = 'IN'
-       AND NOT mm_private.has_valid_gst_registration(p_business_id)
+    IF NOT mm_private.business_tax_enabled(p_business_id)
        AND (
          v_tax > 0
+         OR jsonb_array_length(v_meta) > 0
+         OR nullif(v_item->>'tax_rule_id','') IS NOT NULL
          OR EXISTS (
            SELECT 1 FROM jsonb_array_elements(v_meta) AS snapshot(value)
            JOIN public.tax_rules tr ON tr.id = nullif(snapshot.value->>'taxRuleId','')::uuid
