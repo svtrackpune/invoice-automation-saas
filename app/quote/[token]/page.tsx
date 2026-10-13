@@ -154,11 +154,11 @@ export default function PublicQuotation({params}:{params:Promise<{token:string}>
       <section className="grid gap-6 p-6 sm:grid-cols-[minmax(0,1fr)_280px] sm:p-8">
         <div className="min-w-0 space-y-4">
           <section className="rounded-xl border border-amber-200 bg-amber-50/70 p-4">
-            <h3 className="text-xs font-extrabold uppercase tracking-[0.16em] text-amber-900">NOTES</h3>
-            <p className="mt-2 whitespace-pre-line text-sm leading-5 text-slate-700">{quote.notes||'—'}</p>
+            <h3 className="text-xs font-extrabold uppercase tracking-[0.16em] text-violet-700">TERMS &amp; CONDITIONS</h3>
+            <p className="mt-2 whitespace-pre-line text-sm leading-5 text-slate-700">{quote.terms||'—'}</p>
             <div className="mt-4 border-t border-amber-200 pt-3">
-              <h3 className="text-xs font-extrabold uppercase tracking-[0.16em] text-amber-900">TERMS &amp; CONDITIONS</h3>
-              <p className="mt-2 whitespace-pre-line text-sm leading-5 text-slate-700">{quote.terms||'—'}</p>
+              <h3 className="text-xs font-extrabold uppercase tracking-[0.16em] text-violet-700">NOTES</h3>
+              <p className="mt-2 whitespace-pre-line text-sm leading-5 text-slate-700">{quote.notes||'—'}</p>
             </div>
             <p className="mt-3 border-t border-amber-200 pt-3 text-xs text-slate-600">Validity: quotation prices and scope apply until {quote.valid_until||'the date agreed with the business'}.</p>
           </section>
