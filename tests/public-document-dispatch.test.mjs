@@ -246,6 +246,7 @@ test('public invoice renderer creates a vector-rendered A4 GST PDF with QR and b
  const quotationText=quotationPdf.toString('latin1');
  for(const value of ['ESTIMATE / QUOTATION','EST-0007','BILL TO','SHIP TO','#','ITEM / DESCRIPTION','AMOUNT IN WORDS:','Authorized Signatory','This is a computer-generated quotation and does not require signature.']) assert.ok(quotationText.includes(value),'Quotation PDF is missing '+value);
  assert.doesNotMatch(quotationText,/INVOICE SUMMARY/);
+ assert.doesNotMatch(quotationText,/Sample Bank|Pay Now via UPI/,'settlement mode none must not render bank or UPI details');
 
 });
 function QRCodePlaceholderForTest(pdf){const raw=pdf.toString('latin1');return raw.includes('/Subtype /Link')&&raw.includes('Pay Now via UPI')&&raw.includes('/Annots [');}
