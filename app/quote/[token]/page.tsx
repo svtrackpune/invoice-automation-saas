@@ -1,7 +1,9 @@
 'use client';
 
 import { use, useCallback, useEffect, useMemo, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import QRCode from 'qrcode';
+import CopyButton from '@/components/ui/copy-button';
 import { supabase } from '@/lib/supabase';
 import { createCanonicalDocumentViewModel } from '@/lib/shared/document-view-model';
 
@@ -26,12 +28,13 @@ type Quote = {
   total:number|null;
   customer:{id:string;display_name:string;legal_name:string|null;email:string|null;phone:string|null;billing_address:any;shipping_address:any};
   business:{name:string;legal_name:string|null;email:string|null;phone:string|null;website:string|null;address:any;logo_url:string|null;tax_registration_number:string|null};
-  items:Array<{description:string|null;quantity:number;unit_price:number;discount_type:string|null;discount_value:number|null;tax_rate:number}>;
+  items:Array<{name?:string|null;item_name?:string|null;unit?:string|null;description:string|null;quantity:number;unit_price:number;discount_type:string|null;discount_value:number|null;tax_rate:number}>;
 };
 
 const addressLines=(value:any)=>{if(!value)return [];if(typeof value==='string')return value.split(/\n|,/).map(x=>x.trim()).filter(Boolean);return [value.line1||value.address_line1,value.line2||value.address_line2,[value.city,value.state,value.postal_code||value.pin||value.pincode].filter(Boolean).join(', '),value.country].filter(Boolean).map(String)};
 
 export default function PublicQuotation({params}:{params:Promise<{token:string}>}){
+  const router=useRouter();
   const {token:rawToken}=use(params);
   const token=decodeURIComponent(rawToken);
   const [quote,setQuote]=useState<Quote|null>(null);
@@ -133,20 +136,25 @@ export default function PublicQuotation({params}:{params:Promise<{token:string}>
       </section>
 
       <section className="overflow-x-auto px-6 pt-6 sm:px-8">
-        <table className="w-full min-w-[620px] border-collapse text-sm">
+        <table className="w-full min-w-[760px] border-collapse text-sm">
           <thead className="bg-[#7c3aed] text-xs uppercase tracking-wider text-white"><tr>
             <th className="w-10 p-3 text-center font-extrabold">#</th>
             <th className="p-3 text-left font-extrabold">ITEM / DESCRIPTION</th>
-            <th className="w-20 p-3 text-right font-extrabold">QTY</th>
+            <th className="w-16 p-3 text-center font-extrabold">QTY</th>
+            <th className="w-20 p-3 text-center font-extrabold">UNIT</th>
             <th className="w-28 p-3 text-right font-extrabold">RATE</th>
             <th className="w-32 p-3 text-right font-extrabold">AMOUNT</th>
           </tr></thead>
           <tbody>{(canonical?.items||[]).map((item,i)=><tr key={i} className="border-b border-slate-100 align-top">
-            <td className="p-3 text-center text-slate-500">{i+1}</td>
-            <td className="p-3 font-medium text-slate-900">{item.description||'Item'}</td>
-            <td className="p-3 text-right tabular-nums">{item.quantity}</td>
-            <td className="p-3 text-right tabular-nums">{money(item.unitPrice)}</td>
-            <td className="p-3 text-right font-semibold tabular-nums">{money(item.amount)}</td>
+            <td className="px-4 py-3 text-center text-slate-500">{i+1}</td>
+            <td className="px-4 py-3 text-left">
+              <div className="text-sm font-semibold text-slate-900">{item.name||item.item_name||item.description||'Item'}</div>
+              {item.description&&(item.name||item.item_name)&&item.description!==(item.name||item.item_name)&&<div className="mt-0.5 whitespace-pre-line text-xs text-slate-500">{item.description}</div>}
+            </td>
+            <td className="px-4 py-3 text-center text-sm text-slate-700">{item.quantity}</td>
+            <td className="px-4 py-3 text-center text-xs font-medium uppercase text-slate-500">{item.unit||'pcs'}</td>
+            <td className="px-4 py-3 text-right text-sm tabular-nums text-slate-700">{money(item.unit_price)}</td>
+            <td className="px-4 py-3 text-right text-sm font-semibold tabular-nums text-slate-900">{money(item.amount)}</td>
           </tr>)}</tbody>
         </table>
       </section>
