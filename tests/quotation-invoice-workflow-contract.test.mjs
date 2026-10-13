@@ -25,7 +25,7 @@ test('invoice and quotation web/PDF item grids use six separate columns', () => 
     assert.match(source,/>UNIT<\/th>/);
     assert.match(source,/>RATE<\/th>/);
     assert.match(source,/>AMOUNT<\/th>/);
-    assert.match(source,/item\.quantity<\/td>/);
+    assert.match(source,/\{item\.quantity\}<\/td>/);
     assert.match(source,/item\.unit\|\|'pcs'/);
     assert.match(source,/font-semibold text-slate-900/);
     assert.match(source,/whitespace-pre-line text-xs text-slate-500/);
