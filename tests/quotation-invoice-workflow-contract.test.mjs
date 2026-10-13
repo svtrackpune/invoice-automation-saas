@@ -115,19 +115,21 @@ test('quotation list menu routes each action through the public quotation workfl
 });
 
 test('invoice title and tax presentation follow explicit GST registration mode', () => {
-  assert.ok(viewer.includes("business_tax_profiles').select('gstin,pan,tax_regime,gst_registration_type')"));
+  assert.ok(viewer.includes("business_tax_profiles').select('gstin,pan,tax_id,tax_regime,gst_registration_type')"));
   assert.ok(viewer.includes('const invoiceDocumentTitle = (party: any) =>'));
-  assert.ok(viewer.includes("if (registrationType(party) === 'COMPOSITION' && hasValidGstin(party)) return 'BILL OF SUPPLY'"));
+  assert.ok(viewer.includes("['REGULAR', 'CASUAL', 'NON_RESIDENT', 'SEZ'].includes(registration) && hasValidGstin(party)"));
+  assert.ok(viewer.includes("['VAT', 'SALES_TAX', 'OTHER'].includes(regime)"));
+  assert.ok(viewer.includes("if (isCompositionRegistration(party)) return 'BILL OF SUPPLY'"));
   assert.ok(viewer.includes("return isTaxRegistered(party) ? 'TAX INVOICE' : 'INVOICE'"));
-  assert.ok(quote.includes("const quotationTaxEnabled=Boolean(quote && !['NONE','UNREGISTERED','NON_GST','NOT_REGISTERED','COMPOSITION'].includes(quotationRegistrationType)"));
+  assert.ok(quote.includes("const quotationTaxEnabled=quotationGstRegistered||quotationOtherTaxRegistered"));
   assert.ok(quote.includes('quotationTaxEnabled&&canonical?.financials.taxBreakdown.map'));
   assert.ok(viewer.includes('showTaxDetails={documentShowTaxDetails}'));
   assert.ok(viewer.includes('show_customer_balance === true'));
-  assert.ok(invoice.includes("const invoiceHeading=registrationType==='COMPOSITION'&&taxRegistered?'BILL OF SUPPLY':taxRegistered?'TAX INVOICE':'INVOICE'"));
-  assert.ok(invoice.includes('showGstBreakdown=taxRegistered&&registrationType!==\'COMPOSITION\''));
+  assert.ok(invoice.includes("const invoiceHeading=compositionSupply?'BILL OF SUPPLY':taxRegistered?'TAX INVOICE':'INVOICE'"));
+  assert.ok(invoice.includes('showGstBreakdown=gstRegistered&&!compositionSupply'));
   assert.ok(pdf.includes("const docTitle = (type: string, business?: PublicDocument['business'])"));
-  assert.ok(pdf.includes("if (registration === 'COMPOSITION' && /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][0-9A-Z]Z[0-9A-Z]$/.test(String(business?.taxRegistrationNumber || '').trim().toUpperCase())) return 'BILL OF SUPPLY'"));
-  assert.ok(pdf.includes("return !noGst && /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][0-9A-Z]Z[0-9A-Z]$/.test(String(business?.taxRegistrationNumber || '').trim().toUpperCase()) ? 'TAX INVOICE' : 'INVOICE'"));
+  assert.ok(pdf.includes("if (type === 'invoice') return taxPresentation(business).title"));
+  assert.ok(pdf.includes("taxBreakdownAllowed: (gstRegistration && !composition) || otherTaxRegistration"));
   assert.ok(!pdf.includes('No line items supplied'));
 });
 
