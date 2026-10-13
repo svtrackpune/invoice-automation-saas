@@ -251,7 +251,7 @@ export async function buildPublicDocumentPdf(doc: PublicDocument): Promise<Buffe
     addressParts(canonical.business.address).slice(0,2).forEach(v=>{drawWrap(c,bx,dy,v,40,7.5,false,C.muted,1);dy+=10;});
     const contact=[canonical.business.phone,canonical.business.email].filter(Boolean).join(' | ');
     if(contact){drawWrap(c,bx,dy,contact,42,7.3,false,C.muted,1);dy+=10;}
-    if(canonical.business.gstin)c.text(bx,dy,'GSTIN: '+canonical.business.gstin,7.5,true,C.ink);
+    if(canonical.business.gstin)c.text(bx,dy,tax.taxLabel+': '+canonical.business.gstin,7.5,true,C.ink);
     if(canonical.business.pan)c.text(bx,dy+10,'PAN: '+canonical.business.pan,7.3,false,C.muted);
     const rx=363,rw=right-rx;
     c.rect(rx,32,rw,92,C.navy);
@@ -267,7 +267,7 @@ export async function buildPublicDocumentPdf(doc: PublicDocument): Promise<Buffe
     c.line(M,135,right,135,C.border,0.8);
   };
   const partyRows=(address:unknown,phone:string|null,email:string|null,taxId:string|null)=>
-    [...addressParts(address).slice(0,2),phone||'',email||'',taxId?'GSTIN: '+taxId:''].filter(Boolean);
+    [...addressParts(address).slice(0,2),phone||'',email||'',taxId?tax.taxLabel+': '+taxId:''].filter(Boolean);
   const drawParties=(top:number)=>{
     const gap=10,colW=(CW-gap)/2,boxH=100;
     const billingAddress=canonical.customer.billingAddress||canonicalAddress(doc.customer.address);
@@ -277,7 +277,7 @@ export async function buildPublicDocumentPdf(doc: PublicDocument): Promise<Buffe
       ...billingAddressRows,
       canonical.customer.phone||'',
       canonical.customer.email||'',
-      canonical.customer.gstin?'GSTIN: '+canonical.customer.gstin:''
+      canonical.customer.gstin?tax.taxLabel+': '+canonical.customer.gstin:''
     ].filter(Boolean);
     const shipRows=distinctShippingRows.length?distinctShippingRows:billingAddressRows.length?['Same as billing address']:['No shipping address provided'];
     const standardizedParties=doc.type==='invoice'||doc.type==='quotation';
