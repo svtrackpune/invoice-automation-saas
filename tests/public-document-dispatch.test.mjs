@@ -207,6 +207,7 @@ test('public invoice renderer creates a vector-rendered A4 GST PDF with QR and b
  assert.doesNotMatch(raw,/Rs\./);
  assert.ok(raw.indexOf('Pay Now via UPI') < raw.indexOf('TERMS & CONDITIONS'),'payment settlement must be rendered before invoice terms');
  assert.doesNotMatch(raw,/INVOICE SUMMARY/);
+ assert.match(raw,/Same as billing address|Industrial Estate/,'ship-to card has a shipping or billing fallback');
  assert.doesNotMatch(raw,/This is a customer-facing invoice shared by/);
  assert.match(raw,/0\.486 0\.227 0\.929 rg[^\n]* m [^\n]* l/,'PDF must include a filled purple vector accent');
  assert.match(raw,/0\.929 0\.914 0\.996 rg/,'PDF must include the light-purple header slant');
