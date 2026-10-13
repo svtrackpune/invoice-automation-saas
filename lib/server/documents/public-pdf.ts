@@ -244,15 +244,15 @@ export async function buildPublicDocumentPdf(doc: PublicDocument): Promise<Buffe
   const drawParties=(top:number)=>{
     const gap=10,colW=(CW-gap)/2,boxH=100;
     const billingAddress=canonical.customer.billingAddress||canonicalAddress(doc.customer.address);
-    const shippingAddress=canonical.customer.shippingAddress||billingAddress;
+    const billingAddressRows=addressParts(billingAddress);
+    const distinctShippingRows=addressParts(canonical.customer.shippingAddress);
     const billRows=[
-      ...addressParts(billingAddress),
+      ...billingAddressRows,
       canonical.customer.phone||'',
       canonical.customer.email||'',
       canonical.customer.gstin?'GSTIN: '+canonical.customer.gstin:''
     ].filter(Boolean);
-    const shipRows=addressParts(shippingAddress);
-    if(!shipRows.length)shipRows.push('No shipping address provided');
+    const shipRows=distinctShippingRows.length?distinctShippingRows:billingAddressRows.length?['Same as billing address']:['No shipping address provided'];
     const standardizedParties=doc.type==='invoice'||doc.type==='quotation';
     const list=[
       {x:M,label:standardizedParties?'BILL TO':'BILLED TO',name:canonical.customer.name,rows:billRows},
