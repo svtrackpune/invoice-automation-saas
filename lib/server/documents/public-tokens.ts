@@ -100,14 +100,15 @@ async function loadParties(db: SupabaseClient, businessId: string, customerId: s
   const b = businessResult.data as Row;
   const c = (customerResult.data ?? {}) as Row;
   const taxProfile = (taxProfileResult.data ?? {}) as Row;
-  const gstType = text(taxProfile.gst_registration_type).toUpperCase();
+  const gstType = text(taxProfile.gst_registration_type).toUpperCase() || 'NONE';
+  const nonGst = ['NONE', 'UNREGISTERED', 'NON_GST', 'NOT_REGISTERED'].includes(gstType);
   return {
     business: {
       name: text(b.legal_name || b.name) || 'Business',
       legalName: nullable(b.legal_name), email: nullable(b.email), phone: nullable(b.phone),
       website: nullable(b.website), address: b.address ?? null,
-      taxRegistrationNumber: gstType === 'NONE' ? null : nullable(taxProfile.gstin || b.tax_registration_number),
-      gstRegistrationType: gstType || null,
+      taxRegistrationNumber: nonGst ? null : nullable(taxProfile.gstin || b.tax_registration_number),
+      gstRegistrationType: gstType,
       logoStoragePath: nullable(b.logo_storage_path), pan: nullable(taxProfile.pan),
     },
     customer: {
