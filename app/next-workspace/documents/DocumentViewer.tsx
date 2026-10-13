@@ -69,7 +69,7 @@ function BusinessIdentity({ business, logoUrl, fields, showLogo = true, showAddr
   </div>;
 }
 
-function LineItems({ items, payload, receipt, showTaxDetails = true, minRows = 0, showSerialNumbers = false, showPackages = false }: { items: any[]; payload: any; receipt: boolean; showTaxDetails?: boolean; minRows?: number; showSerialNumbers?: boolean; showPackages?: boolean }) {
+function LineItems({ items, payload, receipt, showTaxDetails = true, minRows = 0, showSerialNumbers = false, showPackages = false, standardSales = false }: { items: any[]; payload: any; receipt: boolean; showTaxDetails?: boolean; minRows?: number; showSerialNumbers?: boolean; showPackages?: boolean; standardSales?: boolean }) {
   const currency = text(payload.currency_code || 'INR');
   const taxed = !receipt && showTaxDetails && Number(payload.tax_total || 0) > 0;
   const hasHsn = taxed && (items || []).some((it: any) => text(it.hsn_sac).trim());
@@ -77,6 +77,26 @@ function LineItems({ items, payload, receipt, showTaxDetails = true, minRows = 0
   const sourceRows = items || [];
   const fillerCount = Math.max(0, Number(minRows || 0) - sourceRows.length);
   const rows = sourceRows.concat(Array.from({ length: fillerCount }, () => null));
+  if (standardSales) {
+    return <table className="items sales-six-column"><thead><tr>
+      <th className="col-no">#</th><th>Item / Description</th><th className="col-qty">Qty</th><th className="col-unit">Unit</th><th className="col-rate">Rate</th><th className="col-amount">Amount</th>
+    </tr></thead><tbody>{rows.map((it:any,idx:number)=>{
+      const quantity=Number(it?.quantity??it?.qty??1);
+      const rate=Number(it?.unit_price??it?.unitPrice??it?.rate??it?.price??0);
+      const amount=Number(it?.line_total??it?.lineTotal??it?.amount??quantity*rate);
+      const name=text(it?.name||it?.item_name||it?.product_name||it?.description||'Item');
+      const detailSource=text(it?.detail||it?.item_description||'');
+      const detail=detailSource&&detailSource!==name?detailSource:text(it?.description&&it.description!==name?it.description:'');
+      return <tr key={it?.id||`sales-row-${idx}`}>
+        <td className="col-no">{it?idx+1:''}</td>
+        <td className="sales-item-copy"><strong>{name}</strong>{detail&&<div className="muted">{detail}</div>}{it?.hsn_sac&&<div className="item-meta">HSN / SAC: {text(it.hsn_sac)}</div>}</td>
+        <td className="col-qty"><span>{it?quantity:''}</span></td>
+        <td className="col-unit">{it?text(it?.unit||'pcs').toUpperCase():''}</td>
+        <td className="col-rate">{it?money(rate,currency):''}</td>
+        <td className="col-amount">{it?money(amount,currency):''}</td>
+      </tr>;
+    })}</tbody></table>;
+  }
   return <table className={`items ${receiptClass} ${taxed ? 'tax-aware-items' : ''}`}><thead><tr>
     {!receipt && <th className='col-no'>#</th>}<th>{receipt ? 'Item' : 'Item / Description'}</th>
     {!receipt && taxed && hasHsn && <th>HSN / SAC</th>}{!receipt && <th className='col-type'>Type</th>}{!receipt && showPackages && <th className='col-packages'>Packages</th>}
@@ -293,7 +313,7 @@ function Paper({ type, payload, business, customer, items, theme, fields, logoUr
       {isGstDocument&&<div className='tax-context'>{payload.place_of_supply_state_code&&<div><span>Place of Supply</span><strong>{text(payload.place_of_supply_state_code)}</strong></div>}{payload.supply_type&&<div><span>Supply Type</span><strong>{text(payload.supply_type)}</strong></div>}{payload.tax_inclusive!==undefined&&<div><span>Tax</span><strong>{payload.tax_inclusive?'Inclusive':'Exclusive'}</strong></div>}{payload.reverse_charge&&<div><span>Reverse Charge</span><strong>Yes</strong></div>}</div>}
     </section>
 
-    <LineItems items={items} payload={payload} receipt={false} showTaxDetails={showTaxDetails} minRows={minItemRows} showSerialNumbers={showSerialNumbers} showPackages={type==='delivery_challan'}/>
+    <LineItems items={items} payload={payload} receipt={false} showTaxDetails={showTaxDetails} minRows={minItemRows} showSerialNumbers={showSerialNumbers} showPackages={type==='delivery_challan'} standardSales={type==='invoice'||taxInvoice||type==='quotation'}/>
     {(taxInvoice || type==='credit_note') && <TaxSummaryGrid items={items} taxLines={taxLines} money={(v:number)=>money(v,currency)}/>} 
     <div className='post-table-grid'><div className='invoice-notes-area'>{(type==='invoice'||taxInvoice||cashBill||type==='quotation'||paymentSelection?.bank)&&<PaymentSection paymentMode={paymentMode} paymentLink={paymentLink} paymentSelection={paymentSelection} balance={Number(payload.balance_due??0)} currency={currency} premium={false} settlementDisplayMode={settlementDisplayMode} showBankDetails={showBankDetails} showPaymentLink={showPaymentLink} showPaymentQr={showPaymentQr} qrDataUrl={paymentQrDataUrl} upiIntentUrl={upiIntentUrl}/>}{showTerms&&terms&&<section className='document-terms'><label style={{color:'#7c3aed',fontWeight:800}}>TERMS & CONDITIONS</label><p>{terms}</p></section>}{notes&&<section className='document-notes'><label style={{color:'#7c3aed',fontWeight:800}}>NOTES</label><p>{notes}</p></section>}{isGstDocument&&<div className='compliance-note'><span>{payload.reverse_charge?'Reverse charge applicable.':'Tax calculated based on the selected tax profile and invoice items.'}</span></div>}</div><DocumentTotals payload={payload} currency={currency} showTaxDetails={showTaxDetails}/></div>
     {showSignature&&<div className='signature-row'><div/><div className='signature-box'><span>{showAuthorizedSignatory?'Authorized Signatory':'Signature'}</span>{fields.signature_label&&<em>{text(fields.signature_label)}</em>}</div></div>}
@@ -543,7 +563,10 @@ export default function DocumentViewer({ type, id }: { type: string; id: string 
   }), [customer, canonical]);
   const canonicalItems = useMemo(() => canonical.items.map((item, index) => ({
     ...(items[index] || {}),
+    name: item.name || (items[index] as any)?.name || (items[index] as any)?.item_name || item.description,
     description: item.description,
+    detail: item.description,
+    unit: item.unit || (items[index] as any)?.unit || 'pcs',
     quantity: item.quantity,
     unit_price: item.unitPrice,
     discount: item.discount,
