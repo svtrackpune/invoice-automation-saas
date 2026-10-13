@@ -14,8 +14,8 @@ test('quotation navigation opens the business-scoped list, not the create form',
   const businessAdapter = await read('lib/business-adaptation.ts');
   assert.ok(layout.includes("label: 'Quotations', href: '/next-workspace/quotations'"));
   assert.ok(sales.includes("href: '/next-workspace/quotations'"));
-  assert.ok(globalSearch.includes("title: 'Estimates', subtitle: 'Search and manage quotations', kind: 'navigation', href: '/next-workspace/quotations'"));
-  assert.ok(businessAdapter.includes("estimates: { module: 'estimates', label: 'Estimates', href: '/next-workspace/quotations' }"));
+  assert.ok(globalSearch.includes("title: 'Quotations', subtitle: 'Search and manage quotations', kind: 'navigation', href: '/next-workspace/quotations'"));
+  assert.ok(businessAdapter.includes("estimates: { module: 'estimates', label: 'Quotations', href: '/next-workspace/quotations' }"));
   assert.ok(list.includes(".from('quotations')"));
   assert.ok(list.includes(".eq('business_id', context.business_id)"));
   for (const column of ['Quotation No.', 'Customer', 'Date', 'Total Amount', 'Status', 'Download PDF', 'Share']) {
