@@ -34,7 +34,7 @@ export type PublicDocument = {
   ewayBillNumber: string | null;
   business: {
     name: string; legalName: string | null; email: string | null; phone: string | null;
-    website: string | null; address: unknown; taxRegistrationNumber: string | null; logoStoragePath: string | null; pan: string | null;
+    website: string | null; address: unknown; taxRegistrationNumber: string | null; gstRegistrationType?: string | null; logoStoragePath: string | null; pan: string | null;
   };
   customer: {
     name: string; legalName: string | null; email: string | null; phone: string | null; address: unknown;
@@ -107,6 +107,7 @@ async function loadParties(db: SupabaseClient, businessId: string, customerId: s
       legalName: nullable(b.legal_name), email: nullable(b.email), phone: nullable(b.phone),
       website: nullable(b.website), address: b.address ?? null,
       taxRegistrationNumber: gstType === 'NONE' ? null : nullable(taxProfile.gstin || b.tax_registration_number),
+      gstRegistrationType: gstType || null,
       logoStoragePath: nullable(b.logo_storage_path), pan: nullable(taxProfile.pan),
     },
     customer: {
