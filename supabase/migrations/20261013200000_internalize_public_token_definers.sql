@@ -13,42 +13,44 @@ DECLARE
   v_old text;
   v_new text;
 BEGIN
-  -- Clone the conversion implementation into the private schema. The private
-  -- acceptance RPC below calls this function as its owner.
-  v_definition := pg_get_functiondef('public.accept_public_quotation(text)'::regprocedure);
-  v_definition := replace(
-    v_definition,
-    'FUNCTION public.accept_public_quotation(',
-    'FUNCTION mm_private.accept_public_quotation_by_token('
-  );
-  IF position('FUNCTION mm_private.accept_public_quotation_by_token(' IN v_definition) = 0 THEN
-    RAISE EXCEPTION 'Could not internalize public.accept_public_quotation(text)';
-  END IF;
-  v_definition := regexp_replace(
-    v_definition,
-    'SET search_path TO [^' || chr(10) || ']+',
-    'SET search_path TO ''pg_catalog'', ''mm_private'', ''public'', ''pg_temp''',
-    'i'
-  );
-  EXECUTE v_definition;
-
-  -- Clone invoice retrieval privately and add strict opaque-token validation.
-  v_definition := pg_get_functiondef('public.get_public_invoice(text)'::regprocedure);
-  v_definition := replace(
-    v_definition,
-    'FUNCTION public.get_public_invoice(',
-    'FUNCTION mm_private.get_public_invoice_by_token('
-  );
-  IF position('FUNCTION mm_private.get_public_invoice_by_token(' IN v_definition) = 0 THEN
-    RAISE EXCEPTION 'Could not internalize public.get_public_invoice(text)';
+  -- The guards make the migration safely re-runnable if the private copies
+  -- already exist (for example after a tool-applied migration).
+  IF to_regprocedure('mm_private.accept_public_quotation_by_token(text)') IS NULL THEN
+    v_definition := pg_get_functiondef('public.accept_public_quotation(text)'::regprocedure);
+    v_definition := replace(
+      v_definition,
+      'FUNCTION public.accept_public_quotation(',
+      'FUNCTION mm_private.accept_public_quotation_by_token('
+    );
+    IF position('FUNCTION mm_private.accept_public_quotation_by_token(' IN v_definition) = 0 THEN
+      RAISE EXCEPTION 'Could not internalize public.accept_public_quotation(text)';
+    END IF;
+    v_definition := regexp_replace(
+      v_definition,
+      'SET search_path TO [^' || chr(10) || ']+',
+      'SET search_path TO ''pg_catalog'', ''mm_private'', ''public'', ''pg_temp''',
+      'i'
+    );
+    EXECUTE v_definition;
   END IF;
 
-  v_old := $old$BEGIN
+  IF to_regprocedure('mm_private.get_public_invoice_by_token(text)') IS NULL THEN
+    v_definition := pg_get_functiondef('public.get_public_invoice(text)'::regprocedure);
+    v_definition := replace(
+      v_definition,
+      'FUNCTION public.get_public_invoice(',
+      'FUNCTION mm_private.get_public_invoice_by_token('
+    );
+    IF position('FUNCTION mm_private.get_public_invoice_by_token(' IN v_definition) = 0 THEN
+      RAISE EXCEPTION 'Could not internalize public.get_public_invoice(text)';
+    END IF;
+
+    v_old := $old$BEGIN
   SELECT *
     INTO i
   FROM public.invoices
   WHERE public_share_token = p_public_share_token;$old$;
-  v_new := $new$BEGIN
+    v_new := $new$BEGIN
   IF nullif(btrim(coalesce(p_public_share_token, '')), '') IS NULL
      OR btrim(p_public_share_token) !~ '^[A-Fa-f0-9]{48,128}$' THEN
     RAISE EXCEPTION 'Invoice not found';
@@ -58,60 +60,62 @@ BEGIN
     INTO i
   FROM public.invoices
   WHERE public_share_token = btrim(p_public_share_token);$new$;
-  IF position(v_old IN v_definition) = 0 THEN
-    RAISE EXCEPTION 'Invoice function changed; refusing to apply unverified token patch';
+    IF position(v_old IN v_definition) = 0 THEN
+      RAISE EXCEPTION 'Invoice function changed; refusing to apply unverified token patch';
+    END IF;
+    v_definition := replace(v_definition, v_old, v_new);
+    v_definition := regexp_replace(
+      v_definition,
+      'SET search_path TO [^' || chr(10) || ']+',
+      'SET search_path TO ''pg_catalog'', ''mm_private'', ''public'', ''pg_temp''',
+      'i'
+    );
+    EXECUTE v_definition;
   END IF;
-  v_definition := replace(v_definition, v_old, v_new);
-  v_definition := regexp_replace(
-    v_definition,
-    'SET search_path TO [^' || chr(10) || ']+',
-    'SET search_path TO ''pg_catalog'', ''mm_private'', ''public'', ''pg_temp''',
-    'i'
-  );
-  EXECUTE v_definition;
 
-  -- Public quotation retrieval remains a token-scoped read-only endpoint.
-  v_definition := pg_get_functiondef('public.get_public_quotation(text)'::regprocedure);
-  v_definition := replace(
-    v_definition,
-    'FUNCTION public.get_public_quotation(',
-    'FUNCTION mm_private.get_public_quotation_by_token('
-  );
-  IF position('FUNCTION mm_private.get_public_quotation_by_token(' IN v_definition) = 0 THEN
-    RAISE EXCEPTION 'Could not internalize public.get_public_quotation(text)';
+  IF to_regprocedure('mm_private.get_public_quotation_by_token(text)') IS NULL THEN
+    v_definition := pg_get_functiondef('public.get_public_quotation(text)'::regprocedure);
+    v_definition := replace(
+      v_definition,
+      'FUNCTION public.get_public_quotation(',
+      'FUNCTION mm_private.get_public_quotation_by_token('
+    );
+    IF position('FUNCTION mm_private.get_public_quotation_by_token(' IN v_definition) = 0 THEN
+      RAISE EXCEPTION 'Could not internalize public.get_public_quotation(text)';
+    END IF;
+    v_definition := regexp_replace(
+      v_definition,
+      'SET search_path TO [^' || chr(10) || ']+',
+      'SET search_path TO ''pg_catalog'', ''mm_private'', ''public'', ''pg_temp''',
+      'i'
+    );
+    EXECUTE v_definition;
   END IF;
-  v_definition := regexp_replace(
-    v_definition,
-    'SET search_path TO [^' || chr(10) || ']+',
-    'SET search_path TO ''pg_catalog'', ''mm_private'', ''public'', ''pg_temp''',
-    'i'
-  );
-  EXECUTE v_definition;
 
-  -- Acceptance performs invoice conversion and a tenant-scoped notification
-  -- insert. Move the privileged implementation out of the exposed schema.
-  v_definition := pg_get_functiondef('public.rpc_accept_public_quotation(text)'::regprocedure);
-  v_definition := replace(
-    v_definition,
-    'FUNCTION public.rpc_accept_public_quotation(',
-    'FUNCTION mm_private.rpc_accept_public_quotation_by_token('
-  );
-  IF position('FUNCTION mm_private.rpc_accept_public_quotation_by_token(' IN v_definition) = 0 THEN
-    RAISE EXCEPTION 'Could not internalize public.rpc_accept_public_quotation(text)';
+  IF to_regprocedure('mm_private.rpc_accept_public_quotation_by_token(text)') IS NULL THEN
+    v_definition := pg_get_functiondef('public.rpc_accept_public_quotation(text)'::regprocedure);
+    v_definition := replace(
+      v_definition,
+      'FUNCTION public.rpc_accept_public_quotation(',
+      'FUNCTION mm_private.rpc_accept_public_quotation_by_token('
+    );
+    IF position('FUNCTION mm_private.rpc_accept_public_quotation_by_token(' IN v_definition) = 0 THEN
+      RAISE EXCEPTION 'Could not internalize public.rpc_accept_public_quotation(text)';
+    END IF;
+    v_old := 'v_result := public.accept_public_quotation(btrim(p_token));';
+    v_new := 'v_result := mm_private.accept_public_quotation_by_token(btrim(p_token));';
+    IF position(v_old IN v_definition) = 0 THEN
+      RAISE EXCEPTION 'Acceptance RPC changed; refusing to redirect it to the private implementation';
+    END IF;
+    v_definition := replace(v_definition, v_old, v_new);
+    v_definition := regexp_replace(
+      v_definition,
+      'SET search_path TO [^' || chr(10) || ']+',
+      'SET search_path TO ''pg_catalog'', ''mm_private'', ''public'', ''pg_temp''',
+      'i'
+    );
+    EXECUTE v_definition;
   END IF;
-  v_old := 'v_result := public.accept_public_quotation(btrim(p_token));';
-  v_new := 'v_result := mm_private.accept_public_quotation_by_token(btrim(p_token));';
-  IF position(v_old IN v_definition) = 0 THEN
-    RAISE EXCEPTION 'Acceptance RPC changed; refusing to redirect it to the private implementation';
-  END IF;
-  v_definition := replace(v_definition, v_old, v_new);
-  v_definition := regexp_replace(
-    v_definition,
-    'SET search_path TO [^' || chr(10) || ']+',
-    'SET search_path TO ''pg_catalog'', ''mm_private'', ''public'', ''pg_temp''',
-    'i'
-  );
-  EXECUTE v_definition;
 END;
 $internalize_public_token_functions$;
 
