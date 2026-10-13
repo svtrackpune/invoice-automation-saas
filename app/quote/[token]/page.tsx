@@ -75,26 +75,33 @@ export default function PublicQuotation({params}:{params:Promise<{token:string}>
 
   const acceptQuotation=async()=>{
     if(!quote||accepting||quote.status==='converted')return;
-    setAccepting(true);setError('');setAcceptanceMessage('');
-    const result=await supabase.rpc('rpc_accept_public_quotation',{p_token:token});
-    if(result.error||!result.data){
-      setError(result.error?.message||'Quotation acceptance could not be completed. Please try again or contact the business.');
+    setAccepting(true);setError('');setAcceptanceMessage('');setRedirectToast('');
+    try {
+      const result=await supabase.rpc('rpc_accept_public_quotation',{p_token:token});
+      if(result.error||!result.data) {
+        const message=result.error?.message||'Quotation acceptance could not be completed. Please try again or contact the business.';
+        setError(message);
+        setRedirectToast('Failed to accept quotation.');
+        window.setTimeout(()=>setRedirectToast(''),2500);
+        return;
+      }
+      const outcome=result.data as {accepted?:boolean;already_processed?:boolean;quotation_id?:string;quotation_number?:string;invoice_id?:string;invoice_number?:string;invoice_status?:string;public_token?:string|null;redirect_url?:string|null;delivery_pending_posting?:boolean;message?:string};
+      setQuote({...quote,status:'converted',invoice_id:outcome.invoice_id||quote.invoice_id||null,invoice_number:outcome.invoice_number||quote.invoice_number||null,invoice_status:outcome.invoice_status||quote.invoice_status||null});
+      if (outcome.redirect_url) {
+        setRedirectToast('Quotation accepted! Redirecting to your Tax Invoice...');
+        window.setTimeout(() => router.push(outcome.redirect_url as string), 700);
+        return;
+      }
+      setAcceptanceMessage(outcome.delivery_pending_posting
+        ? `Quotation ${outcome.quotation_number||quote.quotation_number} was accepted and converted to invoice ${outcome.invoice_number||'successfully'}. Your business must post the invoice before its secure customer invoice link becomes available.`
+        : `Quotation ${outcome.quotation_number||quote.quotation_number} has been accepted and converted to invoice ${outcome.invoice_number||'successfully'}.`);
+    } catch (cause) {
+      setError(cause instanceof Error?cause.message:'Quotation acceptance failed. Please try again.');
+      setRedirectToast('Failed to accept quotation.');
+      window.setTimeout(()=>setRedirectToast(''),2500);
+    } finally {
       setAccepting(false);
-      return;
     }
-    const outcome=result.data as {accepted?:boolean;already_processed?:boolean;quotation_id?:string;quotation_number?:string;invoice_id?:string;invoice_number?:string;invoice_status?:string;public_token?:string|null;redirect_url?:string|null;delivery_pending_posting?:boolean;message?:string};
-    setQuote({...quote,status:'converted',invoice_id:outcome.invoice_id||quote.invoice_id||null,invoice_number:outcome.invoice_number||quote.invoice_number||null,invoice_status:outcome.invoice_status||quote.invoice_status||null});
-    if (outcome.redirect_url) {
-      setAcceptanceMessage('');
-      setRedirectToast('Quotation accepted! Redirecting to your Tax Invoice...');
-      setAccepting(false);
-      window.setTimeout(() => router.push(outcome.redirect_url as string), 700);
-      return;
-    }
-    setAcceptanceMessage(outcome.delivery_pending_posting
-      ? `Quotation ${outcome.quotation_number||quote.quotation_number} was accepted and converted to invoice ${outcome.invoice_number||'successfully'}. Your business must post the invoice before its secure customer invoice link becomes available.`
-      : `Quotation ${outcome.quotation_number||quote.quotation_number} has been accepted and converted to invoice ${outcome.invoice_number||'successfully'}.`);
-    setAccepting(false);
   };
 
   if(loading)return <main className="min-h-screen grid place-items-center bg-slate-50 text-sm text-slate-500">Loading quotation…</main>;
@@ -107,7 +114,7 @@ export default function PublicQuotation({params}:{params:Promise<{token:string}>
   const billingAddress=addressLines(quote.customer.billing_address);
   const shippingAddress=addressLines(quote.customer.shipping_address);
   return <main className="min-h-screen bg-slate-100 p-4 sm:p-8 print:bg-white print:p-0">
-    {redirectToast&&<div role="status" aria-live="polite" className="fixed bottom-5 right-5 z-[200] rounded-xl border border-emerald-200 bg-white px-4 py-3 text-sm font-semibold text-emerald-800 shadow-lg">{redirectToast}</div>}
+    {redirectToast&&<div role="status" aria-live="polite" className={'fixed bottom-5 right-5 z-[200] rounded-xl border bg-white px-4 py-3 text-sm font-semibold shadow-lg '+(redirectToast.startsWith('Failed')?'border-rose-200 text-rose-700':'border-emerald-200 text-emerald-800')}>{redirectToast}</div>}
     <article className="mx-auto max-w-4xl overflow-hidden rounded-2xl bg-white shadow-sm print:max-w-none print:rounded-none print:shadow-none">
       <header className="border-b border-slate-200 p-6 sm:p-8">
         <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
