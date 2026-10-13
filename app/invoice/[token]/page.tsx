@@ -63,8 +63,9 @@ export default function PublicInvoice({params}:{params:Promise<{token:string}>})
 
   const registrationType=String(invoice.business.gst_registration_type||'NONE').trim().toUpperCase();
   const nonGstRegistration=['NONE','UNREGISTERED','NON_GST','NOT_REGISTERED'].includes(registrationType);
-  const taxRegistered=!nonGstRegistration&&Boolean(String(invoice.business.tax_registration_number||'').trim());
-  const invoiceHeading=registrationType==='COMPOSITION'?'BILL OF SUPPLY':taxRegistered?'TAX INVOICE':'INVOICE';
+  const hasValidGstin=/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][0-9A-Z]Z[0-9A-Z]$/.test(String(invoice.business.tax_registration_number||'').trim().toUpperCase());
+  const taxRegistered=!nonGstRegistration&&hasValidGstin;
+  const invoiceHeading=registrationType==='COMPOSITION'&&taxRegistered?'BILL OF SUPPLY':taxRegistered?'TAX INVOICE':'INVOICE';
   const showGstBreakdown=taxRegistered&&registrationType!=='COMPOSITION';
 
   return <main className="min-h-screen bg-slate-100 p-4 sm:p-8 print:bg-white print:p-0">
