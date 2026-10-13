@@ -32,7 +32,7 @@ test('quotation public PDFs accept quote alias and converted quotes while sent q
   assert.ok(route.includes("requestedType === 'quote' ? 'quotation' : requestedType"));
   assert.ok(tokens.includes("return ['sent', 'accepted', 'converted'].includes(s);"));
   assert.ok(tokens.includes('Expiry blocks acceptance, not access to the already-shared quotation document.'));
-  assert.ok(pdf.includes("doc.bankDetails||qrData"));
+  assert.ok(pdf.includes("if (doc.bankDetails || qrData)"), 'non-invoice PDFs should only draw a settlement block when a bank or QR rail exists');
   assert.ok(pdf.includes('QRCode.create(qrData'));
 });
 
