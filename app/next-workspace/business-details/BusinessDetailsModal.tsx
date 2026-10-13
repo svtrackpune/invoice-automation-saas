@@ -151,7 +151,7 @@ export default function BusinessDetailsModal({ businessId, onSaved, onSkip }: Pr
             <div>
               <p className="text-[10px] font-bold uppercase tracking-[.18em] text-violet-600">Complete business profile</p>
               <h2 id="business-details-title" className="mt-2 text-2xl font-semibold tracking-tight text-slate-900">Add your business details</h2>
-              <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">These details appear on invoices, estimates, receipts and customer-facing documents. Complete them once here so every document stays consistent.</p>
+              <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">These details appear on invoices, quotations, receipts and customer-facing documents. Complete them once here so every document stays consistent.</p>
             </div>
             {onSkip && <button type="button" onClick={onSkip} className="shrink-0 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50">Skip for now</button>}
           </div>
