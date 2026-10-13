@@ -141,12 +141,6 @@ export default function PaymentsSettingsPage() {
     setSaving(false);
   };
 
-  const copyTestLink = async () => {
-    if (!testLink) return;
-    try { await navigator.clipboard.writeText(testLink); setMessage('Test UPI link copied.'); }
-    catch { setError('Clipboard access is unavailable.'); }
-  };
-
   const lookupIfsc = async () => {
     const ifsc = bankForm.ifsc_code.trim().toUpperCase();
     if (!/^[A-Z]{4}0[A-Z0-9]{6}$/.test(ifsc)) { setError('Enter a valid 11-character IFSC before lookup.'); return; }
@@ -238,7 +232,7 @@ export default function PaymentsSettingsPage() {
             {qrSvg ? <div className="mx-auto w-fit rounded-lg bg-white p-3" dangerouslySetInnerHTML={{ __html: qrSvg }} /> : <div className="mx-auto grid h-64 max-w-64 place-items-center rounded-lg border border-dashed border-slate-300 bg-white text-xs text-slate-400">{validVpa ? 'Generating QR…' : 'Enter a valid VPA to preview the QR.'}</div>}
             <label className="mx-auto mt-4 block max-w-64 text-left"><span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Test Amount</span><div className="mt-1 flex items-center rounded-lg border border-slate-200 bg-white"><span className="pl-3 text-sm text-slate-500">₹</span><input inputMode="decimal" value={amount} onChange={e => setAmount(e.target.value)} className="w-full bg-transparent px-2 py-2.5 text-sm font-semibold outline-none"/></div></label>
             <p className="mt-3 break-all text-[10px] leading-4 text-slate-400">{testLink || 'upi://pay?...'}</p>
-            <button type="button" onClick={copyTestLink} disabled={!testLink} className="mt-3 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 disabled:opacity-40">Copy Test UPI Link</button>
+            <CopyButton value={testLink} label="Copy Test UPI Link" successMessage="Test UPI link copied to clipboard!" className="mt-3 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 disabled:opacity-40" />
           </div>
           <p className="mt-4 text-[10px] leading-4 text-slate-500">Syntax validation is local; a successful scan still depends on the VPA being active with its issuer.</p>
         </section>
