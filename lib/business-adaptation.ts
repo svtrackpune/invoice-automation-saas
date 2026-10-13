@@ -76,7 +76,7 @@ const MODULES: Record<WorkspaceModule, Omit<WorkspaceModuleConfig, 'priority'>> 
   dashboard: { module: 'dashboard', label: 'Dashboard', href: '/next-workspace' },
   sales: { module: 'sales', label: 'Sales & Payments', href: '/next-workspace/sales' },
   invoices: { module: 'invoices', label: 'Invoices', href: '/next-workspace/invoices' },
-  estimates: { module: 'estimates', label: 'Estimates', href: '/next-workspace/quotations' },
+  estimates: { module: 'estimates', label: 'Quotations', href: '/next-workspace/quotations' },
   customers: { module: 'customers', label: 'Customers', href: '/next-workspace/customers' },
   recurring: { module: 'recurring', label: 'Recurring', href: '/next-workspace/recurring' },
   purchases: { module: 'purchases', label: 'Purchases & Bills', href: '/next-workspace/purchases' },
@@ -138,7 +138,7 @@ export function deriveWorkspaceConfiguration(
 
   const primary: WorkspaceModule[] = [];
   core.forEach((module) => addUnique(primary, module));
-  // Estimates are relevant to every selling model, but are not universal core.
+  // Quotations are relevant to every selling model, but are not universal core.
   addUnique(primary, 'estimates');
 
   if (hasProducts || hasServices) addUnique(primary, 'products_services');
@@ -247,7 +247,7 @@ export function deriveWorkspaceConfiguration(
     recommendations.push('Start by adding your services and pricing.');
   }
   if (hasInventory) recommendations.push('Keep stock levels current so sales and inventory stay aligned.');
-  if (projectBased) recommendations.push('Estimates and expense tracking are prioritized for project-based work.');
+  if (projectBased) recommendations.push('Quotations and expense tracking are prioritized for project-based work.');
   if (operational) recommendations.push('Purchases and operational stock workflows are prioritized for your industry.');
   if (hasTax) recommendations.push('Your tax profile is enabled; tax fields and reports are available where relevant.');
   if (hasRecurring) recommendations.push('Recurring billing is available for repeat customer work.');
