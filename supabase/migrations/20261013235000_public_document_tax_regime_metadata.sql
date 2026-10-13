@@ -69,10 +69,7 @@ SELECT pg_temp.patch_function_definition(
                                FROM public.business_tax_profiles tp
                               WHERE tp.business_id = i.business_id), 'NONE'))
              IN ('VAT', 'SALES_TAX', 'OTHER')
-          THEN nullif(btrim(coalesce(
-            (SELECT tp.tax_id FROM public.business_tax_profiles tp WHERE tp.business_id = i.business_id),
-            b.tax_registration_number
-          )), '')
+          THEN nullif(btrim((SELECT tp.tax_id FROM public.business_tax_profiles tp WHERE tp.business_id = i.business_id)), '')
         ELSE NULL
       END$new$
 );
@@ -126,7 +123,7 @@ SELECT pg_temp.patch_function_definition(
             END
           WHEN upper(coalesce(b.country_code, 'IN')) <> 'IN'
            AND upper(coalesce(tp.tax_regime, 'NONE')) IN ('VAT', 'SALES_TAX', 'OTHER')
-            THEN nullif(btrim(coalesce(tp.tax_id, b.tax_registration_number)), '')
+            THEN nullif(btrim(tp.tax_id), '')
           ELSE NULL
         END$new$
 );
