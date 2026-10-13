@@ -498,8 +498,9 @@ export async function buildPublicDocumentPdf(doc: PublicDocument): Promise<Buffe
       y = Math.max(cardY + cardH, invoiceSignatureEndY) + 8;
     }
   } else {
-    const sectionH=qrData?100:76;
-    if(y+sectionH>FOOTER_TOP-4){c.newPage();header(true);y=154;}
+    if (doc.bankDetails || qrData) {
+      const sectionH=qrData?100:76;
+      if(y+sectionH>FOOTER_TOP-4){c.newPage();header(true);y=154;}
     c.line(M,y,right,y,C.border,0.75);y+=8;c.text(M,y,'PAYMENT / SETTLEMENT DETAILS',8,true,C.navy);y+=15;
     if(doc.bankDetails){
       const b=doc.bankDetails;
