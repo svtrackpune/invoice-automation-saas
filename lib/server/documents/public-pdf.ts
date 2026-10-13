@@ -362,7 +362,7 @@ export async function buildPublicDocumentPdf(doc: PublicDocument): Promise<Buffe
       const rowH = kind === 'normal' ? 15 : 19;
       if (kind === 'total') c.roundRect(totalX, totalY, totalW, rowH, 4, C.pale);
       if (kind === 'balance') c.roundRect(totalX, totalY, totalW, rowH, 4, [1, 0.97, 0.94] as RGB);
-      const emphasized = kind !== 'normal' || label === 'Subtotal' || /^(IGST|CGST|SGST|Tax|GST)(\\b|\\s|\\/)/i.test(label);
+      const emphasized = kind !== 'normal' || label === 'Subtotal' || /^(IGST|CGST|SGST|Tax|GST)(\b|\s|\/)/i.test(label);
       const col = emphasized ? C.amber : C.navy;
       c.text(totalX + 8, totalY + 4, label, emphasized ? 8.1 : 7.6, emphasized, col);
       c.text(right - 8, totalY + 4, (value < 0 ? '-' : '') + money(Math.abs(value), doc.currencyCode),
