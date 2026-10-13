@@ -7,6 +7,7 @@ const types=await readFile(new URL('lib/server/tax/types.ts',root),'utf8');
 const provider=await readFile(new URL('lib/server/tax/dynamic-provider.ts',root),'utf8');
 const apply=await readFile(new URL('lib/server/tax/apply-dynamic.ts',root),'utf8');
 const snapshot=await readFile(new URL('supabase/migrations/20261003163000_dynamic_tax_snapshot_unification_v1.sql',root),'utf8');
+const registrationGuard=await readFile(new URL('supabase/migrations/20261013235700_enforce_dynamic_tax_registration_for_all_regimes.sql',root),'utf8');
 
 test('dynamic tax provider implements the pluggable contract',()=>{
   assert.match(types,/interface TaxDeterminationProvider/);
@@ -71,4 +72,12 @@ test('dynamic tax is zero unless the seller has an explicit eligible registratio
   assert.match(apply,/dynamic_tax_snapshot:\[\]/);
   assert.match(apply,/source_provider:'registration-gated-no-tax'/);
   assert.match(apply,/supplierTaxId/);
+});
+
+test('database dynamic-tax RPCs enforce the same registration gate for every tax regime',()=>{
+  assert.match(registrationGuard,/IF NOT mm_private\.business_tax_enabled\(p_business_id\)/);
+  assert.match(registrationGuard,/jsonb_array_length\(v_meta\) > 0/);
+  assert.match(registrationGuard,/public\.create_invoice_with_dynamic_tax/);
+  assert.match(registrationGuard,/public\.api_create_invoice_with_dynamic_tax/);
+  assert.match(registrationGuard,/nullif\(v_item->>'tax_rule_id',''\) IS NOT NULL/);
 });
