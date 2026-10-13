@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
 const viewer=readFileSync('app/next-workspace/documents/DocumentViewer.tsx','utf8');
+const layout=readFileSync('app/layout.tsx','utf8');
 const compliance=readFileSync('components/documents/PrintCompliance.tsx','utf8');
 const receiptPdf=readFileSync('lib/server/receipt-pdf.ts','utf8');
 
@@ -39,7 +40,10 @@ test('receipt and POS print helpers use a consistent 80mm width',()=>{
   assert.match(viewer,/receipt \? '80mm'/);
   assert.match(viewer,/\.receipt-paper\{width:80mm/);
   assert.match(viewer,/\.receipt-paper\{width:80mm!important;min-width:80mm!important;max-width:80mm!important/);
+  assert.match(layout,/@page receipt \{ size: 80mm auto; margin: 0; \}/);
+  assert.match(layout,/\.receipt-paper \{ width:80mm!important; max-width:80mm!important/);
   assert.doesNotMatch(viewer,/2\.5in|79mm/);
+  assert.doesNotMatch(layout,/2\.5in/);
 });
 
 test('workspace invoice blueprint puts payment before terms and always renders ship-to fallback',()=>{
