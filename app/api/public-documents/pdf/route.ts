@@ -8,7 +8,7 @@ const allowed = new Set<PublicDocumentType>(['invoice','quotation','challan','re
 
 export function buildDownloadFilename(type: string, entityName: string, docNumber: string): string {
   const cleanType = type.charAt(0).toUpperCase() + type.slice(1).toLowerCase();
-  const cleanEntity = entityName.normalize('NFKD').replace(/[^a-zA-Z0-9]+/g, '-').replace(/(^-|-$)/g, '').slice(0, 80).replace(/-+$/g, '') || 'Business';
+  const cleanEntity = entityName.normalize('NFKD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-zA-Z0-9]+/g, '-').replace(/(^-|-$)/g, '').slice(0, 80).replace(/-+$/g, '') || 'Business';
   const cleanNum = docNumber.replace(/[^a-zA-Z0-9_-]+/g, '').slice(0, 80) || 'Document';
   return `${cleanType}-${cleanEntity}-${cleanNum}.pdf`;
 }
