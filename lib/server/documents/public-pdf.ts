@@ -156,7 +156,7 @@ function drawWrap(c: Canvas, x: number, top: number, value: unknown, max: number
 const docTitle = (type: string, business?: PublicDocument['business']) => {
   if (type === 'invoice') {
     const registration = String(business?.gstRegistrationType || '').trim().toUpperCase();
-    if (registration === 'COMPOSITION') return 'BILL OF SUPPLY';
+    if (registration === 'COMPOSITION' && /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][0-9A-Z]Z[0-9A-Z]$/.test(String(business?.taxRegistrationNumber || '').trim().toUpperCase())) return 'BILL OF SUPPLY';
     const noGst = !registration || ['NONE', 'UNREGISTERED', 'NON_GST', 'NOT_REGISTERED'].includes(registration);
     return !noGst && /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][0-9A-Z]Z[0-9A-Z]$/.test(String(business?.taxRegistrationNumber || '').trim().toUpperCase()) ? 'TAX INVOICE' : 'INVOICE';
   }
