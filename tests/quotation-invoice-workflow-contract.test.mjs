@@ -123,7 +123,7 @@ test('invoice title and tax presentation follow explicit GST registration mode',
   assert.ok(quote.includes('quotationTaxEnabled&&canonical?.financials.taxBreakdown.map'));
   assert.ok(viewer.includes('showTaxDetails={documentShowTaxDetails}'));
   assert.ok(viewer.includes('show_customer_balance === true'));
-  assert.ok(invoice.includes("const invoiceHeading=registrationType==='COMPOSITION'?'BILL OF SUPPLY':taxRegistered?'TAX INVOICE':'INVOICE'"));
+  assert.ok(invoice.includes("const invoiceHeading=registrationType==='COMPOSITION'&&taxRegistered?'BILL OF SUPPLY':taxRegistered?'TAX INVOICE':'INVOICE'"));
   assert.ok(invoice.includes('showGstBreakdown=taxRegistered&&registrationType!==\'COMPOSITION\''));
   assert.ok(pdf.includes("const docTitle = (type: string, business?: PublicDocument['business'])"));
   assert.ok(pdf.includes("if (registration === 'COMPOSITION' && /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][0-9A-Z]Z[0-9A-Z]$/.test(String(business?.taxRegistrationNumber || '').trim().toUpperCase())) return 'BILL OF SUPPLY'"));
