@@ -142,6 +142,7 @@ test('invoice title and tax presentation follow explicit GST registration mode',
   assert.ok(viewer.includes("isGstDocument=isRegisteredTaxDocument&&regime==='GST'&&country==='IN'"));
   assert.ok(viewer.includes("function DocumentTotals({ payload, currency='INR', receipt=false, showTaxDetails=true, taxLabel='GST' }"));
   assert.ok(viewer.includes('<span>{taxLabel}</span><strong>{money(tax,currency)}</strong>'));
+  assert.ok(viewer.includes("const showComponents = showTaxDetails && taxLabel === 'GST' && (cgst !== 0 || sgst !== 0 || igst !== 0)"));
   assert.ok(viewer.includes('showTaxDetails={documentShowTaxDetails} taxLabel={taxLabel}'));
   assert.ok(viewer.includes('show_customer_balance === true'));
   assert.ok(invoice.includes("const invoiceHeading=compositionSupply?'BILL OF SUPPLY':taxRegistered?'TAX INVOICE':'INVOICE'"));
