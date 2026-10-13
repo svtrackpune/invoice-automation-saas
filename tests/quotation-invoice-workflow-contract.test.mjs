@@ -16,7 +16,7 @@ const notificationGrantMigration = read('supabase/migrations/20261013191500_noti
 
 test('invoice and quotation web/PDF item grids use six separate columns', () => {
   assert.ok(pdf.includes("['#', 'ITEM / DESCRIPTION', 'QTY', 'UNIT', 'RATE', 'AMOUNT']"));
-  assert.match(pdf,/\[25, 225, 50, 50, 75, 90\]/);
+  assert.match(pdf,/\[25, 225, 50, 55, 70, 90\]/);
   assert.match(pdf,/ascii\(it\.quantity\).*'center'/s);
   assert.match(pdf,/ascii\(originalItem\?\.unit \|\| it\.unit \|\| 'pcs'\)\.toUpperCase\(\)/);
   assert.match(pdf,/detailLines\.forEach\(\(line, j\) => c\.text\(xs\[1\].*7\.5, false, C\.muted/s);
