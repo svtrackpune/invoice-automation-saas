@@ -152,7 +152,7 @@ function normalizeItems(input: unknown): CanonicalDocumentViewModel['items'] {
     const detail = nullableText(item.detail, item.item_description, item.description);
     return {
       name,
-      description: detail && detail !== name ? detail : '',
+      description: detail || name,
       unit: nullableText(item.unit, item.unit_name, item.unit_of_measure) || 'pcs',
       hsn: nullableText(item.hsn, item.hsnSac, item.hsn_sac, item.sac_code),
       quantity,
