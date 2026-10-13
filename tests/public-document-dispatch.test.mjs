@@ -203,8 +203,9 @@ test('public invoice renderer creates a vector-rendered A4 GST PDF with QR and b
  assert.equal(pdf.subarray(0,8).toString('ascii'),'%PDF-1.4');
  const raw=pdf.toString('latin1');
  assert.match(raw,/\/MediaBox \[0 0 595\.28 841\.89\]/);
- for(const text of ['INVOICE','INV-000018','BILL TO','INVOICE SUMMARY','Template: Premium','#','ITEM / DESCRIPTION','CGST','SGST','Total','Balance due','AMOUNT IN WORDS:','Authorized Signatory','SCAN & PAY VIA UPI','Pay Online','Scan with any UPI App','This is a computer-generated invoice and does not require signature.','Powered by Moneymatters FinOps | mm.nilanga.in']) assert.ok(raw.includes(text),'PDF is missing '+text);
+ for(const text of ['TAX INVOICE','INV-000018','BILL TO','SHIP TO','Template: Premium','#','ITEM / DESCRIPTION','CGST','SGST','Total','Balance due','AMOUNT IN WORDS:','Authorized Signatory','SCAN & PAY VIA UPI','Pay Now via UPI','Scan to pay the invoice amount.','This is a computer-generated invoice and does not require signature.','Powered by Moneymatters FinOps | mm.nilanga.in']) assert.ok(raw.includes(text),'PDF is missing '+text);
  assert.doesNotMatch(raw,/Rs\./);
+ assert.ok(raw.indexOf('Pay Now via UPI') < raw.indexOf('TERMS & CONDITIONS'),'payment settlement must be rendered before invoice terms');
  assert.doesNotMatch(raw,/This is a customer-facing invoice shared by/);
  assert.match(raw,/0\.486 0\.227 0\.929 rg[^\n]* m [^\n]* l/,'PDF must include a filled purple vector accent');
  assert.match(raw,/0\.929 0\.914 0\.996 rg/,'PDF must include the light-purple header slant');
@@ -239,7 +240,7 @@ test('public invoice renderer creates a vector-rendered A4 GST PDF with QR and b
  const challanText=challanPdf.toString('latin1');
  for(const value of ['DELIVERY CHALLAN','Vehicle No: MH24AB1234','Transporter: Sample Transport','E-Way Bill: EWB-12345','NOT FOR SALE / NOT A TAX INVOICE']) assert.ok(challanText.includes(value),'Challan PDF is missing '+value);
 });
-function QRCodePlaceholderForTest(pdf){const raw=pdf.toString('latin1');return raw.includes('/Subtype /Link')&&raw.includes('Pay Online')&&raw.includes('/Annots [');}
+function QRCodePlaceholderForTest(pdf){const raw=pdf.toString('latin1');return raw.includes('/Subtype /Link')&&raw.includes('Pay Now via UPI')&&raw.includes('/Annots [');}
 
 test('public PDF download uses a sanitized entity-type-number filename',async()=>{
  const route=await read('app/api/public-documents/pdf/route.ts');
@@ -247,6 +248,9 @@ test('public PDF download uses a sanitized entity-type-number filename',async()=
  assert.match(route,/const typeSlug = type === 'challan' \? 'delivery-challan' : type/);
  assert.match(route,/const rawNumber = document\.number\.replace/);
  assert.match(route,/Content-Disposition.*filename="\$\{filename\}"/);
+ const receiptRoute=await read('app/api/receipts/pdf/route.ts');
+ assert.match(receiptRoute,/Content-Disposition.*attachment/);
+ assert.match(receiptRoute,/entitySlug/);
  assert.match(route,/replace\(\/\[\^a-z0-9\]\+\/g, '-'/);
 });
 
@@ -286,6 +290,14 @@ test('document toolbar exposes styled actions, copied feedback, and print iframe
  assert.match(viewer,/Share public link/);
 });
 
+test('public quotation uses the standard status, table, statutory blocks, CTA, and disclaimer',async()=>{
+ const page=await read('app/quote/[token]/page.tsx');
+ const pdf=await read('lib/server/documents/public-pdf.ts');
+ for(const value of ['BILL TO','SHIP TO','bg-[#7c3aed]','publicStatus','AMOUNT IN WORDS','Authorized Signatory','Accept Quotation & Request Invoice','This is a computer-generated quotation and does not require signature.']) assert.ok(page.includes(value),'Public quotation is missing '+value);
+ assert.match(page,/rpc\('rpc_accept_public_quotation'/);
+ assert.match(pdf,/doc\.type === 'invoice' \|\| doc\.type === 'quotation'/);
+ assert.match(pdf,/This is a computer-generated quotation and does not require signature\./);
+});
 test('canonical view model powers invoice, quotation, receipt, challan, print and PDF surfaces',async()=>{
  const viewModel=await read('lib/shared/document-view-model.ts');
  const viewer=await read('app/next-workspace/documents/DocumentViewer.tsx');
