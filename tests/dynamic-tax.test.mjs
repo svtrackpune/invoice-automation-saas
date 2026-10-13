@@ -8,6 +8,8 @@ const provider=await readFile(new URL('lib/server/tax/dynamic-provider.ts',root)
 const apply=await readFile(new URL('lib/server/tax/apply-dynamic.ts',root),'utf8');
 const snapshot=await readFile(new URL('supabase/migrations/20261003163000_dynamic_tax_snapshot_unification_v1.sql',root),'utf8');
 const registrationGuard=await readFile(new URL('supabase/migrations/20261013235700_enforce_dynamic_tax_registration_for_all_regimes.sql',root),'utf8');
+const registrationBoundary=await readFile(new URL('supabase/migrations/20261013234500_harden_gst_registration_rpc_boundary.sql',root),'utf8');
+const taxIdBoundary=await readFile(new URL('supabase/migrations/20261013235500_require_tax_id_for_non_indian_tax.sql',root),'utf8');
 
 test('dynamic tax provider implements the pluggable contract',()=>{
   assert.match(types,/interface TaxDeterminationProvider/);
@@ -80,4 +82,14 @@ test('database dynamic-tax RPCs enforce the same registration gate for every tax
   assert.match(registrationGuard,/public\.create_invoice_with_dynamic_tax/);
   assert.match(registrationGuard,/public\.api_create_invoice_with_dynamic_tax/);
   assert.match(registrationGuard,/nullif\(v_item->>'tax_rule_id',''\) IS NOT NULL/);
+  assert.match(registrationBoundary,/IF NOT mm_private\.business_tax_enabled\(p_business_id\)/);
+  assert.match(registrationBoundary,/jsonb_array_length\(v_meta\) > 0/);
+  assert.equal((registrationGuard.match(/Tax cannot be charged without a valid business tax registration/g)||[]).length,3);
+});
+
+test('non-Indian tax enablement always requires an explicit profile tax ID',()=>{
+  for(const migration of [registrationBoundary,taxIdBoundary]) {
+    assert.match(migration,/WHEN upper\(coalesce\(tp\.tax_regime, 'NONE'\)\) IN \('VAT', 'SALES_TAX', 'OTHER'\)\s+THEN nullif\(btrim\(coalesce\(tp\.tax_id, ''\)\), ''\) IS NOT NULL/);
+    assert.doesNotMatch(migration,/THEN lower\(coalesce\(b\.tax_settings->>'enabled', 'false'\)\)/);
+  }
 });
