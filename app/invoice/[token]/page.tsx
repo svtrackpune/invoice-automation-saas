@@ -23,7 +23,7 @@ type Invoice = {
   upi_id:string|null; payment_qr_enabled:boolean; settlement_display_mode:'upi_qr'|'bank_transfer'|'both'|'none';
   template_name:string|null;
   customer:{display_name:string;legal_name:string|null;email:string|null;phone:string|null;billing_address:AddressValue;shipping_address:AddressValue;tax_id:string|null};
-  business:{name:string;legal_name:string|null;phone:string|null;email:string|null;website:string|null;address:AddressValue;logo_storage_path:string|null;tax_registration_number:string|null;gst_registration_type?:string|null};
+  business:{name:string;legal_name:string|null;phone:string|null;email:string|null;website:string|null;address:AddressValue;logo_storage_path:string|null;tax_registration_number:string|null;gst_registration_type?:string|null;tax_regime?:string|null;country_code?:string|null;tax_id?:string|null};
   bank:{name:string;institution_name:string|null;account_holder_name:string|null;account_number:string|null;account_type:string|null;branch_name:string|null;ifsc_code:string|null;upi_id:string|null}|null;
   items:Array<{description:string|null;quantity:number;unit_price:number;discount:number;tax_amount:number;line_total:number;hsn_sac:string|null;item_name:string|null;item_type:string|null;unit:string|null}>;
 };
@@ -62,11 +62,18 @@ export default function PublicInvoice({params}:{params:Promise<{token:string}>})
   if(error||!invoice)return <main className="min-h-screen grid place-items-center bg-slate-50 p-6"><div className="max-w-md rounded-3xl bg-white p-8 text-center shadow-sm"><h1 className="text-xl font-bold text-slate-900">Invoice unavailable</h1><p className="mt-3 text-sm text-slate-600">{error||'This invoice link is invalid or no longer available.'}</p></div></main>;
 
   const registrationType=String(invoice.business.gst_registration_type||'NONE').trim().toUpperCase();
-  const nonGstRegistration=['NONE','UNREGISTERED','NON_GST','NOT_REGISTERED'].includes(registrationType);
-  const hasValidGstin=/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][0-9A-Z]Z[0-9A-Z]$/.test(String(invoice.business.tax_registration_number||'').trim().toUpperCase());
-  const taxRegistered=!nonGstRegistration&&hasValidGstin;
-  const invoiceHeading=registrationType==='COMPOSITION'&&taxRegistered?'BILL OF SUPPLY':taxRegistered?'TAX INVOICE':'INVOICE';
-  const showGstBreakdown=taxRegistered&&registrationType!=='COMPOSITION';
+  const taxRegime=String(invoice.business.tax_regime||'NONE').trim().toUpperCase();
+  const countryCode=String(invoice.business.country_code||'IN').trim().toUpperCase();
+  const taxNumber=String(invoice.business.tax_registration_number||'').trim().toUpperCase();
+  const validGstin=countryCode==='IN'?/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][0-9A-Z]Z[0-9A-Z]$/.test(taxNumber):Boolean(taxNumber);
+  const validGstType=['REGULAR','CASUAL','NON_RESIDENT','SEZ','COMPOSITION'].includes(registrationType);
+  const gstRegistered=taxRegime==='GST'&&validGstType&&validGstin;
+  const compositionSupply=gstRegistered&&registrationType==='COMPOSITION';
+  const otherTaxRegistered=countryCode!=='IN'&&['VAT','SALES_TAX','OTHER'].includes(taxRegime)&&Boolean(invoice.business.tax_id||invoice.business.tax_registration_number);
+  const taxRegistered=gstRegistered||otherTaxRegistered;
+  const invoiceHeading=compositionSupply?'BILL OF SUPPLY':taxRegistered?'TAX INVOICE':'INVOICE';
+  const showGstBreakdown=gstRegistered&&!compositionSupply;
+  const showOtherTaxBreakdown=otherTaxRegistered;
 
   return <main className="min-h-screen bg-slate-100 p-4 sm:p-8 print:bg-white print:p-0">
     <article className="mx-auto max-w-4xl overflow-hidden rounded-2xl bg-white shadow-sm print:max-w-none print:rounded-none print:shadow-none">
@@ -78,7 +85,7 @@ export default function PublicInvoice({params}:{params:Promise<{token:string}>})
           </div>
           <div className="text-sm text-slate-500 sm:text-right"><div>Invoice date: {date(canonical?.document.date||invoice.invoice_date)}</div><div>Due date: {date(invoice.due_date)}</div><div className="mt-2 inline-flex rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-slate-700">{invoice.status.replace('_',' ')}</div></div>
         </div>
-        <div className="mt-4 grid gap-1 text-xs text-slate-500">{address(invoice.business.address).map((x,i)=><span key={i}>{x}</span>)}{invoice.business.phone&&<span>{invoice.business.phone}</span>}{invoice.business.email&&<span>{invoice.business.email}</span>}{invoice.business.website&&<span>{invoice.business.website}</span>}{invoice.business.tax_registration_number&&<span>GSTIN / Tax ID: {invoice.business.tax_registration_number}</span>}</div>
+        <div className="mt-4 grid gap-1 text-xs text-slate-500">{address(invoice.business.address).map((x,i)=><span key={i}>{x}</span>)}{invoice.business.phone&&<span>{invoice.business.phone}</span>}{invoice.business.email&&<span>{invoice.business.email}</span>}{invoice.business.website&&<span>{invoice.business.website}</span>}{invoice.business.tax_registration_number&&<span>{taxRegime==='GST'?'GSTIN':'Tax ID'}: {invoice.business.tax_registration_number}</span>}</div>
       </header>
 
       <section className="grid gap-4 border-b border-slate-200 p-6 sm:grid-cols-2 sm:p-8">
@@ -167,7 +174,7 @@ export default function PublicInvoice({params}:{params:Promise<{token:string}>})
         <div className="min-w-0 space-y-2 text-sm">
           <div className="flex justify-between gap-4 font-bold text-orange-700"><span>Subtotal</span><span className="text-right tabular-nums">{money(canonical?.financials.subtotal??invoice.subtotal,invoice.currency_code)}</span></div>
           {invoice.discount_total!==0&&<div className="flex justify-between gap-4"><span className="text-slate-600">Discount</span><span className="text-right tabular-nums">-{money(canonical?.financials.totalDiscount??invoice.discount_total,invoice.currency_code)}</span></div>}
-          {showGstBreakdown&&invoice.igst_amount>0?<div className="flex justify-between gap-4 font-bold text-orange-700"><span>IGST</span><span className="text-right tabular-nums">{money(invoice.igst_amount,invoice.currency_code)}</span></div>:<>{showGstBreakdown&&invoice.cgst_amount>0&&<div className="flex justify-between gap-4 font-bold text-orange-700"><span>CGST</span><span className="text-right tabular-nums">{money(invoice.cgst_amount,invoice.currency_code)}</span></div>}{showGstBreakdown&&invoice.sgst_amount>0&&<div className="flex justify-between gap-4 font-bold text-orange-700"><span>SGST</span><span className="text-right tabular-nums">{money(invoice.sgst_amount,invoice.currency_code)}</span></div>}{showGstBreakdown&&invoice.tax_total!==0&&invoice.cgst_amount===0&&invoice.sgst_amount===0&&<div className="flex justify-between gap-4 font-bold text-orange-700"><span>Tax / GST</span><span className="text-right tabular-nums">{money(invoice.tax_total,invoice.currency_code)}</span></div>}</>}
+          {showGstBreakdown&&invoice.igst_amount>0?<div className="flex justify-between gap-4 font-bold text-orange-700"><span>IGST</span><span className="text-right tabular-nums">{money(invoice.igst_amount,invoice.currency_code)}</span></div>:<>{showGstBreakdown&&invoice.cgst_amount>0&&<div className="flex justify-between gap-4 font-bold text-orange-700"><span>CGST</span><span className="text-right tabular-nums">{money(invoice.cgst_amount,invoice.currency_code)}</span></div>}{showGstBreakdown&&invoice.sgst_amount>0&&<div className="flex justify-between gap-4 font-bold text-orange-700"><span>SGST</span><span className="text-right tabular-nums">{money(invoice.sgst_amount,invoice.currency_code)}</span></div>}{showGstBreakdown&&invoice.tax_total!==0&&invoice.cgst_amount===0&&invoice.sgst_amount===0&&<div className="flex justify-between gap-4 font-bold text-orange-700"><span>GST</span><span className="text-right tabular-nums">{money(invoice.tax_total,invoice.currency_code)}</span></div>}</>}{showOtherTaxBreakdown&&invoice.tax_total!==0&&<div className="flex justify-between gap-4 font-bold text-orange-700"><span>Tax</span><span className="text-right tabular-nums">{money(invoice.tax_total,invoice.currency_code)}</span></div>}
           <div className="flex justify-between gap-4 border-t border-slate-200 pt-3 text-lg font-extrabold text-orange-700"><span>Net Payable</span><span className="text-right tabular-nums">{money(canonical?.financials.grandTotal??invoice.total,invoice.currency_code)}</span></div>
           {invoice.amount_paid>0&&<div className="flex justify-between gap-4"><span className="text-slate-600">Amount paid</span><span className="text-right tabular-nums">{money(canonical?.financials.amountPaid??invoice.amount_paid,invoice.currency_code)}</span></div>}
           <div className="flex justify-between gap-4 font-extrabold text-orange-700"><span>Balance Due</span><span className="text-right tabular-nums">{money(canonical?.financials.balanceDue??invoice.balance_due,invoice.currency_code)}</span></div>
