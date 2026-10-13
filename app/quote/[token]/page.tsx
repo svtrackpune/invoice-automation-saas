@@ -176,8 +176,8 @@ export default function PublicQuotation({params}:{params:Promise<{token:string}>
           <tbody>{(canonical?.items||[]).map((item,i)=><tr key={i} className="border-b border-slate-100 align-top">
             <td className="px-4 py-3 text-center text-slate-500">{i+1}</td>
             <td className="px-4 py-3 text-left">
-              <div className="text-sm font-semibold text-slate-900">{item.name||item.item_name||item.description||'Item'}</div>
-              {item.description&&(item.name||item.item_name)&&item.description!==(item.name||item.item_name)&&<div className="mt-0.5 whitespace-pre-line text-xs text-slate-500">{item.description}</div>}
+              <div className="text-sm font-semibold text-slate-900">{item.name||item.description||'Item'}</div>
+              {item.description&&item.name&&item.description!==item.name&&<div className="mt-0.5 whitespace-pre-line text-xs text-slate-500">{item.description}</div>}
             </td>
             <td className="px-4 py-3 text-center text-sm text-slate-700">{item.quantity}</td>
             <td className="px-4 py-3 text-center text-xs font-medium uppercase text-slate-500">{item.unit||'pcs'}</td>
