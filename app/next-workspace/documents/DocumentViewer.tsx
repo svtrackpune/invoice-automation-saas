@@ -45,18 +45,26 @@ const receiptAddressLine = (business: any) => {
 };
 const taxValue = (party: any) => text(party?.tax_id || party?.gstin || party?.gst_number || party?.tax_registration_number || '');
 const registrationType = (party: any) => text(party?.gst_registration_type || party?.gstRegistrationType || party?.tax_registration_status || '').trim().toUpperCase() || 'NONE';
-const isNonGstRegistration = (party: any) => ['NONE', 'UNREGISTERED', 'NON_GST', 'NOT_REGISTERED'].includes(registrationType(party));
-const hasValidGstin = (party: any) => /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][0-9A-Z]Z[0-9A-Z]$/.test(text(party?.gstin || party?.gst_number || party?.tax_registration_number).trim().toUpperCase());
+const taxRegime = (party: any) => text(party?.tax_regime || party?.taxRegime || '').trim().toUpperCase() || 'NONE';
+const countryCode = (party: any) => text(party?.country_code || party?.countryCode || 'IN').trim().toUpperCase();
+const hasValidGstin = (party: any) => {
+  const number = text(party?.gstin || party?.gst_number || party?.tax_registration_number).trim().toUpperCase();
+  return countryCode(party) === 'IN'
+    ? /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][0-9A-Z]Z[0-9A-Z]$/.test(number)
+    : Boolean(number);
+};
+const isCompositionRegistration = (party: any) => taxRegime(party) === 'GST'
+  && registrationType(party) === 'COMPOSITION' && hasValidGstin(party);
 const isTaxRegistered = (party: any) => {
   if (!party) return false;
-  if (party.is_tax_registered === false || party.tax_registered === false || party.tax_enabled === false) return false;
-  if (isNonGstRegistration(party)) return false;
-  const mode = text(party.tax_mode || party.tax_status || '').trim().toLowerCase();
-  if (['non_gst', 'unregistered', 'not_registered', 'not tax registered'].includes(mode)) return false;
-  return hasValidGstin(party);
+  const regime = taxRegime(party), registration = registrationType(party);
+  if (regime === 'GST') return ['REGULAR', 'CASUAL', 'NON_RESIDENT', 'SEZ'].includes(registration) && hasValidGstin(party);
+  return countryCode(party) !== 'IN'
+    && ['VAT', 'SALES_TAX', 'OTHER'].includes(regime)
+    && Boolean(taxValue(party));
 };
 const invoiceDocumentTitle = (party: any) => {
-  if (registrationType(party) === 'COMPOSITION' && hasValidGstin(party)) return 'BILL OF SUPPLY';
+  if (isCompositionRegistration(party)) return 'BILL OF SUPPLY';
   return isTaxRegistered(party) ? 'TAX INVOICE' : 'INVOICE';
 };
 
@@ -73,7 +81,7 @@ function BusinessIdentity({ business, logoUrl, fields, showLogo = true, showAddr
     {showAddress && address.length > 0 && <div className='business-address'>{address.map((line: string, index: number) => <span key={index}>{line}</span>)}</div>}
     {business.contact_person_name && <div className='business-contact-person'>Contact: {text(business.contact_person_name)}{business.contact_person_designation ? ` · ${text(business.contact_person_designation)}` : ''}</div>}
     {(business.phone || business.alternate_phone || business.email || business.alternate_email || business.website) && <div className='business-contact'>{business.phone && <span>{text(business.phone)}</span>}{business.alternate_phone && <span>{text(business.alternate_phone)}</span>}{business.email && <span>{text(business.email)}</span>}{business.alternate_email && <span>{text(business.alternate_email)}</span>}{business.website && <span>{text(business.website)}</span>}</div>}
-    {taxValue(business) && <div className='business-gstin'>GSTIN / Tax ID: {taxValue(business)}</div>}
+    {taxValue(business) && <div className='business-gstin'>{taxRegime(business) === 'GST' ? 'GSTIN' : 'Tax ID'}: {taxValue(business)}</div>}
   </div>;
 }
 
@@ -371,24 +379,40 @@ export default function DocumentViewer({ type, id }: { type: string; id: string 
       const [templateResult, preferenceResult, businessResult, taxProfileResult, paymentSettingsResult] = await Promise.all([
         loaded.data?.template_id ? supabase.from('document_templates').select('template_key,template_name').eq('id', loaded.data.template_id).maybeSingle() : Promise.resolve({ data: null } as any),
         businessId ? supabase.from('business_document_preferences').select('custom_fields,show_logo,show_business_address,show_tax_details,show_payment_qr,show_payment_link,show_signature,show_terms,show_bank_details,document_title_override,min_item_rows,prefill_upi_amount,show_customer_balance,show_authorized_signatory,show_serial_numbers').eq('business_id', businessId).eq('document_type', renderType).maybeSingle() : Promise.resolve({ data: null } as any),
-        businessId ? supabase.from('businesses').select('id,name,legal_name,registration_number,tax_registration_number,tax_enabled,tax_mode,tax_type,currency_code,address,phone,alternate_phone,contact_person_name,contact_person_designation,email,alternate_email,website,google_location_link,logo_storage_path,logo_url').eq('id', businessId).maybeSingle() : Promise.resolve({ data: null } as any),
-        businessId ? supabase.from('business_tax_profiles').select('gstin,pan,tax_regime,gst_registration_type').eq('business_id', businessId).maybeSingle() : Promise.resolve({ data: null } as any),
+        businessId ? supabase.from('businesses').select('id,name,legal_name,registration_number,tax_registration_number,tax_enabled,tax_mode,tax_type,country_code,currency_code,address,phone,alternate_phone,contact_person_name,contact_person_designation,email,alternate_email,website,google_location_link,logo_storage_path,logo_url').eq('id', businessId).maybeSingle() : Promise.resolve({ data: null } as any),
+        businessId ? supabase.from('business_tax_profiles').select('gstin,pan,tax_id,tax_regime,gst_registration_type').eq('business_id', businessId).maybeSingle() : Promise.resolve({ data: null } as any),
         businessId ? supabase.from('document_payment_settings').select('upi_id,payment_qr_enabled,payment_link_enabled,payment_instructions,default_bank_account_id,settlement_display_mode').eq('business_id', businessId).maybeSingle() : Promise.resolve({ data: null } as any),
       ]);
       if (!active) return;
       setJob(loaded.data); setTemplate(templateResult.data); setPreferences(preferenceResult.data); setPaymentSettings(paymentSettingsResult.data || null);
       if (businessResult.data) {
-        const taxProfile = taxProfileResult.data as { gstin?: string | null; pan?: string | null; tax_regime?: string | null; gst_registration_type?: string | null } | null;
+        const taxProfile = taxProfileResult.data as { gstin?: string | null; pan?: string | null; tax_id?: string | null; tax_regime?: string | null; gst_registration_type?: string | null } | null;
         const registration = String(taxProfile?.gst_registration_type || 'NONE').trim().toUpperCase();
-        const nonGst = ['NONE', 'UNREGISTERED', 'NON_GST', 'NOT_REGISTERED'].includes(registration);
+        const regime = String(taxProfile?.tax_regime || 'NONE').trim().toUpperCase();
+        const country = String(businessResult.data.country_code || 'IN').trim().toUpperCase();
+        const gstin = String(taxProfile?.gstin || '').trim().toUpperCase();
+        const hasValidGstin = country === 'IN'
+          ? /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][0-9A-Z]Z[0-9A-Z]$/.test(gstin)
+          : Boolean(gstin);
+        const gstIdAvailable = ['REGULAR', 'CASUAL', 'NON_RESIDENT', 'SEZ', 'COMPOSITION'].includes(registration) && hasValidGstin;
+        const otherTaxId = country !== 'IN' && ['VAT', 'SALES_TAX', 'OTHER'].includes(regime)
+          ? (taxProfile?.tax_id || businessResult.data.tax_registration_number || null)
+          : null;
+        const displayTaxId = regime === 'GST' && gstIdAvailable ? gstin : otherTaxId;
+        const taxEnabled = regime === 'GST'
+          ? ['REGULAR', 'CASUAL', 'NON_RESIDENT', 'SEZ'].includes(registration) && hasValidGstin
+          : country !== 'IN' && ['VAT', 'SALES_TAX', 'OTHER'].includes(regime) && Boolean(otherTaxId);
         setBusiness({
           ...businessResult.data,
           gst_registration_type: registration,
-          gstin: nonGst ? null : (taxProfile?.gstin || null),
+          tax_regime: regime,
+          country_code: country,
+          gstin: regime === 'GST' && gstIdAvailable ? gstin : null,
           pan: taxProfile?.pan || null,
-          tax_registration_number: nonGst ? null : (taxProfile?.gstin || businessResult.data.tax_registration_number || null),
-          tax_enabled: nonGst ? false : businessResult.data.tax_enabled,
-          tax_mode: nonGst ? 'non_gst' : businessResult.data.tax_mode,
+          tax_id: otherTaxId,
+          tax_registration_number: displayTaxId,
+          tax_enabled: taxEnabled,
+          tax_mode: regime === 'GST' ? (taxEnabled ? 'gst' : 'non_gst') : regime.toLowerCase(),
         });
       }
       const invoiceId = payload.invoice_id || payload.invoice?.id || payload.source_invoice_id || payload.payment?.invoice_id || (type === 'invoice' ? id : null);
