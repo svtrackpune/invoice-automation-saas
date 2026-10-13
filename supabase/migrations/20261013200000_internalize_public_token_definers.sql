@@ -26,7 +26,7 @@ BEGIN
   END IF;
   v_definition := regexp_replace(
     v_definition,
-    E'SET search_path TO [^\\n]+',
+    'SET search_path TO [^' || chr(10) || ']+',
     'SET search_path TO ''pg_catalog'', ''mm_private'', ''public'', ''pg_temp''',
     'i'
   );
@@ -64,7 +64,7 @@ BEGIN
   v_definition := replace(v_definition, v_old, v_new);
   v_definition := regexp_replace(
     v_definition,
-    E'SET search_path TO [^\\n]+',
+    'SET search_path TO [^' || chr(10) || ']+',
     'SET search_path TO ''pg_catalog'', ''mm_private'', ''public'', ''pg_temp''',
     'i'
   );
@@ -82,7 +82,7 @@ BEGIN
   END IF;
   v_definition := regexp_replace(
     v_definition,
-    E'SET search_path TO [^\\n]+',
+    'SET search_path TO [^' || chr(10) || ']+',
     'SET search_path TO ''pg_catalog'', ''mm_private'', ''public'', ''pg_temp''',
     'i'
   );
@@ -99,15 +99,15 @@ BEGIN
   IF position('FUNCTION mm_private.rpc_accept_public_quotation_by_token(' IN v_definition) = 0 THEN
     RAISE EXCEPTION 'Could not internalize public.rpc_accept_public_quotation(text)';
   END IF;
-  v_old := 'RETURN public.accept_public_quotation(btrim(p_token));';
-  v_new := 'RETURN mm_private.accept_public_quotation_by_token(btrim(p_token));';
+  v_old := 'v_result := public.accept_public_quotation(btrim(p_token));';
+  v_new := 'v_result := mm_private.accept_public_quotation_by_token(btrim(p_token));';
   IF position(v_old IN v_definition) = 0 THEN
     RAISE EXCEPTION 'Acceptance RPC changed; refusing to redirect it to the private implementation';
   END IF;
   v_definition := replace(v_definition, v_old, v_new);
   v_definition := regexp_replace(
     v_definition,
-    E'SET search_path TO [^\\n]+',
+    'SET search_path TO [^' || chr(10) || ']+',
     'SET search_path TO ''pg_catalog'', ''mm_private'', ''public'', ''pg_temp''',
     'i'
   );
