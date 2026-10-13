@@ -302,7 +302,7 @@ export async function buildPublicDocumentPdf(doc: PublicDocument): Promise<Buffe
   header(false);
   let y=drawParties(147)+4;
   y=tableHeader(y);
-  const items=canonical.items.length?canonical.items:[{description:'No line items supplied',quantity:0,unitPrice:0,discount:0,taxRate:0,amount:0,hsn:undefined}];
+  const items=canonical.items.length?canonical.items:[{name:'No line items supplied',description:'',unit:'pcs',quantity:0,unitPrice:0,discount:0,taxRate:0,amount:0,hsn:undefined}];
   items.forEach((it,i)=>{
     const originalItem=doc.items[i];
     if (doc.type === 'invoice' || doc.type === 'quotation') {
