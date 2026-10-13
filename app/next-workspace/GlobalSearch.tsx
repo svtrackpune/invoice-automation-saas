@@ -39,13 +39,13 @@ type VendorSearchRow = {
 type CustomerNameRow = Pick<CustomerSearchRow, 'id' | 'display_name' | 'legal_name'>;
 
 const kindLabel: Record<string, string> = {
-  navigation: 'Open', customer: 'Customer', invoice: 'Invoice', quotation: 'Estimate', receipt: 'Receipt', payment: 'Payment', product: 'Product / Service', vendor: 'Vendor',
+  navigation: 'Open', customer: 'Customer', invoice: 'Invoice', quotation: 'Quotation', receipt: 'Receipt', payment: 'Payment', product: 'Product / Service', vendor: 'Vendor',
 };
 
 const navigation: NavResult[] = [
   { id: 'dashboard', title: 'Dashboard', subtitle: 'Business cockpit', kind: 'navigation', href: '/next-workspace', keywords: 'home dashboard overview' },
   { id: 'invoices', title: 'Invoices', subtitle: 'Create and manage invoices', kind: 'navigation', href: '/next-workspace/invoices', keywords: 'invoice invoices billing sales bill' },
-  { id: 'estimates', title: 'Estimates', subtitle: 'Search and manage quotations', kind: 'navigation', href: '/next-workspace/quotations', keywords: 'estimate estimates quotation quotations quote' },
+  { id: 'estimates', title: 'Quotations', subtitle: 'Search and manage quotations', kind: 'navigation', href: '/next-workspace/quotations', keywords: 'estimate estimates quotation quotations quote' },
   { id: 'customers', title: 'Customers', subtitle: 'Customer relationships and statements', kind: 'navigation', href: '/next-workspace/customers', keywords: 'customer customers clients contacts' },
   { id: 'products', title: 'Products & Services', subtitle: 'Items, pricing and catalogue', kind: 'navigation', href: '/next-workspace/items', keywords: 'product products service services items catalogue catalog' },
   { id: 'vendors', title: 'Vendors', subtitle: 'Suppliers and vendor records', kind: 'navigation', href: '/next-workspace/vendors', keywords: 'vendor vendors supplier suppliers purchase' },
@@ -208,7 +208,7 @@ export default function GlobalSearch() {
         const out: Result[] = [];
         customerRows.forEach(x => out.push({ id: x.id, title: x.display_name || x.legal_name || 'Customer', subtitle: x.phone || x.email || x.tax_id || 'Customer', kind: 'customer', href: `/next-workspace/customers/${x.id}`, score: scoreText(term, x.display_name, x.legal_name, x.phone, x.email, x.tax_id) }));
         invoiceRows.forEach(x => out.push({ id: x.id, title: x.invoice_number || 'Invoice', subtitle: `${x.status || 'Invoice'} · ${getCustomerName(x.customer_id)} · ₹${Number(x.total || 0).toLocaleString('en-IN')}`, kind: 'invoice', href: documentHref('invoice', x.id), score: scoreText(term, x.invoice_number, x.status) }));
-        estimateRows.forEach(x => out.push({ id: x.id, title: x.quotation_number || 'Estimate', subtitle: `${x.status || 'Estimate'} · ${getCustomerName(x.customer_id)} · ₹${Number(x.total || 0).toLocaleString('en-IN')}`, kind: 'quotation', href: documentHref('quotation', x.id), score: scoreText(term, x.quotation_number, x.status) }));
+        estimateRows.forEach(x => out.push({ id: x.id, title: x.quotation_number || 'Quotation', subtitle: `${x.status || 'Quotation'} · ${getCustomerName(x.customer_id)} · ₹${Number(x.total || 0).toLocaleString('en-IN')}`, kind: 'quotation', href: documentHref('quotation', x.id), score: scoreText(term, x.quotation_number, x.status) }));
         receiptRows.forEach(x => out.push({ id: x.id, title: x.receipt_number || 'Receipt', subtitle: `${x.payment_method || 'Payment'} · ${getCustomerName(x.customer_id)} · ₹${Number(x.amount || 0).toLocaleString('en-IN')}${x.reference_number ? ` · ${x.reference_number}` : ''}`, kind: 'receipt', href: documentHref('receipt', x.id), score: scoreText(term, x.receipt_number, x.payment_method, x.reference_number) }));
         paymentRows.forEach(x => out.push({ id: x.id, title: `Payment · ₹${Number(x.amount || 0).toLocaleString('en-IN')}`, subtitle: `${x.method || 'Payment'} · ${x.direction || 'inbound'} · ${getCustomerName(x.customer_id)}${x.reference ? ` · ${x.reference}` : ''}`, kind: 'payment', href: x.invoice_id ? documentHref('invoice', x.invoice_id) : '/next-workspace/payments', score: scoreText(term, x.reference, x.method, x.payment_date, String(x.amount)) }));
         (products.data || []).forEach((x: ProductSearchRow) => out.push({ id: x.id, title: x.name || 'Product / Service', subtitle: x.sku || x.barcode || x.hsn_sac || x.item_type || 'Product / Service', kind: 'product', href: `/next-workspace/items?search=${encodeURIComponent(x.name || '')}`, score: scoreText(term, x.name, x.sku, x.barcode, x.hsn_sac) }));
@@ -223,7 +223,7 @@ export default function GlobalSearch() {
           ]);
           const existing = new Set(out.map(x => `${x.kind}:${x.id}`));
           (customerInvoices.data || []).forEach((x: InvoiceSearchRow) => { if (!existing.has(`invoice:${x.id}`)) out.push({ id: x.id, title: x.invoice_number || 'Invoice', subtitle: `${x.status || 'Invoice'} · ${getCustomerName(x.customer_id)} · ₹${Number(x.total || 0).toLocaleString('en-IN')}`, kind: 'invoice', href: documentHref('invoice', x.id), score: 55 }); });
-          (customerEstimates.data || []).forEach((x: QuotationSearchRow) => { if (!existing.has(`quotation:${x.id}`)) out.push({ id: x.id, title: x.quotation_number || 'Estimate', subtitle: `${x.status || 'Estimate'} · ${getCustomerName(x.customer_id)} · ₹${Number(x.total || 0).toLocaleString('en-IN')}`, kind: 'quotation', href: documentHref('quotation', x.id), score: 55 }); });
+          (customerEstimates.data || []).forEach((x: QuotationSearchRow) => { if (!existing.has(`quotation:${x.id}`)) out.push({ id: x.id, title: x.quotation_number || 'Quotation', subtitle: `${x.status || 'Quotation'} · ${getCustomerName(x.customer_id)} · ₹${Number(x.total || 0).toLocaleString('en-IN')}`, kind: 'quotation', href: documentHref('quotation', x.id), score: 55 }); });
           (customerReceipts.data || []).forEach((x: ReceiptSearchRow) => { if (!existing.has(`receipt:${x.id}`)) out.push({ id: x.id, title: x.receipt_number || 'Receipt', subtitle: `${x.payment_method || 'Payment'} · ${getCustomerName(x.customer_id)} · ₹${Number(x.amount || 0).toLocaleString('en-IN')}`, kind: 'receipt', href: documentHref('receipt', x.id), score: 55 }); });
         }
 
@@ -274,7 +274,7 @@ export default function GlobalSearch() {
               {!loading && !navToShow.length && !recordToShow.length && <div className="p-5 text-sm text-slate-400">No matching pages or records found.</div>}
             </div>
           )}
-          <div className="border-t border-slate-100 px-4 py-2 text-[10px] text-slate-400">Search pages, customers, invoices, estimates, receipts, products, vendors, document numbers, phone, email, SKU, tax ID or payment reference · Ctrl/⌘ + K to focus.</div>
+          <div className="border-t border-slate-100 px-4 py-2 text-[10px] text-slate-400">Search pages, customers, invoices, quotations, receipts, products, vendors, document numbers, phone, email, SKU, tax ID or payment reference · Ctrl/⌘ + K to focus.</div>
         </div>
       )}
     </div>
