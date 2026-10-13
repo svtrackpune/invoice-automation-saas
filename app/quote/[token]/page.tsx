@@ -28,7 +28,7 @@ type Quote = {
   tax_total:number|null;
   total:number|null;
   customer:{id:string;display_name:string;legal_name:string|null;email:string|null;phone:string|null;billing_address:any;shipping_address:any};
-  business:{name:string;legal_name:string|null;email:string|null;phone:string|null;website:string|null;address:any;logo_url:string|null;tax_registration_number:string|null;gst_registration_type?:string|null};
+  business:{name:string;legal_name:string|null;email:string|null;phone:string|null;website:string|null;address:any;logo_url:string|null;tax_registration_number:string|null;gst_registration_type?:string|null;tax_regime?:string|null;country_code?:string|null;tax_id?:string|null};
   items:Array<{name?:string|null;item_name?:string|null;unit?:string|null;description:string|null;quantity:number;unit_price:number;discount_type:string|null;discount_value:number|null;tax_rate:number}>;
 };
 
@@ -54,7 +54,13 @@ export default function PublicQuotation({params}:{params:Promise<{token:string}>
   })()},[token]);
 
   const quotationRegistrationType=String(quote?.business.gst_registration_type||'NONE').trim().toUpperCase();
-  const quotationTaxEnabled=Boolean(quote && !['NONE','UNREGISTERED','NON_GST','NOT_REGISTERED','COMPOSITION'].includes(quotationRegistrationType) && /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][0-9A-Z]Z[0-9A-Z]$/.test(String(quote.business.tax_registration_number||'').trim().toUpperCase()));
+  const quotationTaxRegime=String(quote?.business.tax_regime||'NONE').trim().toUpperCase();
+  const quotationCountryCode=String(quote?.business.country_code||'IN').trim().toUpperCase();
+  const quotationTaxId=String(quote?.business.tax_registration_number||'').trim().toUpperCase();
+  const quotationValidGstin=quotationCountryCode==='IN'?/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][0-9A-Z]Z[0-9A-Z]$/.test(quotationTaxId):Boolean(quotationTaxId);
+  const quotationGstRegistered=quotationTaxRegime==='GST'&&['REGULAR','CASUAL','NON_RESIDENT','SEZ'].includes(quotationRegistrationType)&&quotationValidGstin;
+  const quotationOtherTaxRegistered=Boolean(quote&&quotationCountryCode!=='IN'&&['VAT','SALES_TAX','OTHER'].includes(quotationTaxRegime)&&(quote.business.tax_id||quote.business.tax_registration_number));
+  const quotationTaxEnabled=quotationGstRegistered||quotationOtherTaxRegistered;
   const canonical=useMemo(()=>quote?createCanonicalDocumentViewModel({
     type:'quotation',number:quote.quotation_number,date:quote.quotation_date,due_date:quote.valid_until,status:quote.status,currency_code:quote.currency_code||'INR',
     subtotal:quote.subtotal,discount_total:quote.discount_total,tax_total:quotationTaxEnabled?quote.tax_total:0,
@@ -152,7 +158,7 @@ export default function PublicQuotation({params}:{params:Promise<{token:string}>
               <h1 className="mt-1 text-2xl font-bold text-slate-900">{canonical?.document.number||quote.quotation_number}</h1>
               <p className="mt-1 text-sm font-semibold text-slate-700">{quote.business.name}</p>
               {quote.business.legal_name&&quote.business.legal_name!==quote.business.name&&<p className="text-xs text-slate-500">{quote.business.legal_name}</p>}
-              <div className="mt-2 grid gap-1 text-xs text-slate-500">{addressLines(quote.business.address).map((x,i)=><span key={i}>{x}</span>)}{quote.business.phone&&<span>{quote.business.phone}</span>}{quote.business.email&&<span>{quote.business.email}</span>}{quote.business.website&&<span>{quote.business.website}</span>}{quote.business.tax_registration_number&&<span>GSTIN / Tax ID: {quote.business.tax_registration_number}</span>}</div>
+              <div className="mt-2 grid gap-1 text-xs text-slate-500">{addressLines(quote.business.address).map((x,i)=><span key={i}>{x}</span>)}{quote.business.phone&&<span>{quote.business.phone}</span>}{quote.business.email&&<span>{quote.business.email}</span>}{quote.business.website&&<span>{quote.business.website}</span>}{quote.business.tax_registration_number&&<span>{quotationTaxRegime==='GST'?'GSTIN':'Tax ID'}: {quote.business.tax_registration_number}</span>}</div>
             </div>
           </div>
           <div className="text-sm text-slate-500 sm:text-right">
