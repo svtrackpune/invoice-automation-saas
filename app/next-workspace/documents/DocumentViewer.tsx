@@ -278,7 +278,7 @@ function Paper({ type, payload, business, customer, items, theme, fields, logoUr
       </section>
       <div className='receipt-total'><span>Total Amount</span><strong>{money(referenceTotal,currency)}</strong></div>
       <div className='receipt-thanks'>Received with thanks · retain this voucher for your records</div>
-      <footer className='receipt-footer'><div className='platform'><span className='platform-mark' aria-hidden='true'>M</span><span>Powered by <strong>Moneymatters</strong></span></div></footer>
+      <footer className='receipt-footer'><p className='receipt-disclaimer'>This is a computer-generated payment receipt and does not require signature.</p><div className='platform'><span className='platform-mark' aria-hidden='true'>M</span><span>Powered by <strong>Moneymatters</strong></span></div></footer>
     </article>;
   }
   return <article className={`paper ${theme.className} ${theme.dark?'theme-dark':''}`} style={{'--accent':theme.accent,'--table':theme.table,'--line':theme.line} as React.CSSProperties}>
@@ -300,7 +300,7 @@ function Paper({ type, payload, business, customer, items, theme, fields, logoUr
     {type==='delivery_challan' && <div className='signature-row'><div className='receiver-note'>Receiver's Acknowledgment</div><div className='signature-box'><span>Receiver Signature</span></div></div>}
     {jurisdictionClause && <div className='jurisdiction-clause'><strong>Jurisdiction</strong><span>{jurisdictionClause}</span></div>}
     {showCustomerBalance&&<div className='customer-balance-footer'><span>Customer ledger balance</span><strong>{money(customerBalance,currency)} {Number(customerBalance)>0?'outstanding':'clear'}</strong></div>}
-    <footer><span>{text(business.name||business.legal_name||'Business')}</span><span>{text(fields.footer||'This is a computer generated document.')}</span></footer><div className='platform'><span className='platform-mark' aria-hidden='true'>M</span><span>Powered by <strong>Moneymatters</strong></span></div>
+    <footer><span>{text(business.name||business.legal_name||'Business')}</span><span>{type==='invoice'||taxInvoice?'This is a computer-generated invoice and does not require signature.':type==='quotation'?'This is a computer-generated quotation and does not require signature.':text(fields.footer||'This is a computer generated document.')}</span></footer><div className='platform'><span className='platform-mark' aria-hidden='true'>M</span><span>Powered by <strong>Moneymatters</strong></span></div>
   </article>;
 }
 
