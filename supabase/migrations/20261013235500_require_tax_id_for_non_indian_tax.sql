@@ -16,8 +16,7 @@ AS $function$
       WHEN upper(coalesce(tp.tax_regime, 'NONE')) = 'GST'
         THEN mm_private.has_valid_gst_registration(p_business_id)
       WHEN upper(coalesce(tp.tax_regime, 'NONE')) IN ('VAT', 'SALES_TAX', 'OTHER')
-        THEN lower(coalesce(b.tax_settings->>'enabled', 'false')) = 'true'
-          AND nullif(btrim(coalesce(tp.tax_id, '')), '') IS NOT NULL
+        THEN nullif(btrim(coalesce(tp.tax_id, '')), '') IS NOT NULL
       ELSE false
     END
     FROM public.business_tax_profiles tp
