@@ -240,6 +240,11 @@ test('public invoice renderer creates a vector-rendered A4 GST PDF with QR and b
  const challanPdf=await buildPublicDocumentPdf(challan);
  const challanText=challanPdf.toString('latin1');
  for(const value of ['DELIVERY CHALLAN','Vehicle No: MH24AB1234','Transporter: Sample Transport','E-Way Bill: EWB-12345','NOT FOR SALE / NOT A TAX INVOICE']) assert.ok(challanText.includes(value),'Challan PDF is missing '+value);
+ const quotationPdf=await buildPublicDocumentPdf({...doc,type:'quotation',number:'EST-0007',status:'sent',dueDate:null,validUntil:'2026-10-31',amountPaid:0,balanceDue:0,settlementDisplayMode:'none'});
+ const quotationText=quotationPdf.toString('latin1');
+ for(const value of ['ESTIMATE / QUOTATION','EST-0007','BILL TO','SHIP TO','#','ITEM / DESCRIPTION','AMOUNT IN WORDS:','Authorized Signatory','This is a computer-generated quotation and does not require signature.']) assert.ok(quotationText.includes(value),'Quotation PDF is missing '+value);
+ assert.doesNotMatch(quotationText,/INVOICE SUMMARY/);
+
 });
 function QRCodePlaceholderForTest(pdf){const raw=pdf.toString('latin1');return raw.includes('/Subtype /Link')&&raw.includes('Pay Now via UPI')&&raw.includes('/Annots [');}
 
