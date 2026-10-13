@@ -153,13 +153,26 @@ function drawWrap(c: Canvas, x: number, top: number, value: unknown, max: number
   lines.forEach((line, i) => c.text(x, top + i * (size + 3), line, size, bold, color));
   return lines.length * (size + 3);
 }
+const taxPresentation = (business?: PublicDocument['business']) => {
+  const registration = String(business?.gstRegistrationType || '').trim().toUpperCase();
+  const regime = String(business?.taxRegime || 'NONE').trim().toUpperCase();
+  const country = String(business?.countryCode || 'IN').trim().toUpperCase();
+  const taxNumber = String(business?.taxRegistrationNumber || '').trim().toUpperCase();
+  const validRegistrationType = ['REGULAR', 'CASUAL', 'NON_RESIDENT', 'SEZ', 'COMPOSITION'].includes(registration);
+  const validGstin = country === 'IN'
+    ? /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][0-9A-Z]Z[0-9A-Z]$/.test(taxNumber)
+    : Boolean(taxNumber);
+  const gstRegistration = regime === 'GST' && validRegistrationType && validGstin;
+  const composition = gstRegistration && registration === 'COMPOSITION';
+  const otherTaxRegistration = country !== 'IN' && ['VAT', 'SALES_TAX', 'OTHER'].includes(regime)
+    && Boolean(String(business?.taxId || business?.taxRegistrationNumber || '').trim());
+  return { registration, regime, country, gstRegistration, composition,
+    taxBreakdownAllowed: (gstRegistration && !composition) || otherTaxRegistration,
+    title: composition ? 'BILL OF SUPPLY' : (gstRegistration || otherTaxRegistration) ? 'TAX INVOICE' : 'INVOICE',
+    taxLabel: regime === 'GST' ? 'GSTIN' : 'Tax ID' };
+};
 const docTitle = (type: string, business?: PublicDocument['business']) => {
-  if (type === 'invoice') {
-    const registration = String(business?.gstRegistrationType || '').trim().toUpperCase();
-    if (registration === 'COMPOSITION' && /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][0-9A-Z]Z[0-9A-Z]$/.test(String(business?.taxRegistrationNumber || '').trim().toUpperCase())) return 'BILL OF SUPPLY';
-    const noGst = !registration || ['NONE', 'UNREGISTERED', 'NON_GST', 'NOT_REGISTERED'].includes(registration);
-    return !noGst && /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][0-9A-Z]Z[0-9A-Z]$/.test(String(business?.taxRegistrationNumber || '').trim().toUpperCase()) ? 'TAX INVOICE' : 'INVOICE';
-  }
+  if (type === 'invoice') return taxPresentation(business).title;
   if (type === 'quotation') return 'QUOTATION';
   if (type === 'challan') return 'DELIVERY CHALLAN';
   return 'PAYMENT RECEIPT';
@@ -168,9 +181,8 @@ const statusColor = (s: string): RGB => ['paid','accepted','delivered'].includes
   ['overdue','void','cancelled'].includes(s.toLowerCase()) ? C.red : C.amber;
 
 export async function buildPublicDocumentPdf(doc: PublicDocument): Promise<Buffer> {
-  const registration = String(doc.business.gstRegistrationType || '').trim().toUpperCase();
-  const gstBreakdownAllowed = !['NONE', 'UNREGISTERED', 'NON_GST', 'NOT_REGISTERED', 'COMPOSITION'].includes(registration)
-    && /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][0-9A-Z]Z[0-9A-Z]$/.test(String(doc.business.taxRegistrationNumber || '').trim().toUpperCase());
+  const tax = taxPresentation(doc.business);
+  const taxBreakdownAllowed = tax.taxBreakdownAllowed;
   const canonical = createCanonicalDocumentViewModel(doc, { type: doc.type, upiId: doc.upiId, settlementDisplayMode: doc.settlementDisplayMode });
   const c = new Canvas(), right = W - M;
   const objects: Array<Buffer|string> = [];
@@ -212,7 +224,7 @@ export async function buildPublicDocumentPdf(doc: PublicDocument): Promise<Buffe
       }
       const contact = [doc.business.phone, doc.business.email].filter(Boolean).join(' | ');
       if (contact) c.text(bx, Math.min(124, leftY + 1), contact, 6.7, false, C.muted);
-      if (doc.business.taxRegistrationNumber) c.text(bx, 132, 'GSTIN: ' + doc.business.taxRegistrationNumber, 6.6, false, C.muted);
+      if (doc.business.taxRegistrationNumber) c.text(bx, 132, tax.taxLabel + ': ' + doc.business.taxRegistrationNumber, 6.6, false, C.muted);
 
       const rx = right - 158;
       c.text(rx, 39, 'Invoice date: ' + dateLabel(doc.date), 7.5, false, C.muted);
@@ -365,12 +377,12 @@ export async function buildPublicDocumentPdf(doc: PublicDocument): Promise<Buffe
       ['Subtotal', canonical.financials.subtotal, 'normal']
     ];
     if (canonical.financials.totalDiscount !== 0) rows.push(['Discount', -Math.abs(canonical.financials.totalDiscount), 'normal']);
-    if (gstBreakdownAllowed && canonical.financials.taxBreakdown.length) {
+    if (taxBreakdownAllowed && canonical.financials.taxBreakdown.length) {
       canonical.financials.taxBreakdown.forEach(line => rows.push([
         line.rate > 0 ? line.name + ' (' + line.rate + '%)' : line.name,
         line.amount, 'normal'
       ]));
-    } else if (gstBreakdownAllowed && doc.taxTotal !== 0) rows.push(['Tax / GST', doc.taxTotal, 'normal']);
+    } else if (taxBreakdownAllowed && doc.taxTotal !== 0) rows.push(['Tax / GST', doc.taxTotal, 'normal']);
     rows.push(['Net Payable', canonical.financials.grandTotal, 'total']);
     if (canonical.financials.amountPaid > 0) rows.push(['Amount paid', canonical.financials.amountPaid, 'normal']);
     rows.push(['Balance due', canonical.financials.balanceDue, 'balance']);
@@ -417,10 +429,10 @@ export async function buildPublicDocumentPdf(doc: PublicDocument): Promise<Buffe
     : [
       ['Subtotal',canonical.financials.subtotal,false],
       ['Trade Discount',-Math.abs(canonical.financials.totalDiscount),false],
-      ...(doc.type === 'quotation' && !gstBreakdownAllowed ? [] : [['Taxable Value',Math.max(0,canonical.financials.subtotal-canonical.financials.totalDiscount),false] as [string,number,boolean]])
+      ...(doc.type === 'quotation' && !taxBreakdownAllowed ? [] : [['Taxable Value',Math.max(0,canonical.financials.subtotal-canonical.financials.totalDiscount),false] as [string,number,boolean]])
     ];
   if(doc.type !== 'challan') {
-    if(gstBreakdownAllowed && canonical.financials.taxBreakdown.length) {
+    if(taxBreakdownAllowed && canonical.financials.taxBreakdown.length) {
       canonical.financials.taxBreakdown.forEach(line => summary.push([
         line.rate>0 ? line.name+' ('+line.rate+'%)' : line.name,
         line.amount,
