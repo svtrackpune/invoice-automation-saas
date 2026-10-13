@@ -35,7 +35,9 @@ test('expired sent quotations remain viewable but cannot be accepted', async () 
   assert.ok(tokens.includes('Expiry blocks acceptance, not access to the already-shared quotation document.'));
   assert.ok(quoteReader.includes('Keep expired SENT quotations viewable'));
   assert.ok(quoteReader.includes("v_definition := replace(v_definition,v_old,'');"));
-  assert.ok(pdf.includes("if (doc.bankDetails || qrData)"), 'non-invoice PDFs should only draw a settlement block when a bank or QR rail exists');
+  assert.ok(pdf.includes('if (showBankSettlement || showQrSettlement)'), 'non-invoice PDFs must respect configured settlement mode');
+  assert.ok(pdf.includes('if(showBankSettlement&&doc.bankDetails)'));
+  assert.ok(pdf.includes('if(showQrSettlement&&qrData)'));
   assert.ok(pdf.includes('QRCode.create(qrData'));
 });
 
