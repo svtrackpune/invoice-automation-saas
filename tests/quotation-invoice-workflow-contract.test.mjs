@@ -131,6 +131,8 @@ test('invoice title and tax presentation follow explicit GST registration mode',
   assert.ok(quote.includes('quotationTaxEnabled&&canonical?.financials.taxBreakdown.map'));
   assert.ok(quotationEditor.includes("const otherTaxEnabled=countryCode!=='IN'&&['VAT','SALES_TAX','OTHER'].includes(taxRegime)&&Boolean(String(profile.tax_id||'').trim())"));
   assert.ok(quotationEditor.includes('const taxEnabled=gstEnabled||otherTaxEnabled'));
+  assert.ok(quotationEditor.includes('},[lines,taxes,taxEnabled]);'));
+  assert.ok(quotationEditor.includes("tax_rate_id:taxEnabled?(np.default_tax_rate_id||''):''"));
   assert.ok(quotationEditor.includes("taxRegime==='GST'?'GST rate':'Tax rate'"));
   assert.ok(quotationEditor.includes("{taxEnabled&&<div className=\"flex justify-between\"><span>{taxRegime==='GST'?'GST':'Tax'}</span>"));
   assert.ok(viewer.includes('showTaxDetails={documentShowTaxDetails}'));
