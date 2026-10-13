@@ -79,7 +79,7 @@ function LineItems({ items, payload, receipt, showTaxDetails = true, minRows = 0
   const rows = sourceRows.concat(Array.from({ length: fillerCount }, () => null));
   if (standardSales) {
     return <table className="items sales-six-column"><thead><tr>
-      <th className="col-no">#</th><th>Item / Description</th><th className="col-qty">Qty</th><th className="col-unit">Unit</th><th className="col-rate">Rate</th><th className="col-amount">Amount</th>
+      <th className="col-no">#</th><th>ITEM / DESCRIPTION</th><th className="col-qty">QTY</th><th className="col-unit">UNIT</th><th className="col-rate">RATE</th><th className="col-amount">AMOUNT</th>
     </tr></thead><tbody>{rows.map((it:any,idx:number)=>{
       const quantity=Number(it?.quantity??it?.qty??1);
       const rate=Number(it?.unit_price??it?.unitPrice??it?.rate??it?.price??0);
