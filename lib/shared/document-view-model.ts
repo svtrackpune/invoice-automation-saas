@@ -43,7 +43,9 @@ export interface CanonicalDocumentViewModel {
     currency: string;
   };
   items: Array<{
+    name: string;
     description: string;
+    unit?: string;
     hsn?: string;
     quantity: number;
     unitPrice: number;
@@ -146,8 +148,12 @@ function normalizeItems(input: unknown): CanonicalDocumentViewModel['items'] {
     const discount = Math.max(0, num(first(item.discount, item.discount_amount), 0));
     const taxAmount = Math.max(0, num(first(item.taxAmount, item.tax_amount), 0));
     const base = Math.max(0, quantity * unitPrice - discount);
+    const name = str(first(item.name, item.item_name, item.product_name, item.description), 'Item');
+    const detail = nullableText(item.detail, item.item_description, item.description);
     return {
-      description: str(first(item.description, item.name, item.item_name, item.product_name), 'Item'),
+      name,
+      description: detail && detail !== name ? detail : '',
+      unit: nullableText(item.unit, item.unit_name, item.unit_of_measure) || 'pcs',
       hsn: nullableText(item.hsn, item.hsnSac, item.hsn_sac, item.sac_code),
       quantity,
       unitPrice,
