@@ -54,7 +54,7 @@ export default function PublicQuotation({params}:{params:Promise<{token:string}>
   })()},[token]);
 
   const quotationRegistrationType=String(quote?.business.gst_registration_type||'NONE').trim().toUpperCase();
-  const quotationTaxEnabled=Boolean(quote && !['NONE','UNREGISTERED','NON_GST','NOT_REGISTERED','COMPOSITION'].includes(quotationRegistrationType) && String(quote.business.tax_registration_number||'').trim());
+  const quotationTaxEnabled=Boolean(quote && !['NONE','UNREGISTERED','NON_GST','NOT_REGISTERED','COMPOSITION'].includes(quotationRegistrationType) && /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][0-9A-Z]Z[0-9A-Z]$/.test(String(quote.business.tax_registration_number||'').trim().toUpperCase()));
   const canonical=useMemo(()=>quote?createCanonicalDocumentViewModel({
     type:'quotation',number:quote.quotation_number,date:quote.quotation_date,due_date:quote.valid_until,status:quote.status,currency_code:quote.currency_code||'INR',
     subtotal:quote.subtotal,discount_total:quote.discount_total,tax_total:quotationTaxEnabled?quote.tax_total:0,
