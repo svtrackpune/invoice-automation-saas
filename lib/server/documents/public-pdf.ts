@@ -322,7 +322,7 @@ export async function buildPublicDocumentPdf(doc: PublicDocument): Promise<Buffe
       c.text(xs[5] + widths[5] - 6, y + 9, money(it.amount, canonical.document.currency), 7.8, true, C.navy, 'right');
       y += rh;
     } else {
-      const desc=wrap(it.description,31).slice(0,3), rh=Math.max(25,desc.length*9+10);
+      const desc=wrap(it.name||it.description,31).slice(0,3), rh=Math.max(25,desc.length*9+10);
       if(y+rh>FOOTER_TOP-4){c.newPage();header(true);y=tableHeader(154);}
       if(i%2===1)c.rect(M,y,CW,rh,C.pale);
       c.line(M,y+rh,right,y+rh,C.border,0.45);
