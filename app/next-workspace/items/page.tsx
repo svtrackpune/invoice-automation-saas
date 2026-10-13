@@ -1,6 +1,6 @@
 'use client';
 
-import {useEffect,useMemo,useState} from 'react';
+import {useEffect,useMemo,useRef,useState} from 'react';
 import type {InputHTMLAttributes,ReactNode} from 'react';
 import { useBusinessDNA } from '@/lib/use-business-dna';
 import {supabase,type BusinessContext} from '@/lib/supabase';
@@ -29,11 +29,20 @@ function Field({label,children,help}:{label:string;children:ReactNode;help?:stri
 function UnitSelect({value,onChange,service}:{value:string;onChange:(v:string)=>void;service:boolean}){const list=service?SERVICE_UNITS:PRODUCT_UNITS;const known=list.some(x=>x[0]===value);return <div className="flex gap-2"><select value={known?value:'__custom'} onChange={e=>{if(e.target.value!=='__custom')onChange(e.target.value)}} className="min-w-0 flex-1 rounded-xl border border-slate-200 px-3 py-2.5 text-sm"><option value="">Select unit…</option>{list.map(x=><option key={x[0]} value={x[0]}>{x[1]} ({x[0]})</option>)}<option value="__custom">Other / Custom</option></select>{!known&&value&&<Input value={value} placeholder="Custom unit" onChange={e=>onChange(e.target.value)}/>}</div>;}
 
 function SearchableCombobox({value,options,onChange,placeholder,createLabel,onCreate,disabled=false,allowClear=true}:{value:string;options:ComboOption[];onChange:(id:string)=>void;placeholder:string;createLabel?:string;onCreate?:()=>void;disabled?:boolean;allowClear?:boolean}){
-  const selected=options.find(x=>x.id===value);const[open,setOpen]=useState(false);const[term,setTerm]=useState(selected?.name||'');
+  const selected=options.find(x=>x.id===value);const[open,setOpen]=useState(false);const[term,setTerm]=useState(selected?.name||'');const rootRef=useRef<HTMLDivElement|null>(null);
   useEffect(()=>{if(!open)setTerm(selected?.name||'')},[open,selected?.id,selected?.name]);
+  useEffect(()=>{
+    if(!open)return;
+    const closeOutside=(event:MouseEvent)=>{if(!rootRef.current?.contains(event.target as Node)){setOpen(false);setTerm(selected?.name||'')}};
+    const closeOnEscape=(event:KeyboardEvent)=>{if(event.key==='Escape'){setOpen(false);setTerm(selected?.name||'')}};
+    document.addEventListener('mousedown',closeOutside);
+    document.addEventListener('keydown',closeOnEscape);
+    return()=>{document.removeEventListener('mousedown',closeOutside);document.removeEventListener('keydown',closeOnEscape)};
+  },[open,selected?.name]);
+  useEffect(()=>{if(disabled){setOpen(false);setTerm(selected?.name||'')}},[disabled,selected?.name]);
   const filtered=useMemo(()=>{const t=term.trim().toLowerCase();return options.filter(x=>!t||(x.name+' '+(x.meta||'')).toLowerCase().includes(t)).slice(0,10)},[options,term]);
   const closeSoon=()=>window.setTimeout(()=>{setOpen(false);setTerm(selected?.name||'')},100);
-  return <div className="relative"><div className="relative"><Input disabled={disabled} value={open?term:(selected?.name||'')} placeholder={placeholder} onFocus={()=>{setOpen(true);setTerm('')}} onBlur={closeSoon} onChange={e=>{setTerm(e.target.value);setOpen(true)}}/>{value&&allowClear&&<button type="button" onMouseDown={e=>e.preventDefault()} onClick={()=>{onChange('');setOpen(false);setTerm('')}} className="absolute right-2 top-1/2 -translate-y-1/2 grid h-7 w-7 place-items-center rounded-lg text-slate-400 hover:bg-slate-100" aria-label="Clear selection">×</button>}</div>
+  return <div ref={rootRef} className="relative"><div className="relative"><Input disabled={disabled} value={open?term:(selected?.name||'')} placeholder={placeholder} onFocus={()=>{setOpen(true);setTerm('')}} onBlur={closeSoon} onChange={e=>{setTerm(e.target.value);setOpen(true)}}/>{value&&allowClear&&<button type="button" onMouseDown={e=>e.preventDefault()} onClick={()=>{onChange('');setOpen(false);setTerm('')}} className="absolute right-2 top-1/2 -translate-y-1/2 grid h-7 w-7 place-items-center rounded-lg text-slate-400 hover:bg-slate-100" aria-label="Clear selection">×</button>}</div>
     {open&&!disabled&&<div className="absolute left-0 right-0 top-[3.3rem] z-40 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xl">{createLabel&&onCreate&&<button type="button" onMouseDown={e=>e.preventDefault()} onClick={()=>{setOpen(false);onCreate()}} className="block w-full border-b border-slate-100 px-3 py-2.5 text-left text-sm font-semibold text-violet-600 hover:bg-violet-50">＋ {createLabel}</button>}{allowClear&&value&&<button type="button" onMouseDown={e=>e.preventDefault()} onClick={()=>{onChange('');setOpen(false);setTerm('')}} className="block w-full border-b border-slate-100 px-3 py-2 text-left text-xs text-slate-500 hover:bg-slate-50">Clear selection</button>}{filtered.map(x=><button type="button" key={x.id} onMouseDown={e=>e.preventDefault()} onClick={()=>{onChange(x.id);setOpen(false);setTerm(x.name)}} className="block w-full border-b border-slate-100 px-3 py-2.5 text-left text-sm hover:bg-violet-50"><b>{x.name}</b>{x.meta&&<span className="ml-2 text-xs text-slate-400">{x.meta}</span>}</button>)}{!filtered.length&&<p className="px-3 py-3 text-xs text-slate-400">No matches.</p>}</div>}
   </div>;
 }
