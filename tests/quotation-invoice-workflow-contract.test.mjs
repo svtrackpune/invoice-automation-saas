@@ -117,7 +117,7 @@ test('quotation list menu routes each action through the public quotation workfl
 test('invoice title and tax presentation follow explicit GST registration mode', () => {
   assert.ok(viewer.includes("business_tax_profiles').select('gstin,pan,tax_regime,gst_registration_type')"));
   assert.ok(viewer.includes('const invoiceDocumentTitle = (party: any) =>'));
-  assert.ok(viewer.includes("registrationType(party) === 'COMPOSITION') return 'BILL OF SUPPLY'"));
+  assert.ok(viewer.includes("if (registrationType(party) === 'COMPOSITION' && hasValidGstin(party)) return 'BILL OF SUPPLY'"));
   assert.ok(viewer.includes("return isTaxRegistered(party) ? 'TAX INVOICE' : 'INVOICE'"));
   assert.ok(quote.includes("const quotationTaxEnabled=Boolean(quote && !['NONE','UNREGISTERED','NON_GST','NOT_REGISTERED','COMPOSITION'].includes(quotationRegistrationType)"));
   assert.ok(quote.includes('quotationTaxEnabled&&canonical?.financials.taxBreakdown.map'));
