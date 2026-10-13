@@ -27,6 +27,7 @@ const itemServiceModal = read('app/next-workspace/invoices/new/ItemServiceModal.
 const publicTokens = read('lib/server/documents/public-tokens.ts');
 const gstBoundaryMigration = read('supabase/migrations/20261013234500_harden_gst_registration_rpc_boundary.sql');
 const publicTaxMetadataMigration = read('supabase/migrations/20261013235000_public_document_tax_regime_metadata.sql');
+const publicTaxIdMigration = read('supabase/migrations/20261013235800_public_tax_id_requires_profile_registration.sql');
 
 test('invoice and quotation web/PDF item grids use six separate columns', () => {
   assert.ok(pdf.includes("['#', 'ITEM / DESCRIPTION', 'QTY', 'UNIT', 'RATE', 'AMOUNT']"));
@@ -150,6 +151,8 @@ test('GST registration is validated at RPC and public document boundaries', () =
   assert.ok(publicTokens.includes("select('gstin,pan,gst_registration_type,tax_regime,tax_id')"));
   assert.ok(publicTokens.includes("const registeredGstin = taxRegime === 'GST' && gstRegistrationMode && hasValidGstin ? gstin : null"));
   assert.ok(publicTokens.includes("const nonIndianTaxId = countryCode !== 'IN' && ['VAT', 'SALES_TAX', 'OTHER'].includes(taxRegime)"));
+  assert.ok(publicTokens.includes('? nullable(taxProfile.tax_id)\n    : null;'));
+  assert.ok(publicTaxIdMigration.includes("THEN nullif(btrim(tp.tax_id), '')"));
   assert.ok(publicTaxMetadataMigration.includes("'tax_regime'"));
   assert.ok(publicTaxMetadataMigration.includes("'country_code'"));
   assert.ok(publicTaxMetadataMigration.includes("'tax_id'"));
