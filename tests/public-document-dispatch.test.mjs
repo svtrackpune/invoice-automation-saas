@@ -203,7 +203,7 @@ test('public invoice renderer creates a vector-rendered A4 GST PDF with QR and b
  assert.equal(pdf.subarray(0,8).toString('ascii'),'%PDF-1.4');
  const raw=pdf.toString('latin1');
  assert.match(raw,/\/MediaBox \[0 0 595\.28 841\.89\]/);
- for(const text of ['TAX INVOICE','INV-000018','BILL TO','SHIP TO','Template: Premium','#','ITEM / DESCRIPTION','CGST','SGST','Total','Balance due','AMOUNT IN WORDS:','Authorized Signatory','SCAN & PAY VIA UPI','Pay Now via UPI','Scan to pay the invoice amount.','This is a computer-generated invoice and does not require signature.','Powered by Moneymatters FinOps | mm.nilanga.in']) assert.ok(raw.includes(text),'PDF is missing '+text);
+ for(const text of ['TAX INVOICE','INV-000018','BILL TO','SHIP TO','Template: Premium','#','ITEM / DESCRIPTION','CGST','SGST','Net Payable','Balance due','AMOUNT IN WORDS:','Authorized Signatory','SCAN & PAY VIA UPI','Pay Now via UPI','Scan to pay the invoice amount.','This is a computer-generated invoice and does not require signature.','Powered by Moneymatters FinOps | mm.nilanga.in']) assert.ok(raw.includes(text),'PDF is missing '+text);
  assert.doesNotMatch(raw,/Rs\./);
  assert.ok(raw.indexOf('Pay Now via UPI') < raw.indexOf('TERMS & CONDITIONS'),'payment settlement must be rendered before invoice terms');
  assert.doesNotMatch(raw,/INVOICE SUMMARY/);
