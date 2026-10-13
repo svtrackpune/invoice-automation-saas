@@ -170,6 +170,9 @@ test('GST registration is validated at RPC and public document boundaries', () =
   assert.ok(publicTaxMetadataMigration.includes("'tax_regime'"));
   assert.ok(publicTaxMetadataMigration.includes("'country_code'"));
   assert.ok(publicTaxMetadataMigration.includes("'tax_id'"));
+  assert.ok(publicTaxMetadataMigration.includes("THEN nullif(btrim((SELECT tp.tax_id FROM public.business_tax_profiles tp WHERE tp.business_id = i.business_id)), '')"));
+  assert.ok(publicTaxMetadataMigration.includes("THEN nullif(btrim(tp.tax_id), '')"));
+  assert.ok(!publicTaxMetadataMigration.includes("THEN nullif(btrim(coalesce(tp.tax_id, b.tax_registration_number)), '')"));
 });
 
 test('product and service selectors dismiss after selection, outside click, and Escape', () => {
