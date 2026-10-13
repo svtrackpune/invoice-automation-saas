@@ -36,6 +36,4 @@ SELECT pg_temp.patch_function_definition(
   $new$IN ('REGULAR', 'CASUAL', 'NON_RESIDENT', 'SEZ', 'COMPOSITION')$new$
 );
 
-DROP FUNCTION pg_temp.patch_function_definition(regprocedure,text,text);
-
 COMMIT;
