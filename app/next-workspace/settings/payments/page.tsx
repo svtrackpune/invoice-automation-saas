@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import QRCode from 'qrcode';
 import { supabase } from '@/lib/supabase';
 import { PageHeader } from '@/components/ui/finops/PageHeader';
+import CopyButton from '@/components/ui/copy-button';
 
 type BankAccount = {
   id: string; name: string | null; institution_name: string | null; account_last4: string | null;
@@ -262,7 +263,7 @@ export default function PaymentsSettingsPage() {
   );
 }
 
-function WebhookRow({ provider, path }: { provider: string; path: string }) { const [copied,setCopied]=useState(false); const url=typeof window!=='undefined'?window.location.origin+path:'https://mm.nilanga.in'+path; const copy=async()=>{try{await navigator.clipboard.writeText(url);setCopied(true);window.setTimeout(()=>setCopied(false),1500);}catch{}}; return <div className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2"><span className="w-20 shrink-0 text-xs font-semibold text-slate-700">{provider}</span><code className="min-w-0 flex-1 truncate text-[10px] text-slate-500">{url}</code><button type="button" onClick={copy} className="shrink-0 rounded-md border border-slate-200 px-2 py-1 text-[10px] font-semibold">{copied?'Copied':'Copy'}</button></div>; }
+function WebhookRow({ provider, path }: { provider: string; path: string }) { const url=typeof window!=='undefined'?window.location.origin+path:'https://mm.nilanga.in'+path; return <div className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2"><span className="w-20 shrink-0 text-xs font-semibold text-slate-700">{provider}</span><code className="min-w-0 flex-1 truncate text-[10px] text-slate-500">{url}</code><CopyButton value={url} label="Copy" successMessage="Webhook URL copied to clipboard!" className="shrink-0 rounded-md border border-slate-200 px-2 py-1 text-[10px] font-semibold" /></div>; }
 
 function Toggle({ label, checked, onChange }: { label: string; checked: boolean; onChange: (value: boolean) => void }) {
   return <label className="flex cursor-pointer items-center justify-between rounded-lg border border-slate-100 bg-slate-50 px-3 py-2.5"><span className="text-xs font-medium text-slate-700">{label}</span><input type="checkbox" checked={checked} onChange={e => onChange(e.target.checked)} className="h-4 w-4 accent-indigo-600"/></label>;
