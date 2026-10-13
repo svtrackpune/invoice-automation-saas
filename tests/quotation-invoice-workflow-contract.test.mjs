@@ -22,6 +22,7 @@ const quotationList = read('app/next-workspace/quotations/page.tsx');
 const itemCatalogue = read('app/next-workspace/items/page.tsx');
 const invoiceEditor = read('app/next-workspace/invoices/InvoiceEditorCore.tsx');
 const businessSettings = read('app/next-workspace/business-settings/page.tsx');
+const dynamicTaxApplication = read('lib/server/tax/apply-dynamic.ts');
 const itemServiceModal = read('app/next-workspace/invoices/new/ItemServiceModal.tsx');
 const publicTokens = read('lib/server/documents/public-tokens.ts');
 const gstBoundaryMigration = read('supabase/migrations/20261013234500_harden_gst_registration_rpc_boundary.sql');
@@ -190,5 +191,5 @@ test('business settings require registration details before tax is enabled', () 
   assert.ok(businessSettings.includes("Boolean(String(tax.tax_id||'').trim())"));
   assert.ok(businessSettings.includes("['REGULAR','CASUAL','NON_RESIDENT','SEZ'].includes(registration)&&validGstin"));
   assert.ok(invoiceEditor.includes("Boolean(String(profile.tax_id||'').trim())"));
-  assert.ok(invoiceEditor.includes("source_provider"));
+  assert.ok(dynamicTaxApplication.includes("source_provider:'registration-gated-no-tax'"));
 });
