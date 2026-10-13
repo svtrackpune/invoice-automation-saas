@@ -8,10 +8,10 @@ type Form = { name:string; institution_name:string; account_holder_name:string; 
 
 const docs:Array<{key:DocType;label:string;description:string}> = [
   { key:'invoice', label:'Invoices', description:'Show the selected business bank details on customer invoices.' },
-  { key:'quotation', label:'Estimates / Quotations', description:'Show payment instructions when an estimate includes bank details.' },
+  { key:'quotation', label:'Quotations', description:'Show payment instructions when a quotation includes bank details.' },
   { key:'receipt', label:'Receipts', description:'Identify the account that received the payment.' },
 ];
-const docLabels:Record<DocType,string> = { invoice:'Invoices', quotation:'Estimates / Quotations', receipt:'Receipts' };
+const docLabels:Record<DocType,string> = { invoice:'Invoices', quotation:'Quotations', receipt:'Receipts' };
 const blank:Form = { name:'', institution_name:'', account_holder_name:'', account_number:'', account_type:'Current', ifsc_code:'', branch_name:'', currency_code:'INR', is_primary:false };
 const label = (b:Bank) => `${b.name}${b.institution_name ? ` · ${b.institution_name}` : ''}${b.account_last4 ? ` · ••••${b.account_last4}` : ''}${b.is_primary ? ' · Primary' : ''}`;
 
