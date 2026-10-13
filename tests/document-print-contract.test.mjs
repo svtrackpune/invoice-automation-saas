@@ -38,5 +38,17 @@ test('receipt PDF carries allocation and ledger acknowledgement data',()=>{
 test('receipt and POS print helpers use a consistent 80mm width',()=>{
   assert.match(viewer,/receipt \? '80mm'/);
   assert.match(viewer,/\.receipt-paper\{width:80mm/);
-  assert.doesNotMatch(viewer,/2\.5in/);
+  assert.match(viewer,/\.receipt-paper\{width:80mm!important;min-width:80mm!important;max-width:80mm!important/);
+  assert.doesNotMatch(viewer,/2\.5in|79mm/);
+});
+
+test('workspace invoice blueprint puts payment before terms and always renders ship-to fallback',()=>{
+  const gridStart=viewer.indexOf("<div className='post-table-grid'>");
+  const gridEnd=viewer.indexOf('{showSignature&&',gridStart);
+  const grid=viewer.slice(gridStart,gridEnd);
+  assert.ok(grid.indexOf('<PaymentSection')>=0 && grid.indexOf('<PaymentSection')<grid.indexOf('document-terms'));
+  assert.ok(grid.indexOf('document-terms')<grid.indexOf('document-notes'));
+  assert.match(viewer,/const showShipTo=type==='invoice'\|\|taxInvoice\|\|type==='quotation'/);
+  assert.match(viewer,/Same as billing address/);
+  assert.match(viewer,/color:"#ea580c"/);
 });
