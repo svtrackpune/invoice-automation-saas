@@ -2,7 +2,7 @@ import type { PublicDocument } from './public-tokens';
 import { canonicalAddress, createCanonicalDocumentViewModel } from '../../shared/document-view-model.ts';
 import QRCode from 'qrcode';
 
-const W = 595.28, H = 841.89, M = 36, CW = W - M * 2, FOOTER_TOP = H - 36;
+const W = 595.28, H = 841.89, M = 40, CW = W - M * 2, FOOTER_TOP = H - 68;
 type RGB = readonly [number, number, number];
 type PdfLink = { x: number; top: number; width: number; height: number; uri: string };
 type Page = { commands: string[]; usesLogo: boolean; links: PdfLink[] };
@@ -10,7 +10,8 @@ const C = {
   purple: [0.486, 0.227, 0.929] as RGB, indigo: [0.486, 0.227, 0.929] as RGB,
   navy: [0.059, 0.090, 0.165] as RGB, ink: [0.059, 0.090, 0.165] as RGB,
   muted: [0.392, 0.455, 0.545] as RGB, border: [0.886, 0.910, 0.941] as RGB,
-  pale: [0.945, 0.957, 0.976] as RGB, white: [1, 1, 1] as RGB,
+  pale: [0.945, 0.957, 0.976] as RGB, rowBorder: [0.945, 0.957, 0.976] as RGB,
+  lavender: [0.929, 0.914, 0.996] as RGB, white: [1, 1, 1] as RGB,
   green: [0.08, 0.40, 0.27] as RGB, amber: [0.918, 0.345, 0.047] as RGB,
   red: [0.68, 0.18, 0.20] as RGB,
 };
@@ -87,6 +88,14 @@ class Canvas {
     ops.push(fill && stroke ? 'B' : fill ? 'f' : 'S', 'Q');
     this.cmd.push(ops.join(' '));
   }
+  polygon(points: Array<[number, number]>, fill: RGB) {
+    if (points.length < 3) return;
+    const first = points[0];
+    const ops = ['q', rgb(fill) + ' rg', first[0].toFixed(2) + ' ' + (H - first[1]).toFixed(2) + ' m'];
+    for (const [x, top] of points.slice(1)) ops.push(x.toFixed(2) + ' ' + (H - top).toFixed(2) + ' l');
+    ops.push('h f Q');
+    this.cmd.push(ops.join(' '));
+  }
   roundRect(x: number, top: number, w: number, h: number, radius = 8, fill?: RGB, stroke?: RGB, lineWidth = 0.6) {
     const r = Math.max(0, Math.min(radius, w / 2, h / 2));
     const k = 0.5522847498 * r;
@@ -161,12 +170,15 @@ export async function buildPublicDocumentPdf(doc: PublicDocument): Promise<Buffe
 
   const header = (continued: boolean) => {
     if (doc.type === 'invoice') {
+      // Crisp brand slants in the upper-right corner, built entirely from PDF vector paths.
+      c.polygon([[W - 104, 0], [W, 0], [W, 27], [W - 61, 27]], C.purple);
+      c.polygon([[W - 142, 0], [W - 104, 0], [W - 61, 27], [W - 99, 27]], C.lavender);
       if (logo && logoId) {
         const scale = Math.min(58 / logo.width, 45 / logo.height);
-        c.imageLogo(M, 36, logo.width * scale, logo.height * scale);
+        c.imageLogo(M, 40, logo.width * scale, logo.height * scale);
       } else {
-        c.roundRect(M, 37, 54, 43, 7, C.pale, C.border);
-        c.text(M + 27, 51, wrap(doc.business.name, 2)[0].slice(0, 2).toUpperCase(), 12, true, C.purple, 'center');
+        c.roundRect(M, 40, 54, 43, 7, C.pale, C.border);
+        c.text(M + 27, 54, wrap(doc.business.name, 2)[0].slice(0, 2).toUpperCase(), 12, true, C.purple, 'center');
       }
       const bx = M + 70;
       c.roundRect(bx, 32, 60, 16, 8, C.purple);
@@ -279,25 +291,25 @@ export async function buildPublicDocumentPdf(doc: PublicDocument): Promise<Buffe
     return top+124;
   };
 
-  const widths = doc.type === 'invoice' ? [270, 60, 92, CW - 422] : [22,144,47,39,60,52,82,77];
+  const widths = doc.type === 'invoice' ? [24, 245, 52, 88, CW - 409] : [21,140,45,38,58,49,82,82];
   const labels = doc.type === 'invoice'
-    ? ['ITEM / DESCRIPTION', 'QTY', 'RATE', 'AMOUNT']
+    ? ['#', 'ITEM / DESCRIPTION', 'QTY', 'RATE', 'AMOUNT']
     : ['#','Item Description','HSN/SAC','Qty','Unit Rate','Discount','Taxable Amt','Total'];
   const tableHeader=(top:number)=>{
     if (doc.type === 'invoice') {
-      c.rect(M, top, CW, 24, C.purple);
-      c.line(M, top + 24, right, top + 24, C.border, 0.65);
+      c.rect(M, top, CW, 20, C.purple);
+      c.line(M, top + 20, right, top + 20, C.rowBorder, 0.65);
       let x = M;
       widths.forEach((w, i) => {
-        const align = i > 0 ? 'right' : 'left';
-        c.text(align === 'right' ? x + w - 8 : x + 8, top + 8, labels[i], 7.1, true, C.white, align);
+        const align = i > 1 ? 'right' : 'left';
+        c.text(align === 'right' ? x + w - 7 : x + 7, top + 6, labels[i], 8, true, C.white, align);
         x += w;
       });
     } else {
       c.rect(M,top,CW,23,C.navy);let x=M;
       widths.forEach((w,i)=>{const align=i>=3?'right':'left';c.text(align==='right'?x+w-5:x+5,top+7,labels[i],6.7,true,C.white,align);x+=w;});
     }
-    return top + (doc.type === 'invoice' ? 24 : 23);
+    return top + (doc.type === 'invoice' ? 20 : 23);
   };
 
   header(false);
@@ -307,16 +319,17 @@ export async function buildPublicDocumentPdf(doc: PublicDocument): Promise<Buffe
   items.forEach((it,i)=>{
     const originalItem=doc.items[i];
     if (doc.type === 'invoice') {
-      const desc = wrap(it.description, 48).slice(0, 2);
-      const rh = Math.max(30, desc.length * 10 + (it.hsn ? 8 : 0) + 8);
+      const desc = wrap(it.description, 41).slice(0, 2);
+      const rh = Math.max(28, desc.length * 10 + (it.hsn ? 8 : 0) + 8);
       if (y + rh > FOOTER_TOP - 4) { c.newPage(); header(true); y = tableHeader(154); }
-      c.line(M, y + rh, right, y + rh, C.border, 0.5);
+      c.line(M, y + rh, right, y + rh, C.rowBorder, 0.5);
       const xs: number[] = []; let xx = M; for (const w of widths) { xs.push(xx); xx += w; }
-      desc.forEach((v, j) => c.text(xs[0] + 8, y + 7 + j * 10, v, j === 0 ? 8.2 : 7.4, j === 0, j === 0 ? C.navy : C.muted));
-      if (it.hsn) c.text(xs[0] + 8, y + 7 + desc.length * 10, 'HSN / SAC: ' + it.hsn, 6.5, false, C.muted);
-      c.text(xs[1] + widths[1] - 8, y + 9, ascii(it.quantity) + (originalItem?.unit ? ' ' + ascii(originalItem.unit).slice(0, 5) : ''), 7.7, false, C.ink, 'right');
-      c.text(xs[2] + widths[2] - 8, y + 9, money(it.unitPrice, canonical.document.currency), 7.5, false, C.ink, 'right');
-      c.text(xs[3] + widths[3] - 8, y + 9, money(it.amount, canonical.document.currency), 7.8, true, C.navy, 'right');
+      c.text(xs[0] + 8, y + 9, i + 1, 7.5, false, C.muted);
+      desc.forEach((v, j) => c.text(xs[1] + 7, y + 7 + j * 10, v, j === 0 ? 8.2 : 7.4, j === 0, j === 0 ? C.navy : C.muted));
+      if (it.hsn) c.text(xs[1] + 7, y + 7 + desc.length * 10, 'HSN / SAC: ' + it.hsn, 6.5, false, C.muted);
+      c.text(xs[2] + widths[2] - 7, y + 9, ascii(it.quantity) + (originalItem?.unit ? ' ' + ascii(originalItem.unit).slice(0, 5) : ''), 7.7, false, C.ink, 'right');
+      c.text(xs[3] + widths[3] - 7, y + 9, money(it.unitPrice, canonical.document.currency), 7.5, false, C.ink, 'right');
+      c.text(xs[4] + widths[4] - 7, y + 9, money(it.amount, canonical.document.currency), 7.8, true, C.navy, 'right');
       y += rh;
     } else {
       const desc=wrap(it.description,31).slice(0,3), rh=Math.max(25,desc.length*9+10);
@@ -336,24 +349,27 @@ export async function buildPublicDocumentPdf(doc: PublicDocument): Promise<Buffe
       y+=rh;
     }
   });
+  let invoiceSettlementTop: number | null = null;
+  let invoiceSignatureEndY = 0;
   if (doc.type === 'invoice') {
-    if (y + 172 > FOOTER_TOP - 4) { c.newPage(); header(true); y = 154; }
-    y += 14;
+    if (y + 260 > FOOTER_TOP - 4) { c.newPage(); header(true); y = 154; }
+    y += 10;
     const summaryTop = y;
     const totalW = 205, totalX = right - totalW;
-    c.text(M, summaryTop, 'NOTES', 8, true, C.navy);
-    let leftY = summaryTop + 14;
-    if (doc.notes) {
-      const noteLines = wrap(doc.notes, 48).slice(0, 4);
-      noteLines.forEach(line => { c.text(M, leftY, line, 7.3, false, C.muted); leftY += 10; });
-      leftY += 7;
-    } else {
-      c.text(M, leftY, '—', 7.3, false, C.muted); leftY += 10;
-      leftY += 7;
-    }
+
+    c.text(M, summaryTop, 'AMOUNT IN WORDS:', 7.5, true, C.muted);
+    const amountWords = wrap(canonical.financials.amountInWords, 64).slice(0, 2);
+    amountWords.forEach((line, index) => c.text(M, summaryTop + 12 + index * 9, line, 8, false, C.navy));
+    let leftY = summaryTop + 12 + amountWords.length * 9 + 5;
+
+    c.text(M, leftY, 'NOTES', 8, true, C.navy);
+    leftY += 13;
+    const noteLines = doc.notes ? wrap(doc.notes, 47).slice(0, 3) : ['-'];
+    noteLines.forEach(line => { c.text(M, leftY, line, 7.3, false, C.muted); leftY += 10; });
+    leftY += 5;
     c.text(M, leftY, 'TERMS & CONDITIONS', 8, true, C.navy);
-    leftY += 14;
-    const terms = doc.terms ? wrap(doc.terms, 48).slice(0, 5) : ['Payment due as per agreed terms.'];
+    leftY += 13;
+    const terms = doc.terms ? wrap(doc.terms, 47).slice(0, 4) : ['Payment due as per agreed terms.'];
     terms.forEach(line => { c.text(M, leftY, line, 7.3, false, C.muted); leftY += 10; });
 
     const rows: Array<[string, number, 'normal'|'total'|'balance']> = [
@@ -382,7 +398,15 @@ export async function buildPublicDocumentPdf(doc: PublicDocument): Promise<Buffe
         kind === 'normal' ? 7.6 : 8.3, kind !== 'normal', col, 'right');
       totalY += rowH + 1;
     }
-    y = Math.max(leftY, totalY) + 12;
+
+    const sigX = right - 175;
+    const sigY = totalY + 16;
+    c.text(right, sigY, 'For ' + (doc.business.legalName || doc.business.name), 8, false, C.muted, 'right');
+    c.line(sigX + 45, sigY + 38, sigX + 175, sigY + 38, C.border, 0.7);
+    c.text(right, sigY + 42, 'Authorized Signatory', 7.5, true, C.navy, 'right');
+    invoiceSignatureEndY = sigY + 53;
+    invoiceSettlementTop = leftY + 8;
+    y = Math.max(invoiceSettlementTop, invoiceSignatureEndY) + 8;
   } else {
   if(y+190>FOOTER_TOP-4){c.newPage();header(true);y=154;}else y+=12;
 
@@ -435,64 +459,45 @@ export async function buildPublicDocumentPdf(doc: PublicDocument): Promise<Buffe
 
   if (doc.type === 'invoice') {
     if (showBankSettlement || showQrSettlement) {
-      const sectionH = showQrSettlement ? 174 : 104;
-      if (y + sectionH > FOOTER_TOP - 4) { c.newPage(); header(true); y = 154; }
-      const cardX = M, cardW = CW;
-      c.roundRect(cardX, y, cardW, sectionH, 9, C.white, [0.796, 0.835, 0.882] as RGB, 0.75);
-      c.text(W / 2, y + 10, canonical.settlementDisplayMode === 'bank_transfer' ? 'BANK DETAILS' : 'PAYMENT', 10, true, C.navy, 'center');
+      const bothSettlement = showBankSettlement && showQrSettlement && canonical.settlementDisplayMode === 'both';
+      const cardX = M, cardW = 180;
+      const cardH = bothSettlement ? 184 : showQrSettlement ? 128 : 88;
+      let cardY = invoiceSettlementTop ?? y;
+      if (cardY + cardH > FOOTER_TOP - 4) { c.newPage(); header(true); cardY = 154; }
+      c.roundRect(cardX, cardY, cardW, cardH, 6, C.white, C.border, 0.75);
+      c.text(cardX + cardW / 2, cardY + 8, bothSettlement ? 'PAYMENT SETTLEMENT' : showQrSettlement ? 'SCAN & PAY VIA UPI' : 'BANK DETAILS', 8, true, C.navy, 'center');
 
-      if (showQrSettlement && showBankSettlement && doc.bankDetails && qrData) {
-        const bankX = cardX + 12, bankY = y + 29, bankW = 218, bankH = sectionH - 41;
-        c.roundRect(bankX, bankY, bankW, bankH, 7, C.pale, C.border, 0.6);
+      if (showBankSettlement && doc.bankDetails) {
         const b = doc.bankDetails;
-        c.text(bankX + 10, bankY + 10, b.institutionName || b.name || 'Bank', 8.1, true, C.navy);
-        c.text(bankX + 10, bankY + 27, 'Account holder: ' + (b.accountHolderName || doc.business.name), 7.0, false, C.muted);
-        c.text(bankX + 10, bankY + 42, 'A/C No: ' + (b.accountNumber || (b.accountLast4 ? 'XXXX ' + b.accountLast4 : '-')), 7.0, false, C.muted);
-        c.text(bankX + 10, bankY + 57, 'IFSC: ' + (b.ifscCode || '-'), 7.0, false, C.muted);
-        if (b.branchName) c.text(bankX + 10, bankY + 72, 'Branch: ' + b.branchName, 7.0, false, C.muted);
-        if (b.accountType) c.text(bankX + 10, bankY + 87, 'Account type: ' + b.accountType, 7.0, false, C.muted);
-        if (doc.upiId) c.text(bankX + 10, bankY + 102, 'UPI: ' + doc.upiId, 7.0, false, C.muted);
-
-        const payX = bankX + bankW + 10, payW = cardX + cardW - 12 - payX;
-        const buttonW = Math.min(142, payW - 8), buttonH = 22, buttonX = payX + (payW - buttonW) / 2;
-        const buttonY = y + 28;
-        c.roundRect(buttonX, buttonY, buttonW, buttonH, 11, C.purple);
-        c.text(buttonX + buttonW / 2, buttonY + 6, 'Pay Now via UPI', 7.8, true, C.white, 'center');
-        c.addLink(buttonX, buttonY, buttonW, buttonH, qrData);
-        const qrOuter = 90, qrX = payX + (payW - qrOuter) / 2, qrY = buttonY + buttonH + 7; // relative to the right-hand payment panel
-        c.rect(qrX, qrY, qrOuter, qrOuter, C.white, C.border, 0.4);
-        const q = QRCode.create(qrData, { errorCorrectionLevel: 'M' }), n = q.modules.size;
-        const area = 72, quiet = 9, cell = area / n, qx = qrX + quiet, qy = qrY + quiet;
-        for (let row = 0; row < n; row++) for (let col = 0; col < n; col++) {
-          if (q.modules.data[row * n + col]) c.rect(qx + col * cell, qy + row * cell, cell + 0.025, cell + 0.025, C.navy);
-        }
-        c.text(qrX + qrOuter / 2, qrY + qrOuter + 2, 'Scan to pay the invoice amount.', 7, false, C.muted, 'center');
-      } else if (showQrSettlement && qrData) {
-        const buttonW = 142, buttonH = 22, buttonX = cardX + (cardW - buttonW) / 2, buttonY = y + 28;
-        c.roundRect(buttonX, buttonY, buttonW, buttonH, 11, C.purple);
-        c.text(buttonX + buttonW / 2, buttonY + 6, 'Pay Now via UPI', 7.8, true, C.white, 'center');
-        c.addLink(buttonX, buttonY, buttonW, buttonH, qrData);
-        const qrOuter = 90, qrX = cardX + (cardW - qrOuter) / 2, qrY = buttonY + buttonH + 7; // centered inside the active payment card
-        c.rect(qrX, qrY, qrOuter, qrOuter, C.white, C.border, 0.4);
-        const q = QRCode.create(qrData, { errorCorrectionLevel: 'M' }), n = q.modules.size;
-        const area = 72, quiet = 9, cell = area / n, qx = qrX + quiet, qy = qrY + quiet;
-        for (let row = 0; row < n; row++) for (let col = 0; col < n; col++) {
-          if (q.modules.data[row * n + col]) c.rect(qx + col * cell, qy + row * cell, cell + 0.025, cell + 0.025, C.navy);
-        }
-        c.text(qrX + qrOuter / 2, qrY + qrOuter + 2, 'Scan to pay the invoice amount.', 7, false, C.muted, 'center');
-      } else if (showBankSettlement && doc.bankDetails) {
-        const b = doc.bankDetails, bx = cardX + 20, by = y + 32;
-        c.roundRect(bx, by, cardW - 40, 58, 7, C.pale, C.border, 0.6);
-        c.text(bx + 12, by + 9, b.institutionName || b.name || 'Bank', 8.2, true, C.navy);
-        c.text(bx + 12, by + 24, 'Account holder: ' + (b.accountHolderName || doc.business.name), 7.2, false, C.muted);
-        c.text(bx + 12, by + 39, 'A/C No: ' + (b.accountNumber || (b.accountLast4 ? 'XXXX ' + b.accountLast4 : '-')), 7.2, false, C.muted);
-        c.text(bx + 270, by + 24, 'IFSC: ' + (b.ifscCode || '-'), 7.2, false, C.muted);
-        c.text(bx + 270, by + 39, 'Branch: ' + (b.branchName || '-'), 7.2, false, C.muted);
+        const bankTop = cardY + 23;
+        c.text(cardX + 9, bankTop, b.institutionName || b.name || 'Bank', 7.5, true, C.navy);
+        c.text(cardX + 9, bankTop + 12, 'Account Holder: ' + (b.accountHolderName || doc.business.name), 7.1, false, C.muted);
+        c.text(cardX + 9, bankTop + 23, 'A/C No: ' + (b.accountNumber || (b.accountLast4 ? 'XXXX ' + b.accountLast4 : '-')), 7.1, false, C.muted);
+        c.text(cardX + 9, bankTop + 34, 'IFSC: ' + (b.ifscCode || '-'), 7.1, false, C.muted);
+        c.text(cardX + 9, bankTop + 45, 'Branch: ' + (b.branchName || '-'), 7.1, false, C.muted);
       }
-      y += sectionH + 12;
+
+      if (showQrSettlement && qrData) {
+        const buttonW = 82, buttonH = 16;
+        const buttonX = cardX + (cardW - buttonW) / 2;
+        const buttonY = cardY + (bothSettlement ? 79 : 22);
+        c.roundRect(buttonX, buttonY, buttonW, buttonH, 8, C.purple);
+        c.text(buttonX + buttonW / 2, buttonY + 4, 'Pay Online', 7.2, true, C.white, 'center');
+        c.addLink(buttonX, buttonY, buttonW, buttonH, doc.paymentLink || qrData);
+        const qrSize = 65;
+        const qrX = cardX + (cardW - qrSize) / 2;
+        const qrY = cardY + (bothSettlement ? 99 : 42);
+        c.rect(qrX, qrY, qrSize, qrSize, C.white, C.border, 0.4);
+        const q = QRCode.create(qrData, { errorCorrectionLevel: 'M' }), n = q.modules.size;
+        const area = 57, quiet = 4, cell = area / n, qx = qrX + quiet, qy = qrY + quiet;
+        for (let row = 0; row < n; row++) for (let col = 0; col < n; col++) {
+          if (q.modules.data[row * n + col]) c.rect(qx + col * cell, qy + row * cell, cell + 0.025, cell + 0.025, C.navy);
+        }
+        c.text(cardX + cardW / 2, qrY + qrSize + 3, 'Scan with any UPI App', 6.5, false, C.muted, 'center');
+      }
+      y = Math.max(cardY + cardH, invoiceSignatureEndY) + 8;
     }
   } else {
-  if(doc.bankDetails||qrData){
     const sectionH=qrData?100:76;
     if(y+sectionH>FOOTER_TOP-4){c.newPage();header(true);y=154;}
     c.line(M,y,right,y,C.border,0.75);y+=8;c.text(M,y,'PAYMENT / SETTLEMENT DETAILS',8,true,C.navy);y+=15;
@@ -524,16 +529,20 @@ export async function buildPublicDocumentPdf(doc: PublicDocument): Promise<Buffe
   }
   const pageCount=c.pages.length;
   const footerText = doc.type === 'invoice'
-    ? 'This is a customer-facing invoice shared by ' + doc.business.name + '.'
+    ? 'This is a computer-generated invoice and does not require signature.'
     : 'Generated via Moneymatters FinOps | Join Moneymatters for free at mm.nilanga.in';
-  const footerX = (W - approxWidth(footerText, 6.8, false)) / 2;
-  const poweredText = 'Powered by Moneymatters | mm.nilanga.in';
-  const poweredX = (W - approxWidth(poweredText, 6.8, false)) / 2;
-  for(let i=0;i<pageCount;i++){
-    c.pages[i].commands.push(rgb(C.border)+' RG 0.55 w '+M+' 31 m '+right+' 31 l S');
-    c.pages[i].commands.push(rgb(C.muted)+' rg BT /F1 6.8 Tf 1 0 0 1 '+footerX.toFixed(2)+' 25 Tm ('+esc(footerText)+') Tj ET');
-    if (doc.type === 'invoice') c.pages[i].commands.push(rgb(C.purple)+' rg BT /F2 6.8 Tf 1 0 0 1 '+poweredX.toFixed(2)+' 14 Tm ('+esc(poweredText)+') Tj ET');
-    else c.pages[i].commands.push(rgb(C.muted)+' rg BT /F1 7 Tf 1 0 0 1 '+(right-47).toFixed(2)+' 17 Tm (Page '+(i+1)+' of '+pageCount+') Tj ET');
+  const poweredText = 'Powered by Moneymatters FinOps | mm.nilanga.in';
+  for (let i = 0; i < pageCount; i++) {
+    const page = c.pages[i];
+    page.commands.push(rgb(C.purple) + ' RG 1.50 w ' + M + ' ' + (H - 780).toFixed(2) + ' m ' + right + ' ' + (H - 780).toFixed(2) + ' l S');
+    page.commands.push(rgb(C.border) + ' RG 0.50 w ' + M + ' ' + (H - 783).toFixed(2) + ' m ' + right + ' ' + (H - 783).toFixed(2) + ' l S');
+    const footerSize = 7.5;
+    const footerX = (W - approxWidth(footerText, footerSize, false)) / 2;
+    const footerBaseline = H - 792 - footerSize;
+    page.commands.push(rgb(C.muted) + ' rg BT /F1 ' + footerSize.toFixed(2) + ' Tf 1 0 0 1 ' + footerX.toFixed(2) + ' ' + footerBaseline.toFixed(2) + ' Tm (' + esc(footerText) + ') Tj ET');
+    const poweredX = (W - approxWidth(poweredText, 7, false)) / 2;
+    const poweredBaseline = H - 803 - 7;
+    page.commands.push(rgb(C.muted) + ' rg BT /F1 7.00 Tf 1 0 0 1 ' + poweredX.toFixed(2) + ' ' + poweredBaseline.toFixed(2) + ' Tm (' + esc(poweredText) + ') Tj ET');
   }
   if(logo&&logoId)objects[logoId-1]=Buffer.concat([
     Buffer.from('<< /Type /XObject /Subtype /Image /Width '+logo.width+' /Height '+logo.height+' /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length '+logo.bytes.length+' >>\nstream\n','ascii'),

@@ -203,8 +203,12 @@ test('public invoice renderer creates a vector-rendered A4 GST PDF with QR and b
  assert.equal(pdf.subarray(0,8).toString('ascii'),'%PDF-1.4');
  const raw=pdf.toString('latin1');
  assert.match(raw,/\/MediaBox \[0 0 595\.28 841\.89\]/);
- for(const text of ['INVOICE','INV-000018','BILL TO','INVOICE SUMMARY','Template: Premium','ITEM / DESCRIPTION','CGST','SGST','Total','Balance due','PAYMENT','Pay Now via UPI','Scan to pay the invoice amount.','This is a customer-facing invoice shared by','Powered by Moneymatters | mm.nilanga.in']) assert.ok(raw.includes(text),'PDF is missing '+text);
+ for(const text of ['INVOICE','INV-000018','BILL TO','INVOICE SUMMARY','Template: Premium','#','ITEM / DESCRIPTION','CGST','SGST','Total','Balance due','AMOUNT IN WORDS:','Authorized Signatory','SCAN & PAY VIA UPI','Pay Online','Scan with any UPI App','This is a computer-generated invoice and does not require signature.','Powered by Moneymatters FinOps | mm.nilanga.in']) assert.ok(raw.includes(text),'PDF is missing '+text);
  assert.doesNotMatch(raw,/Rs\./);
+ assert.doesNotMatch(raw,/This is a customer-facing invoice shared by/);
+ assert.match(raw,/0\.486 0\.227 0\.929 rg[^\n]* m [^\n]* l/,'PDF must include a filled purple vector accent');
+ assert.match(raw,/0\.929 0\.914 0\.996 rg/,'PDF must include the light-purple header slant');
+ assert.match(raw,/0\.486 0\.227 0\.929 RG 1\.50 w/,'PDF must include the purple footer accent line');
  const match=raw.match(/startxref\n(\d+)\n%%EOF/);
  assert.ok(match,'PDF cross-reference offset is missing');
  assert.equal(raw.slice(Number(match[1]),Number(match[1])+4),'xref');
@@ -213,7 +217,7 @@ test('public invoice renderer creates a vector-rendered A4 GST PDF with QR and b
  assert.match(raw,/\/URI \(upi:\/\/pay\?/);
  const annotationRect=raw.match(/\/Subtype \/Link \/Rect \[([0-9.]+) ([0-9.]+)/);
  assert.ok(annotationRect,'UPI action must have a clickable PDF annotation');
- assert.ok(Number(annotationRect[1])>200,'UPI action must be positioned inside the payment card, not the page top-left');
+ assert.ok(Number(annotationRect[1])>40 && Number(annotationRect[1])<220,'UPI action must be positioned in the compact left settlement card');
  assert.ok(Number(annotationRect[2])>100,'UPI action must be positioned in the document body, not the top margin');
  assert.doesNotMatch(raw,/Sample Bank/,'UPI-only default must not expose bank account strings');
  const bankOnlyPdf=await buildPublicDocumentPdf({...doc,settlementDisplayMode:'bank_transfer'});
@@ -224,7 +228,7 @@ test('public invoice renderer creates a vector-rendered A4 GST PDF with QR and b
  const bothPdf=await buildPublicDocumentPdf({...doc,settlementDisplayMode:'both'});
  const bothText=bothPdf.toString('latin1');
  assert.match(bothText,/Sample Bank/,'explicit both mode must show bank details');
- assert.match(bothText,/Pay Now via UPI/,'explicit both mode must show UPI checkout');
+ assert.match(bothText,/Pay Online/,'explicit both mode must show the UPI payment action');
  const bankFallback=await buildPublicDocumentPdf({...doc,upiId:null,settlementDisplayMode:undefined});
  assert.match(bankFallback.toString('latin1'),/Sample Bank/,'when UPI is absent the renderer should default to bank transfer');
 
@@ -235,7 +239,16 @@ test('public invoice renderer creates a vector-rendered A4 GST PDF with QR and b
  const challanText=challanPdf.toString('latin1');
  for(const value of ['DELIVERY CHALLAN','Vehicle No: MH24AB1234','Transporter: Sample Transport','E-Way Bill: EWB-12345','NOT FOR SALE / NOT A TAX INVOICE']) assert.ok(challanText.includes(value),'Challan PDF is missing '+value);
 });
-function QRCodePlaceholderForTest(pdf){const raw=pdf.toString('latin1');return raw.includes('/Subtype /Link')&&raw.includes('Pay Now via UPI')&&raw.includes('/Annots [');}
+function QRCodePlaceholderForTest(pdf){const raw=pdf.toString('latin1');return raw.includes('/Subtype /Link')&&raw.includes('Pay Online')&&raw.includes('/Annots [');}
+
+test('public PDF download uses a sanitized entity-type-number filename',async()=>{
+ const route=await read('app/api/public-documents/pdf/route.ts');
+ assert.match(route,/const entitySlug = slug\(document\.business\.name/);
+ assert.match(route,/const typeSlug = type === 'challan' \? 'delivery-challan' : type/);
+ assert.match(route,/const rawNumber = document\.number\.replace/);
+ assert.match(route,/Content-Disposition.*filename="\$\{filename\}"/);
+ assert.match(route,/replace\(\/\[\^a-z0-9\]\+\/g, '-'/);
+});
 
 test('public invoice view gates bank and UPI payment cards by the configured settlement mode',async()=>{
  const page=await read('app/invoice/[token]/page.tsx');
