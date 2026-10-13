@@ -28,7 +28,7 @@ type Quote = {
   tax_total:number|null;
   total:number|null;
   customer:{id:string;display_name:string;legal_name:string|null;email:string|null;phone:string|null;billing_address:any;shipping_address:any};
-  business:{name:string;legal_name:string|null;email:string|null;phone:string|null;website:string|null;address:any;logo_url:string|null;tax_registration_number:string|null};
+  business:{name:string;legal_name:string|null;email:string|null;phone:string|null;website:string|null;address:any;logo_url:string|null;tax_registration_number:string|null;gst_registration_type?:string|null};
   items:Array<{name?:string|null;item_name?:string|null;unit?:string|null;description:string|null;quantity:number;unit_price:number;discount_type:string|null;discount_value:number|null;tax_rate:number}>;
 };
 
@@ -53,17 +53,20 @@ export default function PublicQuotation({params}:{params:Promise<{token:string}>
     setQuote(r.data as Quote);setLoading(false);
   })()},[token]);
 
+  const quotationRegistrationType=String(quote?.business.gst_registration_type||'NONE').trim().toUpperCase();
+  const quotationTaxEnabled=Boolean(quote && !['NONE','UNREGISTERED','NON_GST','NOT_REGISTERED','COMPOSITION'].includes(quotationRegistrationType) && String(quote.business.tax_registration_number||'').trim());
   const canonical=useMemo(()=>quote?createCanonicalDocumentViewModel({
     type:'quotation',number:quote.quotation_number,date:quote.quotation_date,due_date:quote.valid_until,status:quote.status,currency_code:quote.currency_code||'INR',
-    subtotal:quote.subtotal,discount_total:quote.discount_total,tax_total:quote.tax_total,total:quote.total,
+    subtotal:quote.subtotal,discount_total:quote.discount_total,tax_total:quotationTaxEnabled?quote.tax_total:0,
+    total:quotationTaxEnabled?quote.total:Math.max(0,Number(quote.subtotal||0)-Number(quote.discount_total||0)),
     business:quote.business,customer:quote.customer,bank:quote.bank || {},
     items:quote.items.map(item=>{
       const base=Number(item.quantity||0)*Number(item.unit_price||0);
       const discount=item.discount_type==='percentage'?base*Number(item.discount_value||0)/100:Number(item.discount_value||0);
-      const tax=Math.max(0,base-discount)*Number(item.tax_rate||0)/100;
-      return {...item,discount,amount:Math.max(0,base-discount)+tax};
+      const tax=quotationTaxEnabled?Math.max(0,base-discount)*Number(item.tax_rate||0)/100:0;
+      return {...item,tax_rate:quotationTaxEnabled?item.tax_rate:0,discount,amount:Math.max(0,base-discount)+tax};
     }),
-  }, {type:'quotation',publicUrl:'https://mm.nilanga.in/quote/'+encodeURIComponent(token),upiId:quote.upi_id || quote.bank?.upi_id || null}):null,[quote,token]);
+  }, {type:'quotation',publicUrl:'https://mm.nilanga.in/quote/'+encodeURIComponent(token),upiId:quote.upi_id || quote.bank?.upi_id || null}):null,[quote,token,quotationTaxEnabled]);
   const logoUrl=useMemo(()=>quote?.business.logo_url?supabase.storage.from('business-branding-public').getPublicUrl(quote.business.logo_url).data.publicUrl:'',[quote?.business.logo_url]);
   useEffect(()=>{let active=true;const qr=canonical?.financials.upiQrString;if(!qr||quote?.payment_qr_enabled===false){setQrDataUrl('');return}QRCode.toDataURL(qr,{width:180,margin:1,errorCorrectionLevel:'M'}).then(url=>{if(active)setQrDataUrl(url)}).catch(()=>{if(active)setQrDataUrl('')});return()=>{active=false}},[canonical?.financials.upiQrString,quote?.payment_qr_enabled]);
   const expired=Boolean(quote?.status==='sent'&&quote.valid_until&&quote.valid_until.slice(0,10)<new Date().toISOString().slice(0,10));
@@ -228,7 +231,7 @@ export default function PublicQuotation({params}:{params:Promise<{token:string}>
         <div className="min-w-0 space-y-2 text-sm">
           <div className="flex justify-between gap-4"><span className="text-slate-600">Subtotal</span><span className="text-right tabular-nums">{money(computed.subtotal)}</span></div>
           {computed.discount!==0&&<div className="flex justify-between gap-4"><span className="text-slate-600">Trade Discount</span><span className="text-right tabular-nums">-{money(computed.discount)}</span></div>}
-          {canonical?.financials.taxBreakdown.map((line,i)=><div key={i} className="flex justify-between gap-4"><span className="text-slate-600">{line.name}{line.rate>0?' ('+line.rate+'%)':''}</span><span className="text-right tabular-nums">{money(line.amount)}</span></div>)}
+          {quotationTaxEnabled&&canonical?.financials.taxBreakdown.map((line,i)=><div key={i} className="flex justify-between gap-4"><span className="text-slate-600">{line.name}{line.rate>0?' ('+line.rate+'%)':''}</span><span className="text-right tabular-nums">{money(line.amount)}</span></div>)}
           <div className="flex justify-between gap-4 border-t border-slate-200 pt-3 text-lg font-extrabold text-orange-700"><span>Net Payable</span><span className="text-right tabular-nums">{money(computed.total)}</span></div>
           <div className="mt-4 rounded-lg border border-slate-200 bg-slate-50 p-3">
             <p className="text-[10px] font-extrabold uppercase tracking-[0.14em] text-slate-500">AMOUNT IN WORDS</p>
