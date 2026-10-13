@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { supabase, type BusinessContext } from '@/lib/supabase';
 import { getPublicDocumentUrl } from '@/lib/client/share-document';
+import CopyButton from '@/components/ui/copy-button';
 import { PageHeader } from '@/components/ui/finops/PageHeader';
 import { Button, Card } from '@/components/moneymatters';
 
@@ -28,10 +29,8 @@ export default function QuotationsListPage() {
   const [customers, setCustomers] = useState<Record<string, CustomerRow>>({});
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
-  const [notice, setNotice] = useState('');
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
-  const [busyShareId, setBusyShareId] = useState('');
 
   const refresh = useCallback(async (preferredBusinessId?: string) => {
     setLoading(true);
@@ -73,22 +72,6 @@ export default function QuotationsListPage() {
     });
   }, [rows, customers, search, statusFilter]);
 
-  const share = async (row: QuotationRow) => {
-    setBusyShareId(row.id);
-    setLoadError('');
-    setNotice('');
-    try {
-      const url = await getPublicDocumentUrl('quotation', row.id);
-      await navigator.clipboard.writeText(url);
-      setNotice('Customer link copied for ' + row.quotation_number + '.');
-      await refresh(businessId);
-    } catch (cause) {
-      setLoadError(cause instanceof Error ? cause.message : 'Unable to create a public quotation link.');
-    } finally {
-      setBusyShareId('');
-    }
-  };
-
   const pdfUrl = (row: QuotationRow) => row.public_accept_token
     ? '/api/public-documents/pdf?type=quotation&token=' + encodeURIComponent(row.public_accept_token) : '';
 
@@ -103,7 +86,7 @@ export default function QuotationsListPage() {
           actions={<Button onClick={() => { window.location.href = '/next-workspace/quotation'; }}>+ New Quotation</Button>}
         />
         {loadError && <div role="alert" className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-800">{loadError}</div>}
-        {notice && <div role="status" className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">{notice}</div>}
+
         <Card className="overflow-hidden p-0">
           <div className="grid gap-3 border-b border-slate-200 p-4 sm:grid-cols-[minmax(0,1fr)_220px_auto] sm:items-center">
             <input value={search} onChange={event => setSearch(event.target.value)} placeholder="Search quotation no. or customer" aria-label="Search quotations" className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-100" />
@@ -139,7 +122,7 @@ export default function QuotationsListPage() {
                             {isEditable && <a className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50" href={'/next-workspace/documents?type=quotation&id=' + encodeURIComponent(row.id) + '&edit=1'}>Edit</a>}
                             {isPublic && pdf ? <a className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50" href={pdf}>Download PDF</a>
                               : <button type="button" title={expired ? 'Extend validity before sharing this expired quotation.' : 'Send the quotation before enabling the public PDF.'} disabled className="cursor-not-allowed rounded-lg border border-slate-100 px-2.5 py-1.5 text-xs font-semibold text-slate-400">Download PDF</button>}
-                            {isPublic ? <button type="button" onClick={() => void share(row)} disabled={busyShareId === row.id} className="rounded-lg bg-violet-600 px-2.5 py-1.5 text-xs font-semibold text-white hover:bg-violet-700 disabled:opacity-50">{busyShareId === row.id ? 'Copying…' : 'Share'}</button>
+                            {isPublic ? <CopyButton getValue={() => getPublicDocumentUrl('quotation', row.id)} label="Copy link" successMessage={'Customer link copied for ' + row.quotation_number + '.'} className="rounded-lg bg-violet-600 px-2.5 py-1.5 text-xs font-semibold text-white hover:bg-violet-700" />
                               : <button type="button" title={expired ? 'Extend validity before sharing this expired quotation.' : 'Send the quotation before sharing.'} disabled className="cursor-not-allowed rounded-lg border border-slate-100 px-2.5 py-1.5 text-xs font-semibold text-slate-400">Share</button>}
                           </div>
                         </td>
