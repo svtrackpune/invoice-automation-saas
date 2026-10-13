@@ -48,7 +48,7 @@ test('public invoice RPC returns the active settlement account for online invoic
 test('public invoice web payment card shows bank details together with UPI QR and a native UPI action', async () => {
   const page = await read('app/invoice/[token]/page.tsx');
   assert.match(page, /PAYMENT/);
-  assert.match(page, /Bank settlement details/);
+  assert.match(page, /<b>Bank:<\/b>/);
   assert.match(page, /Pay Now via UPI/);
   assert.match(page, /Scan to pay the invoice amount\./);
   assert.match(page, /canonical\?\.financials\.upiQrString/);
