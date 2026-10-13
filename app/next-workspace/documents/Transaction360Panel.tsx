@@ -41,7 +41,7 @@ export default function Transaction360Panel({entityType,entityId}:Props){
     <div className="flex flex-wrap items-end justify-between gap-3"><div><p className="text-[10px] font-bold uppercase tracking-[.16em] text-violet-600">Transaction 360</p><h2 className="mt-1 text-lg font-semibold text-slate-900">Linked records & accounting trail</h2></div><div className="text-xs text-slate-400">Server-side relationship view.</div></div>
     <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
       {party&&card(partyLabel,party.display_name||party.legal_name||partyLabel,party.id?((entityType==='purchase_bill'||entityType==='expense'||(entityType==='payment'&&data?.vendor))?'/next-workspace/vendors/'+party.id:'/next-workspace/customers/'+party.id):undefined)}
-      {source&&card('Source quotation',source.quotation_number||'Estimate','/next-workspace/documents?type=quotation&id='+source.id)}
+      {source&&card('Source quotation',source.quotation_number||'Quotation','/next-workspace/documents?type=quotation&id='+source.id)}
       {linkedInvoice&&entityType==='payment'&&card('Linked invoice',linkedInvoice.invoice_number||'Invoice','/next-workspace/documents?type=invoice&id='+linkedInvoice.id)}
       {linkedBill&&entityType==='payment'&&card('Linked purchase bill',linkedBill.bill_number||'Purchase bill','/next-workspace/purchases/'+linkedBill.id)}
       {converted&&card('Converted invoice',converted.invoice_number||'Invoice','/next-workspace/documents?type=invoice&id='+converted.id)}
