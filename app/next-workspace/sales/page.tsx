@@ -7,7 +7,7 @@ import { useBusinessDNA } from '@/lib/use-business-dna';
 const actions = [
   { title: 'Create invoice', description: 'Use the canonical invoice editor, review the document, then finalize and post.', href: '/next-workspace/invoices/new', label: 'Create invoice' },
   { title: 'Invoices', description: 'Review drafts, posted invoices, outstanding balances and document actions.', href: '/next-workspace/invoices', label: 'Open invoices' },
-  { title: 'Quotations', description: 'Review estimates, search statuses and share customer quotations.', href: '/next-workspace/quotations', label: 'Open quotations' },
+  { title: 'Quotations', description: 'Review quotations, search statuses and share customer links.', href: '/next-workspace/quotations', label: 'Open quotations' },
   { title: 'Payments', description: 'Record and allocate customer payments against posted invoices.', href: '/next-workspace/payments', label: 'Open payments' },
   { title: 'Customers', description: 'Open Customer 360 and start sales actions from the customer relationship.', href: '/next-workspace/customers', label: 'Open customers' },
 ];
