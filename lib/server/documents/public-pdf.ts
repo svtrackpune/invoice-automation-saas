@@ -493,24 +493,24 @@ export async function buildPublicDocumentPdf(doc: PublicDocument): Promise<Buffe
     noteLines.forEach(line => { c.text(M, infoY, line, 7.3, false, C.muted); infoY += 10; });
     y = Math.max(infoY + 8, invoiceSignatureEndY + 8);
   } else {
-    if (doc.bankDetails || qrData) {
-      const sectionH=qrData?100:76;
+    if (showBankSettlement || showQrSettlement) {
+      const sectionH=showQrSettlement?100:76;
       if(y+sectionH>FOOTER_TOP-4){c.newPage();header(true);y=154;}
     c.line(M,y,right,y,C.border,0.75);y+=8;c.text(M,y,'PAYMENT / SETTLEMENT DETAILS',8,true,C.navy);y+=15;
-    if(doc.bankDetails){
+    if(showBankSettlement&&doc.bankDetails){
       const b=doc.bankDetails;
       c.text(M,y,b.institutionName||b.name||'Bank',8.1,true,C.ink);
       c.text(M,y+13,'A/C Holder: '+(b.accountHolderName||doc.business.name),7.3,false,C.muted);
       c.text(M,y+25,'A/C No: '+(b.accountNumber||(b.accountLast4?'XXXX '+b.accountLast4:'-')),7.3,false,C.muted);
       c.text(M,y+37,'IFSC: '+(b.ifscCode||'-')+'   Branch: '+(b.branchName||'-'),7.3,false,C.muted);
     }
-    if(qrData){
+    if(showQrSettlement&&qrData){
       const q=QRCode.create(qrData,{errorCorrectionLevel:'M'}), n=q.modules.size, area=72, cell=area/n, qx=right-area, qy=y-2;
       c.rect(qx-4,qy-4,area+8,area+8,C.white,C.border);
       for(let row=0;row<n;row++)for(let col=0;col<n;col++)if(q.modules.data[row*n+col])c.rect(qx+col*cell,qy+row*cell,cell+0.04,cell+0.04,C.ink);
       c.text(qx+area/2,qy+area+5,'SCAN TO PAY',6.5,true,C.muted,'center');
     }
-    y+=qrData?88:45;
+    y+=showQrSettlement?88:45;
   }
 
   }
