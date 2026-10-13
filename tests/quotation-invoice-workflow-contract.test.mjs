@@ -138,6 +138,11 @@ test('invoice title and tax presentation follow explicit GST registration mode',
   assert.ok(quotationEditor.includes("taxRegime==='GST'?'GST rate':'Tax rate'"));
   assert.ok(quotationEditor.includes("{taxEnabled&&<div className=\"flex justify-between\"><span>{taxRegime==='GST'?'GST':'Tax'}</span>"));
   assert.ok(viewer.includes('showTaxDetails={documentShowTaxDetails}'));
+  assert.ok(viewer.includes("const registrationBoundTaxDocument=['invoice','tax_invoice','cash_bill','quotation','credit_note','debit_note'].includes(type)||taxInvoice"));
+  assert.ok(viewer.includes("isGstDocument=isRegisteredTaxDocument&&regime==='GST'&&country==='IN'"));
+  assert.ok(viewer.includes("function DocumentTotals({ payload, currency='INR', receipt=false, showTaxDetails=true, taxLabel='GST' }"));
+  assert.ok(viewer.includes('<span>{taxLabel}</span><strong>{money(tax,currency)}</strong>'));
+  assert.ok(viewer.includes('showTaxDetails={documentShowTaxDetails} taxLabel={taxLabel}'));
   assert.ok(viewer.includes('show_customer_balance === true'));
   assert.ok(invoice.includes("const invoiceHeading=compositionSupply?'BILL OF SUPPLY':taxRegistered?'TAX INVOICE':'INVOICE'"));
   assert.ok(invoice.includes('showGstBreakdown=gstRegistered&&!compositionSupply'));
