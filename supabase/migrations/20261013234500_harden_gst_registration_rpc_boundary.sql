@@ -199,7 +199,7 @@ SELECT pg_temp.patch_function_definition(
          )
        )
     THEN
-      RAISE EXCEPTION 'GST cannot be charged for an Indian business without a valid registered GSTIN. Configure the GST registration or issue a non-GST invoice.';
+      RAISE EXCEPTION 'Tax cannot be charged without a valid business tax registration. Configure the business tax profile or issue a non-taxable invoice.';
     END IF;$new$
 );
 SELECT pg_temp.patch_function_definition(
@@ -223,7 +223,7 @@ SELECT pg_temp.patch_function_definition(
          )
        )
     THEN
-      RAISE EXCEPTION 'GST cannot be charged for an Indian business without a valid registered GSTIN. Configure the GST registration or issue a non-GST invoice.';
+      RAISE EXCEPTION 'Tax cannot be charged without a valid business tax registration. Configure the business tax profile or issue a non-taxable invoice.';
     END IF;$new$
 );
 SELECT pg_temp.patch_function_definition(
@@ -247,7 +247,7 @@ SELECT pg_temp.patch_function_definition(
          )
        )
     THEN
-      RAISE EXCEPTION 'GST cannot be charged for an Indian business without a valid registered GSTIN. Configure the GST registration or issue a non-GST invoice.';
+      RAISE EXCEPTION 'Tax cannot be charged without a valid business tax registration. Configure the business tax profile or issue a non-taxable invoice.';
     END IF;$new$
 );
 
