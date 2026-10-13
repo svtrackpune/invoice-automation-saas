@@ -265,6 +265,7 @@ export async function buildPublicDocumentPdf(doc: PublicDocument): Promise<Buffe
     }
     const detailsTitle=doc.type==='invoice'?'INVOICE DETAILS':doc.type==='quotation'?'QUOTATION DETAILS':'DOCUMENT DETAILS';
     c.text(M,top+113,detailsTitle,8,true,C.navy);
+    if(doc.type==='invoice'&&doc.templateName)c.text(M+100,top+113,'Template: '+doc.templateName,7,false,C.muted);
     const state=stateLabel(doc.placeOfSupplyStateCode);
     if(state)c.text(right,top+113,'PLACE OF SUPPLY: '+state,7.3,true,C.muted,'right');
     if(doc.type==='challan') {
@@ -294,7 +295,7 @@ export async function buildPublicDocumentPdf(doc: PublicDocument): Promise<Buffe
       c.rect(M,top,CW,23,C.navy);let x=M;
       widths.forEach((w,i)=>{const align=i>=3?'right':'left';c.text(align==='right'?x+w-5:x+5,top+7,labels[i],6.7,true,C.white,align);x+=w;});
     }
-    return top + (doc.type === 'invoice' ? 20 : 23);
+    return top + (doc.type === 'invoice' || doc.type === 'quotation' ? 20 : 23);
   };
 
   header(false);
@@ -372,7 +373,7 @@ export async function buildPublicDocumentPdf(doc: PublicDocument): Promise<Buffe
     const wordsTop = totalY + 7;
     const wordsHeight = Math.max(32, 17 + amountWords.length * 9);
     c.roundRect(totalX, wordsTop, totalW, wordsHeight, 5, C.pale, C.border, 0.6);
-    c.text(totalX + 8, wordsTop + 5, 'AMOUNT IN WORDS', 7.2, true, C.purple);
+    c.text(totalX + 8, wordsTop + 5, 'AMOUNT IN WORDS:', 7.2, true, C.purple);
     amountWords.forEach((line, index) => c.text(totalX + 8, wordsTop + 16 + index * 8, line, 7.2, false, C.navy));
 
     const sigX = right - 175;
