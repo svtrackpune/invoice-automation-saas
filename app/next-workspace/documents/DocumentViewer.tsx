@@ -46,16 +46,17 @@ const receiptAddressLine = (business: any) => {
 const taxValue = (party: any) => text(party?.tax_id || party?.gstin || party?.gst_number || party?.tax_registration_number || '');
 const registrationType = (party: any) => text(party?.gst_registration_type || party?.gstRegistrationType || party?.tax_registration_status || '').trim().toUpperCase() || 'NONE';
 const isNonGstRegistration = (party: any) => ['NONE', 'UNREGISTERED', 'NON_GST', 'NOT_REGISTERED'].includes(registrationType(party));
+const hasValidGstin = (party: any) => /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][0-9A-Z]Z[0-9A-Z]$/.test(text(party?.gstin || party?.gst_number || party?.tax_registration_number).trim().toUpperCase());
 const isTaxRegistered = (party: any) => {
   if (!party) return false;
   if (party.is_tax_registered === false || party.tax_registered === false || party.tax_enabled === false) return false;
   if (isNonGstRegistration(party)) return false;
   const mode = text(party.tax_mode || party.tax_status || '').trim().toLowerCase();
   if (['non_gst', 'unregistered', 'not_registered', 'not tax registered'].includes(mode)) return false;
-  return !!taxValue(party);
+  return hasValidGstin(party);
 };
 const invoiceDocumentTitle = (party: any) => {
-  if (registrationType(party) === 'COMPOSITION') return 'BILL OF SUPPLY';
+  if (registrationType(party) === 'COMPOSITION' && hasValidGstin(party)) return 'BILL OF SUPPLY';
   return isTaxRegistered(party) ? 'TAX INVOICE' : 'INVOICE';
 };
 
