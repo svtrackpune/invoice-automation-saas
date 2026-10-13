@@ -75,7 +75,7 @@ export async function GET(request: NextRequest) {
     const data = await loadReceiptPdfData(db, access.receipt_id);
     const pdf = buildReceiptPdf(data);
     const entitySlug = slug(data.business?.name || data.business?.legal_name || data.customer?.display_name || 'entity');
-    const rawNumber = String(data.receipt.receipt_number || data.receipt.id).replace(/^(?:REC(?:EIPT)?|RCPT)[-_ ]*/i, '');
+    const rawNumber = String(data.receipt.receipt_number || data.receipt.id).replace(/^(?:REC(?:EIPT)?|RCPT|RCT)[-_ ]*/i, '');
     const numberSlug = slug(rawNumber || String(data.receipt.receipt_number || data.receipt.id));
     const filename = `${entitySlug}-receipt-${numberSlug}.pdf`;
 
