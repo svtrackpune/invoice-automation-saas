@@ -22,6 +22,9 @@ const quotationList = read('app/next-workspace/quotations/page.tsx');
 const itemCatalogue = read('app/next-workspace/items/page.tsx');
 const invoiceEditor = read('app/next-workspace/invoices/InvoiceEditorCore.tsx');
 const itemServiceModal = read('app/next-workspace/invoices/new/ItemServiceModal.tsx');
+const publicTokens = read('lib/server/documents/public-tokens.ts');
+const gstBoundaryMigration = read('supabase/migrations/20261013234500_harden_gst_registration_rpc_boundary.sql');
+const publicTaxMetadataMigration = read('supabase/migrations/20261013235000_public_document_tax_regime_metadata.sql');
 
 test('invoice and quotation web/PDF item grids use six separate columns', () => {
   assert.ok(pdf.includes("['#', 'ITEM / DESCRIPTION', 'QTY', 'UNIT', 'RATE', 'AMOUNT']"));
@@ -131,6 +134,23 @@ test('invoice title and tax presentation follow explicit GST registration mode',
   assert.ok(pdf.includes("if (type === 'invoice') return taxPresentation(business).title"));
   assert.ok(pdf.includes("taxBreakdownAllowed: (gstRegistration && !composition) || otherTaxRegistration"));
   assert.ok(!pdf.includes('No line items supplied'));
+});
+
+test('GST registration is validated at RPC and public document boundaries', () => {
+  assert.ok(gstBoundaryMigration.includes('mm_private.has_valid_gst_registration(p_business_id)'));
+  assert.ok(gstBoundaryMigration.includes("upper(coalesce(tp.tax_regime, 'NONE')) = 'GST'"));
+  assert.ok(gstBoundaryMigration.includes("upper(coalesce(tp.gst_registration_type, 'NONE'))"));
+  assert.ok(gstBoundaryMigration.includes('public.create_invoice_from_items(uuid,uuid,date,date,jsonb,text,numeric,text,text)'));
+  assert.ok(gstBoundaryMigration.includes('public.update_invoice_any_state(uuid,uuid,date,date,jsonb,text,numeric,text,text,uuid,date,uuid,text,uuid)'));
+  assert.ok(gstBoundaryMigration.includes('public.create_invoice_with_dynamic_tax(uuid,uuid,date,date,jsonb,text,text,text,boolean)'));
+  assert.ok(gstBoundaryMigration.includes('public.api_create_invoice_with_dynamic_tax(text,uuid,uuid,date,date,jsonb,text,text,text,boolean)'));
+  assert.ok(publicTokens.includes("select('id,name,legal_name,email,phone,website,address,country_code,tax_registration_number,logo_storage_path')"));
+  assert.ok(publicTokens.includes("select('gstin,pan,gst_registration_type,tax_regime,tax_id')"));
+  assert.ok(publicTokens.includes("const registeredGstin = taxRegime === 'GST' && gstRegistrationMode && hasValidGstin ? gstin : null"));
+  assert.ok(publicTokens.includes("const nonIndianTaxId = countryCode !== 'IN' && ['VAT', 'SALES_TAX', 'OTHER'].includes(taxRegime)"));
+  assert.ok(publicTaxMetadataMigration.includes("'tax_regime'"));
+  assert.ok(publicTaxMetadataMigration.includes("'country_code'"));
+  assert.ok(publicTaxMetadataMigration.includes("'tax_id'"));
 });
 
 test('product and service selectors dismiss after selection, outside click, and Escape', () => {
