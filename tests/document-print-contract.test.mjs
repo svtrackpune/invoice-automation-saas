@@ -30,6 +30,9 @@ test('all seven document classes have explicit print contracts',()=>{
 test('receipt PDF carries allocation and ledger acknowledgement data',()=>{
   assert.match(receiptPdf,/payment_allocations/);
   assert.match(receiptPdf,/This is a computer-generated payment receipt and does not require signature\./);
+  assert.match(viewer,/This is a computer-generated payment receipt and does not require signature\./);
+  assert.match(viewer,/This is a computer-generated invoice and does not require signature\./);
+  assert.match(viewer,/This is a computer-generated quotation and does not require signature\./);
   assert.match(receiptPdf,/customer_outstanding/);
   assert.match(receiptPdf,/Received with thanks from/);
   assert.match(receiptPdf,/Invoice Allocation/);
