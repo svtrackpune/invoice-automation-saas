@@ -157,7 +157,7 @@ export async function loadPublicDocumentById(
         name: text(data.business?.legal_name || data.business?.name) || 'Business',
         legalName: nullable(data.business?.legal_name), email: nullable(data.business?.email),
         phone: nullable(data.business?.phone), website: nullable(data.business?.website), address: data.business?.address ?? null,
-        taxRegistrationNumber: null, gstRegistrationType: 'NONE', taxRegime: 'NONE', countryCode: nullable(data.business?.country_code) || 'IN', taxId: null, logoStoragePath: nullable(data.business?.logo_storage_path), pan: null,
+        taxRegistrationNumber: null, gstRegistrationType: 'NONE', taxRegime: 'NONE', countryCode: 'IN', taxId: null, logoStoragePath: nullable(data.business?.logo_storage_path), pan: null,
       },
       customer: {
         name: text(data.customer?.legal_name || data.customer?.display_name) || 'Customer',
