@@ -7,6 +7,9 @@ import { checkRateLimit, getClientRateLimitKey } from '@/lib/server/rate-limit';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
+const slug = (value: string) => value.normalize('NFKD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
+  .replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 80) || 'receipt';
+
 const RECEIPT_RATE_LIMIT = 30;
 const RECEIPT_RATE_WINDOW_MS = 60_000;
 
@@ -71,13 +74,16 @@ export async function GET(request: NextRequest) {
 
     const data = await loadReceiptPdfData(db, access.receipt_id);
     const pdf = buildReceiptPdf(data);
-    const filename = `receipt-${String(data.receipt.receipt_number || data.receipt.id).replace(/[^a-zA-Z0-9._-]+/g, '-')}.pdf`;
+    const entitySlug = slug(data.business?.name || data.business?.legal_name || data.customer?.display_name || 'entity');
+    const rawNumber = String(data.receipt.receipt_number || data.receipt.id).replace(/^(?:REC(?:EIPT)?|RCPT)[-_ ]*/i, '');
+    const numberSlug = slug(rawNumber || String(data.receipt.receipt_number || data.receipt.id));
+    const filename = `${entitySlug}-receipt-${numberSlug}.pdf`;
 
     return new Response(pdf, {
       status: 200,
       headers: {
         'Content-Type': 'application/pdf',
-        'Content-Disposition': `inline; filename="${filename}"`,
+        'Content-Disposition': `attachment; filename="${filename}"`,
         'Cache-Control': 'private, no-store',
         'X-Content-Type-Options': 'nosniff',
         'X-Robots-Tag': 'noindex, nofollow, noarchive',
