@@ -30,7 +30,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
     <html lang="en" nonce={nonce} className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}>
       <head>
         <style dangerouslySetInnerHTML={{ __html: `
-          /* Screen document canvas: A4 for invoices/estimates, thermal for receipts. */
+          /* Screen document canvas: A4 for invoices/quotations, thermal for receipts. */
           .paper:not(.receipt-paper) { width:210mm!important; min-height:297mm!important; box-sizing:border-box!important; }
           .receipt-paper { width:80mm!important; max-width:80mm!important; min-height:0!important; box-sizing:border-box!important; }
           .receipt-paper .receipt-head,.receipt-paper .receipt-title,.receipt-paper .receipt-customer,.receipt-paper .receipt-items,.receipt-paper .receipt-totals,.receipt-paper .payment-detail,.receipt-paper .receipt-thanks,.receipt-paper .receipt-footer { max-width:100%!important; box-sizing:border-box!important; margin-left:0!important; margin-right:0!important; }
