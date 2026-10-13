@@ -242,45 +242,31 @@ export async function buildPublicDocumentPdf(doc: PublicDocument): Promise<Buffe
   const partyRows=(address:unknown,phone:string|null,email:string|null,taxId:string|null)=>
     [...addressParts(address).slice(0,2),phone||'',email||'',taxId?'GSTIN: '+taxId:''].filter(Boolean);
   const drawParties=(top:number)=>{
-    if (doc.type === 'invoice') {
-      const gap = 22, colW = (CW - gap) / 2, rx = M + colW + gap;
-      c.text(M, top, 'BILL TO', 8, true, C.muted);
-      c.text(M, top + 15, canonical.customer.name, 10, true, C.navy);
-      let billY = top + 29;
-      const billRows = [
-        ...addressParts(canonical.customer.billingAddress || canonicalAddress(doc.customer.address)),
-        canonical.customer.phone || '',
-        canonical.customer.email || '',
-        canonical.customer.gstin ? 'GSTIN: ' + canonical.customer.gstin : ''
-      ].filter(Boolean).slice(0, 5);
-      billRows.forEach((v) => {
-        drawWrap(c, M, billY, v, 48, 7.2, false, C.muted, 1);
-        billY += 9;
-      });
-      c.line(M + colW + gap / 2, top - 1, M + colW + gap / 2, top + 72, C.border, 0.6);
-      c.text(rx, top, 'INVOICE SUMMARY', 8, true, C.muted);
-      c.text(rx, top + 16, 'Template: ' + (doc.templateName || 'Business default'), 7.5, false, C.muted);
-      c.roundRect(rx, top + 28, colW, 31, 6, [1, 0.97, 0.94] as RGB, [0.98, 0.87, 0.78] as RGB);
-      c.text(rx + 9, top + 38, 'Balance due', 7.2, true, C.amber);
-      c.text(rx + colW - 9, top + 36, money(canonical.financials.balanceDue, canonical.document.currency), 9.1, true, C.amber, 'right');
-      c.line(M, top + 78, right, top + 78, C.border, 0.65);
-      return top + 90;
-    }
-
     const gap=10,colW=(CW-gap)/2,boxH=100;
+    const billingAddress=canonical.customer.billingAddress||canonicalAddress(doc.customer.address);
+    const shippingAddress=canonical.customer.shippingAddress||billingAddress;
+    const billRows=[
+      ...addressParts(billingAddress),
+      canonical.customer.phone||'',
+      canonical.customer.email||'',
+      canonical.customer.gstin?'GSTIN: '+canonical.customer.gstin:''
+    ].filter(Boolean);
+    const shipRows=addressParts(shippingAddress);
+    if(!shipRows.length)shipRows.push('No shipping address provided');
+    const standardizedParties=doc.type==='invoice'||doc.type==='quotation';
     const list=[
-      {x:M,label:'BILLED TO',name:canonical.customer.name,rows:partyRows(canonical.customer.billingAddress||canonicalAddress(doc.customer.address),canonical.customer.phone||null,canonical.customer.email||null,canonical.customer.gstin||null)},
-      {x:M+colW+gap,label:'SHIPPED TO',name:canonical.customer.name,rows:partyRows(canonical.customer.shippingAddress||canonical.customer.billingAddress,null,null,null)}
+      {x:M,label:standardizedParties?'BILL TO':'BILLED TO',name:canonical.customer.name,rows:billRows},
+      {x:M+colW+gap,label:standardizedParties?'SHIP TO':'SHIPPED TO',name:canonical.customer.name,rows:shipRows}
     ];
     for(const p of list){
-      c.rect(p.x,top,colW,boxH,C.white,C.border); c.rect(p.x,top,colW,19,C.pale);
-      c.text(p.x+10,top+5,p.label,8,true,C.indigo); c.text(p.x+10,top+25,p.name,9.1,true,C.navy);
-      p.rows.slice(0,5).forEach((v,i)=>drawWrap(c,p.x+10,top+40+i*10,v,43,7.3,false,C.muted,1));
+      c.rect(p.x,top,colW,boxH,C.white,C.border,0.75); c.rect(p.x,top,colW,19,C.pale);
+      c.text(p.x+10,top+5,p.label,8,true,C.purple); c.text(p.x+10,top+25,p.name,9.1,true,C.navy);
+      p.rows.slice(0,5).forEach((v,i)=>drawWrap(c,p.x+10,top+40+i*10,v,43,7.1,false,C.muted,1));
     }
-    c.text(M,top+113,'DOCUMENT DETAILS',8,true,C.navy);
+    const detailsTitle=doc.type==='invoice'?'INVOICE DETAILS':doc.type==='quotation'?'QUOTATION DETAILS':'DOCUMENT DETAILS';
+    c.text(M,top+113,detailsTitle,8,true,C.navy);
     const state=stateLabel(doc.placeOfSupplyStateCode);
     if(state)c.text(right,top+113,'PLACE OF SUPPLY: '+state,7.3,true,C.muted,'right');
-    
     if(doc.type==='challan') {
       let detailsTop=top+128;
       if(doc.vehicleNumber)c.text(M,detailsTop,'Vehicle No: '+doc.vehicleNumber,7.2,false,C.muted);
@@ -290,13 +276,12 @@ export async function buildPublicDocumentPdf(doc: PublicDocument): Promise<Buffe
     }
     return top+124;
   };
-
-  const widths = doc.type === 'invoice' ? [24, 245, 52, 88, CW - 409] : [21,140,45,38,58,49,82,82];
-  const labels = doc.type === 'invoice'
+  const widths = doc.type === 'invoice' || doc.type === 'quotation' ? [24, 245, 52, 88, CW - 409] : [21,140,45,38,58,49,82,82];
+  const labels = doc.type === 'invoice' || doc.type === 'quotation'
     ? ['#', 'ITEM / DESCRIPTION', 'QTY', 'RATE', 'AMOUNT']
     : ['#','Item Description','HSN/SAC','Qty','Unit Rate','Discount','Taxable Amt','Total'];
   const tableHeader=(top:number)=>{
-    if (doc.type === 'invoice') {
+    if (doc.type === 'invoice' || doc.type === 'quotation') {
       c.rect(M, top, CW, 20, C.purple);
       c.line(M, top + 20, right, top + 20, C.rowBorder, 0.65);
       let x = M;
@@ -318,7 +303,7 @@ export async function buildPublicDocumentPdf(doc: PublicDocument): Promise<Buffe
   const items=canonical.items.length?canonical.items:[{description:'No line items supplied',quantity:0,unitPrice:0,discount:0,taxRate:0,amount:0,hsn:undefined}];
   items.forEach((it,i)=>{
     const originalItem=doc.items[i];
-    if (doc.type === 'invoice') {
+    if (doc.type === 'invoice' || doc.type === 'quotation') {
       const desc = wrap(it.description, 41).slice(0, 2);
       const rh = Math.max(28, desc.length * 10 + (it.hsn ? 8 : 0) + 8);
       if (y + rh > FOOTER_TOP - 4) { c.newPage(); header(true); y = tableHeader(154); }
@@ -352,26 +337,10 @@ export async function buildPublicDocumentPdf(doc: PublicDocument): Promise<Buffe
   let invoiceSettlementTop: number | null = null;
   let invoiceSignatureEndY = 0;
   if (doc.type === 'invoice') {
-    if (y + 260 > FOOTER_TOP - 4) { c.newPage(); header(true); y = 154; }
+    if (y + 330 > FOOTER_TOP - 4) { c.newPage(); header(true); y = 154; }
     y += 10;
     const summaryTop = y;
     const totalW = 205, totalX = right - totalW;
-
-    c.text(M, summaryTop, 'AMOUNT IN WORDS:', 7.5, true, C.muted);
-    const amountWords = wrap(canonical.financials.amountInWords, 64).slice(0, 2);
-    amountWords.forEach((line, index) => c.text(M, summaryTop + 12 + index * 9, line, 8, false, C.navy));
-    let leftY = summaryTop + 12 + amountWords.length * 9 + 5;
-
-    c.text(M, leftY, 'NOTES', 8, true, C.navy);
-    leftY += 13;
-    const noteLines = doc.notes ? wrap(doc.notes, 47).slice(0, 3) : ['-'];
-    noteLines.forEach(line => { c.text(M, leftY, line, 7.3, false, C.muted); leftY += 10; });
-    leftY += 5;
-    c.text(M, leftY, 'TERMS & CONDITIONS', 8, true, C.navy);
-    leftY += 13;
-    const terms = doc.terms ? wrap(doc.terms, 47).slice(0, 4) : ['Payment due as per agreed terms.'];
-    terms.forEach(line => { c.text(M, leftY, line, 7.3, false, C.muted); leftY += 10; });
-
     const rows: Array<[string, number, 'normal'|'total'|'balance']> = [
       ['Subtotal', canonical.financials.subtotal, 'normal']
     ];
@@ -392,26 +361,33 @@ export async function buildPublicDocumentPdf(doc: PublicDocument): Promise<Buffe
       const rowH = kind === 'normal' ? 15 : 19;
       if (kind === 'total') c.roundRect(totalX, totalY, totalW, rowH, 4, C.pale);
       if (kind === 'balance') c.roundRect(totalX, totalY, totalW, rowH, 4, [1, 0.97, 0.94] as RGB);
-      const col = kind === 'balance' ? C.amber : C.navy;
+      const col = kind === 'balance' || kind === 'total' ? C.amber : C.navy;
       c.text(totalX + 8, totalY + 4, label, kind === 'normal' ? 7.6 : 8.3, kind !== 'normal', col);
       c.text(right - 8, totalY + 4, (value < 0 ? '-' : '') + money(Math.abs(value), doc.currencyCode),
         kind === 'normal' ? 7.6 : 8.3, kind !== 'normal', col, 'right');
       totalY += rowH + 1;
     }
 
+    const amountWords = wrap(canonical.financials.amountInWords, 36).slice(0, 3);
+    const wordsTop = totalY + 7;
+    const wordsHeight = Math.max(32, 17 + amountWords.length * 9);
+    c.roundRect(totalX, wordsTop, totalW, wordsHeight, 5, C.pale, C.border, 0.6);
+    c.text(totalX + 8, wordsTop + 5, 'AMOUNT IN WORDS', 7.2, true, C.purple);
+    amountWords.forEach((line, index) => c.text(totalX + 8, wordsTop + 16 + index * 8, line, 7.2, false, C.navy));
+
     const sigX = right - 175;
-    const sigY = totalY + 16;
+    const sigY = wordsTop + wordsHeight + 10;
     c.text(right, sigY, 'For ' + (doc.business.legalName || doc.business.name), 8, false, C.muted, 'right');
     c.line(sigX + 45, sigY + 38, sigX + 175, sigY + 38, C.border, 0.7);
     c.text(right, sigY + 42, 'Authorized Signatory', 7.5, true, C.navy, 'right');
     invoiceSignatureEndY = sigY + 53;
-    invoiceSettlementTop = leftY + 8;
+    invoiceSettlementTop = summaryTop;
     y = Math.max(invoiceSettlementTop, invoiceSignatureEndY) + 8;
   } else {
   if(y+190>FOOTER_TOP-4){c.newPage();header(true);y=154;}else y+=12;
 
   const totalX=342,totalW=right-totalX,wordX=M;
-  c.text(wordX,y+2,'TOTAL IN WORDS',7.2,true,C.muted);
+  c.text(wordX,y+2,'AMOUNT IN WORDS:',7.2,true,C.purple);
   drawWrap(c,wordX,y+16,canonical.financials.amountInWords,42,8.1,true,C.navy,3);
   c.rect(totalX,y-2,totalW,18,C.pale,C.border);
   c.text(totalX+8,y+3,'FINANCIAL SUMMARY',7.3,true,C.indigo);y+=20;
@@ -440,7 +416,14 @@ export async function buildPublicDocumentPdf(doc: PublicDocument): Promise<Buffe
     c.text(right-7,y+2,(value<0?'-':'')+money(Math.abs(value),doc.currencyCode),label==='Grand Total'?8.2:7.4,bold,color,'right');
     y+=16;
   }
-
+  if (doc.type === 'quotation') {
+    if (y + 62 > FOOTER_TOP - 4) { c.newPage(); header(true); y = 154; }
+    const sigX = right - 175, sigY = y + 8;
+    c.text(right, sigY, 'For ' + (doc.business.legalName || doc.business.name), 8, false, C.muted, 'right');
+    c.line(sigX + 45, sigY + 38, sigX + 175, sigY + 38, C.border, 0.7);
+    c.text(right, sigY + 42, 'Authorized Signatory', 7.5, true, C.navy, 'right');
+    y = sigY + 53;
+  }
   }
   if(doc.type==='challan'){
     if(y+38>FOOTER_TOP-4){c.newPage();header(true);y=154;}
@@ -458,14 +441,15 @@ export async function buildPublicDocumentPdf(doc: PublicDocument): Promise<Buffe
   const showBankSettlement = Boolean(doc.bankDetails && (canonical.settlementDisplayMode === 'bank_transfer' || canonical.settlementDisplayMode === 'both'));
 
   if (doc.type === 'invoice') {
+    let renderedPaymentCardHeight = 0;
     if (showBankSettlement || showQrSettlement) {
       const bothSettlement = showBankSettlement && showQrSettlement && canonical.settlementDisplayMode === 'both';
-      const cardX = M, cardW = 180;
+      const cardX = M, cardW = 200;
       const cardH = bothSettlement ? 184 : showQrSettlement ? 128 : 88;
       let cardY = invoiceSettlementTop ?? y;
       if (cardY + cardH > FOOTER_TOP - 4) { c.newPage(); header(true); cardY = 154; }
       c.roundRect(cardX, cardY, cardW, cardH, 6, C.white, C.border, 0.75);
-      c.text(cardX + cardW / 2, cardY + 8, bothSettlement ? 'PAYMENT SETTLEMENT' : showQrSettlement ? 'SCAN & PAY VIA UPI' : 'BANK DETAILS', 8, true, C.navy, 'center');
+      c.text(cardX + cardW / 2, cardY + 8, bothSettlement ? 'PAYMENT SETTLEMENT' : showQrSettlement ? 'SCAN & PAY VIA UPI' : 'BANK DETAILS', 8, true, C.purple, 'center');
 
       if (showBankSettlement && doc.bankDetails) {
         const b = doc.bankDetails;
@@ -478,11 +462,11 @@ export async function buildPublicDocumentPdf(doc: PublicDocument): Promise<Buffe
       }
 
       if (showQrSettlement && qrData) {
-        const buttonW = 82, buttonH = 16;
+        const buttonW = 100, buttonH = 16;
         const buttonX = cardX + (cardW - buttonW) / 2;
         const buttonY = cardY + (bothSettlement ? 79 : 22);
         c.roundRect(buttonX, buttonY, buttonW, buttonH, 8, C.purple);
-        c.text(buttonX + buttonW / 2, buttonY + 4, 'Pay Online', 7.2, true, C.white, 'center');
+        c.text(buttonX + buttonW / 2, buttonY + 4, 'Pay Now via UPI', 6.8, true, C.white, 'center');
         c.addLink(buttonX, buttonY, buttonW, buttonH, doc.paymentLink || qrData);
         const qrSize = 65;
         const qrX = cardX + (cardW - qrSize) / 2;
@@ -493,10 +477,19 @@ export async function buildPublicDocumentPdf(doc: PublicDocument): Promise<Buffe
         for (let row = 0; row < n; row++) for (let col = 0; col < n; col++) {
           if (q.modules.data[row * n + col]) c.rect(qx + col * cell, qy + row * cell, cell + 0.025, cell + 0.025, C.navy);
         }
-        c.text(cardX + cardW / 2, qrY + qrSize + 3, 'Scan with any UPI App', 6.5, false, C.muted, 'center');
+        c.text(cardX + cardW / 2, qrY + qrSize + 3, 'Scan to pay the invoice amount.', 6.0, false, C.muted, 'center');
       }
-      y = Math.max(cardY + cardH, invoiceSignatureEndY) + 8;
+      renderedPaymentCardHeight = cardH;
     }
+    let infoY = (invoiceSettlementTop ?? y) + renderedPaymentCardHeight + (renderedPaymentCardHeight ? 12 : 0);
+    c.text(M, infoY, 'TERMS & CONDITIONS', 8, true, C.purple); infoY += 13;
+    const terms = doc.terms ? wrap(doc.terms, 47).slice(0, 4) : ['—'];
+    terms.forEach(line => { c.text(M, infoY, line, 7.3, false, C.muted); infoY += 10; });
+    infoY += 5;
+    c.text(M, infoY, 'NOTES', 8, true, C.purple); infoY += 13;
+    const noteLines = doc.notes ? wrap(doc.notes, 47).slice(0, 3) : ['—'];
+    noteLines.forEach(line => { c.text(M, infoY, line, 7.3, false, C.muted); infoY += 10; });
+    y = Math.max(infoY + 8, invoiceSignatureEndY + 8);
   } else {
     if (doc.bankDetails || qrData) {
       const sectionH=qrData?100:76;
@@ -531,7 +524,9 @@ export async function buildPublicDocumentPdf(doc: PublicDocument): Promise<Buffe
   const pageCount=c.pages.length;
   const footerText = doc.type === 'invoice'
     ? 'This is a computer-generated invoice and does not require signature.'
-    : 'Generated via Moneymatters FinOps | Join Moneymatters for free at mm.nilanga.in';
+    : doc.type === 'quotation'
+      ? 'This is a computer-generated quotation and does not require signature.'
+      : 'Generated via Moneymatters FinOps | Join Moneymatters for free at mm.nilanga.in';
   const poweredText = 'Powered by Moneymatters FinOps | mm.nilanga.in';
   for (let i = 0; i < pageCount; i++) {
     const page = c.pages[i];
