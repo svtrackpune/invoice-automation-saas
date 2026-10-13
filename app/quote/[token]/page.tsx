@@ -181,7 +181,7 @@ export default function PublicQuotation({params}:{params:Promise<{token:string}>
             </td>
             <td className="px-4 py-3 text-center text-sm text-slate-700">{item.quantity}</td>
             <td className="px-4 py-3 text-center text-xs font-medium uppercase text-slate-500">{item.unit||'pcs'}</td>
-            <td className="px-4 py-3 text-right text-sm tabular-nums text-slate-700">{money(item.unit_price)}</td>
+            <td className="px-4 py-3 text-right text-sm tabular-nums text-slate-700">{money(item.unitPrice)}</td>
             <td className="px-4 py-3 text-right text-sm font-semibold tabular-nums text-slate-900">{money(item.amount)}</td>
           </tr>)}</tbody>
         </table>
