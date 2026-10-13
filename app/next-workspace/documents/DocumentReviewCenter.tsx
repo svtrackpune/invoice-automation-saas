@@ -109,7 +109,7 @@ export default function DocumentReviewCenter({ type, id }: { type: string; id: s
         if (signature) paper.insertBefore(payment, signature); else if (footer) paper.insertBefore(payment, footer); else paper.appendChild(payment);
       }
       payment.className = 'payment online-payment quotation-acceptance-payment';
-      payment.innerHTML = `<div class="online-payment-column"><div><label>QUOTATION</label><strong>Accept this quotation</strong><span>Review the estimate and confirm acceptance.</span><div><a href="${publicUrl}" target="_blank" rel="noreferrer">Accept Quotation</a></div></div></div>`;
+      payment.innerHTML = `<div class="online-payment-column"><div><label>QUOTATION</label><strong>Accept this quotation</strong><span>Review the quotation and confirm acceptance.</span><div><a href="${publicUrl}" target="_blank" rel="noreferrer">Accept Quotation</a></div></div></div>`;
       return true;
     };
     if (install()) return;
