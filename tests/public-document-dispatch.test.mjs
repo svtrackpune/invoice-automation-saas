@@ -211,6 +211,7 @@ test('public invoice renderer creates a vector-rendered A4 GST PDF with QR and b
  assert.match(raw,/0\.486 0\.227 0\.929 rg[^\n]* m [^\n]* l/,'PDF must include a filled purple vector accent');
  assert.match(raw,/0\.929 0\.914 0\.996 rg/,'PDF must include the light-purple header slant');
  assert.match(raw,/0\.486 0\.227 0\.929 RG 1\.50 w/,'PDF must include the purple footer accent line');
+ assert.match(raw,/0\.918 0\.345 0\.047 rg/,'financial totals use the standardized orange accent');
  const match=raw.match(/startxref\n(\d+)\n%%EOF/);
  assert.ok(match,'PDF cross-reference offset is missing');
  assert.equal(raw.slice(Number(match[1]),Number(match[1])+4),'xref');
@@ -272,7 +273,7 @@ test('public invoice view gates bank and UPI payment cards by the configured set
 
 test('public invoice page follows the print blueprint for parties, purple table, settlement, statutory fields, and footer',async()=>{
  const page=await read('app/invoice/[token]/page.tsx');
- for(const value of ['TAX INVOICE','BILL TO','SHIP TO','ITEM / DESCRIPTION','QTY','RATE','AMOUNT','bg-[#7c3aed]','AMOUNT IN WORDS','Authorized Signatory','This is a computer-generated invoice and does not require signature.']) assert.ok(page.includes(value),'Public invoice is missing '+value);
+ for(const value of ['TAX INVOICE','BILL TO','SHIP TO','ITEM / DESCRIPTION','QTY','RATE','AMOUNT','bg-[#7c3aed]','text-orange-700','AMOUNT IN WORDS','Authorized Signatory','This is a computer-generated invoice and does not require signature.']) assert.ok(page.includes(value),'Public invoice is missing '+value);
  assert.doesNotMatch(page,/This is a customer-facing invoice shared by/);
  const settlement=page.indexOf('PAYMENT SETTLEMENT');
  const notes=page.indexOf('>NOTES</h3>');
