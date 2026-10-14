@@ -64,14 +64,10 @@ export function TaxInvoiceCompliance({
 }
 
 export function ReceiptSettlement({
-  receiptNumber,
-  date,
   method,
   reference,
   allocations,
 }: {
-  receiptNumber: string;
-  date: string;
   method: string;
   reference: string;
   allocations: ReceiptAllocation[];
