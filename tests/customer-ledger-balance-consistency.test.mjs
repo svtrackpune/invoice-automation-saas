@@ -26,7 +26,9 @@ test('all current customer-ledger displays share posted base-currency outstandin
   assert.ok(receiptPdf.includes("rpc('fn_get_customer_outstanding_balance'"));
   assert.ok(receiptPdf.includes('base_currency_code: string | null'));
   assert.ok(receiptPdf.includes('money(data.customer_outstanding, ledgerCurrency)'));
-  assert.ok(receiptPdf.includes('Linked invoice balance'));
+  assert.ok(receiptPdf.includes('Current customer ledger balance'));
+  assert.doesNotMatch(receiptPdf, /Linked invoice balance/);
+  assert.equal((receiptPdf.match(/Current customer ledger balance/g) || []).length, 1);
   assert.ok(publicTokens.includes('customerOutstandingCurrencyCode'));
   assert.ok(publicReceipt.includes('money(outstanding,ledgerCurrency)'));
   assert.ok(printCompliance.includes('Current customer ledger balance'));
