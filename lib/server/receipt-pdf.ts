@@ -193,7 +193,6 @@ const buildReceiptPdf = (data: PdfData) => {
   const paymentCardHeight = reference ? 37 : 25;
   const paymentTop = drawTopBox(paymentCardHeight, '0.97 0.97 0.99');
   textLine(page, left + 10, paymentTop - 12, `Payment mode: ${plain(data.receipt.payment_method || '—')}`, 8.2);
-  textLine(page, left + 285, paymentTop - 12, `Payment date: ${plain(data.receipt.receipt_date)}`, 8.2);
   if (reference) textLine(page, left + 10, paymentTop - 27, `UTR / transaction reference: ${reference}`, 8.1);
   y = paymentTop - paymentCardHeight - 10;
 
@@ -215,7 +214,7 @@ const buildReceiptPdf = (data: PdfData) => {
 
   if (data.items.length) {
     ensureSpace(38 + data.items.length * 14);
-    textLine(page, left, y, `INVOICE ITEMS${invoiceNumber ? ` - ${invoiceNumber}` : ''} (REFERENCE ONLY)`, 8.5, true);
+    textLine(page, left, y, 'INVOICE ITEMS (REFERENCE ONLY)', 8.5, true);
     y -= 12;
     textLine(page, left, y, 'Item / description', 7.8, true);
     textLine(page, left + 370, y, 'Qty', 7.8, true);
