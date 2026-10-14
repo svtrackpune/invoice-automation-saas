@@ -13,6 +13,8 @@ type QuotationRow = {
   public_accept_token: string | null; invoice_id: string | null;
 };
 type CustomerRow = { id: string; display_name: string; legal_name: string | null; payment_terms_days: number };
+type SortKey = 'quotation' | 'customer' | 'date' | 'amount' | 'status';
+type SortDirection = 'asc' | 'desc';
 const money = (amount: number, currency: string) => {
   const code = /^[A-Z]{3}$/.test(String(currency || '').toUpperCase()) ? String(currency).toUpperCase() : 'INR';
   try { return new Intl.NumberFormat('en-IN', { style: 'currency', currency: code, maximumFractionDigits: 2 }).format(Number(amount || 0)); }
@@ -31,6 +33,10 @@ export default function QuotationsListPage() {
   const [loadError, setLoadError] = useState('');
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [pageSize, setPageSize] = useState('20');
+  const [page, setPage] = useState(1);
+  const [sortBy, setSortBy] = useState<SortKey>('date');
+  const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
   const [businessName, setBusinessName] = useState('Business');
   const [openActionsId, setOpenActionsId] = useState<string | null>(null);
   const [sharingId, setSharingId] = useState<string | null>(null);
@@ -78,6 +84,47 @@ export default function QuotationsListPage() {
       return matchesQuery && (statusFilter === 'all' || row.status === statusFilter);
     });
   }, [rows, customers, search, statusFilter]);
+
+  const sorted = useMemo(() => {
+    const result = [...filtered];
+    const direction = sortDirection === 'asc' ? 1 : -1;
+    const customerLabel = (row: QuotationRow) => {
+      const customer = customers[row.customer_id];
+      return String(customer?.legal_name || customer?.display_name || '').toLocaleLowerCase();
+    };
+    result.sort((a, b) => {
+      let comparison = 0;
+      switch (sortBy) {
+        case 'quotation':
+          comparison = a.quotation_number.localeCompare(b.quotation_number, undefined, { numeric: true, sensitivity: 'base' });
+          break;
+        case 'customer':
+          comparison = customerLabel(a).localeCompare(customerLabel(b), undefined, { numeric: true, sensitivity: 'base' });
+          break;
+        case 'date':
+          comparison = String(a.quotation_date || '').localeCompare(String(b.quotation_date || ''));
+          break;
+        case 'amount':
+          comparison = Number(a.total || 0) - Number(b.total || 0);
+          break;
+        case 'status':
+          comparison = a.status.localeCompare(b.status, undefined, { sensitivity: 'base' });
+          break;
+      }
+      return (comparison || a.id.localeCompare(b.id)) * direction;
+    });
+    return result;
+  }, [filtered, customers, sortBy, sortDirection]);
+
+  useEffect(() => { setPage(1); }, [search, statusFilter, pageSize, sortBy, sortDirection]);
+
+  const pages = pageSize === 'all' ? 1 : Math.max(1, Math.ceil(sorted.length / Number(pageSize)));
+  const visible = pageSize === 'all' ? sorted : sorted.slice((page - 1) * Number(pageSize), page * Number(pageSize));
+  const toggleSort = (key: SortKey) => {
+    if (sortBy === key) setSortDirection(current => current === 'asc' ? 'desc' : 'asc');
+    else { setSortBy(key); setSortDirection(key === 'quotation' || key === 'customer' || key === 'status' ? 'asc' : 'desc'); }
+  };
+  const sortIndicator = (key: SortKey) => sortBy === key ? (sortDirection === 'asc' ? '↑' : '↓') : '↕';
 
   useEffect(() => {
     if (!openActionsId) return;
@@ -216,22 +263,42 @@ export default function QuotationsListPage() {
         {actionFeedback && <div role={actionFeedback.kind === 'error' ? 'alert' : 'status'} className={'rounded-xl border p-3 text-sm ' + (actionFeedback.kind === 'error' ? 'border-rose-200 bg-rose-50 text-rose-800' : 'border-emerald-200 bg-emerald-50 text-emerald-800')}>{actionFeedback.message}</div>}
 
         <Card className="overflow-hidden p-0">
-          <div className="grid gap-3 border-b border-slate-200 p-4 sm:grid-cols-[minmax(0,1fr)_220px_auto] sm:items-center">
-            <input value={search} onChange={event => setSearch(event.target.value)} placeholder="Search quotation no. or customer" aria-label="Search quotations" className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-100" />
-            <select value={statusFilter} onChange={event => setStatusFilter(event.target.value)} aria-label="Filter by quotation status" className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm">
-              <option value="all">All statuses</option><option value="draft">Draft</option><option value="sent">Sent</option><option value="accepted">Accepted</option><option value="converted">Converted</option><option value="rejected">Rejected</option><option value="cancelled">Cancelled</option>
-            </select>
-            <Button variant="secondary" onClick={() => void refresh(businessId)} disabled={loading}>Refresh</Button>
+          <div className="flex flex-col gap-3 border-b border-slate-200 p-4 xl:flex-row xl:items-center">
+            <input value={search} onChange={event => setSearch(event.target.value)} placeholder="Search quotation no. or customer" aria-label="Search quotations" className="min-w-0 flex-1 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-100" />
+            <div className="flex flex-wrap items-center gap-2">
+              <label className="flex items-center gap-2 text-xs font-semibold text-slate-500">
+                Status
+                <select value={statusFilter} onChange={event => setStatusFilter(event.target.value)} aria-label="Filter by quotation status" className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-800">
+                  <option value="all">All statuses</option><option value="draft">Draft</option><option value="sent">Sent</option><option value="accepted">Accepted</option><option value="converted">Converted</option><option value="rejected">Rejected</option><option value="cancelled">Cancelled</option>
+                </select>
+              </label>
+              <label className="flex items-center gap-2 text-xs font-semibold text-slate-500">
+                Show
+                <select value={pageSize} onChange={event => setPageSize(event.target.value)} aria-label="Rows per page" className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-800">
+                  <option value="20">20</option><option value="50">50</option><option value="100">100</option><option value="all">All</option>
+                </select>
+              </label>
+              <Button variant="secondary" onClick={() => void refresh(businessId)} disabled={loading}>Refresh</Button>
+            </div>
           </div>
           {loading ? <div className="p-8 text-center text-sm text-slate-500">Loading quotations…</div>
-            : filtered.length === 0 ? <div className="p-8 text-center text-sm text-slate-500">No quotations match this filter.</div>
+            : sorted.length === 0 ? <div className="p-8 text-center text-sm text-slate-500">No quotations match this filter.</div>
             : <div className="overflow-x-auto">
               <table className="w-full min-w-[1050px] text-sm">
                 <thead className="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">
-                  <tr><th className="px-4 py-3">Quotation No.</th><th className="px-4 py-3">Customer</th><th className="px-4 py-3">Date</th><th className="px-4 py-3 text-right">Total Amount</th><th className="px-4 py-3">Status</th><th className="px-4 py-3 text-right">Actions</th></tr>
+                  <tr>
+                    {([['quotation','Quotation No.'],['customer','Customer'],['date','Date'],['amount','Total Amount'],['status','Status']] as [SortKey,string][]).map(([key,label]) => (
+                      <th key={key} aria-sort={sortBy === key ? (sortDirection === 'asc' ? 'ascending' : 'descending') : 'none'} className={'px-4 py-3 ' + (key === 'amount' ? 'text-right' : '')}>
+                        <button type="button" onClick={() => toggleSort(key)} className={'inline-flex items-center gap-1.5 rounded-md py-1 font-bold uppercase tracking-wide ' + (sortBy === key ? 'text-violet-700' : 'text-slate-500 hover:text-slate-800')}>
+                          {label}<span aria-hidden="true" className={sortBy === key ? 'text-violet-600' : 'text-slate-300'}>{sortIndicator(key)}</span>
+                        </button>
+                      </th>
+                    ))}
+                    <th className="px-4 py-3 text-right">Actions</th>
+                  </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {filtered.map(row => {
+                  {visible.map(row => {
                     const customer = customers[row.customer_id];
                     const expired = row.status === 'sent' && Boolean(row.valid_until && row.valid_until < today());
                     const isPublic = ['sent', 'accepted', 'converted'].includes(row.status);
@@ -273,6 +340,14 @@ export default function QuotationsListPage() {
                 </tbody>
               </table>
             </div>}
+          {!loading && sorted.length > 0 && <div className="flex flex-col gap-2 border-t border-slate-100 px-4 py-3 text-xs text-slate-500 sm:flex-row sm:items-center sm:justify-between">
+            <span>Showing {(page - 1) * Number(pageSize === 'all' ? sorted.length || 1 : pageSize) + 1}–{pageSize === 'all' ? sorted.length : Math.min(page * Number(pageSize), sorted.length)} of {sorted.length}</span>
+            <div className="flex items-center gap-2">
+              <Button size="sm" variant="secondary" disabled={page <= 1 || pageSize === 'all'} onClick={() => setPage(current => Math.max(1, current - 1))}>Previous</Button>
+              <span>Page {page} / {pages}</span>
+              <Button size="sm" variant="secondary" disabled={page >= pages || pageSize === 'all'} onClick={() => setPage(current => Math.min(pages, current + 1))}>Next</Button>
+            </div>
+          </div>}
         </Card>
         <p className="text-xs text-slate-500">Sent quotations past their validity date remain visible for audit. Edit the validity date before sharing or accepting them.</p>
       </div>
