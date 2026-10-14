@@ -280,7 +280,6 @@ function Paper({ type, payload, business, customer, items, theme, fields, logoUr
   }
   if(receipt){
     const receiptAmount=Number(payload.amount ?? payload.amount_received ?? payload.amount_paid ?? 0);
-    const linkedInvoiceNumber=text(receiptAllocations.length===1 ? receiptAllocations[0].invoiceNumber : (payload.invoice_number||payload.invoice?.invoice_number||''));
     const customerName=text(customer.legal_name||customer.display_name||'Cash Customer').trim()||'Cash Customer';
     const phone=text(customer.phone||customer.mobile||'').trim();
     const businessName=text(business.name||business.legal_name||'Business').trim();
@@ -306,7 +305,7 @@ function Paper({ type, payload, business, customer, items, theme, fields, logoUr
       </section>
       <ReceiptSettlement method={text(payload.payment_method||payload.payment?.method||'')} reference={text(payload.reference_number||payload.payment_reference||payload.payment?.reference||payload.payment?.gateway_transaction_id||'')} allocations={receiptAllocations}/>
       {items.length>0&&<section className='receipt-items-section'>
-        <div className='receipt-items-heading'>Invoice items{linkedInvoiceNumber?' · '+linkedInvoiceNumber:''} <span>Reference only</span></div>
+        <div className='receipt-items-heading'>Invoice items <span>Reference only</span></div>
         <LineItems items={items} payload={payload} receipt minRows={0} showSerialNumbers={showSerialNumbers}/>
       </section>}
       <div className='receipt-total'><span>Amount Received</span><strong>{money(receiptAmount,currency)}</strong></div>
