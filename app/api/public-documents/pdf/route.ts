@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { renderDocumentToBuffer, resolvePublicDocumentByToken, type PublicDocumentType } from '@/lib/server/documents/public-tokens';
+import { buildDocumentDownloadFilename, documentFilenameLabel } from '@/lib/shared/document-filename';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -7,10 +8,7 @@ export const dynamic = 'force-dynamic';
 const allowed = new Set<PublicDocumentType>(['invoice','quotation','challan','receipt']);
 
 export function buildDownloadFilename(type: string, entityName: string, docNumber: string): string {
-  const cleanType = type.charAt(0).toUpperCase() + type.slice(1).toLowerCase();
-  const cleanEntity = entityName.normalize('NFKD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-zA-Z0-9]+/g, '-').replace(/(^-|-$)/g, '').slice(0, 80).replace(/-+$/g, '') || 'Business';
-  const cleanNum = docNumber.replace(/[^a-zA-Z0-9_-]+/g, '').slice(0, 80) || 'Document';
-  return `${cleanType}-${cleanEntity}-${cleanNum}.pdf`;
+  return buildDocumentDownloadFilename(entityName, documentFilenameLabel(type), docNumber);
 }
 export async function GET(request: NextRequest) {
   const requestedType = (request.nextUrl.searchParams.get('type') || '').trim().toLowerCase();
