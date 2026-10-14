@@ -22,7 +22,7 @@ type PdfData = {
   invoice: { invoice_number: string; invoice_date: string; total: number; amount_paid: number; balance_due: number; document_kind: string } | null;
   customer: { display_name: string | null; legal_name: string | null; phone: string | null; email: string | null; billing_address: any; shipping_address: any; tax_id: string | null } | null;
   business: { name: string | null; legal_name: string | null; address: any; phone: string | null; email: string | null; website: string | null; tax_registration_number: string | null; logo_storage_path: string | null; currency_code: string | null; base_currency_code: string | null } | null;
-  items: Array<{ name: string; sku: string | null; quantity: number; unit_price: number; line_total: number }>;
+  items: Array<{ name: string; description: string; sku: string | null; quantity: number; unit_price: number; line_total: number }>;
   allocations: Array<{ invoice_number: string; invoice_date: string | null; total_due: number; amount_applied: number; remaining_balance: number }>;
   customer_outstanding: number;
 };
@@ -211,13 +211,17 @@ const buildReceiptPdf = (data: PdfData) => {
     y -= 12;
 
     for (const item of data.items) {
-      const itemName = plain(item.name || 'Item');
+      const itemName = plain(item.name || item.description || 'Item');
+      const detail = plain(item.description || '');
       const itemLines = wrap(itemName, 62);
+      const detailLines = detail && detail !== itemName ? wrap(detail, 72) : [];
       const sku = plain(item.sku || '');
-      const rowHeight = Math.max(12, itemLines.length * 10 + (sku ? 8 : 0));
+      const rowHeight = Math.max(12, itemLines.length * 10 + detailLines.length * 8 + (sku ? 8 : 0));
       ensureSpace(rowHeight + 4);
       itemLines.forEach((value, index) => textLine(page, left, y - index * 10, value, 8.2, index === 0));
-      if (sku) textLine(page, left, y - itemLines.length * 10, `SKU: ${sku}`, 7.2);
+      let detailY = y - itemLines.length * 10;
+      detailLines.forEach((value, index) => textLine(page, left, detailY - index * 8, value, 7.2));
+      if (sku) textLine(page, left, detailY - detailLines.length * 8, `SKU: ${sku}`, 7.1);
       textLine(page, left + 370, y, String(Number(item.quantity || 0)), 8.2);
       const itemAmount = money(Number(item.line_total || 0), currency);
       textLine(page, pageWidth - right - estimateTextWidth(itemAmount, 8.2, true) - 4, y, itemAmount, 8.2, true);
@@ -375,6 +379,7 @@ export async function loadReceiptPdfData(db: SupabaseClient, receiptId: string):
     const product = products.find((p: any) => p.id === item.product_service_id);
     return {
       name: plain(product?.name || item.description || 'Item'),
+      description: plain(item.description || ''),
       sku: product?.sku ? plain(product.sku) : null,
       quantity: Number(item.quantity || 0),
       unit_price: Number(item.unit_price || 0),
