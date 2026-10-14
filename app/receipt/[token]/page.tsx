@@ -24,6 +24,7 @@ export default async function PublicReceipt({params}:{params:Promise<{token:stri
  const allocations=receipt?.allocations||[];
  const received=canonical.financials.grandTotal;
  const outstanding=receipt?.customerOutstanding??canonical.financials.balanceDue;
+ const ledgerCurrency=receipt?.customerOutstandingCurrencyCode||canonical.document.currency;
  return <main className="min-h-screen bg-slate-100 p-4 sm:p-8 print:bg-white print:p-0">
   <article className="mx-auto max-w-3xl overflow-hidden rounded-2xl bg-white shadow-sm print:max-w-none print:rounded-none print:shadow-none">
    <header className="border-b border-slate-200 p-6 sm:p-8">
@@ -81,7 +82,7 @@ export default async function PublicReceipt({params}:{params:Promise<{token:stri
    <section className="px-6 pb-6 sm:px-8">
     <div className="flex flex-col gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
      <div><p className="text-xs font-extrabold uppercase tracking-[0.14em] text-amber-900">Customer Ledger Balance</p><p className="mt-1 text-xs text-amber-800">Current customer outstanding balance after this receipt</p></div>
-     <p className="text-xl font-extrabold tabular-nums text-amber-900">{money(outstanding,canonical.document.currency)}</p>
+     <p className="text-xl font-extrabold tabular-nums text-amber-900">{money(outstanding,ledgerCurrency)}</p>
     </div>
    </section>
 
