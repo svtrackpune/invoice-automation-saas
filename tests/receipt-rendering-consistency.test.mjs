@@ -47,6 +47,9 @@ test('official receipt PDF follows allocation source, keeps source invoice descr
   assert.ok(renderer.includes('allocationInvoiceIds.length === 0 ? paymentInvoiceId : null'));
   assert.ok(renderer.includes(".from('invoice_items').select('quantity,unit_price,line_total,description,product_service_id')"));
   assert.ok(renderer.includes("description: plain(item.description || '')"));
+  assert.ok(renderer.includes("const textLine = (target: string[], x: number, y: number, value: string, size = 10, bold = false, fill = '0 0 0')"));
+  assert.ok(renderer.includes('target.push(`${fill} rg BT ${font} ${size} Tf'));
+  assert.ok(renderer.includes("name: plain(product?.name || item.description || 'Item')"));
   assert.ok(renderer.includes('const quantityLabel ='));
   assert.ok(renderer.includes('INVOICE ITEMS'));
   assert.ok(renderer.includes('(REFERENCE ONLY)'));
@@ -78,6 +81,9 @@ test('public receipt presents customer phone beside the name when space permits 
   assert.ok(!page.includes('>Payment Date</p>'));
   assert.ok(page.includes('Customer Ledger Balance'));
   assert.ok(page.includes('Download Official PDF'));
+  assert.ok(page.includes('flex-wrap items-center justify-center gap-x-2 gap-y-1'));
+  assert.ok(page.includes('Powered by Moneymatters FinOps'));
+  assert.ok(page.includes('mm.nilanga.in'));
 });
 
 test('customer-linked receipt shows the same source invoice items and preserves their descriptions and units', async () => {
@@ -97,3 +103,16 @@ test('customer-linked receipt shows the same source invoice items and preserves 
   assert.ok(renderer.includes("description: plain(item.description || '')"));
 });
 
+
+
+test('invoice and quotation print footers center disclaimers and print names use company-document-number order', async () => {
+  const viewer = await read('app/next-workspace/documents/DocumentViewer.tsx');
+
+  assert.ok(viewer.includes("<footer className='document-footer'>"));
+  assert.ok(viewer.includes("className='document-footer-disclaimer'"));
+  assert.ok(viewer.includes('.paper>footer.document-footer{display:flex!important;flex-direction:column;align-items:center;justify-content:center;gap:4px;text-align:center}'));
+  assert.ok(viewer.includes('buildDocumentFilenameBase('));
+  assert.ok(viewer.includes("String(mergedBusiness?.name || mergedBusiness?.legal_name || 'Business')"));
+  assert.ok(viewer.includes("String(title || 'Document')"));
+  assert.ok(viewer.includes("String(number || 'Document')"));
+});
