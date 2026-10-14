@@ -79,7 +79,21 @@ const wrap = (value: string, maxChars: number) => {
 const pdfEscape = (value: string) => cleanText(value);
 
 const buildReceiptPdf = (data: PdfData) => {
-  const receiptAmount = Number(data.payment?.amount ?? data.receipt.amount ?? 0);
+  const canonical = createCanonicalDocumentViewModel({
+    type: 'receipt',
+    number: data.receipt.receipt_number,
+    date: data.receipt.receipt_date,
+    currency_code: data.receipt.currency_code || 'INR',
+    amount: data.receipt.amount,
+    total: data.receipt.amount,
+    amount_paid: data.receipt.amount,
+    balance_due: data.customer_outstanding,
+    customer_outstanding: data.customer_outstanding,
+    business: data.business,
+    customer: data.customer,
+    items: data.items,
+  }, { type: 'receipt' });
+  const receiptAmount = Number(data.receipt.amount || 0);
   const currency = plain(data.receipt.currency_code || 'INR').toUpperCase() || 'INR';
   const ledgerCurrency = plain(data.business?.base_currency_code || data.business?.currency_code || currency).toUpperCase() || currency;
   const receiptNumber = plain(data.receipt.receipt_number);
