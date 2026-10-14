@@ -31,6 +31,8 @@ test('all current customer-ledger displays share posted base-currency outstandin
   assert.equal((receiptPdf.match(/Current customer ledger balance/g) || []).length, 1);
   assert.ok(publicTokens.includes('customerOutstandingCurrencyCode'));
   assert.ok(publicReceipt.includes('money(outstanding,ledgerCurrency)'));
-  assert.ok(printCompliance.includes('Current customer ledger balance'));
-  assert.ok(printCompliance.includes('currency, maximumFractionDigits: 2'));
+  assert.ok(viewer.includes('Current customer ledger balance'));
+  assert.ok(publicReceipt.includes('Customer Ledger Balance'));
+  assert.doesNotMatch(printCompliance, /Received with thanks from/);
+  assert.doesNotMatch(printCompliance, /Current customer ledger balance/);
 });
