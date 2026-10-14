@@ -79,20 +79,21 @@ export function ReceiptSettlement({
   return (
     <>
       <section className="print-compliance receipt-settlement">
-        <div><span>Receipt Number</span><strong>{receiptNumber || '—'}</strong></div>
-        <div><span>Payment Date</span><strong>{date || '—'}</strong></div>
         <div><span>Payment Method</span><strong>{method || '—'}</strong></div>
         <div><span>Transaction / UTR / Cheque Ref.</span><strong>{reference || '—'}</strong></div>
       </section>
       <section className="receipt-allocation">
         <div className="print-section-title">Invoice Allocation</div>
         {allocations.length ? (
-          <table>
-            <thead><tr><th>Invoice No.</th><th>Total Due</th><th>Amount Applied</th><th>Remaining Balance</th></tr></thead>
-            <tbody>{allocations.map((row) => (
-              <tr key={row.invoiceNumber}><td>{row.invoiceNumber}</td><td>₹{row.totalDue.toFixed(2)}</td><td>₹{row.amountApplied.toFixed(2)}</td><td>₹{row.remainingBalance.toFixed(2)}</td></tr>
-            ))}</tbody>
-          </table>
+          <div className="receipt-allocation-lines">
+            {allocations.map((row) => (
+              <div className="receipt-allocation-row" key={row.invoiceNumber}>
+                <strong>{row.invoiceNumber}</strong>
+                <span>Applied ₹{row.amountApplied.toFixed(2)}</span>
+                <span>Balance ₹{row.remainingBalance.toFixed(2)}</span>
+              </div>
+            ))}
+          </div>
         ) : <p className="muted">No allocation rows were recorded against this receipt.</p>}
       </section>
     </>
