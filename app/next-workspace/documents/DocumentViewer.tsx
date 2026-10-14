@@ -357,6 +357,26 @@ export default function DocumentViewer({ type, id }: { type: string; id: string 
       const loaded = await supabase.from('document_render_jobs').select('payload,template_id,template_version').eq('id', render.data).single();
       if (loaded.error) { if (active) { setError(loaded.error.message); setLoading(false); } return; }
       const payload = loaded.data?.payload || {}, businessId = payload.business?.id || payload.business_id;
+      if (type === 'receipt' && businessId) {
+        // The receipt row is authoritative for the receipt number/amount. Render jobs can also
+        // carry a linked invoice number, which must never replace the receipt number.
+        const receiptSource = await supabase.from('receipts')
+          .select('receipt_number,receipt_date,amount,currency_code,payment_method,reference_number,payment_id')
+          .eq('id', id).eq('business_id', businessId).maybeSingle();
+        if (receiptSource.error) {
+          if (active) setError(receiptSource.error.message);
+        } else if (receiptSource.data) {
+          Object.assign(payload, {
+            receipt_number: receiptSource.data.receipt_number,
+            receipt_date: receiptSource.data.receipt_date,
+            amount: Number(receiptSource.data.amount || 0),
+            currency_code: receiptSource.data.currency_code || payload.currency_code || 'INR',
+            payment_method: receiptSource.data.payment_method,
+            reference_number: receiptSource.data.reference_number,
+            payment_id: receiptSource.data.payment_id,
+          });
+        }
+      }
       const taxIds = Array.from(new Set((payload.items || []).map((x:any) => x.tax_rate_id).filter(Boolean)));
       if (taxIds.length) { const taxRows = await supabase.from('tax_rates').select('id,name,rate,metadata').in('id', taxIds); if (!taxRows.error) payload.items = (payload.items || []).map((x:any)=>{ const tr = (taxRows.data||[]).find((t:any)=>t.id===x.tax_rate_id); return tr?{...x,tax_rate:tr.rate}:x }); }
       const productIds = Array.from(new Set((payload.items || []).map((x:any) => x.product_service_id).filter(Boolean)));
