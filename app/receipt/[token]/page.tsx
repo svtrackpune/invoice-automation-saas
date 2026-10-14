@@ -69,6 +69,22 @@ export default async function PublicReceipt({params}:{params:Promise<{token:stri
     </div>
    </section>
 
+   {doc.items.length>0&&<section className="px-6 pb-6 sm:px-8">
+    <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
+     <h2 className="text-xs font-extrabold uppercase tracking-[0.16em] text-violet-700">{allocations.length===1?'Invoice Items':'Allocated Invoice Items'}</h2>
+     <span className="text-[10px] font-medium text-slate-400">Reference only — amount received is shown separately</span>
+    </div>
+    <div className="overflow-x-auto rounded-lg border border-slate-200">
+     <table className="w-full min-w-[360px] border-collapse text-sm">
+      <thead className="bg-[#7c3aed] text-xs uppercase tracking-wider text-white"><tr><th className="p-3 text-left">Item / Description</th><th className="p-3 text-center">Qty</th><th className="p-3 text-right">Amount</th></tr></thead>
+      <tbody>{doc.items.map((item,index)=><tr key={(item.name||item.description)+'-'+index} className="border-b border-slate-100">
+       <td className="p-3"><strong className="block font-semibold text-slate-900">{item.name||item.description||'Item'}</strong>{item.description&&item.description!==item.name&&<span className="mt-1 block whitespace-pre-line text-xs text-slate-500">{item.description}</span>}</td>
+       <td className="p-3 text-center tabular-nums">{item.quantity}{item.unit?' '+item.unit:''}</td>
+       <td className="p-3 text-right font-semibold tabular-nums">{money(item.lineTotal,canonical.document.currency)}</td>
+      </tr>)}</tbody>
+     </table>
+    </div>
+   </section>}
    <section className="px-6 pb-6 sm:px-8">
     <h2 className="text-xs font-extrabold uppercase tracking-[0.16em] text-violet-700">Invoice Allocation</h2>
     <div className="mt-3 overflow-x-auto rounded-lg border border-slate-200">
