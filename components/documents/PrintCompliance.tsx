@@ -68,18 +68,12 @@ export function ReceiptSettlement({
   date,
   method,
   reference,
-  customerName,
-  outstanding,
-  currency = 'INR',
   allocations,
 }: {
   receiptNumber: string;
   date: string;
   method: string;
   reference: string;
-  customerName: string;
-  outstanding: number;
-  currency?: string;
   allocations: ReceiptAllocation[];
 }) {
   return (
@@ -89,10 +83,6 @@ export function ReceiptSettlement({
         <div><span>Payment Date</span><strong>{date || '—'}</strong></div>
         <div><span>Payment Method</span><strong>{method || '—'}</strong></div>
         <div><span>Transaction / UTR / Cheque Ref.</span><strong>{reference || '—'}</strong></div>
-      </section>
-      <section className="receipt-acknowledgment">
-        Received with thanks from <strong>{customerName || 'Customer'}</strong>.
-        <span>Current customer ledger balance: <strong>{new Intl.NumberFormat('en-IN', { style: 'currency', currency, maximumFractionDigits: 2 }).format(outstanding)}</strong></span>
       </section>
       <section className="receipt-allocation">
         <div className="print-section-title">Invoice Allocation</div>
