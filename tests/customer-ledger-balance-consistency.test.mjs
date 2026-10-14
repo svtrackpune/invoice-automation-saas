@@ -6,7 +6,7 @@ const root = new URL('../', import.meta.url);
 const read = (path) => readFile(new URL(path, root), 'utf8');
 
 test('all current customer-ledger displays share posted base-currency outstanding rules', async () => {
-  const migration = await read('supabase/migrations/20261014130000_customer_ledger_balance_consistency.sql');
+  const migration = await read('supabase/migrations/20261014081007_customer_ledger_balance_consistency.sql');
   const viewer = await read('app/next-workspace/documents/DocumentViewer.tsx');
   const receiptPdf = await read('lib/server/receipt-pdf.ts');
   const publicTokens = await read('lib/server/documents/public-tokens.ts');
