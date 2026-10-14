@@ -278,17 +278,24 @@ test('public invoice renderer creates a vector-rendered A4 GST PDF with QR and b
 });
 function QRCodePlaceholderForTest(pdf){const raw=pdf.toString('latin1');return raw.includes('/Subtype /Link')&&raw.includes('Pay Now via UPI')&&raw.includes('/Annots [');}
 
-test('public PDF downloads use standardized type-business-number attachment filenames',async()=>{
+test('all official and print PDF filenames follow company-document-number order',async()=>{
  const route=await read('app/api/public-documents/pdf/route.ts');
- assert.match(route,/export function buildDownloadFilename\(type: string, entityName: string, docNumber: string\)/);
- assert.match(route,/return `\$\{cleanType\}-\$\{cleanEntity\}-\$\{cleanNum\}\.pdf`/);
+ const receiptRoute=await read('app/api/receipts/pdf/route.ts');
+ const viewer=await read('app/next-workspace/documents/DocumentViewer.tsx');
+ const helper=await read('lib/shared/document-filename.ts');
+
+ assert.match(helper,/buildDocumentFilenameBase\(companyName: string, documentName: string, documentNumber: string\)/);
+ assert.match(helper,/filenamePart\(companyName, 'Business'\)[\s\S]*?filenamePart\(documentName, 'Document'\)[\s\S]*?filenamePart\(documentNumber, 'Document'\)/);
+ assert.match(helper,/buildDocumentFilenameBase\(companyName, documentName, documentNumber\) \+ '\.pdf'/);
+ assert.match(route,/return buildDocumentDownloadFilename\(entityName, documentFilenameLabel\(type\), docNumber\)/);
  assert.match(route,/buildDownloadFilename\(type, document\.business\.name \|\| document\.customer\.name/);
  assert.match(route,/Content-Disposition.*attachment; filename=/);
  assert.doesNotMatch(route,/inline; filename=/);
- const receiptRoute=await read('app/api/receipts/pdf/route.ts');
- assert.match(receiptRoute,/Content-Disposition.*attachment/);
- assert.ok(receiptRoute.includes("const filename = `${entitySlug}-receipt-${numberSlug}.pdf`"));
- assert.ok(receiptRoute.includes("replace(/^(?:REC(?:EIPT)?|RCPT|RCT)[-_ ]*/i, '')"));
+ assert.match(receiptRoute,/buildDocumentDownloadFilename\(/);
+ assert.match(receiptRoute,/String\(data\.receipt\.receipt_number \|\| data\.receipt\.id\)/);
+ assert.doesNotMatch(receiptRoute,/replace\(\/\^\(\?:REC/);
+ assert.match(viewer,/buildDocumentFilenameBase\(/);
+ assert.match(viewer,/const printFilename = buildDocumentFilenameBase\([\s\S]*?mergedBusiness\?\.name[\s\S]*?title[\s\S]*?number/);
 });
 
 test('public invoice view gates bank and UPI payment cards by the configured settlement mode',async()=>{
