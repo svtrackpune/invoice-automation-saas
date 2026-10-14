@@ -13,21 +13,22 @@ test('all current customer-ledger displays share posted base-currency outstandin
   const publicReceipt = await read('app/receipt/[token]/page.tsx');
   const printCompliance = await read('components/documents/PrintCompliance.tsx');
 
-  assert.match(migration, /CREATE OR REPLACE FUNCTION public\\.fn_get_customer_outstanding_balance/);
-  assert.match(migration, /status::text NOT IN \\('draft', 'void', 'cancelled'\\)/);
-  assert.match(migration, /upper\\(i\\.currency_code::text\\) = upper\\(b\\.base_currency_code::text\\)/);
-  assert.match(migration, /CREATE OR REPLACE VIEW public\\.customer_balances[\\s\\S]*?security_invoker = true/);
-  assert.match(migration, /upper\\(i\\.currency_code::text\\) = upper\\(bus\\.base_currency_code::text\\)/);
+  assert.ok(migration.includes('CREATE OR REPLACE FUNCTION public.fn_get_customer_outstanding_balance'));
+  assert.ok(migration.includes("i.status::text NOT IN ('draft', 'void', 'cancelled')"));
+  assert.ok(migration.includes('upper(i.currency_code::text) = upper(b.base_currency_code::text)'));
+  assert.ok(migration.includes('CREATE OR REPLACE VIEW public.customer_balances'));
+  assert.ok(migration.includes('WITH (security_invoker = true)'));
+  assert.ok(migration.includes('upper(i.currency_code::text) = upper(bus.base_currency_code::text)'));
 
-  assert.match(viewer, /currency_code,base_currency_code,address/);
-  assert.match(viewer, /customerBalanceCurrency=\\{String\\(mergedBusiness\\.base_currency_code\\|\\|mergedBusiness\\.currency_code\\|\\|'INR'\\)\\}/);
-  assert.match(viewer, /money\\(customerBalance,ledgerCurrency\\)/);
-  assert.match(receiptPdf, /fn_get_customer_outstanding_balance/);
-  assert.match(receiptPdf, /base_currency_code: string \\| null/);
-  assert.match(receiptPdf, /money\\(data\\.customer_outstanding, ledgerCurrency\\)/);
-  assert.match(receiptPdf, /Linked invoice balance/);
-  assert.match(publicTokens, /customerOutstandingCurrencyCode/);
-  assert.match(publicReceipt, /money\\(outstanding,ledgerCurrency\\)/);
-  assert.match(printCompliance, /Current customer ledger balance/);
-  assert.match(printCompliance, /currency, maximumFractionDigits: 2/);
+  assert.ok(viewer.includes('currency_code,base_currency_code,address'));
+  assert.ok(viewer.includes("customerBalanceCurrency={String(mergedBusiness.base_currency_code||mergedBusiness.currency_code||'INR')}"));
+  assert.ok(viewer.includes('money(customerBalance,ledgerCurrency)'));
+  assert.ok(receiptPdf.includes("rpc('fn_get_customer_outstanding_balance'"));
+  assert.ok(receiptPdf.includes('base_currency_code: string | null'));
+  assert.ok(receiptPdf.includes('money(data.customer_outstanding, ledgerCurrency)'));
+  assert.ok(receiptPdf.includes('Linked invoice balance'));
+  assert.ok(publicTokens.includes('customerOutstandingCurrencyCode'));
+  assert.ok(publicReceipt.includes('money(outstanding,ledgerCurrency)'));
+  assert.ok(printCompliance.includes('Current customer ledger balance'));
+  assert.ok(printCompliance.includes('currency, maximumFractionDigits: 2'));
 });
