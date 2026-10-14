@@ -3,12 +3,10 @@ import { getServerSupabase, loadReceiptPdfData, sha256Hex, buildReceiptPdf } fro
 import { withErrorHandler, NotFoundError, ValidationError } from '@/lib/server/errors';
 import { receiptAccessQuerySchema } from '@/lib/validations/receipt';
 import { checkRateLimit, getClientRateLimitKey } from '@/lib/server/rate-limit';
+import { buildDocumentDownloadFilename } from '@/lib/shared/document-filename';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
-
-const slug = (value: string) => value.normalize('NFKD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
-  .replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 80) || 'receipt';
 
 const RECEIPT_RATE_LIMIT = 30;
 const RECEIPT_RATE_WINDOW_MS = 60_000;
@@ -74,10 +72,11 @@ export async function GET(request: NextRequest) {
 
     const data = await loadReceiptPdfData(db, access.receipt_id);
     const pdf = buildReceiptPdf(data);
-    const entitySlug = slug(data.business?.name || data.business?.legal_name || data.customer?.display_name || 'entity');
-    const rawNumber = String(data.receipt.receipt_number || data.receipt.id).replace(/^(?:REC(?:EIPT)?|RCPT|RCT)[-_ ]*/i, '');
-    const numberSlug = slug(rawNumber || String(data.receipt.receipt_number || data.receipt.id));
-    const filename = `${entitySlug}-receipt-${numberSlug}.pdf`;
+    const filename = buildDocumentDownloadFilename(
+      data.business?.name || data.business?.legal_name || 'Business',
+      'Receipt',
+      String(data.receipt.receipt_number || data.receipt.id),
+    );
 
     return new Response(pdf, {
       status: 200,
