@@ -38,7 +38,7 @@ export default async function PublicReceipt({params}:{params:Promise<{token:stri
      </div>
      <div className="text-left sm:text-right">
       <span className="inline-flex rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-extrabold uppercase tracking-wider text-emerald-800">Paid / Received</span>
-      <p className="mt-3 text-sm text-slate-500">Receipt date: {dateLabel(canonical.document.date)}</p>
+      <p className="mt-3 text-sm text-slate-500">Payment Date: {dateLabel(canonical.document.date)}</p>
       <p className="mt-1 text-xs text-slate-500">Currency: {canonical.document.currency}</p>
      </div>
     </div>
