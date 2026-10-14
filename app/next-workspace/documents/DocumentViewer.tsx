@@ -304,7 +304,7 @@ function Paper({ type, payload, business, customer, items, theme, fields, logoUr
         <span className='label'>CUSTOMER</span>
         <div className='receipt-customer-contact'><strong>{customerName}</strong>{phone&&<span>{phone}</span>}</div>
       </section>
-      <ReceiptSettlement receiptNumber={documentNumber} date={formatDate(payload.receipt_date||payload.created_at||payload.payment_date)} method={text(payload.payment_method||payload.payment?.method||'')} reference={text(payload.reference_number||payload.payment_reference||payload.payment?.reference||payload.payment?.gateway_transaction_id||'')} allocations={receiptAllocations}/>
+      <ReceiptSettlement method={text(payload.payment_method||payload.payment?.method||'')} reference={text(payload.reference_number||payload.payment_reference||payload.payment?.reference||payload.payment?.gateway_transaction_id||'')} allocations={receiptAllocations}/>
       {items.length>0&&<section className='receipt-items-section'>
         <div className='receipt-items-heading'>Invoice items{linkedInvoiceNumber?' · '+linkedInvoiceNumber:''} <span>Reference only</span></div>
         <LineItems items={items} payload={payload} receipt minRows={0} showSerialNumbers={showSerialNumbers}/>
