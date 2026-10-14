@@ -21,7 +21,7 @@ type PdfData = {
   payment: { amount: number; invoice_id: string | null } | null;
   invoice: { invoice_number: string; invoice_date: string; total: number; amount_paid: number; balance_due: number; document_kind: string } | null;
   customer: { display_name: string | null; legal_name: string | null; phone: string | null; email: string | null; billing_address: any; shipping_address: any; tax_id: string | null } | null;
-  business: { name: string | null; legal_name: string | null; address: any; phone: string | null; email: string | null; website: string | null; tax_registration_number: string | null; logo_storage_path: string | null } | null;
+  business: { name: string | null; legal_name: string | null; address: any; phone: string | null; email: string | null; website: string | null; tax_registration_number: string | null; logo_storage_path: string | null; currency_code: string | null; base_currency_code: string | null } | null;
   items: Array<{ name: string; sku: string | null; quantity: number; unit_price: number; line_total: number }>;
   allocations: Array<{ invoice_number: string; invoice_date: string | null; total_due: number; amount_applied: number; remaining_balance: number }>;
   customer_outstanding: number;
@@ -130,6 +130,7 @@ const buildReceiptPdf = (data: PdfData) => {
   const total = canonical.financials.grandTotal;
   const balance = Math.max(0, Number(data.invoice?.balance_due ?? Math.max(total - paymentAmount, 0)));
   const currency = canonical.document.currency || 'INR';
+  const ledgerCurrency = plain(data.business?.base_currency_code || data.business?.currency_code || currency).toUpperCase() || currency;
 
   textLine(page, left, y, businessName, 18, true);
   y -= 22;
@@ -156,7 +157,7 @@ const buildReceiptPdf = (data: PdfData) => {
   y -= 54;
   rect(page, left, y - 8, usableWidth, 40);
   textLine(page, left + 12, y + 17, `Received with thanks from ${customerName}`, 9.5, true);
-  textLine(page, left + 12, y + 3, `Current customer ledger outstanding: ${money(data.customer_outstanding, currency)}`, 8.5);
+  textLine(page, left + 12, y + 3, `Current customer ledger outstanding: ${money(data.customer_outstanding, ledgerCurrency)}`, 8.5);
   y -= 13;
   textLine(page, left + 12, y + 3, `Amount in words: ${canonical.financials.amountInWords}`, 7.8);
   y -= 56;
@@ -219,7 +220,7 @@ const buildReceiptPdf = (data: PdfData) => {
   textLine(page, pageWidth - right - 205, y, 'Received', 10);
   textLine(page, pageWidth - right - 92, y, money(paymentAmount, currency), 10, true);
   y -= 18;
-  textLine(page, pageWidth - right - 205, y, 'Balance', 10);
+  textLine(page, pageWidth - right - 205, y, 'Linked invoice balance', 10);
   textLine(page, pageWidth - right - 92, y, money(balance, currency), 10, true);
   y -= 24;
 
@@ -306,7 +307,7 @@ export async function loadReceiptPdfData(db: SupabaseClient, receiptId: string):
     receipt.customer_id
       ? db.from('customers').select('display_name,legal_name,phone,email,billing_address,shipping_address,tax_id').eq('id', receipt.customer_id).eq('business_id', receipt.business_id).maybeSingle()
       : Promise.resolve({ data: null } as any),
-    db.from('businesses').select('name,legal_name,address,phone,email,website,tax_registration_number,logo_storage_path').eq('id', receipt.business_id).single(),
+    db.from('businesses').select('name,legal_name,address,phone,email,website,tax_registration_number,logo_storage_path,currency_code,base_currency_code').eq('id', receipt.business_id).single(),
   ]);
 
   const invoiceId = paymentResult.data?.invoice_id || null;
