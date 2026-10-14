@@ -309,7 +309,7 @@ function Paper({ type, payload, business, customer, items, theme, fields, logoUr
         <LineItems items={items} payload={payload} receipt minRows={0} showSerialNumbers={showSerialNumbers}/>
       </section>}
       <div className='receipt-total'><span>Amount Received</span><strong>{money(receiptAmount,currency)}</strong></div>
-      <div className='receipt-amount-words'>Amount in words: {canonical.financials.amountInWords||'—'}</div>
+      <div className='receipt-amount-words'>Amount in words: {payload.amount_in_words||'—'}</div>
       <div className='receipt-ledger-balance'><span>Current customer ledger balance</span><strong>{money(customerBalance,ledgerCurrency)}</strong></div>
       <div className='receipt-thanks'>Received with thanks. Please retain this receipt for your records.</div>
       <footer className='receipt-footer'><p className='receipt-disclaimer'>This is a computer-generated payment receipt and does not require signature.</p><div className='platform'><span className='platform-mark' aria-hidden='true'>M</span><span>Powered by <strong>Moneymatters</strong></span></div></footer>
