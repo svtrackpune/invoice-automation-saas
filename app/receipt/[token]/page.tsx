@@ -47,9 +47,11 @@ export default async function PublicReceipt({params}:{params:Promise<{token:stri
    <section className="grid gap-4 border-b border-slate-200 p-6 sm:grid-cols-2 sm:p-8">
     <div className="rounded-xl border border-slate-200 p-4">
      <p className="text-xs font-extrabold uppercase tracking-[0.16em] text-violet-700">Received from</p>
-     <h2 className="mt-2 font-semibold text-slate-900">{doc.customer.legalName||doc.customer.name}</h2>
+     <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+      <h2 className="min-w-0 max-w-full font-semibold text-slate-900 [overflow-wrap:anywhere]">{doc.customer.legalName||doc.customer.name}</h2>
+      {doc.customer.phone&&<span className="whitespace-nowrap text-sm text-slate-600">{doc.customer.phone}</span>}
+     </div>
      {addressLines(doc.customer.billingAddress||doc.customer.address).map((line,i)=><p key={i} className="text-sm leading-5 text-slate-600">{line}</p>)}
-     {doc.customer.phone&&<p className="mt-1 text-sm text-slate-600">{doc.customer.phone}</p>}
      {doc.customer.email&&<p className="text-sm text-slate-600">{doc.customer.email}</p>}
     </div>
     <div className="rounded-xl border border-emerald-200 bg-emerald-50/60 p-4">
