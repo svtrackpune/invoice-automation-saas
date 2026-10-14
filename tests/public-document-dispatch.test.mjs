@@ -97,6 +97,16 @@ test('receipt table sends through the selected tenant channel and offers the pub
  assert.ok(ui.includes("getPublicDocumentUrl('receipt',id)"));
 });
 
+test('receipt list consolidates row actions into one accessible menu',async()=>{
+ const ui=await read('app/next-workspace/receipts/page.tsx');
+ assert.match(ui,/aria-label=\{'Actions for receipt '\+r\.receipt_number\}/);
+ assert.match(ui,/role="menu" aria-label=\{'Receipt actions for '\+r\.receipt_number\}/);
+ for(const action of ['View receipt','Send PDF','Share receipt','Copy link','Transaction 360']) assert.ok(ui.includes(action),'missing receipt action '+action);
+ assert.doesNotMatch(ui,/<Button size="sm" variant="secondary" onClick=\{\(\)=>openReceipt\(r\.id\)\}>View<\/Button>/);
+ assert.doesNotMatch(ui,/flex flex-wrap justify-end gap-1\.5/);
+ assert.match(ui,/closeEscape/);
+});
+
 
 test('SendGrid and Resend attach generated PDFs and use branded shared HTML',async()=>{
  const worker=await read('supabase/functions/process-notifications/index.ts');
