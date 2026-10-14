@@ -50,10 +50,12 @@ test('invoice and quotation web/PDF item grids use six separate columns', () => 
   assert.match(viewer,/\.sales-six-column \.sales-item-copy strong/);
 });
 
-test('public PDF download is an attachment with type-business-document filename', () => {
+test('public PDF download is an attachment with company-document-number filename', () => {
+  const filenameHelper = readFileSync('lib/shared/document-filename.ts','utf8');
   assert.match(downloadRoute,/export function buildDownloadFilename/);
-  assert.match(downloadRoute,/return `\$\{cleanType\}-\$\{cleanEntity\}-\$\{cleanNum\}\.pdf`/);
+  assert.match(downloadRoute,/return buildDocumentDownloadFilename\(entityName, documentFilenameLabel\(type\), docNumber\)/);
   assert.match(downloadRoute,/buildDownloadFilename\(type, document\.business\.name/);
+  assert.match(filenameHelper,/filenamePart\(companyName, 'Business'\)[\s\S]*?filenamePart\(documentName, 'Document'\)[\s\S]*?filenamePart\(documentNumber, 'Document'\)/);
   assert.match(downloadRoute,/attachment; filename=/);
   assert.doesNotMatch(downloadRoute,/inline; filename=/);
 });
