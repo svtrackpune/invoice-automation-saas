@@ -24,7 +24,8 @@ test('workspace receipt print uses the receipt row and allocation-linked invoice
   assert.ok(!viewer.includes("<section className='receipt-status'>"));
   assert.ok(!viewer.includes("'Received with thanks from"));
   assert.ok(viewer.includes("const phone=text(customer.phone||customer.mobile||'').trim()"));
-  assert.ok(viewer.includes('className=\'receipt-customer-contact\'><strong>{customerName}</strong>{phone&&<span>{phone}</span>'));
+  assert.ok(viewer.includes("const customerName=text(customer.legal_name||customer.display_name||'Cash Customer')"));
+  assert.ok(viewer.includes('receipt-amount-words'));  assert.ok(viewer.includes('className=\'receipt-customer-contact\'><strong>{customerName}</strong>{phone&&<span>{phone}</span>'));
   assert.ok(viewer.includes('.receipt-customer-contact{display:flex;flex-wrap:wrap;align-items:baseline;'));
 });
 
@@ -37,6 +38,7 @@ test('official receipt PDF follows allocation source, keeps source invoice descr
   assert.ok(renderer.includes('allocationInvoiceIds.length === 0 ? paymentInvoiceId : null'));
   assert.ok(renderer.includes(".from('invoice_items').select('quantity,unit_price,line_total,description,product_service_id')"));
   assert.ok(renderer.includes("description: plain(item.description || '')"));
+  assert.ok(renderer.includes('const quantityLabel ='));
   assert.ok(renderer.includes('INVOICE ITEMS'));
   assert.ok(renderer.includes('(REFERENCE ONLY)'));
   assert.ok(renderer.includes('AMOUNT RECEIVED'));
