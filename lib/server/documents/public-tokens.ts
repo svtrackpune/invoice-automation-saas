@@ -58,6 +58,7 @@ export type PublicDocument = {
     invoice: { invoiceNumber: string; invoiceDate: string; total: number } | null;
     allocations: Array<{ invoiceNumber: string; invoiceDate: string | null; totalDue: number; amountApplied: number; remainingBalance: number }>;
     customerOutstanding: number;
+    customerOutstandingCurrencyCode: string;
   };
 };
 
@@ -187,6 +188,7 @@ export async function loadPublicDocumentById(
           remainingBalance: n(row.remaining_balance),
         })),
         customerOutstanding: n(data.customer_outstanding),
+        customerOutstandingCurrencyCode: text(data.business?.base_currency_code || data.business?.currency_code || data.receipt.currency_code || 'INR').toUpperCase(),
       },
     };
   }
