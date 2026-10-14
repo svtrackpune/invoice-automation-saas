@@ -68,3 +68,21 @@ test('public receipt presents customer phone beside the name when space permits 
   assert.ok(page.includes('Customer Ledger Balance'));
   assert.ok(page.includes('Download Official PDF'));
 });
+
+test('customer-linked receipt shows the same source invoice items and preserves their descriptions and units', async () => {
+  const page = await read('app/receipt/[token]/page.tsx');
+  const tokens = await read('lib/server/documents/public-tokens.ts');
+  const renderer = await read('lib/server/receipt-pdf.ts');
+
+  assert.ok(page.includes('{doc.items.length>0&&<section'));
+  assert.ok(page.includes('Reference only — amount received is shown separately'));
+  assert.ok(page.includes('item.name||item.description||\'Item\''));
+  assert.ok(page.includes('item.description&&item.description!==item.name'));
+  assert.ok(page.includes('item.quantity}{item.unit?'));
+  assert.ok(tokens.includes('name: text(item.name) || text(item.description) || \'Item\''));
+  assert.ok(tokens.includes("description: text(item.description || '')"));
+  assert.ok(tokens.includes('unit: nullable(item.unit)'));
+  assert.ok(renderer.includes('unit: product?.unit ? plain(product.unit) : null'));
+  assert.ok(renderer.includes("description: plain(item.description || '')"));
+});
+
