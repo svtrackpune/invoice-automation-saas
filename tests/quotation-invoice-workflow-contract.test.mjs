@@ -116,6 +116,12 @@ test('quotation list menu routes each action through the public quotation workfl
   assert.ok(quotationList.includes('publicShareAvailable(row)'));
   assert.ok(quotationList.includes('closeOnOutsideClick'));
   assert.ok(quotationList.includes("event.key === 'Escape'"));
+  assert.ok(quotationList.includes("p_status: 'accepted'"));
+  assert.ok(quotationList.includes("p_status: 'sent'"));
+  assert.ok(quotationList.includes("supabase.rpc('convert_quotation_to_invoice'"));
+  assert.ok(quotationList.includes('Mark as accepted'));
+  assert.ok(quotationList.includes('Extend validity before accepting this expired quotation.'));
+  assert.ok(quotationList.includes("row.status === 'accepted' && !row.invoice_id"));
   assert.ok(quotationEditor.includes("supabase.rpc('update_quotation_from_items',{p_quotation_id:editId"));
   assert.ok(quotationEditor.includes('setQuote(q.data)'));
 });
