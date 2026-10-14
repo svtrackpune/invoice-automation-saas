@@ -112,9 +112,11 @@ const buildReceiptPdf = (data: PdfData) => {
   const pages: string[][] = [[]];
   let page = pages[0];
 
-  const textLine = (target: string[], x: number, y: number, value: string, size = 10, bold = false) => {
+  const textLine = (target: string[], x: number, y: number, value: string, size = 10, bold = false, fill = '0 0 0') => {
     const font = bold ? '/F2' : '/F1';
-    target.push(`BT ${font} ${size} Tf 1 0 0 1 ${x.toFixed(2)} ${y.toFixed(2)} Tm (${pdfEscape(value)}) Tj ET`);
+    // PDF text inherits the non-stroking fill colour. Every text run sets its own
+    // readable foreground so pale customer/payment boxes cannot wash out later rows.
+    target.push(`${fill} rg BT ${font} ${size} Tf 1 0 0 1 ${x.toFixed(2)} ${y.toFixed(2)} Tm (${pdfEscape(value)}) Tj ET`);
   };
   const line = (target: string[], x1: number, y1: number, x2: number, y2: number) => {
     target.push(`0.78 0.78 0.78 RG 0.7 w ${x1.toFixed(2)} ${y1.toFixed(2)} m ${x2.toFixed(2)} ${y2.toFixed(2)} l S`);
