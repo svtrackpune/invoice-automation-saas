@@ -33,6 +33,8 @@ test('receipt PDF carries allocation and ledger data without duplicate acknowled
   assert.match(viewer,/This is a computer-generated payment receipt and does not require signature\./);
   assert.match(viewer,/This is a computer-generated invoice and does not require signature\./);
   assert.match(viewer,/This is a computer-generated quotation and does not require signature\./);
+  assert.match(viewer,/document-footer-disclaimer/);
+  assert.match(viewer,/text-align:center/);
   assert.match(receiptPdf,/customer_outstanding/);
   assert.doesNotMatch(receiptPdf,/Received with thanks from/);
   assert.match(receiptPdf,/INVOICE ALLOCATION/);
