@@ -22,7 +22,7 @@ type PdfData = {
   invoice: { invoice_number: string; invoice_date: string; total: number; amount_paid: number; balance_due: number; document_kind: string } | null;
   customer: { display_name: string | null; legal_name: string | null; phone: string | null; email: string | null; billing_address: any; shipping_address: any; tax_id: string | null } | null;
   business: { name: string | null; legal_name: string | null; address: any; phone: string | null; email: string | null; website: string | null; tax_registration_number: string | null; logo_storage_path: string | null; currency_code: string | null; base_currency_code: string | null } | null;
-  items: Array<{ name: string; description: string; sku: string | null; quantity: number; unit_price: number; line_total: number }>;
+  items: Array<{ name: string; description: string; sku: string | null; unit: string | null; quantity: number; unit_price: number; line_total: number }>;
   allocations: Array<{ invoice_number: string; invoice_date: string | null; total_due: number; amount_applied: number; remaining_balance: number }>;
   customer_outstanding: number;
 };
@@ -371,7 +371,7 @@ export async function loadReceiptPdfData(db: SupabaseClient, receiptId: string):
 
   const productIds = Array.from(new Set((itemsResult.data || []).map((item: any) => item.product_service_id).filter(Boolean)));
   const productsResult = productIds.length
-    ? await db.from('products_services').select('id,name,sku').in('id', productIds).eq('business_id', receipt.business_id)
+    ? await db.from('products_services').select('id,name,sku,unit').in('id', productIds).eq('business_id', receipt.business_id)
     : { data: [] } as any;
 
   const products = productsResult.data || [];
@@ -381,6 +381,7 @@ export async function loadReceiptPdfData(db: SupabaseClient, receiptId: string):
       name: plain(product?.name || item.description || 'Item'),
       description: plain(item.description || ''),
       sku: product?.sku ? plain(product.sku) : null,
+      unit: product?.unit ? plain(product.unit) : null,
       quantity: Number(item.quantity || 0),
       unit_price: Number(item.unit_price || 0),
       line_total: Number(item.line_total || 0),
