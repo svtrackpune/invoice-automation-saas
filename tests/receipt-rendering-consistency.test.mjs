@@ -17,6 +17,9 @@ test('workspace receipt print uses the receipt row and allocation-linked invoice
   assert.doesNotMatch(paper, /canonical\.financials/, 'Paper must not reference the parent-only canonical variable');
   assert.ok(viewer.includes(".from('receipts')"));
   assert.ok(viewer.includes("select('receipt_number,receipt_date,amount,currency_code,payment_method,reference_number,payment_id')"));
+  assert.ok(viewer.includes("const receivedAmount = Number(receiptSource.data.amount || 0)"));
+  assert.ok(viewer.includes("grandTotal: receivedAmount"));
+  assert.ok(viewer.includes("amount_received: receivedAmount"));
   assert.ok(viewer.includes("const documentNumber=text(receipt ? (payload.receipt_number||payload.document_number||payload.number)"));
   assert.ok(viewer.includes("const number = type === 'receipt' ? (model.receipt_number || model.document_number || model.number || '')"));
   assert.ok(viewer.includes("const allocationResult = await supabase.from('payment_allocations')"));
