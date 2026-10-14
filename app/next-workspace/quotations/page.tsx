@@ -12,7 +12,7 @@ type QuotationRow = {
   valid_until: string | null; status: string; currency_code: string; total: number | string;
   public_accept_token: string | null; invoice_id: string | null;
 };
-type CustomerRow = { id: string; display_name: string; legal_name: string | null };
+type CustomerRow = { id: string; display_name: string; legal_name: string | null; payment_terms_days: number };
 const money = (amount: number, currency: string) => {
   const code = /^[A-Z]{3}$/.test(String(currency || '').toUpperCase()) ? String(currency).toUpperCase() : 'INR';
   try { return new Intl.NumberFormat('en-IN', { style: 'currency', currency: code, maximumFractionDigits: 2 }).format(Number(amount || 0)); }
@@ -34,6 +34,7 @@ export default function QuotationsListPage() {
   const [businessName, setBusinessName] = useState('Business');
   const [openActionsId, setOpenActionsId] = useState<string | null>(null);
   const [sharingId, setSharingId] = useState<string | null>(null);
+  const [processingId, setProcessingId] = useState<string | null>(null);
   const [actionFeedback, setActionFeedback] = useState<{ kind: 'success' | 'error'; message: string } | null>(null);
   const actionsRef = useRef<HTMLDivElement | null>(null);
 
@@ -56,7 +57,7 @@ export default function QuotationsListPage() {
     const quotationRows = (quotationResult.data || []) as QuotationRow[];
     const customerIds = Array.from(new Set(quotationRows.map(row => row.customer_id).filter(Boolean)));
     const customerResult = customerIds.length
-      ? await supabase.from('customers').select('id,display_name,legal_name').eq('business_id', context.business_id).in('id', customerIds)
+      ? await supabase.from('customers').select('id,display_name,legal_name,payment_terms_days').eq('business_id', context.business_id).in('id', customerIds)
       : { data: [], error: null };
     if (customerResult.error) { setLoadError(customerResult.error.message); setLoading(false); return; }
     const customerMap: Record<string, CustomerRow> = {};
@@ -141,6 +142,66 @@ export default function QuotationsListPage() {
     }
   };
 
+  const dueDateFor = (row: QuotationRow) => {
+    const days = Math.max(0, Number(customers[row.customer_id]?.payment_terms_days || 0));
+    return new Date(Date.now() + days * 86400000).toISOString().slice(0, 10);
+  };
+
+  const convertAcceptedQuotation = async (row: QuotationRow) => {
+    setActionFeedback(null);
+    setOpenActionsId(null);
+    setProcessingId(row.id);
+    try {
+      const converted = await supabase.rpc('convert_quotation_to_invoice', {
+        p_quotation_id: row.id,
+        p_invoice_date: today(),
+        p_due_date: dueDateFor(row),
+      });
+      if (converted.error) throw new Error(converted.error.message);
+      await refresh(businessId);
+      setActionFeedback({ kind: 'success', message: 'Quotation ' + row.quotation_number + ' converted to invoice ' + String(converted.data) + '.' });
+    } catch (error) {
+      await refresh(businessId);
+      setActionFeedback({ kind: 'error', message: error instanceof Error ? error.message : 'Unable to convert this accepted quotation.' });
+    } finally {
+      setProcessingId(null);
+    }
+  };
+
+  const acceptQuotation = async (row: QuotationRow) => {
+    setActionFeedback(null);
+    setOpenActionsId(null);
+    if (!['draft', 'sent'].includes(row.status)) return;
+    if (row.status === 'sent' && row.valid_until && row.valid_until < today()) {
+      setActionFeedback({ kind: 'error', message: 'Extend the validity date before accepting expired quotation ' + row.quotation_number + '.' });
+      return;
+    }
+    setProcessingId(row.id);
+    try {
+      // A manually accepted draft is promoted through the existing permitted
+      // lifecycle transitions rather than bypassing the database guard.
+      if (row.status === 'draft') {
+        const sent = await supabase.rpc('set_quotation_status', { p_quotation_id: row.id, p_status: 'sent' });
+        if (sent.error) throw new Error(sent.error.message);
+      }
+      const accepted = await supabase.rpc('set_quotation_status', { p_quotation_id: row.id, p_status: 'accepted' });
+      if (accepted.error) throw new Error(accepted.error.message);
+      const converted = await supabase.rpc('convert_quotation_to_invoice', {
+        p_quotation_id: row.id,
+        p_invoice_date: today(),
+        p_due_date: dueDateFor(row),
+      });
+      if (converted.error) throw new Error('Quotation was accepted, but invoice conversion failed: ' + converted.error.message);
+      await refresh(businessId);
+      setActionFeedback({ kind: 'success', message: 'Quotation ' + row.quotation_number + ' manually accepted and converted to invoice ' + String(converted.data) + '.' });
+    } catch (error) {
+      await refresh(businessId);
+      setActionFeedback({ kind: 'error', message: error instanceof Error ? error.message : 'Unable to accept this quotation.' });
+    } finally {
+      setProcessingId(null);
+    }
+  };
+
   return (
     <main className="min-h-screen bg-[#fbfaff] p-4 sm:p-6 lg:p-8">
       <div className="mx-auto max-w-[1500px] space-y-5">
@@ -192,6 +253,8 @@ export default function QuotationsListPage() {
                               {isEditable
                                 ? <a role="menuitem" className="block rounded-lg px-3 py-2.5 text-left text-sm text-slate-700 hover:bg-slate-50" href={'/next-workspace/quotation?edit=' + encodeURIComponent(row.id)}>Edit quotation</a>
                                 : <button role="menuitem" type="button" disabled title="Accepted or converted quotations are locked against editing." className="block w-full cursor-not-allowed rounded-lg px-3 py-2.5 text-left text-sm text-slate-400">Edit quotation</button>}
+                              {(row.status === 'draft' || row.status === 'sent') && <button role="menuitem" type="button" disabled={processingId === row.id || expired} title={expired ? 'Extend validity before accepting this expired quotation.' : undefined} onClick={() => void acceptQuotation(row)} className="block w-full rounded-lg px-3 py-2.5 text-left text-sm text-slate-700 hover:bg-emerald-50 disabled:cursor-not-allowed disabled:text-slate-400">{processingId === row.id ? 'Processing…' : 'Mark as accepted'}</button>}
+                              {row.status === 'accepted' && !row.invoice_id && <button role="menuitem" type="button" disabled={processingId === row.id} onClick={() => void convertAcceptedQuotation(row)} className="block w-full rounded-lg px-3 py-2.5 text-left text-sm text-slate-700 hover:bg-emerald-50 disabled:opacity-50">{processingId === row.id ? 'Converting…' : 'Convert to invoice'}</button>}
                               {isPublic
                                 ? <button role="menuitem" type="button" onClick={() => void downloadPdf(row)} className="block w-full rounded-lg px-3 py-2.5 text-left text-sm text-slate-700 hover:bg-slate-50">Download PDF</button>
                                 : <button role="menuitem" type="button" disabled title="Send the quotation before creating a customer PDF." className="block w-full cursor-not-allowed rounded-lg px-3 py-2.5 text-left text-sm text-slate-400">Download PDF</button>}
