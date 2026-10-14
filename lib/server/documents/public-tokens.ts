@@ -168,7 +168,9 @@ export async function loadPublicDocumentById(
         taxId: nullable(data.customer?.tax_id),
       },
       items: data.items.map(item => ({
-        description: text(item.name) || 'Item', quantity: n(item.quantity), unit: null,
+        name: text(item.name) || text(item.description) || 'Item',
+        description: text(item.description || ''),
+        quantity: n(item.quantity), unit: nullable((item as Row & { unit?: unknown }).unit),
         unitPrice: n(item.unit_price), discount: 0, taxAmount: 0, lineTotal: n(item.line_total), hsnSac: null,
       })),
       receiptDetails: {
