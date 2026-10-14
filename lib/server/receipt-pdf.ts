@@ -79,168 +79,179 @@ const wrap = (value: string, maxChars: number) => {
 const pdfEscape = (value: string) => cleanText(value);
 
 const buildReceiptPdf = (data: PdfData) => {
-  const canonical = createCanonicalDocumentViewModel({
-    type: 'receipt',
-    number: data.receipt.receipt_number,
-    date: data.receipt.receipt_date,
-    currency_code: data.receipt.currency_code || 'INR',
-    amount: data.receipt.amount,
-    total: data.payment?.amount ?? data.receipt.amount,
-    amount_paid: data.payment?.amount ?? data.receipt.amount,
-    balance_due: data.customer_outstanding,
-    customer_outstanding: data.customer_outstanding,
-    business: data.business,
-    customer: data.customer,
-    items: data.items,
-  }, { type: 'receipt' });
+  const receiptAmount = Number(data.payment?.amount ?? data.receipt.amount ?? 0);
+  const currency = plain(data.receipt.currency_code || 'INR').toUpperCase() || 'INR';
+  const ledgerCurrency = plain(data.business?.base_currency_code || data.business?.currency_code || currency).toUpperCase() || currency;
+  const receiptNumber = plain(data.receipt.receipt_number);
+  const customerName = plain(data.customer?.legal_name || data.customer?.display_name || 'Cash Customer');
+  const customerPhone = plain(data.customer?.phone || '');
+  const customerEmail = plain(data.customer?.email || '');
+  const invoiceNumber = plain(data.invoice?.invoice_number || (data.allocations.length === 1 ? data.allocations[0].invoice_number : ''));
+
   const pageWidth = 595;
   const pageHeight = 842;
   const left = 42;
   const right = 42;
-  const top = 46;
-  const bottom = 46;
+  const top = 42;
+  const bottom = 42;
   const usableWidth = pageWidth - left - right;
   const pages: string[][] = [[]];
+  let page = pages[0];
 
-  const ensurePage = () => pages[pages.length - 1];
-  const newPage = () => { pages.push([]); };
-
-  const textLine = (page: string[], x: number, y: number, value: string, size = 10, bold = false) => {
+  const textLine = (target: string[], x: number, y: number, value: string, size = 10, bold = false) => {
     const font = bold ? '/F2' : '/F1';
-    page.push(`BT ${font} ${size} Tf 1 0 0 1 ${x.toFixed(2)} ${y.toFixed(2)} Tm (${pdfEscape(value)}) Tj ET`);
+    target.push(`BT ${font} ${size} Tf 1 0 0 1 ${x.toFixed(2)} ${y.toFixed(2)} Tm (${pdfEscape(value)}) Tj ET`);
   };
-  const line = (page: string[], x1: number, y1: number, x2: number, y2: number) => {
-    page.push(`0.78 0.78 0.78 RG 0.7 w ${x1.toFixed(2)} ${y1.toFixed(2)} m ${x2.toFixed(2)} ${y2.toFixed(2)} l S`);
+  const line = (target: string[], x1: number, y1: number, x2: number, y2: number) => {
+    target.push(`0.78 0.78 0.78 RG 0.7 w ${x1.toFixed(2)} ${y1.toFixed(2)} m ${x2.toFixed(2)} ${y2.toFixed(2)} l S`);
   };
-  const rect = (page: string[], x: number, y: number, w: number, h: number) => {
-    page.push(`0.96 0.97 0.98 rg ${x.toFixed(2)} ${y.toFixed(2)} ${w.toFixed(2)} ${h.toFixed(2)} re f`);
+  const rect = (target: string[], x: number, y: number, w: number, h: number, fill = '0.96 0.97 0.98') => {
+    target.push(`${fill} rg ${x.toFixed(2)} ${y.toFixed(2)} ${w.toFixed(2)} ${h.toFixed(2)} re f`);
   };
-
+  const estimateTextWidth = (value: string, size: number, bold = false) => Array.from(value).reduce((width, ch) => {
+    const factor = /[ilI.,:;'|!]/.test(ch) ? 0.25 : /[MW@%]/.test(ch) ? 0.82 : /[A-Z0-9]/.test(ch) ? 0.58 : ch === ' ' ? 0.28 : 0.5;
+    return width + size * factor * (bold ? 1.04 : 1);
+  }, 0);
   let y = pageHeight - top;
-  let page = ensurePage();
-
-  const businessName = plain(canonical.business.tradeName || canonical.business.legalName || 'Business');
+  const businessName = plain(data.business?.name || data.business?.legal_name || 'Business');
   const businessLegal = plain(data.business?.legal_name || '');
   const address = addressText(data.business?.address);
-  const contact = [data.business?.phone, data.business?.email, data.business?.website].filter(Boolean).map(plain).join(' · ');
-  const receiptNumber = plain(canonical.document.number);
-  const customerName = plain(canonical.customer.name || 'Cash Customer');
-  const invoiceNumber = plain(data.invoice?.invoice_number || '');
-  const paymentAmount = Number(data.payment?.amount ?? data.receipt.amount ?? 0);
-  const total = canonical.financials.grandTotal;
-  const balance = Math.max(0, Number(data.invoice?.balance_due ?? Math.max(total - paymentAmount, 0)));
-  const currency = canonical.document.currency || 'INR';
-  const ledgerCurrency = plain(data.business?.base_currency_code || data.business?.currency_code || currency).toUpperCase() || currency;
+  const businessContact = [data.business?.phone, data.business?.email, data.business?.website].filter(Boolean).map(plain).join(' · ');
 
-  textLine(page, left, y, businessName, 18, true);
-  y -= 22;
-  if (businessLegal && businessLegal !== businessName) { textLine(page, left, y, businessLegal, 9, false); y -= 14; }
-  if (address) { for (const wrapped of wrap(address, 92)) { textLine(page, left, y, wrapped, 8.5); y -= 12; } }
-  if (contact) { for (const wrapped of wrap(contact, 92)) { textLine(page, left, y, wrapped, 8.5); y -= 12; } }
-  if (data.business?.tax_registration_number) { textLine(page, left, y, `GSTIN / Tax ID: ${plain(data.business.tax_registration_number)}`, 8.5); y -= 12; }
+  const startContinuationPage = () => {
+    page = [];
+    pages.push(page);
+    y = pageHeight - top;
+    textLine(page, left, y, `Payment Receipt ${receiptNumber} (continued)`, 11, true);
+    y -= 16;
+    line(page, left, y, pageWidth - right, y);
+    y -= 18;
+  };
+  const ensureSpace = (height: number) => {
+    if (y - height < bottom + 20) startContinuationPage();
+  };
+  const drawTopBox = (height: number, fill?: string) => {
+    rect(page, left, y - height, usableWidth, height, fill);
+    return y;
+  };
 
-  y -= 8;
-  line(page, left, y, pageWidth - right, y);
-  y -= 24;
-  textLine(page, left, y, 'PAYMENT RECEIPT', 15, true);
-  textLine(page, pageWidth - right - 190, y, `Receipt: ${receiptNumber}`, 9, true);
-  y -= 18;
-  textLine(page, left, y, `Date: ${plain(data.receipt.receipt_date)}`, 9);
-  if (invoiceNumber) textLine(page, left + 120, y, `Invoice: ${invoiceNumber}`, 9);
+  textLine(page, left, y, businessName, 17, true);
   y -= 20;
-
-  rect(page, left, y - 8, usableWidth, 48);
-  textLine(page, left + 12, y + 22, 'Customer', 8.5);
-  textLine(page, left + 92, y + 22, customerName, 10, true);
-  if (data.customer?.phone) textLine(page, left + 92, y + 8, plain(data.customer.phone), 8.5);
-  if (data.customer?.email) textLine(page, left + 265, y + 8, plain(data.customer.email), 8.5);
-  y -= 54;
-  rect(page, left, y - 8, usableWidth, 40);
-  textLine(page, left + 12, y + 17, `Received with thanks from ${customerName}`, 9.5, true);
-  textLine(page, left + 12, y + 3, `Current customer ledger outstanding: ${money(data.customer_outstanding, ledgerCurrency)}`, 8.5);
+  if (businessLegal && businessLegal !== businessName) { textLine(page, left, y, businessLegal, 8.5); y -= 11; }
+  if (address) {
+    for (const wrapped of wrap(address, 92)) { textLine(page, left, y, wrapped, 8); y -= 10; }
+  }
+  if (businessContact) {
+    for (const wrapped of wrap(businessContact, 92)) { textLine(page, left, y, wrapped, 8); y -= 10; }
+  }
+  if (data.business?.tax_registration_number) { textLine(page, left, y, `GSTIN / Tax ID: ${plain(data.business.tax_registration_number)}`, 8); y -= 10; }
+  y -= 3;
+  line(page, left, y, pageWidth - right, y);
+  y -= 19;
+  textLine(page, left, y, 'PAYMENT RECEIPT / VOUCHER', 13, true);
+  const receiptLabel = `Receipt: ${receiptNumber}`;
+  textLine(page, pageWidth - right - estimateTextWidth(receiptLabel, 8.5, true), y + 1, receiptLabel, 8.5, true);
+  y -= 16;
+  textLine(page, left, y, `Receipt date: ${plain(data.receipt.receipt_date)}`, 8.5);
+  if (invoiceNumber) textLine(page, left + 210, y, `Invoice: ${invoiceNumber}`, 8.5);
   y -= 13;
-  textLine(page, left + 12, y + 3, `Amount in words: ${canonical.financials.amountInWords}`, 7.8);
-  y -= 56;
+
+  const nameLines = wrap(customerName, 78);
+  const phoneFitsInline = Boolean(customerPhone && nameLines.length === 1 &&
+    estimateTextWidth(customerName, 9.5, true) + estimateTextWidth(customerPhone, 8.3) + 18 <= usableWidth - 24);
+  const contactRows = nameLines.length + (customerPhone && !phoneFitsInline ? 1 : 0) + (customerEmail ? 1 : 0);
+  const customerCardHeight = Math.max(43, 20 + contactRows * 10);
+  const customerTop = drawTopBox(customerCardHeight);
+  textLine(page, left + 10, customerTop - 12, 'CUSTOMER', 7.5, true);
+  let customerY = customerTop - 25;
+  nameLines.forEach((value, index) => {
+    textLine(page, left + 10, customerY, value, 9.5, index === 0);
+    if (index === 0 && phoneFitsInline) {
+      textLine(page, left + 10 + estimateTextWidth(value, 9.5, true) + 9, customerY, customerPhone, 8.3);
+    }
+    customerY -= 10;
+  });
+  if (customerPhone && !phoneFitsInline) { textLine(page, left + 10, customerY, customerPhone, 8.3); customerY -= 10; }
+  if (customerEmail) textLine(page, left + 10, customerY, customerEmail, 8.1);
+  y = customerTop - customerCardHeight - 10;
+
+  const reference = plain(data.receipt.reference_number || '');
+  const paymentCardHeight = reference ? 37 : 25;
+  const paymentTop = drawTopBox(paymentCardHeight, '0.97 0.97 0.99');
+  textLine(page, left + 10, paymentTop - 12, `Payment mode: ${plain(data.receipt.payment_method || '—')}`, 8.2);
+  textLine(page, left + 285, paymentTop - 12, `Payment date: ${plain(data.receipt.receipt_date)}`, 8.2);
+  if (reference) textLine(page, left + 10, paymentTop - 27, `UTR / transaction reference: ${reference}`, 8.1);
+  y = paymentTop - paymentCardHeight - 10;
 
   if (data.allocations.length) {
-    textLine(page, left, y, 'Invoice Allocation', 9, true);
-    y -= 8;
+    ensureSpace(24 + data.allocations.length * 12);
+    textLine(page, left, y, 'INVOICE ALLOCATION', 8.5, true);
+    y -= 12;
     line(page, left, y, pageWidth - right, y);
-    y -= 16;
+    y -= 11;
     for (const allocation of data.allocations) {
-      const label = `${plain(allocation.invoice_number)} · Applied ${money(allocation.amount_applied, currency)} · Balance ${money(allocation.remaining_balance, currency)}`;
-      textLine(page, left, y, label, 8.2);
-      y -= 14;
+      const allocationText = `${plain(allocation.invoice_number)}  |  Original ${money(allocation.total_due, currency)}  |  Applied ${money(allocation.amount_applied, currency)}  |  Remaining ${money(allocation.remaining_balance, currency)}`;
+      const allocationLines = wrap(allocationText, 92);
+      ensureSpace(allocationLines.length * 10 + 3);
+      allocationLines.forEach((value, index) => textLine(page, left + 2, y - index * 10, value, 7.8));
+      y -= allocationLines.length * 10 + 3;
     }
     y -= 4;
   }
 
-  textLine(page, left, y, 'Items', 9, true);
-  textLine(page, left + 365, y, 'Qty', 9, true);
-  textLine(page, pageWidth - right - 92, y, 'Amount', 9, true);
-  y -= 8;
-  line(page, left, y, pageWidth - right, y);
-  y -= 18;
+  if (data.items.length) {
+    ensureSpace(38 + data.items.length * 14);
+    textLine(page, left, y, `INVOICE ITEMS${invoiceNumber ? ` - ${invoiceNumber}` : ''} (REFERENCE ONLY)`, 8.5, true);
+    y -= 12;
+    textLine(page, left, y, 'Item / description', 7.8, true);
+    textLine(page, left + 370, y, 'Qty', 7.8, true);
+    textLine(page, pageWidth - right - 4, y, 'Amount', 7.8, true);
+    y -= 7;
+    line(page, left, y, pageWidth - right, y);
+    y -= 12;
 
-  for (const item of data.items) {
-    const itemName = plain(item.name || 'Item');
-    const itemLines = wrap(itemName, 58);
-    const sku = plain(item.sku || '');
-    const rowHeight = Math.max(16, itemLines.length * 12 + (sku ? 10 : 0));
-    if (y - rowHeight < bottom + 100) {
-      newPage();
-      page = ensurePage();
-      y = pageHeight - top;
-      textLine(page, left, y, `Payment Receipt ${receiptNumber}`, 12, true);
-      y -= 18;
-      line(page, left, y, pageWidth - right, y);
-      y -= 18;
+    for (const item of data.items) {
+      const itemName = plain(item.name || 'Item');
+      const itemLines = wrap(itemName, 62);
+      const sku = plain(item.sku || '');
+      const rowHeight = Math.max(12, itemLines.length * 10 + (sku ? 8 : 0));
+      ensureSpace(rowHeight + 4);
+      itemLines.forEach((value, index) => textLine(page, left, y - index * 10, value, 8.2, index === 0));
+      if (sku) textLine(page, left, y - itemLines.length * 10, `SKU: ${sku}`, 7.2);
+      textLine(page, left + 370, y, String(Number(item.quantity || 0)), 8.2);
+      const itemAmount = money(Number(item.line_total || 0), currency);
+      textLine(page, pageWidth - right - estimateTextWidth(itemAmount, 8.2, true) - 4, y, itemAmount, 8.2, true);
+      y -= rowHeight + 3;
+      line(page, left, y + 1, pageWidth - right, y + 1);
+      y -= 5;
     }
-    itemLines.forEach((v, idx) => textLine(page, left, y - idx * 12, v, 8.8, idx === 0));
-    if (sku) textLine(page, left, y - itemLines.length * 12, `SKU: ${sku}`, 7.5);
-    textLine(page, left + 365, y, String(Number(item.quantity || 0)), 8.8);
-    textLine(page, pageWidth - right - 92, y, money(Number(item.line_total || 0), currency), 8.8, true);
-    y -= rowHeight;
-    line(page, left, y + 5, pageWidth - right, y + 5);
-    y -= 8;
+    y -= 3;
   }
 
-  if (y - 150 < bottom) {
-    newPage();
-    page = ensurePage();
-    y = pageHeight - top;
-    textLine(page, left, y, `Payment Receipt ${receiptNumber}`, 12, true);
-    y -= 24;
-  }
+  ensureSpace(105);
+  const summaryTop = drawTopBox(39, '0.91 0.99 0.96');
+  textLine(page, left + 10, summaryTop - 14, 'AMOUNT RECEIVED', 8.5, true);
+  const receivedText = money(receiptAmount, currency);
+  textLine(page, pageWidth - right - estimateTextWidth(receivedText, 12, true) - 12, summaryTop - 15, receivedText, 12, true);
+  textLine(page, left + 10, summaryTop - 29, `Amount in words: ${canonical.financials.amountInWords}`, 7.2);
+  y = summaryTop - 49;
 
-  y -= 8;
-  textLine(page, pageWidth - right - 205, y, 'Total', 10, true);
-  textLine(page, pageWidth - right - 92, y, money(total, currency), 10, true);
-  y -= 18;
-  textLine(page, pageWidth - right - 205, y, 'Received', 10);
-  textLine(page, pageWidth - right - 92, y, money(paymentAmount, currency), 10, true);
-  y -= 18;
-  textLine(page, pageWidth - right - 205, y, 'Linked invoice balance', 10);
-  textLine(page, pageWidth - right - 92, y, money(balance, currency), 10, true);
-  y -= 24;
+  const ledgerTop = drawTopBox(25, '1.00 0.99 0.91');
+  textLine(page, left + 10, ledgerTop - 16, 'Current customer ledger balance', 8.2);
+  const ledgerText = money(data.customer_outstanding, ledgerCurrency);
+  textLine(page, pageWidth - right - estimateTextWidth(ledgerText, 9, true) - 10, ledgerTop - 16, ledgerText, 9, true);
+  y = ledgerTop - 35;
 
-  textLine(page, left, y, `Payment method: ${plain(data.receipt.payment_method || '—')}`, 8.5);
-  y -= 14;
-  if (data.receipt.reference_number) { textLine(page, left, y, `Reference: ${plain(data.receipt.reference_number)}`, 8.5); y -= 14; }
-  y -= 6;
+  ensureSpace(45);
   line(page, left, y, pageWidth - right, y);
-  y -= 20;
-  textLine(page, left, y, 'Retain this digital receipt as proof of purchase for warranty or guarantee claims.', 8.5);
   y -= 14;
-  textLine(page, left, y, businessName, 8, true);
-  y -= 14;
+  textLine(page, left, y, 'Please retain this receipt for your records.', 8.3, true);
+  y -= 12;
   const disclaimer = 'This is a computer-generated payment receipt and does not require signature.';
-  const disclaimerX = Math.max(left, (pageWidth - disclaimer.length * 4) / 2);
-  textLine(page, disclaimerX, y, disclaimer, 8);
-  y -= 14;
+  textLine(page, Math.max(left, (pageWidth - estimateTextWidth(disclaimer, 7.8)) / 2), y, disclaimer, 7.8);
+  y -= 12;
   const powered = 'Powered by Moneymatters FinOps | mm.nilanga.in';
-  const poweredX = Math.max(left, (pageWidth - powered.length * 3.6) / 2);
-  textLine(page, poweredX, y, powered, 7.5, true);
+  textLine(page, Math.max(left, (pageWidth - estimateTextWidth(powered, 7.2, true)) / 2), y, powered, 7.2, true);
 
   return encodePdf(pages, pageWidth, pageHeight);
 };
@@ -310,7 +321,7 @@ export async function loadReceiptPdfData(db: SupabaseClient, receiptId: string):
     db.from('businesses').select('name,legal_name,address,phone,email,website,tax_registration_number,logo_storage_path,currency_code,base_currency_code').eq('id', receipt.business_id).single(),
   ]);
 
-  const invoiceId = paymentResult.data?.invoice_id || null;
+  const paymentInvoiceId = paymentResult.data?.invoice_id || null;
   const [allocationResult, outstandingResult] = await Promise.all([
     receipt.payment_id
       ? db.from('payment_allocations').select('invoice_id,amount').eq('business_id', receipt.business_id).eq('payment_id', receipt.payment_id)
@@ -342,12 +353,15 @@ export async function loadReceiptPdfData(db: SupabaseClient, receiptId: string):
   });
   const customerOutstanding = Number(outstandingResult.data || 0);
 
+  const receiptInvoiceId = allocationInvoiceIds.length === 1
+    ? String(allocationInvoiceIds[0])
+    : allocationInvoiceIds.length === 0 ? paymentInvoiceId : null;
   const [invoiceResult, itemsResult] = await Promise.all([
-    invoiceId
-      ? db.from('invoices').select('invoice_number,invoice_date,total,amount_paid,balance_due,document_kind').eq('id', invoiceId).eq('business_id', receipt.business_id).maybeSingle()
+    receiptInvoiceId
+      ? db.from('invoices').select('invoice_number,invoice_date,total,amount_paid,balance_due,document_kind').eq('id', receiptInvoiceId).eq('business_id', receipt.business_id).maybeSingle()
       : Promise.resolve({ data: null } as any),
-    invoiceId
-      ? db.from('invoice_items').select('quantity,unit_price,line_total,description,product_service_id').eq('invoice_id', invoiceId).order('sort_order')
+    receiptInvoiceId
+      ? db.from('invoice_items').select('quantity,unit_price,line_total,description,product_service_id').eq('invoice_id', receiptInvoiceId).order('sort_order')
       : Promise.resolve({ data: [] } as any),
   ]);
 
