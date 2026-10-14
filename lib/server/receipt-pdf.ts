@@ -235,7 +235,8 @@ const buildReceiptPdf = (data: PdfData) => {
       let detailY = y - itemLines.length * 10;
       detailLines.forEach((value, index) => textLine(page, left, detailY - index * 8, value, 7.2));
       if (sku) textLine(page, left, detailY - detailLines.length * 8, `SKU: ${sku}`, 7.1);
-      textLine(page, left + 370, y, String(Number(item.quantity || 0)), 8.2);
+      const quantityLabel = `${Number(item.quantity || 0)}${item.unit ? ' ' + plain(item.unit) : ''}`;
+      textLine(page, left + 370, y, quantityLabel, 8.2);
       const itemAmount = money(Number(item.line_total || 0), currency);
       textLine(page, pageWidth - right - estimateTextWidth(itemAmount, 8.2, true) - 4, y, itemAmount, 8.2, true);
       y -= rowHeight + 3;
