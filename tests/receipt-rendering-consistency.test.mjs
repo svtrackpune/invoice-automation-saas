@@ -9,6 +9,12 @@ test('workspace receipt print uses the receipt row and allocation-linked invoice
   const viewer = await read('app/next-workspace/documents/DocumentViewer.tsx');
 
   assert.ok(viewer.includes("if (type === 'receipt' && businessId)"));
+  const paperStart = viewer.indexOf('function Paper(');
+  const paperEnd = viewer.indexOf('export default function DocumentViewer(', paperStart);
+  assert.ok(paperStart >= 0 && paperEnd > paperStart, 'Paper component boundaries must be discoverable');
+  const paper = viewer.slice(paperStart, paperEnd);
+  assert.match(paper, /payload\\.amount_in_words/, 'receipt amount words must come from the canonical payload');
+  assert.doesNotMatch(paper, /canonical\\.financials/, 'Paper must not reference the parent-only canonical variable');
   assert.ok(viewer.includes(".from('receipts')"));
   assert.ok(viewer.includes("select('receipt_number,receipt_date,amount,currency_code,payment_method,reference_number,payment_id')"));
   assert.ok(viewer.includes("const documentNumber=text(receipt ? (payload.receipt_number||payload.document_number||payload.number)"));
