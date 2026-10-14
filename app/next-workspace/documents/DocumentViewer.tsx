@@ -366,10 +366,15 @@ export default function DocumentViewer({ type, id }: { type: string; id: string 
         if (receiptSource.error) {
           if (active) setError(receiptSource.error.message);
         } else if (receiptSource.data) {
+          const receivedAmount = Number(receiptSource.data.amount || 0);
           Object.assign(payload, {
             receipt_number: receiptSource.data.receipt_number,
             receipt_date: receiptSource.data.receipt_date,
-            amount: Number(receiptSource.data.amount || 0),
+            amount: receivedAmount,
+            total: receivedAmount,
+            grandTotal: receivedAmount,
+            amount_paid: receivedAmount,
+            amount_received: receivedAmount,
             currency_code: receiptSource.data.currency_code || payload.currency_code || 'INR',
             payment_method: receiptSource.data.payment_method,
             reference_number: receiptSource.data.reference_number,
