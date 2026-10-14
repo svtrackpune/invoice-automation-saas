@@ -57,17 +57,15 @@ export default async function PublicReceipt({params}:{params:Promise<{token:stri
     <div className="rounded-xl border border-emerald-200 bg-emerald-50/60 p-4">
      <p className="text-xs font-extrabold uppercase tracking-[0.16em] text-emerald-900">Amount received</p>
      <p className="mt-2 text-2xl font-extrabold text-slate-900">{money(received,canonical.document.currency)}</p>
-     <p className="mt-1 text-xs text-slate-600">Receipt {canonical.document.number}</p>
      <p className="mt-3 border-t border-emerald-200 pt-3 text-sm font-semibold text-slate-800">Amount in words: {canonical.financials.amountInWords||'—'}</p>
     </div>
    </section>
 
-   <section className="p-6 sm:p-8">
+   <section className="px-6 pb-6 sm:px-8">
     <h2 className="text-xs font-extrabold uppercase tracking-[0.16em] text-violet-700">Payment acknowledgement</h2>
-    <div className="mt-3 grid gap-3 sm:grid-cols-3">
+    <div className="mt-3 grid gap-3 sm:grid-cols-2">
      <div className="rounded-lg border border-slate-200 bg-white p-3"><p className="text-xs text-slate-500">Payment Mode</p><p className="mt-1 font-semibold text-slate-900">{receipt?.paymentMethod||'—'}</p></div>
      <div className="rounded-lg border border-slate-200 bg-white p-3"><p className="text-xs text-slate-500">UTR / Transaction Ref</p><p className="mt-1 break-all font-semibold text-slate-900">{receipt?.referenceNumber||'—'}</p></div>
-     <div className="rounded-lg border border-slate-200 bg-white p-3"><p className="text-xs text-slate-500">Payment Date</p><p className="mt-1 font-semibold text-slate-900">{dateLabel(receipt?.paymentDate||canonical.document.date)}</p></div>
     </div>
    </section>
 
