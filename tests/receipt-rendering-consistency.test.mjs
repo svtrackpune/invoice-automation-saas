@@ -127,3 +127,21 @@ test('workspace receipt branding cannot split the Moneymatters name across lines
   assert.ok(viewer.includes('white-space:nowrap!important;word-break:keep-all!important;overflow-wrap:normal!important'));
   assert.ok(viewer.includes('.receipt-footer .receipt-brand-name{color:var(--accent);font-size:9px}'));
 });
+
+test('invoice form persists selected inventory location before review',async()=>{
+  const editor=await read('app/next-workspace/invoices/InvoiceEditorCore.tsx');
+  const migration=await read('supabase/migrations/20261015120000_document_inventory_preflight.sql');
+  assert.match(editor,/rpc\('get_active_inventory_locations'/);
+  assert.match(editor,/rpc\('set_invoice_operational_details'/);
+  assert.match(migration,/CREATE OR REPLACE FUNCTION public\.get_active_inventory_locations/);
+  assert.match(migration,/CREATE OR REPLACE FUNCTION public\.get_invoice_inventory_preflight/);
+});
+test('finalizing an invoice preflights stock and explains shortfall without bypassing the ledger guard',async()=>{
+  const review=await read('app/next-workspace/documents/DocumentReviewCenter.tsx');
+  const migration=await read('supabase/migrations/20261015120000_document_inventory_preflight.sql');
+  assert.match(review,/rpc\('get_invoice_inventory_preflight'/);
+  assert.match(review,/Cannot finalize this invoice/);
+  assert.match(review,/Review inventory \/ correct stock/);
+  assert.match(migration,/IF v_invoice\.source_challan_id IS NOT NULL THEN\s+RETURN;/);
+  assert.match(migration,/quantity_on_hand/);
+});
