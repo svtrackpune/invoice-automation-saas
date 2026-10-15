@@ -82,3 +82,13 @@ test('saved invoice and quotation terms are reloaded for the viewer and public P
   assert.doesNotMatch(pdf,/wrap\(doc\.terms, 47\)\.slice/);
   assert.doesNotMatch(pdf,/lines\.slice\(0,6\)/);
 });
+
+test('saved invoice and quotation terms remain visible in document preview and official PDFs',()=>{
+  const viewer=readFileSync('app/next-workspace/documents/DocumentViewer.tsx','utf8');
+  const pdf=readFileSync('lib/server/documents/public-pdf.ts','utf8');
+  assert.match(viewer,/source\.data\.terms \?\? ''/);
+  assert.match(viewer,/documentFilenameLabel\(type\)/);
+  assert.match(pdf,/drawInvoiceInfoSection\('TERMS & CONDITIONS'/);
+  assert.doesNotMatch(pdf,/wrap\(doc\.terms, 47\)\.slice/);
+  assert.doesNotMatch(pdf,/lines\.slice\(0,6\)/);
+});
