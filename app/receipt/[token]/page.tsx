@@ -111,7 +111,7 @@ export default async function PublicReceipt({params}:{params:Promise<{token:stri
     <div className="mt-3 flex flex-wrap items-center justify-center gap-x-2 gap-y-1 border-t border-slate-200 pt-3">
      <span className="inline-grid h-4 w-4 shrink-0 place-items-center rounded bg-violet-600 text-[9px] font-black text-white">M</span>
      <span className="inline-flex min-w-0 max-w-[calc(100%-1.5rem)] flex-col items-center leading-tight">
-      <strong className="max-w-full whitespace-normal break-words text-center text-violet-600">Powered by Moneymatters FinOps</strong>
+      <strong className="max-w-full whitespace-nowrap break-normal text-center text-violet-600">Powered by Moneymatters FinOps</strong>
       <span className="text-[10px] text-slate-500">mm.nilanga.in</span>
      </span>
     </div>
