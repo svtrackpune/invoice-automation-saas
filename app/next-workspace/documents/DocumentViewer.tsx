@@ -2,7 +2,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { createCanonicalDocumentViewModel } from '@/lib/shared/document-view-model';
-import { buildDocumentFilenameBase } from '@/lib/shared/document-filename';
+import { buildDocumentFilenameBase, documentFilenameLabel } from '@/lib/shared/document-filename';
 import { buildPublicDocumentShareMessage, canSharePublicDocument, copyTextToClipboard, getPublicDocumentUrl } from '@/lib/client/share-document';
 import QRCode from 'qrcode';
 import { CashBillCompliance, CreditNoteCompliance, DeliveryChallanCompliance, PurchaseOrderCompliance, ReceiptSettlement, TaxInvoiceCompliance, TaxSummaryGrid, type ReceiptAllocation, type TaxLine } from '@/components/documents/PrintCompliance';
@@ -383,6 +383,39 @@ export default function DocumentViewer({ type, id }: { type: string; id: string 
           });
         }
       }
+      // The transaction row is authoritative. The render job can be stale or can
+      // omit terms, causing them to appear in the editor but disappear in the viewer/PDF.
+      if (businessId && ['invoice','tax_invoice','cash_bill'].includes(type)) {
+        const source = await supabase.from('invoices')
+          .select('invoice_number,status,notes,terms,inventory_location_id,delivery_date,document_kind')
+          .eq('id', id).eq('business_id', businessId).maybeSingle();
+        if (!source.error && source.data) {
+          Object.assign(payload, {
+            invoice_number: source.data.invoice_number,
+            document_number: source.data.invoice_number,
+            status: source.data.status,
+            notes: source.data.notes ?? '',
+            terms: source.data.terms ?? '',
+            inventory_location_id: source.data.inventory_location_id,
+            delivery_date: source.data.delivery_date,
+            document_kind: source.data.document_kind,
+          });
+        }
+      } else if (businessId && type === 'quotation') {
+        const source = await supabase.from('quotations')
+          .select('quotation_number,status,notes,terms,valid_until')
+          .eq('id', id).eq('business_id', businessId).maybeSingle();
+        if (!source.error && source.data) {
+          Object.assign(payload, {
+            quotation_number: source.data.quotation_number,
+            document_number: source.data.quotation_number,
+            status: source.data.status,
+            notes: source.data.notes ?? '',
+            terms: source.data.terms ?? '',
+            valid_until: source.data.valid_until,
+          });
+        }
+      }
       const taxIds = Array.from(new Set((payload.items || []).map((x:any) => x.tax_rate_id).filter(Boolean)));
       if (taxIds.length) { const taxRows = await supabase.from('tax_rates').select('id,name,rate,metadata').in('id', taxIds); if (!taxRows.error) payload.items = (payload.items || []).map((x:any)=>{ const tr = (taxRows.data||[]).find((t:any)=>t.id===x.tax_rate_id); return tr?{...x,tax_rate:tr.rate}:x }); }
       const productIds = Array.from(new Set((payload.items || []).map((x:any) => x.product_service_id).filter(Boolean)));
@@ -700,6 +733,13 @@ export default function DocumentViewer({ type, id }: { type: string; id: string 
         ? !['draft', 'void', 'cancelled', 'deleted'].includes(documentStatus)
         : type === 'receipt';
   const canShareDocument = canSharePublicDocument(type) && documentStatusShareable;
+  const shareActionsVisible = canSharePublicDocument(type)
+    && !['void','cancelled','deleted','missing','error','loading'].includes(documentStatus);
+  const shareDisabledReason = type === 'quotation' && documentStatus === 'draft'
+    ? 'Mark this quotation as sent before sharing its customer link.'
+    : ['invoice','tax_invoice','cash_bill'].includes(type) && documentStatus === 'draft'
+      ? 'Finalize & Post this invoice before sharing it. Any stock shortage must be resolved first.'
+      : 'This document is not eligible for public sharing in its current status.';
   const logoUrl = mergedBusiness?.logo_storage_path ? supabase.storage.from('business-branding-public').getPublicUrl(mergedBusiness.logo_storage_path).data.publicUrl : '';
   const back = () => { if (type === 'invoice' && model.status === 'draft') { location.href = `/next-workspace/invoices/new?edit=${id}`; return; } history.back(); };
   const shareMessage = (publicUrl: string) => buildPublicDocumentShareMessage({
@@ -801,7 +841,7 @@ export default function DocumentViewer({ type, id }: { type: string; id: string 
       .map((link) => `<link rel="stylesheet" href="${link.href}">`).join('');
     const printFilename = buildDocumentFilenameBase(
       String(mergedBusiness?.name || mergedBusiness?.legal_name || 'Business'),
-      String(title || 'Document'),
+      String(documentFilenameLabel(type)),
       String(number || 'Document'),
     );
     const originalPageTitle = document.title;
@@ -852,8 +892,8 @@ export default function DocumentViewer({ type, id }: { type: string; id: string 
   };
   if (loading) return <div className="center">Preparing document…</div>;
   if (error) return <div className="center error">{error}</div>;
-  return <main className="page"><div className="toolbar"><div><small>DOCUMENT CENTER</small><h1>{title} {number}</h1><p>{template?.template_name || theme.label} · Print-ready</p></div><div className="actions">{type==='cash_bill'&&<select aria-label="Cash Bill print format" value={cashBillFormat} onChange={e=>setCashBillFormat(e.target.value as typeof cashBillFormat)}><option value="a4">A4 Modern</option><option value="a5">A5 Modern</option><option value="thermal80">Thermal 80mm</option><option value="thermal58">Thermal 58mm</option></select>}<button type="button" onClick={back} className="inline-flex items-center justify-center gap-1.5 rounded-full border border-slate-200 bg-white px-3.5 py-2 text-xs font-semibold text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500 focus-visible:ring-offset-2"><svg aria-hidden="true" viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>Back</button>{canShareDocument && <button type="button" onClick={copyLink} aria-live="polite" className="inline-flex items-center justify-center gap-1.5 rounded-full border border-slate-200 bg-white px-3.5 py-2 text-xs font-semibold text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500 focus-visible:ring-offset-2">{isCopied ? <svg aria-hidden="true" viewBox="0 0 24 24" className="h-4 w-4 text-emerald-600" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="m5 12 4 4L19 6"/></svg> : <svg aria-hidden="true" viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="8" y="8" width="13" height="13" rx="2"/><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3"/></svg>}{isCopied ? 'Copied!' : 'Copy customer link'}</button>}{canShareDocument && <div className="relative inline-flex">
-        <button type="button" onClick={share} aria-expanded={Boolean(shareOptions)} aria-haspopup="dialog" className="inline-flex items-center justify-center gap-1.5 rounded-full border border-slate-200 bg-white px-3.5 py-2 text-xs font-semibold text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500 focus-visible:ring-offset-2">
+  return <main className="page"><div className="toolbar"><div><small>DOCUMENT CENTER</small><h1>{title} {number}</h1><p>{template?.template_name || theme.label} · Print-ready</p></div><div className="actions">{type==='cash_bill'&&<select aria-label="Cash Bill print format" value={cashBillFormat} onChange={e=>setCashBillFormat(e.target.value as typeof cashBillFormat)}><option value="a4">A4 Modern</option><option value="a5">A5 Modern</option><option value="thermal80">Thermal 80mm</option><option value="thermal58">Thermal 58mm</option></select>}<button type="button" onClick={back} className="inline-flex items-center justify-center gap-1.5 rounded-full border border-slate-200 bg-white px-3.5 py-2 text-xs font-semibold text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500 focus-visible:ring-offset-2"><svg aria-hidden="true" viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>Back</button>{shareActionsVisible && <button type="button" onClick={copyLink} disabled={!canShareDocument} aria-disabled={!canShareDocument} title={!canShareDocument ? shareDisabledReason : undefined} aria-live="polite" className="inline-flex items-center justify-center gap-1.5 rounded-full border border-slate-200 bg-white px-3.5 py-2 text-xs font-semibold text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500 focus-visible:ring-offset-2">{isCopied ? <svg aria-hidden="true" viewBox="0 0 24 24" className="h-4 w-4 text-emerald-600" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="m5 12 4 4L19 6"/></svg> : <svg aria-hidden="true" viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="8" y="8" width="13" height="13" rx="2"/><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3"/></svg>}{isCopied ? 'Copied!' : 'Copy customer link'}</button>}{shareActionsVisible && <div className="relative inline-flex">
+        <button type="button" onClick={share} disabled={!canShareDocument} aria-disabled={!canShareDocument} title={!canShareDocument ? shareDisabledReason : undefined} aria-expanded={Boolean(shareOptions)} aria-haspopup="dialog" className="inline-flex items-center justify-center gap-1.5 rounded-full border border-slate-200 bg-white px-3.5 py-2 text-xs font-semibold text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500 focus-visible:ring-offset-2">
           <svg aria-hidden="true" viewBox="0 0 24 24" className="h-4 w-4 text-slate-500" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="m8.6 10.6 6.8-4.2M8.6 13.4l6.8 4.2"/></svg>
           Share link
         </button>
@@ -873,6 +913,7 @@ export default function DocumentViewer({ type, id }: { type: string; id: string 
           <p className="mt-2 break-all border-t border-slate-100 px-1 pt-2 text-[11px] leading-4 text-slate-500">{shareOptions.url}</p>
         </div>}
       </div>}<button type="button" onClick={print} className="inline-flex items-center justify-center gap-1.5 rounded-full bg-purple-600 px-3.5 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-purple-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500 focus-visible:ring-offset-2"><svg aria-hidden="true" viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 9V3h12v6M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><path d="M6 14h12v7H6z"/></svg>Print / Save PDF</button></div></div>
+    {shareActionsVisible && !canShareDocument && <p role="status" className="mx-auto mt-2 max-w-6xl rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-medium text-amber-900">{shareDisabledReason}</p>}
     {toastMessage && <div role="status" aria-live="polite" className="fixed right-5 top-5 z-[100] flex items-center gap-2 rounded-xl border border-emerald-200 bg-white px-4 py-3 text-sm font-semibold text-slate-800 shadow-lg"><svg aria-hidden="true" viewBox="0 0 24 24" className="h-5 w-5 text-emerald-600" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m5 12 4 4L19 6"/></svg>{toastMessage}</div>}
     <Paper type={type} payload={canonicalPayload} business={canonicalBusiness} customer={canonicalCustomer} items={canonicalItems} theme={theme} fields={fields} logoUrl={logoUrl} paymentSelection={paymentSelection} paymentQrDataUrl={paymentQrDataUrl} upiIntentUrl={canonicalPaymentEnabled ? canonical.financials.upiQrString || '' : ''}
       showLogo={preferences?.show_logo !== false} showBusinessAddress={preferences?.show_business_address !== false} showTaxDetails={preferences?.show_tax_details !== false}
