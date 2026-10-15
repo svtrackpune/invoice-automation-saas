@@ -825,6 +825,7 @@ export default function DocumentViewer({ type, id }: { type: string; id: string 
       .paper:not(.receipt-paper) .qr img{width:68px!important;height:68px!important;object-fit:contain!important;}
     </style></head><body>${paper.outerHTML}</body></html>`);
     doc.close();
+    doc.title = printFilename;
     const stylesheetReady = Array.from(doc.querySelectorAll<HTMLLinkElement>('link[rel="stylesheet"]')).map((link) => new Promise<void>((resolve) => {
       if (link.sheet) { resolve(); return; }
       const done = () => resolve();
