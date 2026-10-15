@@ -296,6 +296,15 @@ test('all official and print PDF filenames follow company-document-number order'
  assert.doesNotMatch(receiptRoute,/replace\(\/\^\(\?:REC/);
  assert.match(viewer,/buildDocumentFilenameBase\(/);
  assert.match(viewer,/const printFilename = buildDocumentFilenameBase\([\s\S]*?mergedBusiness\?\.name[\s\S]*?title[\s\S]*?number/);
+ assert.match(viewer,/document\.title = printFilename/);
+ assert.match(viewer,/doc\.title = printFilename/);
+ assert.match(viewer,/frame\.contentWindow\?\.addEventListener\('afterprint', restorePageTitle/);
+ assert.match(viewer,/window\.addEventListener\('afterprint', restorePageTitle/);
+ assert.match(receiptRoute,/Content-Disposition.*filename=/);
+ assert.match(route,/Content-Disposition.*filename=/);
+ assert.match(await read('app/invoice/[token]/page.tsx'),/api\/public-documents\/pdf\?type=invoice/);
+ assert.match(await read('app/quote/[token]/page.tsx'),/api\/public-documents\/pdf\?type=quotation/);
+ assert.match(await read('app/receipt/[token]/page.tsx'),/api\/receipts\/pdf\?token=/);
 });
 
 test('public invoice view gates bank and UPI payment cards by the configured settlement mode',async()=>{
