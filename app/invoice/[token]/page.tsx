@@ -5,6 +5,7 @@ import QRCode from 'qrcode';
 import Image from 'next/image';
 import { supabase } from '@/lib/supabase';
 import { createCanonicalDocumentViewModel } from '@/lib/shared/document-view-model';
+import { buildDocumentDownloadFilename, documentFilenameLabel } from '@/lib/shared/document-filename';
 import CopyButton from '@/components/ui/copy-button';
 
 type AddressValue = string | {
@@ -193,7 +194,7 @@ export default function PublicInvoice({params}:{params:Promise<{token:string}>})
       <section className="flex flex-col gap-3 border-t border-slate-200 p-6 sm:flex-row sm:items-center sm:justify-between sm:p-8 print:hidden">
         <div><p className="font-semibold text-slate-900">Need a copy for your records?</p><p className="mt-1 text-xs text-slate-500">Download a PDF copy of this invoice.</p></div>
         <div className="flex flex-wrap items-center gap-3">
-          <a href={'/api/public-documents/pdf?type=invoice&token=' + encodeURIComponent(token)} className="inline-flex min-h-12 items-center justify-center rounded-xl bg-violet-600 px-6 py-3 text-sm font-semibold text-white hover:bg-violet-700">Download Official PDF</a>
+          <a href={'/api/public-documents/pdf?type=invoice&token=' + encodeURIComponent(token)} download={buildDocumentDownloadFilename(invoice.business.name || invoice.business.legal_name || 'Business', documentFilenameLabel('invoice'), invoice.invoice_number || 'Document')} className="inline-flex min-h-12 items-center justify-center rounded-xl bg-violet-600 px-6 py-3 text-sm font-semibold text-white hover:bg-violet-700">Download Official PDF</a>
           <CopyButton getValue={() => window.location.href} label="Copy Invoice Link" className="inline-flex min-h-12 items-center justify-center rounded-xl border border-slate-200 bg-white px-6 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50" />
         </div>
       </section>
