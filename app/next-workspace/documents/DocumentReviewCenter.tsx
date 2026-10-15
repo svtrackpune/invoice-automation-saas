@@ -30,6 +30,7 @@ export default function DocumentReviewCenter({ type, id }: { type: string; id: s
   const [creditNoteOpen, setCreditNoteOpen] = useState(false);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
+  const [stockShortage, setStockShortage] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -248,17 +249,69 @@ export default function DocumentReviewCenter({ type, id }: { type: string; id: s
   };
   const finalize = async () => {
     if (!draft || !id) return;
-    setBusy(true); setError(''); setNotice('');
+    setBusy(true); setError(''); setNotice(''); setStockShortage(false);
+
+    const explainShortage = (row: {
+      product_name?: string | null;
+      location_name?: string | null;
+      quantity_available?: number | string | null;
+      quantity_requested?: number | string | null;
+    }) => {
+      const available = Number(row.quantity_available || 0);
+      const requested = Number(row.quantity_requested || 0);
+      const missing = Math.max(0, requested - available);
+      const fmt = (value: number) => new Intl.NumberFormat('en-IN', { maximumFractionDigits: 3 }).format(value);
+      setStockShortage(true);
+      setError(
+        `Cannot finalize this invoice: "${row.product_name || 'Inventory item'}" at "${row.location_name || 'the selected location'}" has ${fmt(available)} unit(s) available, but ${fmt(requested)} are requested (short by ${fmt(missing)}). Receive or correct the stock through inventory/purchases, or reduce the invoice quantity. Negative stock is disabled; no accounting entry was posted.`
+      );
+    };
+    const preflight = await supabase.rpc('get_invoice_inventory_preflight', { p_invoice_id: id });
+    if (preflight.error) {
+      setError(preflight.error.message);
+      setBusy(false);
+      return;
+    }
+    const shortages = ((preflight.data || []) as Array<{
+      product_name?: string | null;
+      location_name?: string | null;
+      quantity_available?: number | string | null;
+      quantity_requested?: number | string | null;
+      sufficient?: boolean;
+    }>).filter(row => row.sufficient === false
+      || Number(row.quantity_available || 0) + 0.000001 < Number(row.quantity_requested || 0));
+    if (shortages.length) {
+      explainShortage(shortages[0]);
+      setBusy(false);
+      return;
+    }
+
     const result = await supabase.rpc('post_invoice', { p_invoice_id: id, p_location_id: null });
-    if (result.error) { setError(result.error.message); setBusy(false); return; }
+    if (result.error) {
+      // The DB ledger trigger is still authoritative. Re-read stock to translate
+      // a race between the preflight and the posting transaction into actionable UI.
+      if (/insufficient stock for product/i.test(result.error.message)) {
+        const latest = await supabase.rpc('get_invoice_inventory_preflight', { p_invoice_id: id });
+        const lateShortage = ((latest.data || []) as Array<{
+          product_name?: string | null;
+          location_name?: string | null;
+          quantity_available?: number | string | null;
+          quantity_requested?: number | string | null;
+          sufficient?: boolean;
+        }>).find(row => row.sufficient === false
+          || Number(row.quantity_available || 0) + 0.000001 < Number(row.quantity_requested || 0));
+        if (lateShortage) explainShortage(lateShortage);
+        else setError('Inventory changed while this invoice was being posted. Refresh the document, recheck stock, and try again. No accounting entry was posted.');
+      } else setError(result.error.message);
+      setBusy(false);
+      return;
+    }
     setStatus('sent');
     if (paymentMode === 'online') {
       let link: { data: { status?: string; reason?: string; payment_link?: unknown; error?: string } | null; error: Error | null };
       try {
         link = await supabase.functions.invoke('create-payment-link', { body: { invoice_id: id } });
       } catch {
-        // Posting already committed. A transport-level Edge Function failure is
-        // non-fatal because the document remains payable by its configured methods.
         setNotice('Invoice finalized and posted. The document has been refreshed with its currently configured payment options.');
         setBusy(false);
         window.setTimeout(() => { window.location.assign('/next-workspace/documents?type=invoice&id=' + encodeURIComponent(id)); }, 650);
@@ -271,8 +324,6 @@ export default function DocumentReviewCenter({ type, id }: { type: string; id: s
         return;
       }
       if (link.error || link.data?.error) {
-        // Invoice posting is already committed. A failed optional gateway call must
-        // not be presented as a posting failure or block the native settlement view.
         setNotice('Invoice finalized and posted. The document has been refreshed with its currently configured payment options.');
         setBusy(false);
         window.setTimeout(() => { window.location.assign('/next-workspace/documents?type=invoice&id=' + encodeURIComponent(id)); }, 650);
@@ -298,7 +349,7 @@ export default function DocumentReviewCenter({ type, id }: { type: string; id: s
   return <div className="relative min-h-screen">
     {(['invoice','quotation','challan','delivery_challan'].includes(type) && !(type==='invoice' && ['draft','void'].includes(status))) && <section className="sticky top-0 z-20 border-b border-slate-200 bg-white/95 px-4 py-3 shadow-sm backdrop-blur print:hidden sm:px-6"><div className="mx-auto flex max-w-6xl flex-col gap-2 sm:flex-row sm:items-center sm:justify-between"><div>{type!=='invoice'&&error&&<p className="text-xs font-medium text-red-600">{error}</p>}{type!=='invoice'&&notice&&<p className="text-xs font-medium text-emerald-600">{notice}</p>}<p className="text-sm font-semibold text-slate-900">{type==='quotation'?'Share quotation':type==='challan'||type==='delivery_challan'?'Share delivery challan':'Send invoice'}</p><p className="text-xs text-slate-500">Customers receive a secure public link and the PDF document through the selected channel.</p></div><button type="button" onClick={dispatchDocument} disabled={busy} className="rounded-xl bg-indigo-600 px-5 py-3 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-50">{busy?'Sending…':'Send document'}</button></div></section>}
     <DocumentViewer type={type} id={id} />
-    {type === 'invoice' && <div className="fixed inset-x-0 bottom-0 z-[80] border-t border-slate-200 bg-white/95 px-4 py-3 shadow-[0_-10px_40px_rgba(15,23,42,.12)] backdrop-blur sm:px-6"><div className="mx-auto flex max-w-6xl flex-col gap-2 sm:flex-row sm:items-center sm:justify-between"><div className="min-w-0"><div className="text-sm font-semibold text-slate-900">{draft ? 'Review invoice before posting' : status === 'void' ? 'Invoice voided' : documentKind === 'cash_bill' ? 'Cash Bill correction' : 'Invoice correction'}</div><div className="text-xs text-slate-500">{draft ? 'Check customer, items, quantities, GST, totals, payment details and the final layout. Nothing affects the ledger until you finalize the invoice.' : status === 'void' ? 'This invoice is permanently void in the accounting history.' : documentKind === 'cash_bill' ? 'Correct the existing counter sale. The bill number stays unchanged and its settlement payment and receipt are synchronized with the corrected total.' : 'Correct any manual mistake from the existing document. The invoice number stays unchanged and the accounting history is amended with a controlled reversal and repost.'}</div>{error&&<div className="mt-1 text-xs font-medium text-red-600">{error}</div>}{notice&&<div className="mt-1 text-xs font-medium text-emerald-600">{notice}</div>}</div><div className="flex shrink-0 gap-2"><button type="button" onClick={back} className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50">Back</button>{editable&&<button type="button" onClick={openEdit} disabled={busy} className="rounded-xl border border-violet-200 bg-violet-50 px-4 py-2.5 text-sm font-semibold text-violet-700 hover:bg-violet-100 disabled:opacity-50">{documentKind === 'cash_bill' ? 'Edit Cash Bill' : 'Edit Invoice'}</button>}{draft&&<button type="button" onClick={finalize} disabled={busy} className="rounded-xl bg-violet-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-violet-700 disabled:cursor-not-allowed disabled:opacity-50">{busy?'Posting…':'Finalize & Post'}</button>}{canCreateCreditNote&&<button type="button" onClick={()=>{setError('');setNotice('');setCreditNoteOpen(true)}} disabled={busy} className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-2.5 text-sm font-semibold text-amber-800 hover:bg-amber-100 disabled:opacity-50">Credit note</button>}{!draft&&paymentMode==='online'&&status!=='void'&&<button type="button" onClick={generatePaymentLink} disabled={busy} className="rounded-xl border border-violet-200 bg-violet-50 px-4 py-2.5 text-sm font-semibold text-violet-700 hover:bg-violet-100 disabled:opacity-50">{busy?'Generating…':'Generate Payment Link'}</button>}{voidable&&<button type="button" onClick={voidInvoice} disabled={busy} className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-2.5 text-sm font-semibold text-rose-700 hover:bg-rose-100 disabled:opacity-50">{busy?'Voiding…':'Void Invoice'}</button>}</div></div></div>}
+    {type === 'invoice' && <div className="fixed inset-x-0 bottom-0 z-[80] border-t border-slate-200 bg-white/95 px-4 py-3 shadow-[0_-10px_40px_rgba(15,23,42,.12)] backdrop-blur sm:px-6"><div className="mx-auto flex max-w-6xl flex-col gap-2 sm:flex-row sm:items-center sm:justify-between"><div className="min-w-0"><div className="text-sm font-semibold text-slate-900">{draft ? 'Review invoice before posting' : status === 'void' ? 'Invoice voided' : documentKind === 'cash_bill' ? 'Cash Bill correction' : 'Invoice correction'}</div><div className="text-xs text-slate-500">{draft ? 'Check customer, items, quantities, GST, totals, payment details and the final layout. Nothing affects the ledger until you finalize the invoice.' : status === 'void' ? 'This invoice is permanently void in the accounting history.' : documentKind === 'cash_bill' ? 'Correct the existing counter sale. The bill number stays unchanged and its settlement payment and receipt are synchronized with the corrected total.' : 'Correct any manual mistake from the existing document. The invoice number stays unchanged and the accounting history is amended with a controlled reversal and repost.'}</div>{error&&<div role="alert" className="mt-1 text-xs font-medium text-red-600">{error}</div>}{stockShortage&&<a href="/next-workspace/stock-audit" className="mt-2 inline-flex rounded-lg border border-amber-300 bg-amber-50 px-3 py-1.5 text-xs font-semibold text-amber-900 hover:bg-amber-100">Review inventory / correct stock</a>}{notice&&<div className="mt-1 text-xs font-medium text-emerald-600">{notice}</div>}</div><div className="flex shrink-0 gap-2"><button type="button" onClick={back} className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50">Back</button>{editable&&<button type="button" onClick={openEdit} disabled={busy} className="rounded-xl border border-violet-200 bg-violet-50 px-4 py-2.5 text-sm font-semibold text-violet-700 hover:bg-violet-100 disabled:opacity-50">{documentKind === 'cash_bill' ? 'Edit Cash Bill' : 'Edit Invoice'}</button>}{draft&&<button type="button" onClick={finalize} disabled={busy} className="rounded-xl bg-violet-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-violet-700 disabled:cursor-not-allowed disabled:opacity-50">{busy?'Posting…':'Finalize & Post'}</button>}{canCreateCreditNote&&<button type="button" onClick={()=>{setError('');setNotice('');setCreditNoteOpen(true)}} disabled={busy} className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-2.5 text-sm font-semibold text-amber-800 hover:bg-amber-100 disabled:opacity-50">Credit note</button>}{!draft&&paymentMode==='online'&&status!=='void'&&<button type="button" onClick={generatePaymentLink} disabled={busy} className="rounded-xl border border-violet-200 bg-violet-50 px-4 py-2.5 text-sm font-semibold text-violet-700 hover:bg-violet-100 disabled:opacity-50">{busy?'Generating…':'Generate Payment Link'}</button>}{voidable&&<button type="button" onClick={voidInvoice} disabled={busy} className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-2.5 text-sm font-semibold text-rose-700 hover:bg-rose-100 disabled:opacity-50">{busy?'Voiding…':'Void Invoice'}</button>}</div></div></div>}
     {(type === 'invoice' || type === 'quotation') && <Transaction360Panel entityType={type === 'invoice' ? documentKind : 'quotation'} entityId={id} />}
     {creditNoteOpen && canCreateCreditNote && <CreditNoteModal open={creditNoteOpen} businessId={businessId} customerId={customerId} invoiceId={id} invoiceNumber={invoiceNumber} balanceDue={balanceDue} items={invoiceItems} onClose={()=>setCreditNoteOpen(false)} onSaved={async()=>{setCreditNoteOpen(false);window.location.reload();}} />}
     {editOpen && <InvoiceEditModal invoiceId={id} invoiceNumber={invoiceNumber} documentKind={documentKind} amountPaid={amountPaid} onClose={closeEdit} />}
