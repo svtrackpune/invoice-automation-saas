@@ -1,6 +1,7 @@
 import { notFound } from 'next/navigation';
 import { resolvePublicDocumentByToken } from '@/lib/server/documents/public-tokens';
 import { createCanonicalDocumentViewModel } from '@/lib/shared/document-view-model';
+import { buildDocumentDownloadFilename, documentFilenameLabel } from '@/lib/shared/document-filename';
 export const dynamic='force-dynamic';
 const money=(v:number,c:string)=>new Intl.NumberFormat('en-IN',{style:'currency',currency:c||'INR',maximumFractionDigits:2}).format(Number(v||0));
 const addressLines=(value:unknown):string[]=>{
@@ -103,7 +104,7 @@ export default async function PublicReceipt({params}:{params:Promise<{token:stri
    </section>
 
    <section className="px-6 pb-6 sm:px-8 print:hidden">
-    <a href={pdf} className="inline-flex w-full items-center justify-center rounded-xl bg-violet-600 px-5 py-4 font-semibold text-white hover:bg-violet-700 sm:w-auto">Download Official PDF</a>
+    <a href={pdf} download={buildDocumentDownloadFilename(doc.business.name || doc.business.legalName || 'Business', documentFilenameLabel('receipt'), canonical.document.number || doc.number || 'Document')} className="inline-flex w-full items-center justify-center rounded-xl bg-violet-600 px-5 py-4 font-semibold text-white hover:bg-violet-700 sm:w-auto">Download Official PDF</a>
     <p className="mt-3 text-xs text-slate-500">This receipt link is time-limited and can be revoked by the business.</p>
    </section>
    <footer className="border-t border-slate-200 bg-slate-50 px-6 py-5 text-center text-xs text-slate-500">
