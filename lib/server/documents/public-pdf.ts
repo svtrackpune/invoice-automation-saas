@@ -521,13 +521,22 @@ export async function buildPublicDocumentPdf(doc: PublicDocument): Promise<Buffe
       renderedPaymentCardHeight = cardH;
     }
     let infoY = (invoiceSettlementTop ?? y) + renderedPaymentCardHeight + (renderedPaymentCardHeight ? 12 : 0);
-    c.text(M, infoY, 'TERMS & CONDITIONS', 8, true, C.purple); infoY += 13;
-    const terms = doc.terms ? wrap(doc.terms, 47).slice(0, 4) : ['—'];
-    terms.forEach(line => { c.text(M, infoY, line, 7.3, false, C.muted); infoY += 10; });
-    infoY += 5;
-    c.text(M, infoY, 'NOTES', 8, true, C.purple); infoY += 13;
-    const noteLines = doc.notes ? wrap(doc.notes, 47).slice(0, 3) : ['—'];
-    noteLines.forEach(line => { c.text(M, infoY, line, 7.3, false, C.muted); infoY += 10; });
+    const drawInvoiceInfoSection = (label: string, lines: string[]) => {
+      if (infoY + 13 > FOOTER_TOP - 4) { c.newPage(); header(true); infoY = 154; }
+      c.text(M, infoY, label, 8, true, C.purple); infoY += 13;
+      for (const value of lines) {
+        if (infoY + 10 > FOOTER_TOP - 4) {
+          c.newPage(); header(true); infoY = 154;
+          c.text(M, infoY, label + ' (CONTINUED)', 8, true, C.purple); infoY += 13;
+        }
+        c.text(M, infoY, value, 7.3, false, C.muted); infoY += 10;
+      }
+      infoY += 5;
+    };
+    // Never silently truncate saved terms or notes. Long text continues on a
+    // fresh page above the statutory footer instead of disappearing below it.
+    drawInvoiceInfoSection('TERMS & CONDITIONS', doc.terms ? wrap(doc.terms, 47) : ['—']);
+    drawInvoiceInfoSection('NOTES', doc.notes ? wrap(doc.notes, 47) : ['—']);
     y = Math.max(infoY + 8, invoiceSignatureEndY + 8);
   } else {
     if (showBankSettlement || showQrSettlement) {
@@ -553,11 +562,22 @@ export async function buildPublicDocumentPdf(doc: PublicDocument): Promise<Buffe
   }
   if (doc.type !== 'invoice') {
     const legalTerms = doc.terms || null;
-    if(doc.notes||legalTerms){
-      const lines=[...(doc.notes?wrap('Notes: '+doc.notes,100):[]),...(legalTerms?wrap('Terms: '+legalTerms,100):[])],needed=22+lines.length*10;
-      if(y+needed>FOOTER_TOP-4){c.newPage();header(true);y=154;}
-      c.line(M,y,right,y);y+=8;c.text(M,y,'TERMS & CONDITIONS',7.8,true,C.navy);y+=13;
-      lines.slice(0,6).forEach(s=>{c.text(M,y,s,7,false,C.muted);y+=10;});
+    if (doc.notes || legalTerms) {
+      const lines = [
+        ...(doc.notes ? wrap('Notes: ' + doc.notes, 100) : []),
+        ...(legalTerms ? wrap('Terms: ' + legalTerms, 100) : []),
+      ];
+      if (y + 22 > FOOTER_TOP - 4) { c.newPage(); header(true); y = 154; }
+      c.line(M, y, right, y); y += 8;
+      c.text(M, y, 'TERMS & CONDITIONS', 7.8, true, C.navy); y += 13;
+      for (const value of lines) {
+        if (y + 10 > FOOTER_TOP - 4) {
+          c.newPage(); header(true); y = 154;
+          c.line(M, y, right, y); y += 8;
+          c.text(M, y, 'TERMS & CONDITIONS (CONTINUED)', 7.8, true, C.navy); y += 13;
+        }
+        c.text(M, y, value, 7, false, C.muted); y += 10;
+      }
     }
   }
   const pageCount=c.pages.length;
