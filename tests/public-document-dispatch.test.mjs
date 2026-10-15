@@ -438,3 +438,15 @@ test('notification worker requires a Vault cron token or a permission-checked ma
  assert.match(migration,/GRANT EXECUTE ON FUNCTION public\.is_notification_worker_token_valid\(text\)\s+TO service_role/);
  assert.match(migration,/GRANT EXECUTE ON FUNCTION public\.authorize_notification_test_dispatch\(uuid,uuid\)\s+TO service_role/);
 });
+
+test('public customer PDF links request company-document-number filenames',async()=>{
+ const invoice=await read('app/invoice/[token]/page.tsx');
+ const quote=await read('app/quote/[token]/page.tsx');
+ const receipt=await read('app/receipt/[token]/page.tsx');
+ const helper=await read('lib/shared/document-filename.ts');
+ for(const source of [invoice,quote,receipt]) assert.match(source,/download=\{buildDocumentDownloadFilename/);
+ assert.match(invoice,/documentFilenameLabel\('invoice'\)/);
+ assert.match(quote,/documentFilenameLabel\('quotation'\)/);
+ assert.match(receipt,/documentFilenameLabel\('receipt'\)/);
+ assert.match(helper,/buildDocumentDownloadFilename/);
+});
