@@ -67,3 +67,18 @@ test('workspace invoice blueprint puts payment before terms and always renders s
   assert.match(viewer,/#7c3aed!important/);
   assert.match(viewer,/#f1f5f9!important/);
 });
+
+
+test('saved invoice and quotation terms are reloaded for the viewer and public PDFs never truncate them',()=>{
+  const viewer=readFileSync('app/next-workspace/documents/DocumentViewer.tsx','utf8');
+  const pdf=readFileSync('lib/server/documents/public-pdf.ts','utf8');
+
+  assert.match(viewer,/from\('invoices'\)[\s\S]*?select\('invoice_number,status,notes,terms,inventory_location_id,delivery_date,document_kind'\)/);
+  assert.match(viewer,/source\.data\.terms \?\? ''/);
+  assert.match(viewer,/from\('quotations'\)[\s\S]*?select\('quotation_number,status,notes,terms,valid_until'\)/);
+  assert.match(viewer,/const shareActionsVisible = canSharePublicDocument\(type\)/);
+  assert.match(viewer,/documentFilenameLabel\(type\)/);
+  assert.match(pdf,/drawInvoiceInfoSection\('TERMS & CONDITIONS'/);
+  assert.doesNotMatch(pdf,/wrap\(doc\.terms, 47\)\.slice/);
+  assert.doesNotMatch(pdf,/lines\.slice\(0,6\)/);
+});
