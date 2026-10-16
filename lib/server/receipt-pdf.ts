@@ -16,7 +16,10 @@ type ReceiptRow = {
   business_id: string;
 };
 
+type ReceiptTheme = { templateKey?: string | null; primaryColor?: string | null; secondaryColor?: string | null; accentColor?: string | null; textColor?: string | null; backgroundColor?: string | null };
+
 type PdfData = {
+  documentTheme?: ReceiptTheme | null;
   receipt: ReceiptRow;
   payment: { amount: number; invoice_id: string | null } | null;
   invoice: { invoice_number: string; invoice_date: string; total: number; amount_paid: number; balance_due: number; document_kind: string } | null;
@@ -78,6 +81,44 @@ const wrap = (value: string, maxChars: number) => {
 
 const pdfEscape = (value: string) => cleanText(value);
 
+type PdfPalette = { key: string; primary: string; secondary: string; accent: string; ink: string; background: string; pale: string; accentPale: string };
+const pdfHex = (value: string | null | undefined, fallback = '#4338CA') => {
+  const raw = String(value || fallback).trim().replace(/^#/, '');
+  const hex = /^[0-9a-f]{6}$/i.test(raw) ? raw : fallback.replace(/^#/, '');
+  return [0, 2, 4].map(offset => (parseInt(hex.slice(offset, offset + 2), 16) / 255).toFixed(3)).join(' ');
+};
+const mixPdfHex = (value: string | null | undefined, ratio = 0.91, fallback = '#4338CA') => {
+  const raw = String(value || fallback).trim().replace(/^#/, '');
+  const hex = /^[0-9a-f]{6}$/i.test(raw) ? raw : fallback.replace(/^#/, '');
+  const channels = [0, 2, 4].map(offset => {
+    const source = parseInt(hex.slice(offset, offset + 2), 16);
+    return Math.round(source * (1 - ratio) + 255 * ratio).toString(16).padStart(2, '0');
+  });
+  return pdfHex('#' + channels.join(''));
+};
+function resolveReceiptPalette(input?: ReceiptTheme | null): PdfPalette {
+  const key = ['classic', 'minimal', 'modern', 'premium', 'professional'].includes(String(input?.templateKey || '').toLowerCase())
+    ? String(input?.templateKey).toLowerCase() : 'modern';
+  const presets: Record<string, { primary: string; secondary: string; accent: string; background: string }> = {
+    classic: { primary: '#7F1D1D', secondary: '#78716C', accent: '#991B1B', background: '#FFFFFF' },
+    minimal: { primary: '#111827', secondary: '#64748B', accent: '#2563EB', background: '#FFFFFF' },
+    modern: { primary: '#4338CA', secondary: '#64748B', accent: '#7C3AED', background: '#F8FAFC' },
+    premium: { primary: '#4C1D95', secondary: '#7C3AED', accent: '#A855F7', background: '#FAF5FF' },
+    professional: { primary: '#0F3B66', secondary: '#52677C', accent: '#145A8D', background: '#FFFFFF' },
+  };
+  const preset = presets[key];
+  const primaryHex = input?.primaryColor || preset.primary;
+  const accentHex = input?.accentColor || preset.accent;
+  const backgroundHex = input?.backgroundColor || preset.background;
+  return {
+    key, primary: pdfHex(primaryHex), secondary: pdfHex(input?.secondaryColor || preset.secondary),
+    accent: pdfHex(accentHex), ink: pdfHex(input?.textColor || '#172033'),
+    background: pdfHex(backgroundHex), pale: mixPdfHex(backgroundHex, 0.93),
+    accentPale: mixPdfHex(accentHex, 0.91),
+  };
+}
+
+
 const buildReceiptPdf = (data: PdfData) => {
   const canonical = createCanonicalDocumentViewModel({
     type: 'receipt',
@@ -93,6 +134,7 @@ const buildReceiptPdf = (data: PdfData) => {
     customer: data.customer,
     items: data.items,
   }, { type: 'receipt' });
+  const palette = resolveReceiptPalette(data.documentTheme);
   const receiptAmount = Number(data.receipt.amount || 0);
   const currency = plain(data.receipt.currency_code || 'INR').toUpperCase() || 'INR';
   const ledgerCurrency = plain(data.business?.base_currency_code || data.business?.currency_code || currency).toUpperCase() || currency;
@@ -112,22 +154,38 @@ const buildReceiptPdf = (data: PdfData) => {
   const pages: string[][] = [[]];
   let page = pages[0];
 
-  const textLine = (target: string[], x: number, y: number, value: string, size = 10, bold = false, fill = '0 0 0') => {
+  const textLine = (target: string[], x: number, y: number, value: string, size = 10, bold = false, fill = palette.ink) => {
     const font = bold ? '/F2' : '/F1';
     // PDF text inherits the non-stroking fill colour. Every text run sets its own
     // readable foreground so pale customer/payment boxes cannot wash out later rows.
     target.push(`${fill} rg BT ${font} ${size} Tf 1 0 0 1 ${x.toFixed(2)} ${y.toFixed(2)} Tm (${pdfEscape(value)}) Tj ET`);
   };
   const line = (target: string[], x1: number, y1: number, x2: number, y2: number) => {
-    target.push(`0.78 0.78 0.78 RG 0.7 w ${x1.toFixed(2)} ${y1.toFixed(2)} m ${x2.toFixed(2)} ${y2.toFixed(2)} l S`);
+    target.push(`${palette.secondary} RG 0.7 w ${x1.toFixed(2)} ${y1.toFixed(2)} m ${x2.toFixed(2)} ${y2.toFixed(2)} l S`);
   };
-  const rect = (target: string[], x: number, y: number, w: number, h: number, fill = '0.96 0.97 0.98') => {
+  const rect = (target: string[], x: number, y: number, w: number, h: number, fill = palette.pale) => {
     target.push(`${fill} rg ${x.toFixed(2)} ${y.toFixed(2)} ${w.toFixed(2)} ${h.toFixed(2)} re f`);
   };
   const estimateTextWidth = (value: string, size: number, bold = false) => Array.from(value).reduce((width, ch) => {
     const factor = /[ilI.,:;'|!]/.test(ch) ? 0.25 : /[MW@%]/.test(ch) ? 0.82 : /[A-Z0-9]/.test(ch) ? 0.58 : ch === ' ' ? 0.28 : 0.5;
     return width + size * factor * (bold ? 1.04 : 1);
   }, 0);
+  const drawVectorCorners = (target: string[]) => {
+    rect(target, 0, 0, pageWidth, pageHeight, palette.background);
+    if (palette.key === 'minimal') {
+      target.push(`${palette.primary} RG 1.2 w 455 842 m 595 842 l S`, `${palette.accent} RG 1.2 w 595 842 m 595 790 l S`, `${palette.accent} rg 575 822 4 4 re f`);
+    } else if (palette.key === 'classic') {
+      target.push(`${mixPdfHex(data.documentTheme?.primaryColor, 0.88, '#7F1D1D')} rg 495 842 m 595 842 l 595 798 l h f`, `${palette.accent} rg 535 842 m 595 842 l 595 816 l h f`);
+    } else if (palette.key === 'premium') {
+      target.push(`${mixPdfHex(data.documentTheme?.primaryColor, 0.86, '#4C1D95')} rg 468 842 m 595 842 l 595 790 l h f`, `${palette.accent} rg 525 842 m 595 842 l 595 812 l h f`, `${palette.primary} RG 1.3 w 555 842 m 595 802 l S`);
+    } else if (palette.key === 'professional') {
+      target.push(`${mixPdfHex(data.documentTheme?.primaryColor, 0.87, '#0F3B66')} rg 492 842 m 595 842 l 595 794 l h f`, `${palette.accent} rg 565 842 m 595 842 l 595 812 l h f`, `${palette.primary} RG 1.5 w 520 842 m 520 827 l 595 827 l S`);
+    } else {
+      target.push(`${mixPdfHex(data.documentTheme?.primaryColor, 0.88, '#4338CA')} rg 485 842 m 595 842 l 595 792 l h f`, `${palette.accent} rg 535 842 m 595 842 l 595 816 l h f`, `${palette.primary} RG 1.4 w 555 842 m 595 802 l S`);
+    }
+    target.push(`${mixPdfHex(data.documentTheme?.accentColor, 0.90, '#7C3AED')} rg 0 0 m 34 0 l 0 34 l h f`);
+  };
+  drawVectorCorners(page);
   let y = pageHeight - top;
   const businessName = plain(data.business?.name || data.business?.legal_name || 'Business');
   const businessLegal = plain(data.business?.legal_name || '');
@@ -137,8 +195,9 @@ const buildReceiptPdf = (data: PdfData) => {
   const startContinuationPage = () => {
     page = [];
     pages.push(page);
+    drawVectorCorners(page);
     y = pageHeight - top;
-    textLine(page, left, y, `Payment Receipt ${receiptNumber} (continued)`, 11, true);
+    textLine(page, left, y, `Payment Receipt ${receiptNumber} (continued)`, 11, true, palette.primary);
     y -= 16;
     line(page, left, y, pageWidth - right, y);
     y -= 18;
@@ -151,7 +210,7 @@ const buildReceiptPdf = (data: PdfData) => {
     return y;
   };
 
-  textLine(page, left, y, businessName, 17, true);
+  textLine(page, left, y, businessName, 17, true, palette.primary);
   y -= 20;
   if (businessLegal && businessLegal !== businessName) { textLine(page, left, y, businessLegal, 8.5); y -= 11; }
   if (address) {
@@ -164,7 +223,7 @@ const buildReceiptPdf = (data: PdfData) => {
   y -= 3;
   line(page, left, y, pageWidth - right, y);
   y -= 19;
-  textLine(page, left, y, 'PAYMENT RECEIPT / VOUCHER', 13, true);
+  textLine(page, left, y, 'PAYMENT RECEIPT / VOUCHER', 13, true, palette.primary);
   const receiptLabel = `Receipt: ${receiptNumber}`;
   textLine(page, pageWidth - right - estimateTextWidth(receiptLabel, 8.5, true), y + 1, receiptLabel, 8.5, true);
   y -= 16;
@@ -193,7 +252,7 @@ const buildReceiptPdf = (data: PdfData) => {
 
   const reference = plain(data.receipt.reference_number || '');
   const paymentCardHeight = reference ? 37 : 25;
-  const paymentTop = drawTopBox(paymentCardHeight, '0.97 0.97 0.99');
+  const paymentTop = drawTopBox(paymentCardHeight, palette.pale);
   textLine(page, left + 10, paymentTop - 12, `Payment mode: ${plain(data.receipt.payment_method || '—')}`, 8.2);
   if (reference) textLine(page, left + 10, paymentTop - 27, `UTR / transaction reference: ${reference}`, 8.1);
   y = paymentTop - paymentCardHeight - 10;
@@ -249,17 +308,17 @@ const buildReceiptPdf = (data: PdfData) => {
   }
 
   ensureSpace(105);
-  const summaryTop = drawTopBox(39, '0.91 0.99 0.96');
-  textLine(page, left + 10, summaryTop - 14, 'AMOUNT RECEIVED', 8.5, true);
+  const summaryTop = drawTopBox(43, palette.accentPale);
+  textLine(page, left + 10, summaryTop - 14, 'AMOUNT RECEIVED', 8.5, true, palette.primary);
   const receivedText = money(receiptAmount, currency);
-  textLine(page, pageWidth - right - estimateTextWidth(receivedText, 12, true) - 12, summaryTop - 15, receivedText, 12, true);
+  textLine(page, pageWidth - right - estimateTextWidth(receivedText, 12, true) - 12, summaryTop - 15, receivedText, 12, true, palette.primary);
   textLine(page, left + 10, summaryTop - 29, `Amount in words: ${canonical.financials.amountInWords}`, 7.2);
-  y = summaryTop - 49;
+  y = summaryTop - 53;
 
-  const ledgerTop = drawTopBox(25, '1.00 0.99 0.91');
-  textLine(page, left + 10, ledgerTop - 16, 'Current customer ledger balance', 8.2);
+  const ledgerTop = drawTopBox(25, palette.pale);
+  textLine(page, left + 10, ledgerTop - 16, 'Current customer ledger balance', 8.2, false, palette.primary);
   const ledgerText = money(data.customer_outstanding, ledgerCurrency);
-  textLine(page, pageWidth - right - estimateTextWidth(ledgerText, 9, true) - 10, ledgerTop - 16, ledgerText, 9, true);
+  textLine(page, pageWidth - right - estimateTextWidth(ledgerText, 9, true) - 10, ledgerText, 9, true, palette.primary);
   y = ledgerTop - 35;
 
   ensureSpace(45);
@@ -271,7 +330,7 @@ const buildReceiptPdf = (data: PdfData) => {
   textLine(page, Math.max(left, (pageWidth - estimateTextWidth(disclaimer, 7.8)) / 2), y, disclaimer, 7.8);
   y -= 12;
   const powered = 'Powered by Moneymatters FinOps | mm.nilanga.in';
-  textLine(page, Math.max(left, (pageWidth - estimateTextWidth(powered, 7.2, true)) / 2), y, powered, 7.2, true);
+  textLine(page, Math.max(left, (pageWidth - estimateTextWidth(powered, 7.2, true)) / 2), y, powered, 7.2, true, palette.accent);
 
   return encodePdf(pages, pageWidth, pageHeight);
 };
