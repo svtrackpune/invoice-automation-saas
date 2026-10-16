@@ -145,3 +145,17 @@ test('finalizing an invoice preflights stock and explains shortfall without bypa
   assert.match(migration,/IF v_invoice\.source_challan_id IS NOT NULL THEN\s+RETURN;/);
   assert.match(migration,/quantity_on_hand/);
 });
+
+test('receipt PDF text sanitizer preserves r, n, spaces and punctuation in product labels', async () => {
+  const renderer = await read('lib/server/receipt-pdf.ts');
+  const publicTokens = await read('lib/server/documents/public-tokens.ts');
+  assert.ok(renderer.includes("const plain = (value: unknown) => String(value ?? '').replace(/[\\\\r\\\\n]/g, ' ').trim();"));
+  assert.ok(renderer.includes("}).replace(/[^\\\\x20-\\\\x7E]/g, '');"));
+  assert.ok(renderer.includes(".select('id,name,description,sku,unit')"));
+  assert.ok(renderer.includes("const productDescription = plain(product?.description || '')"));
+  assert.ok(renderer.includes("lineDescription && lineDescription !== itemName ? lineDescription : productDescription"));
+  assert.ok(publicTokens.includes("const productDescription = text(product?.description)"));
+  assert.ok(publicTokens.includes("description: lineDescription && lineDescription !== itemName ? lineDescription : productDescription && productDescription !== itemName ? productDescription : ''"));
+  // The PDF's line-level description may equal the item name; in that case,
+  // prefer the catalog description while never substituting the name itself.
+});
