@@ -341,6 +341,24 @@ export async function loadReceiptPdfData(db: SupabaseClient, receiptId: string):
     db.from('businesses').select('name,legal_name,address,phone,email,website,tax_registration_number,logo_storage_path,currency_code,base_currency_code').eq('id', receipt.business_id).single(),
   ]);
 
+  const preferenceResult = await db.from('business_document_preferences')
+    .select('template_id,primary_color,secondary_color,accent_color,text_color,background_color')
+    .eq('business_id', receipt.business_id).eq('document_type', 'receipt').maybeSingle();
+  if (preferenceResult.error) throw new Error('Receipt theme preferences are unavailable.');
+  const preference = preferenceResult.data || {};
+  const templateResult = preference.template_id
+    ? await db.from('document_templates').select('template_key').eq('id', preference.template_id).eq('document_type', 'receipt').eq('is_active', true).maybeSingle()
+    : { data: null, error: null } as any;
+  if (templateResult.error) throw new Error('Selected receipt template is unavailable.');
+  const documentTheme: ReceiptTheme = {
+    templateKey: plain(templateResult.data?.template_key || 'modern'),
+    primaryColor: preference.primary_color || null,
+    secondaryColor: preference.secondary_color || null,
+    accentColor: preference.accent_color || null,
+    textColor: preference.text_color || null,
+    backgroundColor: preference.background_color || null,
+  };
+
   const paymentInvoiceId = paymentResult.data?.invoice_id || null;
   const [allocationResult, outstandingResult] = await Promise.all([
     receipt.payment_id
@@ -414,6 +432,7 @@ export async function loadReceiptPdfData(db: SupabaseClient, receiptId: string):
   });
 
   return {
+    documentTheme,
     receipt: receipt as ReceiptRow,
     payment: paymentResult.data || null,
     invoice: invoiceResult.data || null,
