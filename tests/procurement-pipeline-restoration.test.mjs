@@ -38,3 +38,11 @@ test('procurement schema changes refresh PostgREST and remove anonymous table gr
   assert.match(migration, /REVOKE ALL ON TABLE public\.vendor_supply_mappings FROM anon/);
   assert.match(migration, /NOTIFY pgrst, 'reload schema'/);
 });
+
+test('procurement query path adds bill-item ordering index and pins trigger search path', async () => {
+  const migration = await read('supabase/migrations/20261016133000_harden_procurement_query_path.sql');
+
+  assert.match(migration, /CREATE INDEX IF NOT EXISTS bill_items_bill_id_sort_order_idx\s+ON public\.bill_items \(bill_id, sort_order\)/);
+  assert.match(migration, /CREATE OR REPLACE FUNCTION public\.set_vendor_supply_mapping_updated_at\(\)/);
+  assert.match(migration, /LANGUAGE plpgsql\s+SET search_path TO 'public', 'pg_temp'/);
+});
