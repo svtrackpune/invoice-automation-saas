@@ -1,7 +1,6 @@
 BEGIN;
 
--- Resolve a document's current business-selected template before the stale per-document template_id.
--- Explicit render API overrides still take precedence; system defaults remain the final fallback.
+-- Business-selected templates supersede per-document defaults while explicit render overrides remain authoritative.
 CREATE OR REPLACE FUNCTION public.prepare_document_render_legacy(p_document_type text, p_document_id uuid, p_template_id uuid DEFAULT NULL::uuid)
  RETURNS uuid
  LANGUAGE plpgsql
@@ -52,6 +51,6 @@ payload:=payload||jsonb_build_object('document_context',jsonb_build_object('busi
 insert into public.document_render_jobs(business_id,document_type,document_id,template_id,template_version,payload,created_by) values(bid,p_document_type,p_document_id,tid,tv,payload,auth.uid()) on conflict(document_type,document_id,template_id,template_version) do update set payload=excluded.payload,status='ready',error_message=null,created_at=now() returning id into job;
 return job;
 end;$function$
-
+;
 
 COMMIT;
