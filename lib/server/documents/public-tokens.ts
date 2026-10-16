@@ -10,6 +10,7 @@ type Row = Record<string, unknown>;
 export type PublicDocument = {
   type: PublicDocumentType;
   templateName?: string | null;
+  documentTheme?: { templateKey?: string | null; primaryColor?: string | null; secondaryColor?: string | null; accentColor?: string | null; textColor?: string | null; backgroundColor?: string | null } | null;
   settlementDisplayMode?: 'upi_qr' | 'bank_transfer' | 'both' | 'none' | null;
   id: string;
   businessId: string;
@@ -146,7 +147,7 @@ export async function loadPublicDocumentById(
     const data = await loadReceiptPdfData(db, id);
     if (text(data.receipt.business_id) !== businessId) return null;
     return {
-      type, id: text(data.receipt.id), businessId, number: text(data.receipt.receipt_number),
+      type, id: text(data.receipt.id), businessId, documentTheme: data.documentTheme || null, number: text(data.receipt.receipt_number),
       date: text(data.receipt.receipt_date), dueDate: null, validUntil: null, status: 'paid',
       currencyCode: text(data.receipt.currency_code || 'INR') || 'INR', subtotal: n(data.receipt.amount),
       discountTotal: 0, taxTotal: 0, total: n(data.receipt.amount), amountPaid: n(data.receipt.amount),
@@ -199,6 +200,7 @@ export async function loadPublicDocumentById(
   let customerId: string;
   let typeToken: string;
   let templateName: string | null = null;
+  let templateKey: string | null = null;
   let number: string;
   let date: string;
   let dueDate: string | null = null;
@@ -224,9 +226,12 @@ export async function loadPublicDocumentById(
     row = result.data as Row;
     const templateId = nullable(row.template_id);
     if (templateId) {
-      const templateResult = await db.from('document_templates').select('template_name')
+      const templateResult = await db.from('document_templates').select('template_key,template_name')
         .eq('id', templateId).maybeSingle();
-      if (!templateResult.error && templateResult.data) templateName = nullable(templateResult.data.template_name);
+      if (!templateResult.error && templateResult.data) {
+        templateName = nullable(templateResult.data.template_name);
+        templateKey = nullable(templateResult.data.template_key);
+      }
     }
     typeToken = text(row.public_share_token);
     customerId = text(row.customer_id); number = text(row.invoice_number); date = text(row.invoice_date);
@@ -328,6 +333,36 @@ export async function loadPublicDocumentById(
     }));
   }
 
+  const preferenceType = type === 'challan' ? 'delivery_challan' : type;
+  const preferenceResult = await db.from('business_document_preferences')
+    .select('template_id,primary_color,secondary_color,accent_color,text_color,background_color')
+    .eq('business_id', businessId).eq('document_type', preferenceType).maybeSingle();
+  if (preferenceResult.error) throw new Error('Document theme preferences are unavailable.');
+  const preference = preferenceResult.data || {};
+  if (preference.template_id) {
+    const preferredTemplate = await db.from('document_templates').select('template_key,template_name')
+      .eq('id', preference.template_id).eq('document_type', preferenceType).eq('is_active', true).maybeSingle();
+    if (preferredTemplate.error) throw new Error('Selected document template is unavailable.');
+    if (preferredTemplate.data) {
+      templateKey = nullable(preferredTemplate.data.template_key);
+      templateName = nullable(preferredTemplate.data.template_name);
+    }
+  }
+  if (!templateKey) {
+    const fallbackTemplate = await db.from('document_templates').select('template_key,template_name')
+      .eq('document_type', preferenceType).eq('is_active', true)
+      .order('is_system', { ascending: false }).order('version', { ascending: false }).limit(1).maybeSingle();
+    if (fallbackTemplate.error) throw new Error('Default document template is unavailable.');
+    templateKey = nullable(fallbackTemplate.data?.template_key) || 'modern';
+    if (!templateName) templateName = nullable(fallbackTemplate.data?.template_name);
+  }
+  const documentTheme = {
+    templateKey: templateKey || 'modern',
+    primaryColor: nullable(preference.primary_color), secondaryColor: nullable(preference.secondary_color),
+    accentColor: nullable(preference.accent_color), textColor: nullable(preference.text_color),
+    backgroundColor: nullable(preference.background_color),
+  };
+
   if (!statusAllowed(type, status, validUntil)) return null;
   if (typeToken.length < 48) return null;
   if (type === 'invoice' || type === 'quotation') {
@@ -404,7 +439,8 @@ export async function loadPublicDocumentById(
   const parties = await loadParties(db, businessId, customerId || null);
   return {
     type, id, businessId, number, date, dueDate, validUntil, status, currencyCode,
-    ...(type === 'invoice' ? { templateName } : {}),
+    ...(templateName ? { templateName } : {}),
+    documentTheme,
     ...(settlementDisplayMode ? { settlementDisplayMode } : {}),
     subtotal, discountTotal, taxTotal, total, amountPaid, balanceDue, notes, terms,
     paymentLink, paymentQrPayload, vehicleNumber, transporterName, ewayBillNumber,
