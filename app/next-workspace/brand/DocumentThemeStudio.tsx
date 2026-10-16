@@ -86,6 +86,22 @@ function Logo({ brand, width }: { brand: Brand; width: number }) {
   return <img src={url} alt={brand.name || 'Business logo'} style={{ width: Math.min(width, 180), maxHeight: width * .62 }} className="shrink-0 rounded-lg object-contain" />;
 }
 
+function StudioCornerArt({ templateKey, primary, accent }: { templateKey: TemplateKey; primary: string; accent: string }) {
+  const motif = templateKey === 'classic'
+    ? <><path d="M140 0H72L140 44Z" fill={primary} opacity=".14"/><path d="M140 0H106L140 24" fill="none" stroke={accent} strokeWidth="2.5"/><path d="M116 0V12H140" fill="none" stroke={primary} strokeWidth="1.4"/></>
+    : templateKey === 'minimal'
+      ? <><path d="M140 0H86M140 0V42" fill="none" stroke={primary} strokeWidth="1.4"/><path d="M126 0V14H140" fill="none" stroke={accent} strokeWidth="1.4"/><circle cx="117" cy="13" r="3" fill={accent}/></>
+      : templateKey === 'premium'
+        ? <><path d="M140 0H76L140 46Z" fill={primary} opacity=".15"/><path d="M102 0L140 38L127 48L89 10Z" fill={accent} opacity=".8"/><path d="M118 0L140 22" fill="none" stroke={primary} strokeWidth="2"/></>
+        : templateKey === 'professional'
+          ? <><path d="M140 0H77V9H130V39H140Z" fill={primary} opacity=".14"/><path d="M140 0H111V6H134V29H140Z" fill={accent} opacity=".92"/><path d="M94 0V17H140" fill="none" stroke={primary} strokeWidth="1.8"/></>
+          : <><path d="M140 0H67L140 48Z" fill={primary} opacity=".14"/><path d="M140 0H101L140 25Z" fill={accent} opacity=".86"/><path d="M121 0L140 19" fill="none" stroke={primary} strokeWidth="1.5"/></>;
+  return <>
+    <svg aria-hidden="true" viewBox="0 0 140 48" className="pointer-events-none absolute right-0 top-0 z-0 h-12 w-36 opacity-90">{motif}</svg>
+    <svg aria-hidden="true" viewBox="0 0 140 48" className="pointer-events-none absolute bottom-0 left-0 z-0 h-9 w-24 rotate-180 opacity-50">{motif}</svg>
+  </>;
+}
+
 function PreviewCanvas({ type, templateKey, brand, pref, customer, balance, upiQr, payment }: { type: DocType; templateKey: TemplateKey; brand: Brand; pref: Pref; customer: SampleCustomer; balance: number; upiQr: string; payment: PaymentSettings }) {
   const config = configOf(pref);
   const colors = presetColors(templateKey);
@@ -100,10 +116,63 @@ function PreviewCanvas({ type, templateKey, brand, pref, customer, balance, upiQ
   const tax = pref.show_tax_details && !['delivery_challan', 'purchase_order', 'cash_bill'].includes(type) ? 1080 : 0;
   const displayRows = Array.from({ length: rows }, (_, index) => index);
 
+    if (isReceipt) {
+    const receiptRows = [{ label: 'Professional service', qty: '2', value: 5000 }, { label: 'Consulting / support', qty: '1', value: 1000 }];
+    return <div className="min-h-full bg-slate-200/70 p-4 sm:p-7" style={{ fontFamily: pref.font_family }}>
+      <article className="relative mx-auto w-[340px] max-w-full overflow-hidden rounded-2xl bg-white shadow-2xl" style={{ backgroundColor: bg, color: pref.text_color, borderRadius: config.corner_radius }}>
+        <StudioCornerArt templateKey={templateKey} primary={primary} accent={accent}/>
+        <header className="relative z-10 border-b px-5 pb-4 pt-5 text-center" style={{ borderColor: secondary + '55', background: templateKey === 'minimal' ? bg : 'linear-gradient(135deg,' + primary + ', ' + accent + ')' , color: templateKey === 'minimal' ? pref.text_color : '#FFFFFF' }}>
+          {pref.show_logo && <div className="mb-2 flex justify-center"><Logo brand={brand} width={Math.min(58, config.logo_width)} /></div>}
+          <div className="text-sm font-black tracking-tight">{brand.name || 'Business Name'}</div>
+          {brand.legal_name && brand.legal_name !== brand.name && <div className="mt-0.5 text-[9px] opacity-75">{brand.legal_name}</div>}
+          {pref.show_business_address && <div className="mt-1 text-[9px] leading-4 opacity-80">{addressText(brand.address)}</div>}
+          {(brand.phone || brand.email) && <div className="mt-1 text-[9px] opacity-80">{[brand.phone, brand.email].filter(Boolean).join(' · ')}</div>}
+          {pref.show_tax_details && brand.tax_registration_number && <div className="mt-1 text-[9px] font-semibold opacity-90">GSTIN / Tax ID: {brand.tax_registration_number}</div>}
+          <div className="mt-3 inline-flex rounded-full px-3 py-1 text-[9px] font-black uppercase tracking-[.16em]" style={{ color: templateKey === 'minimal' ? accent : primary, backgroundColor: templateKey === 'minimal' ? accent + '12' : '#FFFFFF' }}>Payment Receipt</div>
+          <div className="mt-2 text-[10px] opacity-90">RCT-00021 · 07 Oct 2026</div>
+        </header>
+        <div className="space-y-3 px-4 py-4">
+          <div className="rounded-xl border p-3" style={{ borderColor: secondary + '55', backgroundColor: bg }}>
+            <div className="text-[8px] font-black uppercase tracking-[.16em]" style={{ color: accent }}>Received from</div>
+            <div className="mt-1 text-xs font-bold">{customer.display_name || 'Sample Customer'}</div>
+            {customer.legal_name && <div className="text-[9px]" style={{ color: secondary }}>{customer.legal_name}</div>}
+            {customer.phone && <div className="mt-0.5 text-[9px]" style={{ color: secondary }}>{customer.phone}</div>}
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <div className="rounded-lg p-2.5" style={{ backgroundColor: accent + '0D' }}>
+              <div className="text-[8px] font-bold uppercase tracking-wide" style={{ color: secondary }}>Payment mode</div>
+              <div className="mt-1 text-[10px] font-bold" style={{ color: pref.text_color }}>UPI / Bank transfer</div>
+            </div>
+            <div className="rounded-lg p-2.5" style={{ backgroundColor: accent + '0D' }}>
+              <div className="text-[8px] font-bold uppercase tracking-wide" style={{ color: secondary }}>Reference</div>
+              <div className="mt-1 text-[10px] font-bold" style={{ color: pref.text_color }}>UTR-00021</div>
+            </div>
+          </div>
+          {receiptRows.slice(0, Math.min(2, rows)).length > 0 && <section>
+            <div className="mb-1.5 flex items-center justify-between text-[8px] font-black uppercase tracking-wide" style={{ color: secondary }}><span>Invoice reference</span><span>Amount</span></div>
+            {receiptRows.slice(0, Math.min(2, rows)).map(row => <div key={row.label} className="flex items-start justify-between gap-3 border-t py-2 text-[9px]" style={{ borderColor: secondary + '44' }}><div><b>{row.label}</b><span className="block mt-0.5" style={{ color: secondary }}>Qty {row.qty}</span></div><b>{money(row.value)}</b></div>)}
+          </section>}
+          <div className="rounded-xl p-3.5" style={{ background: 'linear-gradient(115deg,' + primary + ', ' + accent + ')', color: '#FFFFFF' }}>
+            <div className="text-[8px] font-bold uppercase tracking-[.18em] opacity-80">Amount received</div>
+            <div className="mt-1 text-2xl font-black tracking-tight">{money(7080)}</div>
+            <div className="mt-1 text-[8px] opacity-80">Seven thousand and eighty rupees only</div>
+          </div>
+          {pref.show_customer_balance && <div className="flex items-center justify-between gap-3 rounded-lg border px-3 py-2 text-[9px]" style={{ borderColor: accent + '55', backgroundColor: accent + '0A' }}><span style={{ color: secondary }}>Customer ledger balance</span><b style={{ color: accent }}>{money(balance)}</b></div>}
+          {pref.show_terms && <div className="text-[9px] leading-4" style={{ color: secondary }}>{payment.payment_instructions || 'Received with thanks. Please retain this receipt for your records.'}</div>}
+        </div>
+        <footer className="relative z-10 border-t px-4 py-3 text-center" style={{ borderColor: secondary + '55' }}>
+          <div className="text-[8px]" style={{ color: secondary }}>This is a computer-generated payment receipt.</div>
+          <div className="mt-1 text-[8px] font-semibold" style={{ color: accent }}>Powered by Moneymatters</div>
+        </footer>
+      </article>
+    </div>;
+  }
+
   return <div className="min-h-full bg-slate-200/70 p-4 sm:p-7" style={{ fontFamily: pref.font_family }}>
-    <article className={isReceipt ? 'mx-auto w-[300px] overflow-hidden bg-white shadow-2xl' : 'mx-auto w-full max-w-[794px] min-h-[1123px] overflow-hidden bg-white shadow-2xl'}
+    <article className={'relative mx-auto w-full max-w-[794px] min-h-[1123px] overflow-hidden bg-white shadow-2xl'}
       style={{ borderRadius: config.corner_radius, backgroundColor: bg, color: pref.text_color }}>
-      <header className="p-6 sm:p-8" style={{ background: templateKey === 'minimal' ? bg : primary, color: templateKey === 'minimal' ? pref.text_color : '#FFFFFF' }}>
+      <StudioCornerArt templateKey={templateKey} primary={primary} accent={accent}/>
+      <header className="relative z-10 p-6 sm:p-8" style={{ background: templateKey === 'minimal' ? bg : primary, color: templateKey === 'minimal' ? pref.text_color : '#FFFFFF' }}>
         <div className="flex items-start justify-between gap-6">
           <div className="flex min-w-0 items-start gap-4">
             {pref.show_logo && <Logo brand={brand} width={config.logo_width} />}
