@@ -46,7 +46,8 @@ test('official receipt PDF follows allocation source, keeps source invoice descr
   assert.ok(renderer.includes('? String(allocationInvoiceIds[0])'));
   assert.ok(renderer.includes('allocationInvoiceIds.length === 0 ? paymentInvoiceId : null'));
   assert.ok(renderer.includes(".from('invoice_items').select('quantity,unit_price,line_total,description,product_service_id')"));
-  assert.ok(renderer.includes("description: plain(item.description || '')"));
+  assert.ok(renderer.includes("description: (() => {"));
+  assert.ok(renderer.includes("const productDescription = plain(product?.description || '')"));
   assert.ok(renderer.includes("const textLine = (target: string[], x: number, y: number, value: string, size = 10, bold = false, fill = '0 0 0')"));
   assert.ok(renderer.includes('target.push(`${fill} rg BT ${font} ${size} Tf'));
   assert.ok(renderer.includes("name: plain(product?.name || item.description || 'Item')"));
@@ -149,8 +150,8 @@ test('finalizing an invoice preflights stock and explains shortfall without bypa
 test('receipt PDF text sanitizer preserves r, n, spaces and punctuation in product labels', async () => {
   const renderer = await read('lib/server/receipt-pdf.ts');
   const publicTokens = await read('lib/server/documents/public-tokens.ts');
-  assert.ok(renderer.includes("const plain = (value: unknown) => String(value ?? '').replace(/[\\\\r\\\\n]/g, ' ').trim();"));
-  assert.ok(renderer.includes("}).replace(/[^\\\\x20-\\\\x7E]/g, '');"));
+  assert.ok(renderer.includes(String.raw`const plain = (value: unknown) => String(value ?? '').replace(/[\r\n]/g, ' ').trim();`));
+  assert.ok(renderer.includes(String.raw`}).replace(/[^\x20-\x7E]/g, '');`));
   assert.ok(renderer.includes(".select('id,name,description,sku,unit')"));
   assert.ok(renderer.includes("const productDescription = plain(product?.description || '')"));
   assert.ok(renderer.includes("lineDescription && lineDescription !== itemName ? lineDescription : productDescription"));
