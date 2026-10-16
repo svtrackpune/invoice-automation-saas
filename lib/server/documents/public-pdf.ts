@@ -178,7 +178,7 @@ const docTitle = (type: string, business?: PublicDocument['business']) => {
   return 'PAYMENT RECEIPT';
 };
 
-type PublicPdfPalette = { primary: RGB; accent: RGB; accentSoft: RGB; pale: RGB; border: RGB; rowBorder: RGB; muted: RGB; ink: RGB };
+type PublicPdfPalette = { primary: RGB; accent: RGB; accentSoft: RGB; pale: RGB; background: RGB; border: RGB; rowBorder: RGB; muted: RGB; ink: RGB };
 const hexRgb = (value: string | null | undefined, fallback: string): RGB => {
   const raw = String(value || fallback).trim().replace(/^#/, '');
   const hex = /^[0-9a-f]{6}$/i.test(raw) ? raw : fallback.replace(/^#/, '');
@@ -198,8 +198,9 @@ function resolvePublicPdfPalette(theme?: PublicDocument['documentTheme']): Publi
   const primary = hexRgb(theme?.primaryColor, preset.primary);
   const accent = hexRgb(theme?.accentColor, preset.accent);
   const secondary = hexRgb(theme?.secondaryColor, preset.secondary);
+  const background = hexRgb(theme?.backgroundColor, '#FFFFFF');
   return {
-    primary, accent, accentSoft: tint(accent, 0.82), pale: tint(hexRgb(theme?.backgroundColor, '#F1F5F9'), 0.7),
+    primary, accent, accentSoft: tint(accent, 0.82), pale: tint(background, 0.93), background,
     border: tint(secondary, 0.65), rowBorder: tint(secondary, 0.87), muted: secondary,
     ink: hexRgb(theme?.textColor, '#172033'),
   };
@@ -247,6 +248,7 @@ export async function buildPublicDocumentPdf(doc: PublicDocument): Promise<Buffe
     c.polygon([[0, H], [24, H], [0, H - 24]], palette.accentSoft);
   };
   const header = (continued: boolean) => {
+    c.rect(0, 0, W, H, palette.background);
     drawCornerVectors();
     if (doc.type === 'invoice') {
       if (logo && logoId) {
