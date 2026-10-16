@@ -156,7 +156,7 @@ test('receipt PDF text sanitizer preserves r, n, spaces and punctuation in produ
   assert.ok(renderer.includes(".select('id,name,description,sku,unit')"));
   assert.ok(renderer.includes("const productDescription = plain(product?.description || '')"));
   assert.ok(renderer.includes("return lineDescription && lineDescription !== itemName"));
-  assert.ok(renderer.includes('return productDescription && productDescription !== itemName'));
+  assert.ok(renderer.includes('? productDescription && productDescription !== itemName'));
   assert.ok(publicTokens.includes("const productDescription = text(product?.description)"));
   assert.ok(publicTokens.includes("description: lineDescription && lineDescription !== itemName ? lineDescription : productDescription && productDescription !== itemName ? productDescription : ''"));
   // The PDF's line-level description may equal the item name; in that case,
