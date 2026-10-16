@@ -187,7 +187,7 @@ function PreviewCanvas({ type, templateKey, brand, pref, customer, balance, upiQ
           <div className="shrink-0 text-right">
             <div className="text-2xl font-black tracking-tight sm:text-3xl" style={{ color: templateKey === 'minimal' ? accent : '#FFFFFF' }}>{title}</div>
             <div className="mt-3 space-y-1 text-[10px] opacity-85">
-              <div><span className="opacity-60">Number</span> <b>{type === 'quotation' ? 'QUO-00021' : type === 'receipt' ? 'RCT-00021' : type === 'cash_bill' ? 'CB-00021' : 'DOC-00021'}</b></div>
+              <div><span className="opacity-60">Number</span> <b>{type === 'quotation' ? 'QUO-00021' : 'DOC-00021'}</b></div>
               <div><span className="opacity-60">Date</span> <b>07/10/2026</b></div>
               {!['receipt', 'cash_bill', 'delivery_challan', 'purchase_order', 'credit_note'].includes(type) && <div><span className="opacity-60">Due</span> <b>07/11/2026</b></div>}
             </div>
