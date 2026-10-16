@@ -24,7 +24,7 @@ test('selected preference template and Studio palette are authoritative in the f
   const viewer = await read('app/next-workspace/documents/DocumentViewer.tsx');
 
   assert.match(viewer, /select\('template_id,primary_color,secondary_color,accent_color,text_color,background_color,font_family,custom_fields/);
-  assert.match(viewer, /const studioTheme = \{ \Q/); 
+  assert.match(viewer, /const studioTheme = \{ \.\.\.\(fields\?\.theme_studio \|\| \{\}\), primary_color: preferences\?\.primary_color/);
   assert.match(viewer, /preferences\?\.primary_color/);
   assert.match(viewer, /let resolvedTemplate = templateResult\.data/);
   assert.match(viewer, /preferenceResult\.data\?\.template_id/);
