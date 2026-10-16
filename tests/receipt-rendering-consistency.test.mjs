@@ -102,7 +102,8 @@ test('customer-linked receipt shows the same source invoice items and preserves 
   assert.ok(tokens.includes("description: text(item.description || '')"));
   assert.ok(tokens.includes('unit: nullable(item.unit)'));
   assert.ok(renderer.includes('unit: product?.unit ? plain(product.unit) : null'));
-  assert.ok(renderer.includes("description: plain(item.description || '')"));
+  assert.ok(renderer.includes("description: (() => {"));
+  assert.ok(renderer.includes("const productDescription = plain(product?.description || '')"));
 });
 
 
@@ -154,7 +155,8 @@ test('receipt PDF text sanitizer preserves r, n, spaces and punctuation in produ
   assert.ok(renderer.includes(String.raw`}).replace(/[^\x20-\x7E]/g, '');`));
   assert.ok(renderer.includes(".select('id,name,description,sku,unit')"));
   assert.ok(renderer.includes("const productDescription = plain(product?.description || '')"));
-  assert.ok(renderer.includes("lineDescription && lineDescription !== itemName ? lineDescription : productDescription"));
+  assert.ok(renderer.includes("return lineDescription && lineDescription !== itemName"));
+  assert.ok(renderer.includes("? productDescription && productDescription !== itemName"));
   assert.ok(publicTokens.includes("const productDescription = text(product?.description)"));
   assert.ok(publicTokens.includes("description: lineDescription && lineDescription !== itemName ? lineDescription : productDescription && productDescription !== itemName ? productDescription : ''"));
   // The PDF's line-level description may equal the item name; in that case,
