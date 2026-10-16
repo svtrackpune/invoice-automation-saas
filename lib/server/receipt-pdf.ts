@@ -32,9 +32,9 @@ const cleanText = (value: unknown) => String(value ?? '').replace(/[\\()\r\n\u00
   if (ch === '(') return '\\(';
   if (ch === ')') return '\\)';
   return ' ';
-}).replace(/[^\\x20-\\x7E]/g, '');
+}).replace(/[^\x20-\x7E]/g, '');
 
-const plain = (value: unknown) => String(value ?? '').replace(/[\\r\\n]/g, ' ').trim();
+const plain = (value: unknown) => String(value ?? '').replace(/[\r\n]/g, ' ').trim();
 
 const money = (value: number, currency = 'INR') => {
   const amount = Number(value || 0);
@@ -387,7 +387,7 @@ export async function loadReceiptPdfData(db: SupabaseClient, receiptId: string):
 
   const productIds = Array.from(new Set((itemsResult.data || []).map((item: any) => item.product_service_id).filter(Boolean)));
   const productsResult = productIds.length
-    ? await db.from('products_services').select('id,name,sku,unit').in('id', productIds).eq('business_id', receipt.business_id)
+    ? await db.from('products_services').select('id,name,description,sku,unit').in('id', productIds).eq('business_id', receipt.business_id)
     : { data: [] } as any;
 
   const products = productsResult.data || [];
@@ -395,7 +395,7 @@ export async function loadReceiptPdfData(db: SupabaseClient, receiptId: string):
     const product = products.find((p: any) => p.id === item.product_service_id);
     return {
       name: plain(product?.name || item.description || 'Item'),
-      description: plain(item.description || ''),
+      description: (() => { const lineDescription = plain(item.description || ''); const productDescription = plain(product?.description || ''); const itemName = plain(product?.name || item.description || 'Item'); return lineDescription && lineDescription !== itemName ? lineDescription : productDescription && productDescription !== itemName ? productDescription : ''; })(),
       sku: product?.sku ? plain(product.sku) : null,
       unit: product?.unit ? plain(product.unit) : null,
       quantity: Number(item.quantity || 0),
