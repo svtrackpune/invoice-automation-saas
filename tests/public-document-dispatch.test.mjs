@@ -221,7 +221,7 @@ test('public invoice renderer creates a vector-rendered A4 GST PDF with QR and b
  assert.match(raw,/Same as billing address|Industrial Estate/,'ship-to card has a shipping or billing fallback');
  assert.doesNotMatch(raw,/This is a customer-facing invoice shared by/);
  assert.match(raw,/0\.486 0\.227 0\.929 rg[^\n]* m [^\n]* l/,'PDF must include a filled purple vector accent');
- assert.match(raw,/0\.929 0\.914 0\.996 rg/,'PDF must include the light-purple header slant');
+ assert.match(raw,/0\.908 0\.861 0\.987 rg/,'PDF must include the selected-theme soft corner vector');
  assert.match(raw,/0\.486 0\.227 0\.929 RG 1\.50 w/,'PDF must include the purple footer accent line');
  assert.match(raw,/0\.918 0\.345 0\.047 rg/,'financial totals use the standardized orange accent');
  const match=raw.match(/startxref\n(\d+)\n%%EOF/);
