@@ -318,7 +318,7 @@ const buildReceiptPdf = (data: PdfData) => {
   const ledgerTop = drawTopBox(25, palette.pale);
   textLine(page, left + 10, ledgerTop - 16, 'Current customer ledger balance', 8.2, false, palette.primary);
   const ledgerText = money(data.customer_outstanding, ledgerCurrency);
-  textLine(page, pageWidth - right - estimateTextWidth(ledgerText, 9, true) - 10, ledgerText, 9, true, palette.primary);
+  textLine(page, pageWidth - right - estimateTextWidth(ledgerText, 9, true) - 10, ledgerTop - 16, ledgerText, 9, true, palette.primary);
   y = ledgerTop - 35;
 
   ensureSpace(45);
