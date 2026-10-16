@@ -64,8 +64,8 @@ test('workspace invoice blueprint puts payment before terms and always renders s
   assert.match(viewer,/Same as billing address/);
   assert.match(viewer,/color:"#ea580c"/);
   assert.match(viewer,/sales-document-standard/);
-  assert.match(viewer,/#7c3aed!important/);
-  assert.match(viewer,/#f1f5f9!important/);
+  assert.match(viewer,/\.sales-document-standard \.items thead,.sales-document-standard \.items th\{background:var\(--table\);color:#fff\}/);
+  assert.match(viewer,/\.sales-document-standard \.items td\{border-bottom-color:var\(--line\)\}/);
 });
 
 
