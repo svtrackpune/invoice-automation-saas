@@ -217,6 +217,23 @@ function PaymentSection({ paymentMode, paymentLink, paymentSelection, balance, c
   </section>;
 }
 
+function CornerVectorArt({ templateKey, primary, accent, compact = false }: { templateKey: string; primary: string; accent: string; compact?: boolean }) {
+  const key = String(templateKey || 'modern').toLowerCase();
+  const motif = key === 'classic'
+    ? <><path d="M140 0H72L140 44Z" fill={primary} opacity=".14"/><path d="M140 0H106L140 24" fill="none" stroke={accent} strokeWidth="2.5"/><path d="M116 0V12H140" fill="none" stroke={primary} strokeWidth="1.4"/></>
+    : key === 'minimal'
+      ? <><path d="M140 0H86M140 0V42" fill="none" stroke={primary} strokeWidth="1.4"/><path d="M126 0V14H140" fill="none" stroke={accent} strokeWidth="1.4"/><circle cx="117" cy="13" r="3" fill={accent}/></>
+      : key === 'premium'
+        ? <><path d="M140 0H76L140 46Z" fill={primary} opacity=".15"/><path d="M102 0L140 38L127 48L89 10Z" fill={accent} opacity=".8"/><path d="M118 0L140 22" fill="none" stroke={primary} strokeWidth="2"/></>
+        : key === 'professional'
+          ? <><path d="M140 0H77V9H130V39H140Z" fill={primary} opacity=".14"/><path d="M140 0H111V6H134V29H140Z" fill={accent} opacity=".92"/><path d="M94 0V17H140" fill="none" stroke={primary} strokeWidth="1.8"/></>
+          : <><path d="M140 0H67L140 48Z" fill={primary} opacity=".14"/><path d="M140 0H101L140 25Z" fill={accent} opacity=".86"/><path d="M121 0L140 19" fill="none" stroke={primary} strokeWidth="1.5"/></>;
+  return <>
+    <svg aria-hidden="true" viewBox="0 0 140 48" className={'document-corner-art document-corner-art-top' + (compact ? ' compact' : '')}>{motif}</svg>
+    <svg aria-hidden="true" viewBox="0 0 140 48" className={'document-corner-art document-corner-art-bottom' + (compact ? ' compact' : '')}>{motif}</svg>
+  </>;
+}
+
 function Paper({ type, payload, business, customer, items, theme, fields, logoUrl, paymentSelection, paymentQrDataUrl, settlementDisplayMode='none', upiIntentUrl='', showLogo=true, showBusinessAddress=true, showTaxDetails=true, showBankDetails=false, showPaymentLink=false, showPaymentQr=false, showSignature=false, showTerms=true, showCustomerBalance=false, customerBalance=0, customerBalanceCurrency='', showAuthorizedSignatory=false, minItemRows=0, showSerialNumbers=false, documentTitleOverride='', studioTheme={}, taxLines=[], receiptAllocations=[], originalInvoice={number:'',date:''}, cashBillFormat='a4' }: any) {
   const receipt=type==='receipt', cashBill=type==='cash_bill'||payload.document_kind==='cash_bill', taxInvoice=type==='tax_invoice'||payload.document_kind==='tax_invoice', currency=text(payload.currency_code||business.currency_code||'INR').trim()||'INR', ledgerCurrency=text(customerBalanceCurrency||business.base_currency_code||business.currency_code||currency).trim().toUpperCase()||currency;
   const studio=studioTheme||{};
@@ -253,7 +270,8 @@ function Paper({ type, payload, business, customer, items, theme, fields, logoUr
     const changeReturned=Math.max(0,cashTendered-Number(payload.total||0));
     const thermal=cashBillFormat==='thermal80'||cashBillFormat==='thermal58';
     const paperClass=thermal?'cash-bill-thermal':'cash-bill-modern';
-    return <article className={`paper cash-bill-paper ${paperClass} cash-bill-${cashBillFormat} ${theme.dark?'theme-dark':''}`} style={{'--accent':theme.accent,'--table':theme.table,'--line':theme.line} as React.CSSProperties}>
+    return <article className={`paper cash-bill-paper ${paperClass} cash-bill-${cashBillFormat} ${theme.dark?'theme-dark':''}`} style={{'--accent':accentColor,'--table':primaryColor,'--line':lineColor,'--paper-bg':paperBackground,'--paper-text':paperText,'--paper-radius':radius+'px','--row-padding':rowPadding+'px',backgroundColor:paperBackground,color:paperText,fontFamily:text(studio.font_family||'Inter')} as React.CSSProperties}>
+      {!thermal&&<CornerVectorArt templateKey={theme.className.replace('template-','')} primary={primaryColor} accent={accentColor}/>}
       {thermal ? <div className="cash-thermal">
         <div className="cash-thermal-brand">{business.name||business.legal_name||'Business'}</div>
         {addressLines(business.address).map((line:string,i:number)=><div key={i}>{line}</div>)}
@@ -288,7 +306,8 @@ function Paper({ type, payload, business, customer, items, theme, fields, logoUr
     const businessEmail=text(business.email||business.alternate_email||'').trim();
     const businessWebsite=text(business.website||'').trim();
     const businessAddress=receiptAddressLine(business);
-    return <article className={`paper receipt-paper receipt-template-${theme.className.replace('template-','')} ${theme.dark?'theme-dark':''}`} style={{'--accent':theme.accent,'--table':theme.table,'--line':theme.line} as React.CSSProperties}>
+    return <article className={`paper receipt-paper receipt-template-${theme.className.replace('template-','')} ${theme.dark?'theme-dark':''}`} style={{'--accent':accentColor,'--table':primaryColor,'--line':lineColor,'--paper-bg':paperBackground,'--paper-text':paperText,'--paper-radius':radius+'px','--row-padding':rowPadding+'px',backgroundColor:paperBackground,color:paperText,fontFamily:text(studio.font_family||'Inter')} as React.CSSProperties}>
+      <CornerVectorArt templateKey={theme.className.replace('template-','')} primary={primaryColor} accent={accentColor} compact/>
       <header className='receipt-head'>
         {showLogo&&<Logo url={resolvedLogoUrl}/>} 
         <div className='receipt-business-details'>
@@ -316,7 +335,8 @@ function Paper({ type, payload, business, customer, items, theme, fields, logoUr
       <footer className='receipt-footer'><p className='receipt-disclaimer'>This is a computer-generated payment receipt and does not require signature.</p><div className='platform receipt-platform'><span className='platform-mark' aria-hidden='true'>M</span><span className='receipt-brand-label'>Powered by <strong className='receipt-brand-name'>Moneymatters</strong></span></div></footer>
     </article>;
   }
-  return <article className={`paper ${theme.className} ${(type==='invoice'||taxInvoice||type==='quotation')?'sales-document-standard':''} ${theme.dark?'theme-dark':''}`} style={{'--accent':theme.accent,'--table':theme.table,'--line':theme.line} as React.CSSProperties}>
+  return <article className={`paper ${theme.className} ${(type==='invoice'||taxInvoice||type==='quotation')?'sales-document-standard':''} ${theme.dark?'theme-dark':''}`} style={{'--accent':accentColor,'--table':primaryColor,'--line':lineColor,'--paper-bg':paperBackground,'--paper-text':paperText,'--paper-radius':radius+'px','--row-padding':rowPadding+'px',backgroundColor:paperBackground,color:paperText,fontFamily:text(studio.font_family||'Inter')} as React.CSSProperties}>
+    <CornerVectorArt templateKey={theme.className.replace('template-','')} primary={primaryColor} accent={accentColor}/>
     <header className='document-header'><div className='identity-column'><BusinessIdentity business={business} logoUrl={resolvedLogoUrl} fields={fields} showLogo={showLogo} showAddress={showBusinessAddress}/></div><div className='invoice-heading'><div className='document-title'>{type==='invoice'||taxInvoice?invoiceTitle:type==='quotation'?'QUOTATION':text(fields.title||title)}</div>{(type==='invoice'||taxInvoice||type==='quotation')&&<div className='mt-3 inline-flex rounded-full border border-slate-200 bg-slate-100 px-3 py-1 text-xs font-extrabold uppercase tracking-wider text-slate-700'>{text(payload.status||'draft').replace(/_/g,' ')}</div>}<div className='document-meta'>{meta.map(([label,value]:any)=><div className='meta-row' key={label}><span>{label}</span><strong>{text(value)||'—'}</strong></div>)}</div></div></header>
     {taxInvoice && <TaxInvoiceCompliance payload={payload} business={business} customer={customer}/>}
     {type==='credit_note' && <CreditNoteCompliance payload={payload} originalInvoiceNumber={originalInvoice.number || text(payload.original_invoice_number)} originalInvoiceDate={formatDate(originalInvoice.date || payload.original_invoice_date)}/>}
@@ -432,13 +452,18 @@ export default function DocumentViewer({ type, id }: { type: string; id: string 
 
       const [templateResult, preferenceResult, businessResult, taxProfileResult, paymentSettingsResult] = await Promise.all([
         loaded.data?.template_id ? supabase.from('document_templates').select('template_key,template_name').eq('id', loaded.data.template_id).maybeSingle() : Promise.resolve({ data: null } as any),
-        businessId ? supabase.from('business_document_preferences').select('custom_fields,show_logo,show_business_address,show_tax_details,show_payment_qr,show_payment_link,show_signature,show_terms,show_bank_details,document_title_override,min_item_rows,prefill_upi_amount,show_customer_balance,show_authorized_signatory,show_serial_numbers').eq('business_id', businessId).eq('document_type', renderType).maybeSingle() : Promise.resolve({ data: null } as any),
+        businessId ? supabase.from('business_document_preferences').select('template_id,primary_color,secondary_color,accent_color,text_color,background_color,font_family,custom_fields,show_logo,show_business_address,show_tax_details,show_payment_qr,show_payment_link,show_signature,show_terms,show_bank_details,document_title_override,min_item_rows,prefill_upi_amount,show_customer_balance,show_authorized_signatory,show_serial_numbers').eq('business_id', businessId).eq('document_type', type === 'cash_bill' ? 'cash_bill' : renderType).maybeSingle() : Promise.resolve({ data: null } as any),
         businessId ? supabase.from('businesses').select('id,name,legal_name,registration_number,tax_registration_number,tax_enabled,tax_mode,tax_type,country_code,currency_code,base_currency_code,address,phone,alternate_phone,contact_person_name,contact_person_designation,email,alternate_email,website,google_location_link,logo_storage_path,logo_url').eq('id', businessId).maybeSingle() : Promise.resolve({ data: null } as any),
         businessId ? supabase.from('business_tax_profiles').select('gstin,pan,tax_id,tax_regime,gst_registration_type').eq('business_id', businessId).maybeSingle() : Promise.resolve({ data: null } as any),
         businessId ? supabase.from('document_payment_settings').select('upi_id,payment_qr_enabled,payment_link_enabled,payment_instructions,default_bank_account_id,settlement_display_mode').eq('business_id', businessId).maybeSingle() : Promise.resolve({ data: null } as any),
       ]);
+      let resolvedTemplate = templateResult.data;
+      if (preferenceResult.data?.template_id) {
+        const selectedTemplate = await supabase.from('document_templates').select('template_key,template_name').eq('id', preferenceResult.data.template_id).eq('document_type', type === 'cash_bill' ? 'cash_bill' : renderType).eq('is_active', true).maybeSingle();
+        if (!selectedTemplate.error && selectedTemplate.data) resolvedTemplate = selectedTemplate.data;
+      }
       if (!active) return;
-      setJob(loaded.data); setTemplate(templateResult.data); setPreferences(preferenceResult.data); setPaymentSettings(paymentSettingsResult.data || null);
+      setJob(loaded.data); setTemplate(resolvedTemplate); setPreferences(preferenceResult.data); setPaymentSettings(paymentSettingsResult.data || null);
       if (businessResult.data) {
         const taxProfile = taxProfileResult.data as { gstin?: string | null; pan?: string | null; tax_id?: string | null; tax_regime?: string | null; gst_registration_type?: string | null } | null;
         const registration = String(taxProfile?.gst_registration_type || 'NONE').trim().toUpperCase();
@@ -719,7 +744,7 @@ export default function DocumentViewer({ type, id }: { type: string; id: string 
   })), [items, canonical]);
   const theme = THEMES[template?.template_key] || THEMES.modern;
   const fields = preferences?.custom_fields || {};
-  const studioTheme = fields?.theme_studio || {};
+  const studioTheme = { ...(fields?.theme_studio || {}), primary_color: preferences?.primary_color, secondary_color: preferences?.secondary_color, accent_color: preferences?.accent_color, text_color: preferences?.text_color, background_color: preferences?.background_color, font_family: preferences?.font_family };
   const documentTitleOverride = text(preferences?.document_title_override || '');
   const number = type === 'receipt' ? (model.receipt_number || model.document_number || model.number || '') : (model.document_number || model.challan_number || model.bill_number || model.invoice_number || model.quotation_number || model.number || model.receipt_number || '');
   const title = type === 'receipt' ? 'Payment Receipt' : type === 'invoice' || type === 'tax_invoice' ? invoiceDocumentTitle(mergedBusiness) : type === 'cash_bill' ? 'Cash Bill' : type === 'quotation' ? 'QUOTATION' : type === 'delivery_challan' ? 'Delivery Challan' : type === 'purchase_order' ? 'Purchase Order' : type === 'credit_note' ? 'Credit Note' : type === 'debit_note' ? 'Debit Note' : 'Document';
