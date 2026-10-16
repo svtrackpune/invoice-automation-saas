@@ -79,7 +79,7 @@ test('public customer PDFs use selected theme colors, page background and varied
 });
 
 test('database render job resolves current business-selected template before legacy document template', async () => {
-  const migration = await read('supabase/migrations/20261017100000_fix_document_template_precedence.sql');
+  const migration = await read('supabase/migrations/20261016125146_fix_document_template_precedence.sql');
   const preferenceAt = migration.indexOf('if tid is null then select dp.template_id into tid');
   const documentAt = migration.indexOf('if tid is null and document_template_id is not null');
   const explicitAt = migration.indexOf('if p_template_id is not null then');
