@@ -338,7 +338,7 @@ export async function loadPublicDocumentById(
     .select('template_id,primary_color,secondary_color,accent_color,text_color,background_color')
     .eq('business_id', businessId).eq('document_type', preferenceType).maybeSingle();
   if (preferenceResult.error) throw new Error('Document theme preferences are unavailable.');
-  const preference = preferenceResult.data || {};
+  const preference = (preferenceResult.data || {}) as { template_id?: string | null; primary_color?: string | null; secondary_color?: string | null; accent_color?: string | null; text_color?: string | null; background_color?: string | null };
   if (preference.template_id) {
     const preferredTemplate = await db.from('document_templates').select('template_key,template_name')
       .eq('id', preference.template_id).eq('document_type', preferenceType).eq('is_active', true).maybeSingle();
