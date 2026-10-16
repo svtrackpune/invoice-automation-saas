@@ -404,7 +404,7 @@ export async function loadReceiptPdfData(db: SupabaseClient, receiptId: string):
     .select('template_id,primary_color,secondary_color,accent_color,text_color,background_color')
     .eq('business_id', receipt.business_id).eq('document_type', 'receipt').maybeSingle();
   if (preferenceResult.error) throw new Error('Receipt theme preferences are unavailable.');
-  const preference = preferenceResult.data || {};
+  const preference = (preferenceResult.data || {}) as { template_id?: string | null; primary_color?: string | null; secondary_color?: string | null; accent_color?: string | null; text_color?: string | null; background_color?: string | null };
   const templateResult = preference.template_id
     ? await db.from('document_templates').select('template_key').eq('id', preference.template_id).eq('document_type', 'receipt').eq('is_active', true).maybeSingle()
     : { data: null, error: null } as any;
