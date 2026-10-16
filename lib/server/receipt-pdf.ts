@@ -395,7 +395,16 @@ export async function loadReceiptPdfData(db: SupabaseClient, receiptId: string):
     const product = products.find((p: any) => p.id === item.product_service_id);
     return {
       name: plain(product?.name || item.description || 'Item'),
-      description: (() => { const lineDescription = plain(item.description || ''); const productDescription = plain(product?.description || ''); const itemName = plain(product?.name || item.description || 'Item'); return lineDescription && lineDescription !== itemName ? lineDescription : productDescription && productDescription !== itemName ? productDescription : ''; })(),
+      description: (() => {
+        const lineDescription = plain(item.description || '');
+        const productDescription = plain(product?.description || '');
+        const itemName = plain(product?.name || item.description || 'Item');
+        return lineDescription && lineDescription !== itemName
+          ? lineDescription
+          : productDescription && productDescription !== itemName
+            ? productDescription
+            : '';
+      })(),
       sku: product?.sku ? plain(product.sku) : null,
       unit: product?.unit ? plain(product.unit) : null,
       quantity: Number(item.quantity || 0),
