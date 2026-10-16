@@ -97,3 +97,16 @@ test('production dependency and export boundaries stay hardened', async () => {
   const pkg = JSON.parse(await read('package.json')); const lock = JSON.parse(await read('package-lock.json')); const exportPage = await read('app/next-workspace/data-export/page.tsx'); const vendorPage = await read('app/next-workspace/vendors/page.tsx');
   assert.equal(pkg.dependencies.xlsx, undefined); assert.equal(pkg.dependencies['@andreeewill/exceljs'], '5.0.3'); assert.equal(pkg.overrides?.sharp, '0.35.5'); assert.equal(lock.packages['node_modules/sharp']?.version, '0.35.5'); assert.equal(lock.packages['node_modules/xlsx'], undefined); assert.match(exportPage, /@andreeewill\/exceljs\/dist\/exceljs\.min\.js/); assert.doesNotMatch(exportPage, /from ['"]xlsx['"]/); assert.doesNotMatch(vendorPage, /from ['"]xlsx['"]/);
 });
+
+
+test('purchase order line inserts include parent bill id and vendor mapping schema is installed by migration', async () => {
+  const editor = await read('app/next-workspace/purchases/new/page.tsx');
+  const migration = await read('supabase/migrations/20260820130500_vendor_supply_reference_imports.sql');
+
+  assert.ok(editor.includes("insert(payload.map(item=>({...item,bill_id:bill.id})))"));
+  assert.match(editor, /if\(ie\)\{await supabase\.from\('bills'\)\.delete\(\)[\s\S]*?throw ie;\}/);
+  assert.match(migration, /create table if not exists public\.vendor_supply_mappings/);
+  assert.match(migration, /alter table public\.vendor_supply_mappings enable row level security/);
+  assert.match(migration, /create policy vendor_supply_mappings_insert/);
+  assert.match(migration, /create policy vendor_supply_mappings_delete/);
+});
