@@ -48,7 +48,7 @@ test('official receipt PDF follows allocation source, keeps source invoice descr
   assert.ok(renderer.includes(".from('invoice_items').select('quantity,unit_price,line_total,description,product_service_id')"));
   assert.ok(renderer.includes("description: (() => {"));
   assert.ok(renderer.includes("const productDescription = plain(product?.description || '')"));
-  assert.ok(renderer.includes("const textLine = (target: string[], x: number, y: number, value: string, size = 10, bold = false, fill = '0 0 0')"));
+  assert.ok(renderer.includes('const textLine = (target: string[], x: number, y: number, value: string, size = 10, bold = false, fill = palette.ink)'));
   assert.ok(renderer.includes('target.push(`${fill} rg BT ${font} ${size} Tf'));
   assert.ok(renderer.includes("name: plain(product?.name || item.description || 'Item')"));
   assert.ok(renderer.includes('const quantityLabel ='));
