@@ -96,18 +96,27 @@ The same application entrypoint and environment contract are used for Plesk and 
 
 ## Deployment
 
-### Plesk
+### Plesk / Windows
 
-The supported Plesk target is Node.js **24.18.1** in production mode.
+The supported Plesk runtime is Node.js **24.18.1**. On Windows, do not run `npm ci` while the app is serving requests: Windows can refuse to remove Sharp's native `libvips` DLL when the Next.js process or antivirus has the file open.
 
-1. Set the application root to the repository root.
-2. Use `server.js` as the startup file.
-3. Configure the required environment variables through the Plesk Node.js environment settings.
-4. Install with `npm ci`.
-5. Build with `npm run build`.
-6. Restart the application and verify `/healthz` and `/readyz`.
+After pulling the latest `main`, open PowerShell or the Plesk terminal in the application root and run this single command:
 
-Plesk supplies `PORT`; `server.js` respects it and falls back to port 3000 for local execution.
+```powershell
+npm run deploy:windows
+```
+
+The Windows deployment script:
+
+1. Checks the Node.js version and lockfile.
+2. Stops only identifiable Node.js server processes associated with this project (not unrelated Node applications).
+3. Removes `node_modules` only after stopping those processes, and stops with a specific message if a DLL is still locked or permissions prevent deletion.
+4. Runs `npm ci`, then TypeScript, ESLint, the automated test suite, and the production build. Any failure stops the sequence.
+
+**The script intentionally causes temporary downtime while dependencies are replaced.** After it reports that every check passed, start/restart the `mm.nilanga.in` Node.js application using Plesk. If the script cannot stop the app process or remove `node_modules`, stop the site's application pool in Plesk first, check for antivirus/file locks and subscription permissions, then rerun the command. Do not continue to `npm run build` after a failed `npm ci`.
+
+The build script now reports an actionable dependency-installation error when the Next.js CLI is missing, rather than displaying a raw `MODULE_NOT_FOUND` stack.
+
 
 ### Docker
 
