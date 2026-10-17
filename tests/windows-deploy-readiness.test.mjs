@@ -26,13 +26,13 @@ test('Windows deployment stops only app processes belonging to this project befo
   assert.match(deployScript, /Get-CimInstance Win32_Process/);
   assert.match(deployScript, /IndexOf\(\$projectRoot, \[StringComparison\]::OrdinalIgnoreCase\)/);
   assert.match(deployScript, /Stop-Process -Id \$process\.ProcessId -Force/);
-  assert.ok(deployScript.indexOf('Stop-Process -Id') < deployScript.indexOf('Remove-Item -LiteralPath \$nodeModules'));
-  assert.ok(deployScript.indexOf('Remove-Item -LiteralPath \$nodeModules') < deployScript.indexOf("Invoke-NpmStep -Label 'Clean, lockfile-pinned dependency installation'"));
+  assert.ok(deployScript.indexOf('Stop-Process -Id') < deployScript.indexOf('Remove-Item -LiteralPath ' + '$nodeModules'));
+  assert.ok(deployScript.indexOf('Remove-Item -LiteralPath ' + '$nodeModules') < deployScript.indexOf("Invoke-NpmStep -Label 'Clean, lockfile-pinned dependency installation'"));
   assert.match(deployScript, /antivirus/);
   assert.doesNotMatch(deployScript, /Get-Process\s+node\s*\|\s*Stop-Process/);
 });
 
-test('Windows deployment gates install, typecheck, lint, tests and build', () => {
+test('Windows deployment gates install, typecheck, lint and build without executing live E2E fixtures', () => {
   for (const step of [
     "Invoke-NpmStep -Label 'Clean, lockfile-pinned dependency installation'",
     "Invoke-NpmStep -Label 'TypeScript'",
