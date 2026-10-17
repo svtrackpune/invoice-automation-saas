@@ -111,7 +111,7 @@ The Windows deployment script:
 1. Checks the Node.js version and lockfile.
 2. Stops only identifiable Node.js server processes associated with this project (not unrelated Node applications).
 3. Removes `node_modules` only after stopping those processes, and stops with a specific message if a DLL is still locked or permissions prevent deletion.
-4. Runs `npm ci`, then TypeScript, ESLint, the automated test suite, and the production build. Any failure stops the sequence.
+4. Runs `npm ci`, TypeScript, ESLint, and the production build. Any failure stops the sequence; CI owns automated test execution so fixture-writing E2E tests are not accidentally run against live production data.
 
 **The script intentionally causes temporary downtime while dependencies are replaced.** After it reports that every check passed, start/restart the `mm.nilanga.in` Node.js application using Plesk. If the script cannot stop the app process or remove `node_modules`, stop the site's application pool in Plesk first, check for antivirus/file locks and subscription permissions, then rerun the command. Do not continue to `npm run build` after a failed `npm ci`.
 
