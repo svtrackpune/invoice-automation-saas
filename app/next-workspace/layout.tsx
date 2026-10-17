@@ -78,6 +78,7 @@ function normalizeNavigationPath(pathname: string): string {
   }
   return normalizedPath || '/';
 }
+
 /**
  * Resolve the most specific sidebar group for a pathname. The workspace root
  * is an exact-match route only; treating it as a prefix would steal every
