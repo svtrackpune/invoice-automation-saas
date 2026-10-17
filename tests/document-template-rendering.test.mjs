@@ -30,6 +30,9 @@ test('selected preference template and Studio palette are authoritative in the f
   assert.match(viewer, /preferenceResult\.data\?\.template_id/);
   assert.match(viewer, /style=\{\{'--accent':accentColor,'--table':primaryColor,'--line':lineColor/);
   assert.match(viewer, /function CornerVectorArt/);
+  assert.match(viewer, /position: 'absolute', top: 0, right: 0, width: compact \? 94 : 140/);
+  assert.match(viewer, /position: 'absolute', bottom: 0, left: 0, width: compact \? 74 : 100/);
+  assert.match(viewer, /position:'relative',overflow:'hidden'/);
   assert.match(viewer, /<CornerVectorArt templateKey=/);
   assert.doesNotMatch(viewer, /sales-document-standard\{--accent:#7c3aed!important/);
 });
