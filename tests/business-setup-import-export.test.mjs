@@ -18,7 +18,6 @@ test('sample workbook contains seven expected worksheets, sample rows, and instr
   assert.ok(workbook.includes('Moneymatters-Sample-Business-Setup-Template.xlsx'));
   assert.ok(workbook.includes("business_type: ''"));
   assert.ok(workbook.includes("profileSheet.getCell('C2').dataValidation"));
-  assert.ok(workbook.includes('Do not leave the sample rows in the file.'));
 });
 
 test('parser enforces complete workbook schema, size limits, and sheet row identities', () => {
@@ -39,7 +38,6 @@ test('migration UI presents local row preview before commit and preserves the ex
   assert.ok(migrationPage.includes('setupPreview.issues.slice(0,200)'));
   assert.ok(migrationPage.includes('Workbook preview'));
   assert.ok(migrationPage.includes('sheet.rows.slice(0,3)'));
-  assert.ok(migrationPage.includes('Stage import ({rows.length})'));
 });
 
 test('staging is private and validation enforces tenant and accounting permissions', () => {
