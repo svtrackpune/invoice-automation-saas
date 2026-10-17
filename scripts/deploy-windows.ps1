@@ -79,17 +79,18 @@ if (Test-Path $nodeModules) {
 function Invoke-NpmStep {
     param(
         [Parameter(Mandatory = $true)][string]$Label,
-        [Parameter(Mandatory = $true)][string[]]$Arguments
+        [Parameter(Mandatory = $true)][string[]]$NpmArguments
     )
     Write-Host ""
     Write-Host "==> $Label" -ForegroundColor Cyan
-    & npm @Arguments
+    & npm @NpmArguments
     if ($LASTEXITCODE -ne 0) {
-        throw "'npm $($Arguments -join ' ')' failed with exit code $LASTEXITCODE. Deployment has stopped; do not start the site until corrected."
+        $displayCommand = 'npm ' + ($NpmArguments -join ' ')
+        throw "$displayCommand failed with exit code $LASTEXITCODE. Deployment has stopped; do not start the site until corrected."
     }
 }
 
-Invoke-NpmStep -Label 'Clean, lockfile-pinned dependency installation' -Arguments @('ci', '--no-audit', '--no-fund')
+Invoke-NpmStep -Label 'Clean, lockfile-pinned dependency installation' -NpmArguments @('ci', '--no-audit', '--no-fund')
 $nextBin = Join-Path $projectRoot 'node_modules\next\dist\bin\next'
 if (-not (Test-Path $nextBin)) {
     throw "npm ci returned success but the Next.js CLI is missing at $nextBin. Check npm output and package-lock.json."
