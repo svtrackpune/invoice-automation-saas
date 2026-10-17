@@ -4,6 +4,9 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { usePathname } from 'next/navigation';
 import type { Dispatch, ReactNode, SetStateAction } from 'react';
 import { supabase, type BusinessContext } from '@/lib/supabase';
+import { isSupportedLocale, type SupportedLocale } from '@/lib/i18n';
+import { LocaleProvider, useLocale } from '@/lib/locale-context';
+import { translate } from '@/lib/translations';
 import GlobalSearch from './GlobalSearch';
 import { BusinessConfigProvider, useBusinessConfig } from '@/lib/BusinessConfigContext';
 import { buildAdaptiveCreateRoutes } from '@/lib/adaptive-navigation';
@@ -156,11 +159,12 @@ const titles: Record<string, string> = {
   '/next-workspace/cash-bill': 'Cash Bill',
 };
 
-function monthPeriodLabel() {
-  return new Intl.DateTimeFormat('en-IN', { month: 'long', year: 'numeric' }).format(new Date());
+function monthPeriodLabel(locale: string) {
+  try { return new Intl.DateTimeFormat(locale, { month: 'long', year: 'numeric' }).format(new Date()); }
+  catch { return new Intl.DateTimeFormat('en-IN', { month: 'long', year: 'numeric' }).format(new Date()); }
 }
 
-function Nav({ pathname, go, openSections, setOpenSections, cashBillEnabled, collapsed, business }: {
+function Nav({ pathname, go, openSections, setOpenSections, cashBillEnabled, collapsed, business, locale }: {
   pathname: string;
   go: (href: string) => void;
   openSections: string[];
@@ -168,6 +172,7 @@ function Nav({ pathname, go, openSections, setOpenSections, cashBillEnabled, col
   cashBillEnabled: boolean;
   collapsed: boolean;
   business: BusinessContext | null;
+  locale: string;
 }) {
   const groups = useMemo(() => baseGroups.map(group => ({
     ...group,
@@ -175,7 +180,7 @@ function Nav({ pathname, go, openSections, setOpenSections, cashBillEnabled, col
   })).filter(group => group.items.length), [business, cashBillEnabled]);
 
   return (
-    <nav aria-label="Workspace navigation" className="space-y-4">
+    <nav aria-label={translate(locale, 'Workspace navigation')} className="space-y-4">
       {groups.map(group => (
         <section key={group.name}>
           {!collapsed && (
@@ -187,7 +192,7 @@ function Nav({ pathname, go, openSections, setOpenSections, cashBillEnabled, col
               })}
               className="mb-1.5 flex w-full items-center justify-between px-2 text-left text-[11px] font-bold uppercase tracking-[.14em] text-slate-400 hover:text-slate-600"
               aria-expanded={group.items.length > 1 ? openSections.includes(group.id) : undefined}>
-              <span>{group.name}</span>
+              <span>{translate(locale, group.name)}</span>
               {group.items.length > 1 ? <span className="text-slate-300">{openSections.includes(group.id) ? '−' : '+'}</span> : null}
             </button>
           )}
@@ -196,10 +201,10 @@ function Nav({ pathname, go, openSections, setOpenSections, cashBillEnabled, col
               const active = getActiveNavHref(pathname) === item.href;
               return (
                 <button key={item.label} type="button" onClick={() => go(item.href)} aria-current={active ? 'page' : undefined}
-                  title={collapsed ? item.label : undefined}
+                  title={collapsed ? translate(locale, item.label) : undefined}
                   className={`group flex w-full items-center gap-3 rounded-lg px-2.5 py-2 text-left text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-200 ${collapsed ? 'justify-center px-0 py-2.5' : ''} ${active ? 'bg-slate-900 font-medium text-white shadow-sm' : 'text-slate-600 hover:bg-slate-100/80 hover:text-slate-900'}`}>
                   <FinOpsIcon name={item.icon} className={`h-4 w-4 shrink-0 ${active ? 'text-white' : 'text-slate-400 group-hover:text-slate-600'}`} />
-                  {!collapsed ? <span className="min-w-0 truncate">{item.label}</span> : null}
+                  {!collapsed ? <span className="min-w-0 truncate">{translate(locale, item.label)}</span> : null}
                 </button>
               );
             })}
@@ -210,7 +215,7 @@ function Nav({ pathname, go, openSections, setOpenSections, cashBillEnabled, col
   );
 }
 
-function QuickActionMenu({ go }: { go: (href: string) => void }) {
+function QuickActionMenu({ go, locale }: { go: (href: string) => void; locale: string }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -219,7 +224,7 @@ function QuickActionMenu({ go }: { go: (href: string) => void }) {
     return () => document.removeEventListener('mousedown', close);
   }, []);
   return <div ref={ref} className="relative flex">
-    <FinOpsPrimaryButton onClick={() => go('/next-workspace/invoices/new')}><FinOpsIcon name="plus" className="h-4 w-4"/> Quick Action</FinOpsPrimaryButton>
+    <FinOpsPrimaryButton onClick={() => go('/next-workspace/invoices/new')}><FinOpsIcon name="plus" className="h-4 w-4"/> {translate(locale, 'Quick Action')}</FinOpsPrimaryButton>
     <button type="button" aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen(v => !v)} className="inline-flex h-9 w-8 items-center justify-center rounded-r-lg border border-l border-indigo-500 bg-indigo-600 text-white hover:bg-indigo-700"><span className="text-xs">⌄</span></button>
     {open && <div role="menu" className="absolute right-0 top-10 z-[100] w-60 rounded-xl border border-slate-200 bg-white p-1.5 shadow-xl">
       {[
@@ -227,7 +232,7 @@ function QuickActionMenu({ go }: { go: (href: string) => void }) {
         ['New Cash Bill', '/next-workspace/cash-bill'],
         ['Record Payment', '/next-workspace/payments'],
         ['Add Expense', '/next-workspace/expenses'],
-      ].map(([label, href]) => <button key={href} type="button" role="menuitem" onClick={() => { setOpen(false); go(href); }} className="flex w-full items-center gap-2 rounded-lg px-3 py-2.5 text-left text-xs font-semibold text-slate-700 hover:bg-slate-50">{label}</button>)}
+      ].map(([label, href]) => <button key={href} type="button" role="menuitem" onClick={() => { setOpen(false); go(href); }} className="flex w-full items-center gap-2 rounded-lg px-3 py-2.5 text-left text-xs font-semibold text-slate-700 hover:bg-slate-50">{translate(locale, label)}</button>)}
     </div>}
   </div>;
 }
@@ -241,6 +246,7 @@ function WorkspaceChrome({ children, businesses, activeBusinessId, setActiveBusi
   cashBillEnabled: boolean;
 }) {
   const pathname = usePathname();
+  const { locale } = useLocale();
   const [mobile, setMobile] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
   const [businessMenu, setBusinessMenu] = useState(false);
@@ -286,18 +292,18 @@ function WorkspaceChrome({ children, businesses, activeBusinessId, setActiveBusi
 
     <header className="sticky top-0 z-50 h-16 border-b border-slate-200/80 bg-white/95 backdrop-blur">
       <div className="flex h-full items-center gap-3 px-4 sm:px-5">
-        <button type="button" onClick={() => setMobile(true)} aria-label="Open navigation menu" aria-expanded={mobile} className="grid h-9 w-9 place-items-center rounded-lg border border-slate-200 bg-white text-slate-600 lg:hidden"><span className="text-lg">☰</span></button>
+        <button type="button" onClick={() => setMobile(true)} aria-label={translate(locale, 'Open navigation menu')} aria-expanded={mobile} className="grid h-9 w-9 place-items-center rounded-lg border border-slate-200 bg-white text-slate-600 lg:hidden"><span className="text-lg">☰</span></button>
 
         <button type="button" onClick={() => go('/next-workspace')} className="flex w-64 shrink-0 items-center gap-2.5 text-left">
           <span className="grid h-8 w-8 place-items-center rounded-lg bg-slate-900 text-sm font-black text-white">M</span>
-          <span><span className="block text-sm font-bold tracking-tight text-slate-950">Moneymatters</span><span className="mt-0.5 block text-[10px] text-slate-400">FinOps workspace</span></span>
+          <span><span className="block text-sm font-bold tracking-tight text-slate-950">Moneymatters</span><span className="mt-0.5 block text-[10px] text-slate-400">{translate(locale, 'FinOps workspace')}</span></span>
         </button>
 
         <div className="hidden min-w-0 flex-1 md:block"><div className="mx-auto w-full max-w-lg"><GlobalSearch /></div></div>
 
         <div ref={businessRef} className="relative hidden shrink-0 lg:block">
           <button type="button" onClick={() => setBusinessMenu(v => !v)} aria-haspopup="menu" aria-expanded={businessMenu} className="flex items-center gap-2 rounded-lg px-2.5 py-2 text-left hover:bg-slate-100">
-            <span className="min-w-0"><span className="block max-w-40 truncate text-xs font-semibold text-slate-900">{active?.business_name || 'Business'}</span><span className="block text-[10px] text-slate-400">Active entity</span></span>
+            <span className="min-w-0"><span className="block max-w-40 truncate text-xs font-semibold text-slate-900">{active?.business_name || translate(locale, 'Business')}</span><span className="block text-[10px] text-slate-400">{translate(locale, 'Active entity')}</span></span>
             <span className="text-slate-400">⌄</span>
           </button>
           {businessMenu && <div role="menu" className="absolute right-0 top-11 z-[100] w-72 rounded-xl border border-slate-200 bg-white p-2 shadow-xl">
@@ -310,10 +316,10 @@ function WorkspaceChrome({ children, businesses, activeBusinessId, setActiveBusi
           </div>}
         </div>
 
-        <span className="hidden rounded-full border border-slate-200 bg-slate-100 px-2.5 py-1 text-[10px] font-semibold text-slate-600 xl:inline-flex">Period: {monthPeriodLabel()} • Open</span>
+        <span className="hidden rounded-full border border-slate-200 bg-slate-100 px-2.5 py-1 text-[10px] font-semibold text-slate-600 xl:inline-flex">{translate(locale, 'Period')}: {monthPeriodLabel(locale)} • {translate(locale, 'Open')}</span>
 
         <div className="ml-auto flex items-center gap-2">
-          {canShowCreateMenu(active) && <QuickActionMenu go={go} />}
+          {canShowCreateMenu(active) && <QuickActionMenu go={go} locale={locale} />}
           <HeaderNotifications businessId={activeBusinessId} />
           <div ref={accountRef} className="relative">
             <button type="button" onClick={() => setAccountMenu(v => !v)} aria-haspopup="menu" aria-expanded={accountMenu} className="flex items-center gap-2 rounded-lg px-1.5 py-1 hover:bg-slate-100">
@@ -337,17 +343,17 @@ function WorkspaceChrome({ children, businesses, activeBusinessId, setActiveBusi
     <div className="flex min-h-[calc(100vh-64px)]">
       <aside className={`sticky top-16 hidden h-[calc(100vh-64px)] shrink-0 overflow-y-auto border-r border-slate-200/80 bg-white py-4 transition-[width] duration-200 lg:block ${collapsed ? 'w-[72px] px-2' : 'w-64 px-3'}`}>
         <div className={`mb-4 flex items-center ${collapsed ? 'justify-center' : 'justify-between'}`}>
-          {!collapsed ? <span className="px-2 text-[10px] font-bold uppercase tracking-wider text-slate-400">Workspace navigation</span> : null}
-          <button type="button" onClick={toggleSidebar} aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'} title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'} className="grid h-8 w-8 place-items-center rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50"><span>{collapsed ? '›' : '‹'}</span></button>
+          {!collapsed ? <span className="px-2 text-[10px] font-bold uppercase tracking-wider text-slate-400">{translate(locale, 'Workspace navigation')}</span> : null}
+          <button type="button" onClick={toggleSidebar} aria-label={translate(locale, collapsed ? 'Expand sidebar' : 'Collapse sidebar')} title={translate(locale, collapsed ? 'Expand sidebar' : 'Collapse sidebar')} className="grid h-8 w-8 place-items-center rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50"><span>{collapsed ? '›' : '‹'}</span></button>
         </div>
-        <Nav pathname={pathname} go={go} openSections={openSections} setOpenSections={setOpenSections} cashBillEnabled={cashBillEnabled} collapsed={collapsed} business={active || null}/>
+        <Nav pathname={pathname} go={go} openSections={openSections} setOpenSections={setOpenSections} cashBillEnabled={cashBillEnabled} collapsed={collapsed} business={active || null} locale={locale}/>
       </aside>
 
-      {mobile ? <><button type="button" aria-label="Close navigation menu" onClick={() => setMobile(false)} className="fixed inset-0 z-[60] bg-slate-950/20 lg:hidden"/><aside className="fixed inset-y-0 left-0 z-[70] w-72 overflow-y-auto border-r border-slate-200 bg-white px-4 py-4 shadow-2xl lg:hidden"><div className="mb-5 flex items-center justify-between"><div><b className="text-sm">Moneymatters</b><span className="block text-[10px] text-slate-400">FinOps workspace</span></div><button type="button" aria-label="Close navigation menu" onClick={() => setMobile(false)} className="grid h-8 w-8 place-items-center rounded-lg border border-slate-200">×</button></div><Nav pathname={pathname} go={go} openSections={openSections} setOpenSections={setOpenSections} cashBillEnabled={cashBillEnabled} collapsed={false} business={active || null}/></aside></> : null}
+      {mobile ? <><button type="button" aria-label="Close navigation menu" onClick={() => setMobile(false)} className="fixed inset-0 z-[60] bg-slate-950/20 lg:hidden"/><aside className="fixed inset-y-0 left-0 z-[70] w-72 overflow-y-auto border-r border-slate-200 bg-white px-4 py-4 shadow-2xl lg:hidden"><div className="mb-5 flex items-center justify-between"><div><b className="text-sm">Moneymatters</b><span className="block text-[10px] text-slate-400">{translate(locale, 'FinOps workspace')}</span></div><button type="button" aria-label={translate(locale, 'Close navigation menu')} onClick={() => setMobile(false)} className="grid h-8 w-8 place-items-center rounded-lg border border-slate-200">×</button></div><Nav pathname={pathname} go={go} openSections={openSections} setOpenSections={setOpenSections} cashBillEnabled={cashBillEnabled} collapsed={false} business={active || null}/></aside></> : null}
 
       <main id="main-content" tabIndex={-1} className="min-w-0 flex-1 outline-none">
         <div className="border-b border-slate-200/80 bg-white px-4 py-2.5 sm:px-6">
-          <div className="mx-auto flex max-w-[1480px] items-center gap-2"><span className="text-[11px] text-slate-400">Moneymatters</span><span className="text-slate-300">/</span><span className="text-xs font-semibold text-slate-700">{titles[pathname] || 'Workspace'}</span></div>
+          <div className="mx-auto flex max-w-[1480px] items-center gap-2"><span className="text-[11px] text-slate-400">Moneymatters</span><span className="text-slate-300">/</span><span className="text-xs font-semibold text-slate-700">{translate(locale, titles[pathname] || 'Workspace')}</span></div>
         </div>
         {configLoading ? <div className="px-6 py-2 text-center text-[11px] text-slate-400">Loading business configuration…</div> : null}
         {children}
@@ -361,11 +367,17 @@ export default function WorkspaceLayout({ children }: { children: ReactNode }) {
   const [businesses, setBusinesses] = useState<BusinessContext[]>([]);
   const [activeBusinessId, setActiveBusinessId] = useState('');
   const [cashBillEnabled, setCashBillEnabled] = useState(false);
+  const [locale, setLocale] = useState<SupportedLocale>('en-IN');
 
   useEffect(() => {
     (async () => {
       const [{ data: user }, context] = await Promise.all([supabase.auth.getUser(), supabase.rpc('get_my_business_context')]);
       setUserName(user.user?.user_metadata?.display_name || user.user?.email?.split('@')[0] || 'Account');
+      if (user.user) {
+        const profile = await supabase.from('user_profiles').select('locale').eq('user_id', user.user.id).maybeSingle();
+        const savedLocale = profile.data?.locale;
+        setLocale(savedLocale && isSupportedLocale(savedLocale) ? savedLocale : 'en-IN');
+      }
       const rows = (context.data || []) as BusinessContext[];
       setBusinesses(rows);
       if (!rows.length) return;
@@ -379,5 +391,5 @@ export default function WorkspaceLayout({ children }: { children: ReactNode }) {
   }, []);
 
   if (!activeBusinessId) return <div className="grid min-h-screen place-items-center bg-slate-50 text-sm text-slate-500">Loading workspace…</div>;
-  return <BusinessConfigProvider businessId={activeBusinessId}><WorkspaceChrome businesses={businesses} activeBusinessId={activeBusinessId} setActiveBusinessId={setActiveBusinessId} userName={userName} cashBillEnabled={cashBillEnabled}>{children}</WorkspaceChrome></BusinessConfigProvider>;
+  return <LocaleProvider initialLocale={locale}><BusinessConfigProvider businessId={activeBusinessId}><WorkspaceChrome businesses={businesses} activeBusinessId={activeBusinessId} setActiveBusinessId={setActiveBusinessId} userName={userName} cashBillEnabled={cashBillEnabled}>{children}</WorkspaceChrome></BusinessConfigProvider></LocaleProvider>;
 }
