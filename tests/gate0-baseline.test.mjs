@@ -50,8 +50,8 @@ test('Deprecated reconciliation tables are removed from business export paths',a
   const page=await read('app/next-workspace/data-export/page.tsx');
   const exporter=await read('lib/business-data-export.ts');
   assert.doesNotMatch(exporter,/(?:'reconciliations'|'reconciliation_items')/);
-  assert.match(exporter,/'bank_reconciliations'/);
-  assert.match(exporter,/'bank_reconciliation_items'/);
+  assert.match(exporter,/[\"']bank_reconciliations[\"']/);
+  assert.match(exporter,/[\"']bank_reconciliation_items[\"']/);
   assert.doesNotMatch(page,/(?:'reconciliations'|'reconciliation_items')/);
 });
 
