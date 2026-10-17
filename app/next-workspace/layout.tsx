@@ -26,10 +26,6 @@ const baseGroups: NavGroup[] = [
     { label: 'Delivery Challans', href: '/next-workspace/delivery-challans', icon: 'statement' },
     { label: 'Barcode Printing', href: '/next-workspace/barcodes', icon: 'invoice' },
   ]},
-  { id: 'documents', name: 'Documents', items: [
-    { label: 'Document Library', href: '/next-workspace/documents/library', icon: 'invoice' },
-    { label: 'Templates & Branding', href: '/next-workspace/brand', icon: 'settings' },
-  ]},
   { id: 'purchases', name: 'Purchases & Expenses', items: [
     { label: 'Expenses', href: '/next-workspace/expenses', icon: 'expense' },
     { label: 'Bills & Purchase Orders', href: '/next-workspace/bills', icon: 'statement' },
@@ -54,6 +50,10 @@ const baseGroups: NavGroup[] = [
     { label: 'Stock Audit', href: '/next-workspace/stock-audit', icon: 'audit' },
     { label: 'Daily Cash Book', href: '/next-workspace/reports/daily-cash-book', icon: 'cash' },
     { label: 'Statutory Hub', href: '/next-workspace/reports/statutory-hub', icon: 'tax' },
+  ]},
+  { id: 'documents', name: 'Documents', items: [
+    { label: 'Document Library', href: '/next-workspace/documents/library', icon: 'invoice' },
+    { label: 'Templates & Branding', href: '/next-workspace/brand', icon: 'settings' },
   ]},
   { id: 'system', name: 'System', items: [
     { label: 'Business Settings', href: '/next-workspace/business-settings', icon: 'settings' },
