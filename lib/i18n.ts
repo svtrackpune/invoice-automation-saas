@@ -30,15 +30,48 @@ const ISO_COUNTRY_CODES = [
 
 export { ISO_COUNTRY_CODES };
 
-export function getCurrencyOptions(locale = 'en-US') {
-  if (typeof Intl.supportedValuesOf !== 'function') {
-    throw new Error('This runtime does not expose ISO 4217 currency enumeration');
+const COMMON_CURRENCY_CODES = [
+  'AED','AUD','BDT','BRL','CAD','CHF','CNY','EUR','GBP','HKD','IDR','INR',
+  'JPY','KRW','LKR','MXN','MYR','NPR','NZD','PHP','PKR','SAR','SGD','THB',
+  'TRY','TWD','USD','VND','ZAR',
+] as const;
+
+function safeLocale(locale: string | null | undefined): string {
+  const candidate = String(locale || 'en-IN');
+  try {
+    new Intl.NumberFormat(candidate);
+    return candidate;
+  } catch {
+    return 'en-IN';
   }
-  const codes = Intl.supportedValuesOf('currency');
-  const names = typeof Intl.DisplayNames === 'function'
-    ? new Intl.DisplayNames([locale], { type: 'currency' })
-    : null;
-  return codes.map((code) => ({ code, name: names?.of(code) ?? code }));
+}
+
+export function normalizeCurrencyCode(value: string | null | undefined, fallback = 'INR'): string {
+  const candidate = String(value || '').trim().toUpperCase();
+  return /^[A-Z]{3}$/.test(candidate) ? candidate : fallback;
+}
+
+export function getCurrencyOptions(locale = 'en-US') {
+  let codes: readonly string[] = COMMON_CURRENCY_CODES;
+  if (typeof Intl.supportedValuesOf === 'function') {
+    try {
+      codes = Intl.supportedValuesOf('currency');
+    } catch {
+      codes = COMMON_CURRENCY_CODES;
+    }
+  }
+  const resolvedLocale = safeLocale(locale);
+  let names: Intl.DisplayNames | null = null;
+  try {
+    names = typeof Intl.DisplayNames === 'function'
+      ? new Intl.DisplayNames([resolvedLocale], { type: 'currency' })
+      : null;
+  } catch {
+    names = null;
+  }
+  return [...new Set([...codes, ...COMMON_CURRENCY_CODES])]
+    .map((code) => ({ code, name: names?.of(code) ?? code }))
+    .sort((a, b) => a.name.localeCompare(b.name, resolvedLocale));
 }
 
 export function getCountryOptions(locale = 'en-US') {
@@ -60,13 +93,47 @@ export function localeDirection(locale: string): 'ltr' | 'rtl' {
   return SUPPORTED_LOCALES.find((item) => item.code === locale)?.dir ?? 'ltr';
 }
 
-export function formatMoney(amount: number, currency = 'USD', locale = 'en-US') {
-  const normalizedCurrency = String(currency || 'USD').trim().toUpperCase();
-  if (!/^[A-Z]{3}$/.test(normalizedCurrency)) throw new Error('Invalid ISO 4217 currency code');
-  return new Intl.NumberFormat(String(locale || 'en-US'), {
-    style: 'currency',
-    currency: normalizedCurrency,
-  }).format(Number.isFinite(amount) ? amount : 0);
+export function formatMoney(
+  amount: number,
+  currency = 'USD',
+  locale = 'en-US',
+  options?: { displayCode?: boolean; maximumFractionDigits?: number },
+) {
+  const normalizedCurrency = normalizeCurrencyCode(currency, 'USD');
+  const resolvedLocale = safeLocale(locale);
+  const safeAmount = Number.isFinite(amount) ? amount : 0;
+  try {
+    return new Intl.NumberFormat(resolvedLocale, {
+      style: 'currency',
+      currency: normalizedCurrency,
+      currencyDisplay: options?.displayCode ? 'code' : 'symbol',
+      maximumFractionDigits: options?.maximumFractionDigits,
+    }).format(safeAmount);
+  } catch {
+    return `${normalizedCurrency} ${new Intl.NumberFormat(resolvedLocale, {
+      maximumFractionDigits: options?.maximumFractionDigits ?? 2,
+    }).format(safeAmount)}`;
+  }
+}
+
+/** Format currency totals without ever summing amounts in different units. */
+export function formatCurrencyTotals<T>(
+  items: readonly T[],
+  amountOf: (item: T) => number,
+  currencyOf: (item: T) => string | null | undefined,
+  locale = 'en-IN',
+  fallbackCurrency = 'INR',
+): string {
+  const totals = new Map<string, number>();
+  for (const item of items) {
+    const code = normalizeCurrencyCode(currencyOf(item), fallbackCurrency);
+    const amount = Number(amountOf(item));
+    totals.set(code, (totals.get(code) ?? 0) + (Number.isFinite(amount) ? amount : 0));
+  }
+  if (!totals.size) return formatMoney(0, fallbackCurrency, locale);
+  const entries = [...totals.entries()].sort(([a], [b]) => a.localeCompare(b));
+  if (entries.length === 1) return formatMoney(entries[0][1], entries[0][0], locale);
+  return entries.map(([currency, amount]) => formatMoney(amount, currency, locale, { displayCode: true })).join(' · ');
 }
 
 export function formatBusinessMoney(
@@ -75,13 +142,13 @@ export function formatBusinessMoney(
   options?: { base?: boolean; maximumFractionDigits?: number },
 ) {
   const currency = (options?.base ? business.base_currency_code : business.currency_code) || 'USD';
-  return new Intl.NumberFormat(business.locale || 'en-US', {
-    style: 'currency',
-    currency: String(currency).toUpperCase(),
+  return formatMoney(amount, String(currency).toUpperCase(), business.locale || 'en-US', {
     maximumFractionDigits: options?.maximumFractionDigits,
-  }).format(Number.isFinite(amount) ? amount : 0);
+  });
 }
 
 export function formatDate(value: string | Date, locale = 'en-US', options?: Intl.DateTimeFormatOptions) {
-  return new Intl.DateTimeFormat(locale, options ?? { year: 'numeric', month: 'short', day: 'numeric' }).format(new Date(value));
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return String(value ?? '');
+  return new Intl.DateTimeFormat(safeLocale(locale), options ?? { year: 'numeric', month: 'short', day: 'numeric' }).format(date);
 }
