@@ -42,10 +42,10 @@ test('Windows deployment gates install, typecheck, lint and build without execut
   assert.match(deployScript, /if \(\$LASTEXITCODE -ne 0\)/);
   assert.match(deployScript, /node_modules\\next\\dist\\bin\\next/);
   assert.doesNotMatch(deployScript, /Invoke-NpmStep -Label 'Automated tests'/);
-  const invokedSteps = deployScript.split('\\n').filter(line => line.startsWith('Invoke-NpmStep -Label'));
+  const invokedSteps = deployScript.match(/^Invoke-NpmStep -Label.*$/gm) ?? [];
   assert.equal(invokedSteps.length, 4);
-  for (const line of invokedSteps) assert.match(line, /-NpmArguments @\\(/, line);
-  assert.doesNotMatch(deployScript, /Invoke-NpmStep[^\\n]*\\s-Arguments\\s/);
+  for (const line of invokedSteps) assert.ok(line.includes('-NpmArguments @('), line);
+  assert.doesNotMatch(deployScript, /Invoke-NpmStep[^\r\n]*\s-Arguments\s/);
 });
 
 test('build script explains a missing Next.js CLI instead of emitting an opaque module-not-found error', () => {
