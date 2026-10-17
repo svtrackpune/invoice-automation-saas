@@ -3,108 +3,8 @@
 import { useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { downloadBusinessSetupTemplate, downloadBusinessSetupWorkbook, type BusinessSetupWorkbookData } from '@/lib/business-setup-workbook';
+import { exportFullBusinessDataToExcel } from '@/lib/business-data-export';
 
-const DIRECT_BUSINESS_TABLES = [
-  'businesses','customers','vendors','products_services','accounts','tax_rates','invoices','bills','payments','expenses',
-  'bank_accounts','quotations','receipts','documents','employees','payroll_runs','recurring_invoices','payment_allocations',
-  'accounting_periods','journal_entries','credit_notes','debit_notes','customer_credit_ledger','customer_refunds','write_offs',
-  'vendor_credits','vendor_credit_ledger','inventory_locations','inventory_balances','inventory_movements','inventory_transfers',
-  'customer_item_pricing','business_document_preferences','business_document_bank_accounts','document_payment_settings',
-  'business_brand_assets','brand_color_presets','recurring_expense_templates','automation_rules','automation_runs',
-  'integration_connections','business_tax_profiles','tax_filing_profiles','tax_adjustments','tds_rules','tds_transactions',
-  'tcs_rules','tcs_transactions','tax_transaction_lines','report_snapshots','ca_exports','notification_jobs',
-  'notification_delivery_evidence','business_whatsapp_connections','whatsapp_templates','whatsapp_notification_queue',
-  'vendor_purchase_items','ai_agent_preferences','ai_insight_events','ai_action_requests','document_render_jobs',
-  'recurring_invoice_runs','fx_rates','bank_reconciliations','year_end_closings',
-] as const;
-
-const CHILD_TABLES = [
-  'invoice_items','quotation_items','bill_items','credit_note_items','debit_note_items','journal_lines',
-  'vendor_credit_items','recurring_invoice_items','inventory_transfer_items','payroll_items','bank_transactions',
-  'bank_reconciliation_items',
-] as const;
-
-const XLSX_MIME = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
-
-function safeSheetName(name: string) {
-  return name.replace(/[\\/?*:[\]]/g, '_').slice(0, 31) || 'Sheet';
-}
-
-function uniqueSheetName(workbook: any, requested: string) {
-  const base = safeSheetName(requested);
-  if (!workbook.getWorksheet(base)) return base;
-  for (let n = 2; n < 1000; n += 1) {
-    const suffix = `_${n}`;
-    const candidate = `${base.slice(0, 31 - suffix.length)}${suffix}`;
-    if (!workbook.getWorksheet(candidate)) return candidate;
-  }
-  throw new Error(`Unable to allocate a worksheet name for ${requested}.`);
-}
-
-function normalizeCellValue(value: unknown): any {
-  if (value === null || value === undefined) return null;
-  if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean' || value instanceof Date) return value;
-  return JSON.stringify(value);
-}
-
-function appendRowsAsWorksheet(workbook: any, requestedName: string, rows: Record<string, unknown>[]) {
-  if (!rows.length) return;
-  const columns = Array.from(new Set(rows.flatMap((row) => Object.keys(row))));
-  if (!columns.length) return;
-  const sheet = workbook.addWorksheet(uniqueSheetName(workbook, requestedName));
-  sheet.addRow(columns);
-  for (const row of rows) {
-    sheet.addRow(columns.map((column) => normalizeCellValue(row[column])));
-  }
-  sheet.getRow(1).font = { bold: true };
-  sheet.views = [{ state: 'frozen', ySplit: 1 }];
-  for (let index = 1; index <= columns.length; index += 1) {
-    sheet.getColumn(index).width = Math.min(
-      42,
-      Math.max(12, columns[index - 1].length + 2),
-    );
-  }
-}
-
-function downloadWorkbook(buffer: unknown, filename: string) {
-  const bytes = buffer instanceof ArrayBuffer
-    ? new Uint8Array(buffer)
-    : buffer instanceof Uint8Array
-      ? buffer
-      : new Uint8Array(buffer as ArrayBuffer);
-  const blob = new Blob([bytes.buffer as ArrayBuffer], { type: XLSX_MIME });
-  const url = URL.createObjectURL(blob);
-  const anchor = document.createElement('a');
-  anchor.href = url;
-  anchor.download = filename;
-  anchor.rel = 'noopener';
-  document.body.appendChild(anchor);
-  anchor.click();
-  anchor.remove();
-  window.setTimeout(() => URL.revokeObjectURL(url), 0);
-}
-
-type PagedRowsResult = { data: any[]; error: null };
-async function fetchPagedRows(
-  loadPage: (from: number, to: number) => Promise<{ data: any[] | null; error: { message: string } | null }>,
-  label: string,
-  maxRows = 5000,
-): Promise<PagedRowsResult> {
-  const all: any[] = [];
-  const pageSize = 500;
-  for (let from = 0; from <= maxRows; from += pageSize) {
-    const { data, error } = await loadPage(from, from + pageSize - 1);
-    if (error) throw new Error('Could not export ' + label + ': ' + error.message);
-    const batch = data || [];
-    all.push(...batch);
-    if (all.length > maxRows) {
-      const recovery = maxRows <= 5000 ? 'Use the full business-data export for larger historical datasets.' : 'Split this export by dataset and retry.';
-      throw new Error(label + ' exceeds the safe export limit of ' + maxRows.toLocaleString() + ' rows. ' + recovery);
-    }
-    if (batch.length < pageSize) return { data: all, error: null };
-  }
-  throw new Error(label + ' exceeded the safe export limit of ' + maxRows.toLocaleString() + ' rows.');
-}
 export default function DataExportPage() {
   const [running, setRunning] = useState(false);
   const [message, setMessage] = useState('');
@@ -113,138 +13,45 @@ export default function DataExportPage() {
 
   async function exportData() {
     setRunning(true);
-    setMessage('Preparing your business export…');
+    setMessage('Preparing the complete business Excel export…');
     setFailed([]);
     let exportLogId: string | null = null;
-
     try {
       const [{ data: context, error: contextError }, { data: auth }] = await Promise.all([
         supabase.rpc('get_my_business_context'),
         supabase.auth.getUser(),
       ]);
       if (contextError) throw contextError;
-
       const activeId = localStorage.getItem('moneymatters.activeBusinessId');
       const businessId = (context || []).find((row: { business_id: string }) => row.business_id === activeId)?.business_id
         || context?.[0]?.business_id;
+      if (!businessId || !auth.user) throw new Error('No active business or authenticated user was found.');
 
-      if (!businessId || !auth.user) {
-        throw new Error('No active business or authenticated user was found.');
-      }
-
-      const { data: log } = await supabase
-        .from('data_export_logs')
-        .insert({
-          business_id: businessId,
-          requested_by: auth.user.id,
-          export_format: 'xlsx',
-          scope: 'business_data',
-          status: 'started',
-        })
-        .select('id')
-        .maybeSingle();
-
+      const { data: log, error: logError } = await supabase.from('data_export_logs').insert({
+        business_id: businessId,
+        requested_by: auth.user.id,
+        export_format: 'xlsx',
+        scope: 'business_data',
+        status: 'started',
+      }).select('id').maybeSingle();
+      if (logError) throw logError;
       exportLogId = log?.id || null;
 
-      const { default: ExcelJS } = await import('@andreeewill/exceljs/dist/exceljs.min.js');
-      const workbook = new ExcelJS.Workbook();
-      workbook.creator = 'Moneymatters';
-      workbook.lastModifiedBy = 'Moneymatters';
-      workbook.created = new Date();
-      workbook.modified = new Date();
-
-      const failures: string[] = [];
-      const exported = new Set<string>();
-
-      for (const table of DIRECT_BUSINESS_TABLES) {
-        try {
-          const { data } = await fetchPagedRows(
-            async (from,to)=>await supabase.from(table).select('*').eq('business_id',businessId).range(from,to),
-            table,
-            100000,
-          );
-          if (data.length) {
-            appendRowsAsWorksheet(workbook, table, data as Record<string, unknown>[]);
-            exported.add(table);
-          }
-        } catch {
-          failures.push(table);
-        }
-      }
-
-      const relationMap: Record<string, { parent: string; childKey: string; parentKey: string }> = {
-        invoice_items: { parent: 'invoices', childKey: 'invoice_id', parentKey: 'id' },
-        quotation_items: { parent: 'quotations', childKey: 'quotation_id', parentKey: 'id' },
-        bill_items: { parent: 'bills', childKey: 'bill_id', parentKey: 'id' },
-        credit_note_items: { parent: 'credit_notes', childKey: 'credit_note_id', parentKey: 'id' },
-        debit_note_items: { parent: 'debit_notes', childKey: 'debit_note_id', parentKey: 'id' },
-        journal_lines: { parent: 'journal_entries', childKey: 'journal_entry_id', parentKey: 'id' },
-        vendor_credit_items: { parent: 'vendor_credits', childKey: 'vendor_credit_id', parentKey: 'id' },
-        recurring_invoice_items: { parent: 'recurring_invoices', childKey: 'recurring_invoice_id', parentKey: 'id' },
-        inventory_transfer_items: { parent: 'inventory_transfers', childKey: 'transfer_id', parentKey: 'id' },
-        payroll_items: { parent: 'payroll_runs', childKey: 'payroll_run_id', parentKey: 'id' },
-        bank_transactions: { parent: 'bank_accounts', childKey: 'bank_account_id', parentKey: 'id' },
-        bank_reconciliation_items: { parent: 'bank_reconciliations', childKey: 'reconciliation_id', parentKey: 'id' },
-      };
-
-      for (const table of CHILD_TABLES) {
-        const relation = relationMap[table];
-        if (!relation || !exported.has(relation.parent)) continue;
-
-        try {
-          const { data: parents } = await fetchPagedRows(
-            async (from,to)=>await supabase.from(relation.parent).select(relation.parentKey).eq('business_id',businessId).range(from,to),
-            relation.parent,
-            100000,
-          );
-          const parentIds = parents.map((row: Record<string, unknown>) => row[relation.parentKey]).filter(Boolean);
-          if (!parentIds.length) continue;
-          const childRows: Record<string, unknown>[] = [];
-          for (let index=0; index<parentIds.length; index+=250) {
-            const idBatch=parentIds.slice(index,index+250);
-            const {data:batch}=await fetchPagedRows(
-              async (from,to)=>await supabase.from(table).select('*').in(relation.childKey,idBatch).range(from,to),
-              table,
-              100000,
-            );
-            childRows.push(...batch as Record<string, unknown>[]);
-            if(childRows.length>100000)throw new Error(table+' exceeded the safe child-row export limit.');
-          }
-          if(childRows.length)appendRowsAsWorksheet(workbook,table,childRows);
-        } catch {
-          failures.push(table);
-        }
-      }
-
-      if (!workbook.worksheets.length) {
-        throw new Error('No exportable business data was found.');
-      }
-
-      const buffer = await workbook.xlsx.writeBuffer();
-      const stamp = new Date().toISOString().replace(/[:.]/g, '-');
-      downloadWorkbook(buffer, `moneymatters-business-export-${stamp}.xlsx`);
-
+      const summary = await exportFullBusinessDataToExcel(supabase, businessId);
       if (exportLogId) {
-        await supabase
-          .from('data_export_logs')
-          .update({
-            status: 'completed',
-            sheet_count: workbook.worksheets.length,
-            completed_at: new Date().toISOString(),
-            error_summary: failures.length ? failures.join(', ') : null,
-          })
-          .eq('id', exportLogId);
+        const { error: auditError } = await supabase.from('data_export_logs').update({
+          status: 'completed',
+          sheet_count: summary.sheetCount,
+          completed_at: new Date().toISOString(),
+          error_summary: null,
+        }).eq('id', exportLogId);
+        if (auditError) setFailed(['Export downloaded, but the audit log could not be updated: ' + auditError.message]);
       }
-
-      setFailed(failures);
-      setMessage(`Export complete: ${workbook.worksheets.length} sheets downloaded.`);
+      setMessage('Full export complete: ' + summary.recordCount.toLocaleString() + ' records across ' + summary.datasetCount + ' datasets, plus the manifest. Secrets, tokens and credential fields are excluded.');
     } catch (error: unknown) {
-      const text = error instanceof Error ? error.message : 'Export failed.';
+      const text = error instanceof Error ? error.message : 'Full business Excel export failed. No partial workbook was downloaded.';
       if (exportLogId) {
-        await supabase
-          .from('data_export_logs')
-          .update({ status: 'failed', error_summary: text })
-          .eq('id', exportLogId);
+        await supabase.from('data_export_logs').update({ status: 'failed', error_summary: text }).eq('id', exportLogId);
       }
       setMessage(text);
     } finally {

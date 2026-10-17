@@ -9,6 +9,8 @@ const exportPage = read('app/next-workspace/data-export/page.tsx');
 const previewMigration = read('supabase/migrations/20261017200000_business_setup_staging_and_preview.sql');
 const commitMigration = read('supabase/migrations/20261017200100_business_setup_atomic_commit.sql');
 const guardMigration = read('supabase/migrations/20261017200200_business_setup_opening_balance_permission_guard.sql');
+const optionalSheetsMigration = read('supabase/migrations/20261017201000_business_setup_allow_empty_master_sheets.sql');
+const dataExportUtility = read('lib/business-data-export.ts');
 
 test('sample workbook contains seven expected worksheets, sample rows, and instructions', () => {
   for (const sheet of ['0. Instructions & Legend','1. Business Profile','2. Bank & Accounts','3. Customers','4. Vendors','5. Categories','6. Products & Services']) assert.ok(workbook.includes(sheet));
@@ -105,4 +107,39 @@ test('setup migration preview warns which active business will receive the commi
   assert.ok(migrationPage.includes('setSetupBusinessName(target.business_name'));
   assert.ok(migrationPage.includes('Commit this validated business setup to "'));
   assert.ok(migrationPage.includes("setSetupBusinessName('');setSetupError('')"));
+});
+
+test('sample workbook is simplified while preserving the seven migration worksheets', () => {
+  assert.ok(workbook.includes("['name','Name'],['phone','Phone'],['email','Email'],['gstin','GSTIN']"));
+  assert.ok(workbook.includes("['category','Subcategory','description','Description']") || workbook.includes("['category','Category'],['subcategory','Subcategory'],['description','Description']"));
+  assert.ok(workbook.includes('const guide = ['));
+  assert.ok(workbook.includes('Maximum 5,000 rows per data worksheet'));
+  assert.ok(workbook.includes('requiredFields: string[]'));
+  assert.ok(workbook.includes("SHEET_NAMES.customers, ['name']"));
+});
+
+test('optional master worksheets may be empty after sample rows are deleted', () => {
+  assert.ok(optionalSheetsMigration.includes('CREATE OR REPLACE FUNCTION public._validate_business_setup_payload'));
+  assert.ok(!optionalSheetsMigration.includes('Add at least one customer.'));
+  assert.ok(!optionalSheetsMigration.includes('Add at least one vendor.'));
+  assert.ok(!optionalSheetsMigration.includes('Add at least one product or service.'));
+  assert.ok(optionalSheetsMigration.includes("REVOKE ALL ON FUNCTION public._validate_business_setup_payload(uuid,jsonb) FROM PUBLIC,anon,authenticated"));
+});
+
+test('full business Excel export is directly available from Integration & Data and reused by export center', () => {
+  assert.ok(migrationPage.includes('Export Full Business Data (.xlsx)'));
+  assert.ok(migrationPage.includes('onClick={exportFullBusinessExcel}'));
+  assert.ok(migrationPage.includes('Migration-ready export options'));
+  assert.ok(migrationPage.includes("import { exportFullBusinessDataToExcel } from '@/lib/business-data-export'"));
+  assert.ok(exportPage.includes("import { exportFullBusinessDataToExcel } from '@/lib/business-data-export'"));
+  assert.ok(exportPage.includes('Full export complete:'));
+});
+
+test('full business Excel export pages through all table data, includes a manifest and strips secrets', () => {
+  assert.ok(dataExportUtility.includes('EXCEL_MAX_DATA_ROWS = 1_000_000'));
+  assert.ok(dataExportUtility.includes('.range(from,to)'));
+  assert.ok(dataExportUtility.includes('00 Export Manifest'));
+  assert.ok(dataExportUtility.includes('SENSITIVE_KEY'));
+  assert.ok(dataExportUtility.includes('no partial workbook was downloaded') || dataExportUtility.includes('no partial workbook'));
+  assert.ok(dataExportUtility.includes('CHILD_RELATIONS'));
 });

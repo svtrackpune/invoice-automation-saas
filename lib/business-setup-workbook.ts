@@ -13,40 +13,36 @@ const MIME = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
 
 const PROFILE_COLUMNS = [
   ['business_name','Business Name'],['legal_name','Legal Name'],['business_type','Business Type'],
-  ['phone','Phone'],['email','Email'],['website','Website'],['gstin','GSTIN'],['pan','PAN'],
-  ['address_line_1','Address Line 1'],['address_line_2','Address Line 2'],['city','City'],
-  ['state','State'],['postal_code','PIN Code'],['country_code','Country Code'],
-  ['currency_code','Currency Code'],['timezone','Time Zone'],['opening_balance_date','Opening Balance Date'],
+  ['gstin','GSTIN'],['pan','PAN'],['phone','Phone'],['email','Email'],
+  ['address_line_1','Address Line 1'],['city','City'],['state','State'],['postal_code','PIN Code'],
+  ['country_code','Country Code'],['currency_code','Currency Code'],['timezone','Time Zone'],
+  ['opening_balance_date','Opening Balance Date'],
 ] as const;
 const BANK_COLUMNS = [
   ['record_type','Record Type'],['account_name','Account Name'],['account_code','Account Code'],
-  ['account_type','Account Type'],['normal_balance','Normal Balance'],['institution_name','Institution Name'],
-  ['account_number','Account Number'],['account_holder_name','Account Holder'],['ifsc_code','IFSC'],
-  ['branch_name','Branch'],['currency_code','Currency'],['upi_id','UPI ID'],['is_primary','Is Primary'],
-  ['opening_balance','Opening Balance'],['description','Description'],
+  ['institution_name','Bank / Institution'],['account_number','Account Number'],
+  ['account_holder_name','Account Holder'],['ifsc_code','IFSC'],['upi_id','UPI ID'],
+  ['is_primary','Primary?'],['opening_balance','Opening Balance'],
+  ['account_type','Account Type'],['normal_balance','Normal Balance'],['currency_code','Currency'],
 ] as const;
 const CUSTOMER_COLUMNS = [
-  ['name','Name'],['legal_name','Legal Name'],['phone','Phone'],['email','Email'],['gstin','GSTIN'],
-  ['tax_type','Tax Type'],['billing_address','Billing Address'],['shipping_address','Shipping Address'],
-  ['credit_limit','Credit Limit'],['payment_terms_days','Payment Terms (Days)'],
-  ['opening_balance','Opening Balance'],['notes','Notes'],
+  ['name','Name'],['phone','Phone'],['email','Email'],['gstin','GSTIN'],
+  ['billing_address','Billing Address'],['opening_balance','Opening Balance'],
+  ['payment_terms_days','Payment Terms (Days)'],
 ] as const;
 const VENDOR_COLUMNS = [
-  ['name','Name'],['legal_name','Legal Name'],['contact_person_name','Contact Person'],['phone','Phone'],
-  ['email','Email'],['gstin','GSTIN'],['tax_type','Tax Type'],['address','Address'],
-  ['payment_terms_days','Payment Terms (Days)'],['opening_balance','Opening Balance'],['notes','Notes'],
+  ['name','Name'],['contact_person_name','Contact Person'],['phone','Phone'],['email','Email'],
+  ['gstin','GSTIN'],['address','Address'],['opening_balance','Opening Balance'],
+  ['payment_terms_days','Payment Terms (Days)'],
 ] as const;
 const CATEGORY_COLUMNS = [
   ['category','Category'],['subcategory','Subcategory'],['description','Description'],
-  ['default_hsn_sac','Default HSN/SAC'],['tax_rate','Tax Rate (%)'],
 ] as const;
 const PRODUCT_COLUMNS = [
-  ['category','Category'],['subcategory','Subcategory'],['item_type','Item Type (product/service)'],
-  ['sku','SKU / Item Code'],['name','Name'],['hsn_sac','HSN/SAC'],['unit','Unit'],
+  ['category','Category'],['subcategory','Subcategory'],['item_type','Type (product/service)'],
+  ['sku','SKU / Item Code'],['name','Name'],['hsn_sac','HSN / SAC'],['unit','Unit'],
   ['sales_price','Sale Price'],['purchase_price','Purchase Price'],['tax_rate','Tax Rate (%)'],
-  ['opening_stock','Opening Stock'],['opening_stock_cost','Opening Stock Cost'],
-  ['reorder_level','Reorder Level'],['barcode','Barcode'],['description','Description'],
-  ['sell_enabled','Sell Enabled'],['purchase_enabled','Purchase Enabled'],['is_active','Active'],
+  ['opening_stock','Opening Stock'],['opening_stock_cost','Opening Stock Cost'],['description','Description'],
 ] as const;
 
 const SHEET_NAMES = {
@@ -145,85 +141,28 @@ async function makeWorkbook(data: BusinessSetupWorkbookData) {
   workbook.modified = new Date();
 
   const instructions = workbook.addWorksheet(SHEET_NAMES.instructions);
-  instructions.addRow(['Sheet / Section', 'Column / Topic', 'Required?', 'Definition, allowed values & safety rules']);
+  instructions.addRow(['Section', 'Required columns', 'Optional columns', 'What to enter']);
   const guide = [
-    ['Purpose', 'Use this workbook to set up or port master data for the active business. It does not import invoices, bills, receipts, payments or historical transactions.'],
-    ['Two-stage safety', 'Upload → Validate & Preview → correct every error → Commit setup. Preview stores only a temporary staging record; live business data changes only after commit.'],
-    ['Sample rows', 'Replace every SAMPLE / REPLACE row with real data or delete that example row. Never commit sample names or sample account details.'],
-    ['Business Profile', 'Exactly one populated data row. Business Name is required; blank optional fields leave existing business values unchanged.'],
-    ['Bank & Accounts', 'Record Type is cash, bank, upi or account. Account Type is asset, liability, equity, income or expense. Normal Balance is debit or credit. Only one record may be primary.'],
-    ['Customers', 'Name is required. Customer Opening Balance is the amount customers owe the business; use zero when not applicable.'],
-    ['Vendors', 'Name is required. Vendor Opening Balance is the amount the business owes vendors; use zero when not applicable.'],
-    ['Opening balances', 'Any non-zero account/customer/vendor opening balance requires an Opening Balance Date. Balances are posted together through one balanced opening journal. Import is blocked if balances were already posted for this business.'],
-    ['Categories', 'Category is the root; Subcategory is optional and always belongs to the named parent category.'],
-    ['Products & Services', 'Item Type must be product or service. Goods need Unit, HSN and opening stock. Services use SAC in HSN/SAC, default unit hrs and never receive stock.'],
-    ['Tax Rate (%)', 'Enter a percentage from 0 to 100. A missing configured rate is created as a sales-tax rate at commit. Confirm your GST treatment before issuing statutory tax documents.'],
-    ['Duplicate matching', 'Customers/vendors match by GSTIN when supplied, otherwise by name. Catalog items match by SKU when supplied, otherwise by exact name and type. Existing opening stock is never reset on re-import.'],
-    ['Limits', 'Maximum 5,000 data rows per worksheet; workbook must be no larger than 15 MB. Invalid workbook content cannot be committed.'],
-    ['Security', 'The workbook is imported only into the active business displayed in the wizard, after server-side permission and tenant checks. Keep this workbook private because it may contain customer, vendor and bank details.'],
+    ['START HERE', '—', '—', 'Use one row per record. Replace sample rows or delete them. Do not change worksheet names. You may leave a master sheet empty if you have no records for it.'],
+    ['VALIDATE FIRST', '—', '—', 'Upload this workbook and click Validate & Preview. Fix every reported error before Commit. Preview does not modify live business data.'],
+    ['BUSINESS PROFILE', 'Business Name', 'Legal Name, Business Type, GSTIN, PAN, Phone, Email, Address, City, State, PIN Code, Country, Currency, Time Zone, Opening Balance Date', 'Exactly one row. Blank optional fields preserve existing profile values. GSTIN and PAN formats are checked.'],
+    ['BANK & ACCOUNTS', 'Record Type, Account Name', 'Account Code, Bank / Institution, Account Number, Account Holder, IFSC, UPI ID, Primary?, Opening Balance, Account Type, Normal Balance, Currency', 'Record Type: cash, bank, upi or account. For account rows, Account Type is asset/liability/equity/income/expense and Normal Balance is debit/credit. Mark only one row Primary.'],
+    ['CUSTOMERS', 'Name', 'Phone, Email, GSTIN, Billing Address, Opening Balance, Payment Terms (Days)', 'One row per customer. GSTIN is used to match existing customers when supplied; otherwise the name is used.'],
+    ['VENDORS', 'Name', 'Contact Person, Phone, Email, GSTIN, Address, Opening Balance, Payment Terms (Days)', 'One row per supplier. GSTIN is used to match existing vendors when supplied; otherwise the name is used.'],
+    ['CATEGORIES', 'Category', 'Subcategory, Description', 'One row per parent/subcategory pair. Leave Subcategory blank for a parent-only category.'],
+    ['PRODUCTS & SERVICES', 'Category, Type, Name, HSN / SAC', 'Subcategory, SKU, Unit, Sale Price, Purchase Price, Tax Rate (%), Opening Stock, Opening Stock Cost, Description', 'Type is product or service. Unit is required for products; services default to hrs. Services must have zero Opening Stock. Existing products match by SKU, otherwise name and type.'],
+    ['OPENING BALANCES', '—', 'Opening Balance Date in Business Profile; balances in Bank, Customers or Vendors', 'Opening balances must be non-negative, dated, and posted by a user with accounting permission. The system creates one balanced opening journal. If already posted, use an adjustment workflow instead of importing again.'],
+    ['OPENING STOCK', '—', 'Opening Stock and Opening Stock Cost on new products', 'Stock is initialized only when a new product is created. Re-import never adds or resets stock for an existing product.'],
+    ['TAX', '—', 'Tax Rate (%)', 'Use a percentage from 0 to 100. Missing rates are created as sales-tax rates at commit. Confirm your GST treatment before issuing tax documents.'],
+    ['DUPLICATES', '—', '—', 'Duplicate names/SKUs within a worksheet are rejected. Preview checks records already in the active business.'],
+    ['LIMITS & PRIVACY', '—', '—', 'Maximum 5,000 rows per data worksheet and 15 MB per workbook. Keep the file private; it can contain customer, supplier and bank data. Secret credentials are never required.'],
   ];
-  for (const [topic, instruction] of guide) instructions.addRow(['GENERAL', topic, '—', instruction]);
-
-  const fieldDefinitions: Array<[string, string, string, string]> = [
-    ['Business Profile','Business Name','Required','Trade name used by the workspace. Replace the sample placeholder.'],
-    ['Business Profile','Legal Name','Optional','Registered legal name; blank preserves the existing value.'],
-    ['Business Profile','Business Type','Optional','One of: sole_proprietorship, partnership, llp, private_limited, public_limited, trust, society, individual, other.'],
-    ['Business Profile','Phone / Email / Website','Optional','Business contact details; email should be a valid address.'],
-    ['Business Profile','GSTIN','Optional','15-character Indian GSTIN; format is validated.'],
-    ['Business Profile','PAN','Optional','10-character PAN; format is validated.'],
-    ['Business Profile','Address Line 1 / 2, City, State, PIN Code','Optional','Business address components. Blank values preserve existing address components.'],
-    ['Business Profile','Country Code','Optional','Two-letter ISO country code, normally IN.'],
-    ['Business Profile','Currency Code','Optional','Three-letter currency code, e.g. INR. Changing currency affects the business default.'],
-    ['Business Profile','Time Zone','Optional','IANA time zone, e.g. Asia/Kolkata.'],
-    ['Business Profile','Opening Balance Date','Required when balances are non-zero','Date in YYYY-MM-DD format. Required before customer, vendor or account opening balances can be posted.'],
-    ['Bank & Accounts','Record Type','Required','One of: cash, bank, upi, account. Cash/bank/UPI create payment-capable account records.'],
-    ['Bank & Accounts','Account Name','Required','Readable account / cash book / bank display name.'],
-    ['Bank & Accounts','Account Code','Optional','Chart-of-accounts code. Existing code matches are reused; do not reuse a code for another account.'],
-    ['Bank & Accounts','Account Type','Required for account rows','One of: asset, liability, equity, income, expense. Cash/bank/UPI must be debit-balance assets.'],
-    ['Bank & Accounts','Normal Balance','Required for account rows','debit or credit, according to the chart of accounts.'],
-    ['Bank & Accounts','Institution Name, Account Number, Account Holder, IFSC, Branch','Optional','Bank details. Account Number is stored in the business record; keep the workbook private.'],
-    ['Bank & Accounts','Currency','Optional','Three-letter currency code; defaults to the business currency.'],
-    ['Bank & Accounts','UPI ID','Required for UPI collection','UPI VPA used to enable UPI payment and QR settings.'],
-    ['Bank & Accounts','Is Primary','Optional','true or false. Mark at most one row as primary.'],
-    ['Bank & Accounts','Opening Balance','Optional','Non-negative number. Non-zero balances post through the opening balance journal and cannot be imported a second time.'],
-    ['Bank & Accounts','Description','Optional','Internal account description.'],
-    ['Customers','Name','Required','Customer display name. Duplicate names within this workbook are rejected.'],
-    ['Customers','Legal Name, Phone, Email, GSTIN, Tax Type','Optional','Contact and tax profile. GSTIN format is validated when provided.'],
-    ['Customers','Billing Address / Shipping Address','Optional','Address text for customer documents.'],
-    ['Customers','Credit Limit','Optional','Non-negative number in the business currency.'],
-    ['Customers','Payment Terms (Days)','Optional','Whole number, zero or greater.'],
-    ['Customers','Opening Balance','Optional','Non-negative receivable amount. Requires an opening date and accounting permission.'],
-    ['Customers','Notes','Optional','Internal notes.'],
-    ['Vendors','Name','Required','Supplier display name. Duplicate names within this workbook are rejected.'],
-    ['Vendors','Legal Name, Contact Person, Phone, Email, GSTIN, Tax Type','Optional','Supplier contact and tax profile. GSTIN format is validated when provided.'],
-    ['Vendors','Address','Optional','Supplier address text.'],
-    ['Vendors','Payment Terms (Days)','Optional','Whole number, zero or greater.'],
-    ['Vendors','Opening Balance','Optional','Non-negative payable amount. Requires an opening date and accounting permission.'],
-    ['Vendors','Notes','Optional','Internal notes.'],
-    ['Categories','Category','Required','Parent/root product or service category.'],
-    ['Categories','Subcategory','Optional','Child category linked under the Category in the same row.'],
-    ['Categories','Description','Optional','Category or subcategory description.'],
-    ['Categories','Default HSN/SAC','Optional','Default classification code inherited by catalog items where applicable.'],
-    ['Categories','Tax Rate (%)','Optional','0–100. Non-zero rates are resolved or created as a sales-tax rate at commit.'],
-    ['Products & Services','Item Type','Required','product or service. Products are inventory-trackable; services never create stock.'],
-    ['Products & Services','SKU / Item Code','Optional but recommended','Unique business-scoped code; import matches this field first for existing catalog items.'],
-    ['Products & Services','Name','Required','Product/service name. Used with Item Type if SKU is blank.'],
-    ['Products & Services','HSN/SAC','Required','HSN for goods or SAC for services.'],
-    ['Products & Services','Unit','Required for products','Unit such as pcs, kg, box. Services default to hrs when blank.'],
-    ['Products & Services','Sale Price / Purchase Price','Optional','Non-negative numeric amounts in the business currency.'],
-    ['Products & Services','Tax Rate (%)','Optional','0–100; resolves to an active sales-tax rate or creates one at commit.'],
-    ['Products & Services','Opening Stock','Optional for goods; zero for services','Non-negative quantity. Applied only to newly created goods; re-import never adds stock to an existing item.'],
-    ['Products & Services','Opening Stock Cost','Optional','Total cost for the opening quantity. If omitted, purchase price × quantity is used.'],
-    ['Products & Services','Reorder Level','Optional','Non-negative stock threshold for reorder attention.'],
-    ['Products & Services','Barcode / Description','Optional','Barcode identifier and item details.'],
-    ['Products & Services','Sell Enabled / Purchase Enabled / Active','Optional','true or false. Blank values use safe defaults where defined.'],
-  ];
-  for (const row of fieldDefinitions) instructions.addRow(row);
+  for (const row of guide) instructions.addRow(row);
   setSheetStyle(instructions, 'FF0F766E');
-  instructions.columns = [{ width: 25 }, { width: 34 }, { width: 28 }, { width: 105 }];
+  instructions.columns = [{ width: 23 }, { width: 32 }, { width: 58 }, { width: 90 }];
   for (let row = 2; row <= instructions.rowCount; row += 1) {
     instructions.getRow(row).alignment = { wrapText: true, vertical: 'top' };
-    instructions.getRow(row).height = 34;
+    instructions.getRow(row).height = 48;
   }
 
   const profileSheet = addRowsSheet(workbook, SHEET_NAMES.profile, PROFILE_COLUMNS, [data.profile])
@@ -274,7 +213,12 @@ function cellText(value: unknown): string {
 }
 function keyText(value: unknown) { return cellText(value).toLowerCase().replace(/[^a-z0-9]/g, ''); }
 
-function parseRows(sheet: any, aliases: Record<string, string>, sheetKey: string): BusinessSetupRow[] {
+function parseRows(
+  sheet: any,
+  aliases: Record<string, string>,
+  sheetKey: string,
+  requiredFields: string[],
+): BusinessSetupRow[] {
   if (!sheet) throw new Error('Workbook is missing worksheet: ' + sheetKey);
   if (sheet.rowCount < 1) throw new Error('Worksheet ' + sheetKey + ' is empty.');
   const headers = new Map<string, number>();
@@ -283,14 +227,15 @@ function parseRows(sheet: any, aliases: Record<string, string>, sheetKey: string
     const alias = aliases[keyText(header.getCell(i).value)];
     if (alias && !headers.has(alias)) headers.set(alias, i);
   }
-  const required = Object.values(aliases).filter((value, i, all) => all.indexOf(value) === i);
-  const missing = required.filter(key => !headers.has(key));
-  if (missing.length) throw new Error('Worksheet ' + sheetKey + ' is missing required columns: ' + missing.join(', ') + '. Download a fresh template and keep the header row intact.');
+  const missing = requiredFields.filter((key) => !headers.has(key));
+  if (missing.length) {
+    throw new Error('Worksheet ' + sheetKey + ' is missing required columns: ' + missing.join(', ') + '. Download the sample template or include these mandatory columns.');
+  }
   const rows: BusinessSetupRow[] = [];
   for (let rowNumber = 2; rowNumber <= sheet.rowCount; rowNumber += 1) {
     const row = sheet.getRow(rowNumber);
-    const values = Array.from(headers.values()).map(column => cellText(row.getCell(column).value));
-    if (values.every(value => value === '')) continue;
+    const values = Array.from(headers.values()).map((column) => cellText(row.getCell(column).value));
+    if (values.every((value) => value === '')) continue;
     const result: BusinessSetupRow = { _sheet_row: rowNumber };
     for (const [key, column] of headers) result[key] = cellText(row.getCell(column).value);
     rows.push(result);
@@ -299,16 +244,16 @@ function parseRows(sheet: any, aliases: Record<string, string>, sheetKey: string
 }
 
 const PROFILE_ALIASES: Record<string,string> = {
-  businessname:'business_name',tradename:'business_name',legalname:'legal_name',businesstype:'business_type',
+  businessname:'business_name',companyname:'business_name',tradename:'business_name',tradingname:'business_name',legalname:'legal_name',businesstype:'business_type',
   phone:'phone',email:'email',website:'website',gstin:'gstin',pan:'pan',addressline1:'address_line_1',
-  addressline2:'address_line_2',city:'city',state:'state',pincode:'postal_code',postalcode:'postal_code',
+  addressline2:'address_line_2',address:'address_line_1',street:'address_line_1',city:'city',state:'state',province:'state',pincode:'postal_code',postalcode:'postal_code',zip:'postal_code',zipcode:'postal_code',
   countrycode:'country_code',currencycode:'currency_code',timezone:'timezone',openingbalancdate:'opening_balance_date',
   openingbalancedate:'opening_balance_date',
 };
 const BANK_ALIASES: Record<string,string> = {
   recordtype:'record_type',accountname:'account_name',accountcode:'account_code',accounttype:'account_type',
   normalbalance:'normal_balance',institutionname:'institution_name',accountnumber:'account_number',
-  accountholder:'account_holder_name',accountholdername:'account_holder_name',ifsc:'ifsc_code',ifsccode:'ifsc_code',
+  accountholder:'account_holder_name',accountholdername:'account_holder_name',ifsc:'ifsc_code',ifsccode:'ifsc_code',bankinstitution:'institution_name',institution:'institution_name',primary:'is_primary',bankinstitution:'institution_name',institution:'institution_name',primary:'is_primary',
   branch:'branch_name',branchname:'branch_name',currency:'currency_code',currencycode:'currency_code',
   upiid:'upi_id',isprimary:'is_primary',openingbalance:'opening_balance',description:'description',
 };
@@ -327,7 +272,7 @@ const CATEGORY_ALIASES: Record<string,string> = {
   hsnsac:'default_hsn_sac',taxrate:'tax_rate',taxratepercent:'tax_rate',
 };
 const PRODUCT_ALIASES: Record<string,string> = {
-  category:'category',subcategory:'subcategory',itemtypeproductservice:'item_type',itemtype:'item_type',type:'item_type',
+  category:'category',subcategory:'subcategory',typeproductservice:'item_type',itemtypeproductservice:'item_type',itemtype:'item_type',type:'item_type',
   itemcodesku:'sku',itemcode:'sku',skuitemcode:'sku',sku:'sku',name:'name',itemname:'name',hsnsac:'hsn_sac',unit:'unit',
   saleprice:'sales_price',salesprice:'sales_price',purchaseprice:'purchase_price',taxrate:'tax_rate',
   taxratepercent:'tax_rate',openingstock:'opening_stock',openingstockcost:'opening_stock_cost',
@@ -343,14 +288,14 @@ export async function parseBusinessSetupWorkbook(file: File): Promise<BusinessSe
   await workbook.xlsx.load(await file.arrayBuffer());
   const expected = Object.values(SHEET_NAMES);
   for (const name of expected) if (!workbook.getWorksheet(name)) throw new Error('Workbook is missing required worksheet "' + name + '". Download a fresh template.');
-  const profileRows = parseRows(workbook.getWorksheet(SHEET_NAMES.profile), Object.fromEntries(PROFILE_COLUMNS.map(([key,label]) => [keyText(label), key])), SHEET_NAMES.profile);
+  const profileRows = parseRows(workbook.getWorksheet(SHEET_NAMES.profile), PROFILE_ALIASES, SHEET_NAMES.profile, ['business_name']);
   if (profileRows.length !== 1) throw new Error('Business Profile must contain exactly one populated row.');
   const profile = profileRows[0];
-  const bank_accounts = parseRows(workbook.getWorksheet(SHEET_NAMES.bank), BANK_ALIASES, SHEET_NAMES.bank);
-  const customers = parseRows(workbook.getWorksheet(SHEET_NAMES.customers), CUSTOMER_ALIASES, SHEET_NAMES.customers);
-  const vendors = parseRows(workbook.getWorksheet(SHEET_NAMES.vendors), VENDOR_ALIASES, SHEET_NAMES.vendors);
-  const categories = parseRows(workbook.getWorksheet(SHEET_NAMES.categories), CATEGORY_ALIASES, SHEET_NAMES.categories);
-  const products_services = parseRows(workbook.getWorksheet(SHEET_NAMES.products), PRODUCT_ALIASES, SHEET_NAMES.products);
+  const bank_accounts = parseRows(workbook.getWorksheet(SHEET_NAMES.bank), BANK_ALIASES, SHEET_NAMES.bank, ['record_type','account_name']);
+  const customers = parseRows(workbook.getWorksheet(SHEET_NAMES.customers), CUSTOMER_ALIASES, SHEET_NAMES.customers, ['name']);
+  const vendors = parseRows(workbook.getWorksheet(SHEET_NAMES.vendors), VENDOR_ALIASES, SHEET_NAMES.vendors, ['name']);
+  const categories = parseRows(workbook.getWorksheet(SHEET_NAMES.categories), CATEGORY_ALIASES, SHEET_NAMES.categories, ['category']);
+  const products_services = parseRows(workbook.getWorksheet(SHEET_NAMES.products), PRODUCT_ALIASES, SHEET_NAMES.products, ['category','item_type','name','hsn_sac']);
   const sheetCounts: Array<[string, number]> = [
     [SHEET_NAMES.bank, bank_accounts.length], [SHEET_NAMES.customers, customers.length],
     [SHEET_NAMES.vendors, vendors.length], [SHEET_NAMES.categories, categories.length],
