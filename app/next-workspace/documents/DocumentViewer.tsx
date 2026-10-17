@@ -229,8 +229,8 @@ function CornerVectorArt({ templateKey, primary, accent, compact = false }: { te
           ? <><path d="M140 0H77V9H130V39H140Z" fill={primary} opacity=".14"/><path d="M140 0H111V6H134V29H140Z" fill={accent} opacity=".92"/><path d="M94 0V17H140" fill="none" stroke={primary} strokeWidth="1.8"/></>
           : <><path d="M140 0H67L140 48Z" fill={primary} opacity=".14"/><path d="M140 0H101L140 25Z" fill={accent} opacity=".86"/><path d="M121 0L140 19" fill="none" stroke={primary} strokeWidth="1.5"/></>;
   return <>
-    <svg aria-hidden="true" viewBox="0 0 140 48" className={'document-corner-art document-corner-art-top' + (compact ? ' compact' : '')}>{motif}</svg>
-    <svg aria-hidden="true" viewBox="0 0 140 48" className={'document-corner-art document-corner-art-bottom' + (compact ? ' compact' : '')}>{motif}</svg>
+    <svg aria-hidden="true" viewBox="0 0 140 48" className={'document-corner-art document-corner-art-top' + (compact ? ' compact' : '')} style={{ position: 'absolute', top: 0, right: 0, width: compact ? 94 : 140, height: compact ? 34 : 48, zIndex: 0, pointerEvents: 'none', opacity: compact ? 0.72 : 0.82 }}>{motif}</svg>
+    <svg aria-hidden="true" viewBox="0 0 140 48" className={'document-corner-art document-corner-art-bottom' + (compact ? ' compact' : '')} style={{ position: 'absolute', bottom: 0, left: 0, width: compact ? 74 : 100, height: compact ? 26 : 35, transform: 'rotate(180deg)', zIndex: 0, pointerEvents: 'none', opacity: compact ? 0.48 : 0.58 }}>{motif}</svg>
   </>;
 }
 
@@ -270,7 +270,7 @@ function Paper({ type, payload, business, customer, items, theme, fields, logoUr
     const changeReturned=Math.max(0,cashTendered-Number(payload.total||0));
     const thermal=cashBillFormat==='thermal80'||cashBillFormat==='thermal58';
     const paperClass=thermal?'cash-bill-thermal':'cash-bill-modern';
-    return <article className={`paper cash-bill-paper ${paperClass} cash-bill-${cashBillFormat} ${theme.dark?'theme-dark':''}`} style={{'--accent':accentColor,'--table':primaryColor,'--line':lineColor,'--paper-bg':paperBackground,'--paper-text':paperText,'--paper-radius':radius+'px','--row-padding':rowPadding+'px',backgroundColor:paperBackground,color:paperText,fontFamily:text(studio.font_family||'Inter')} as React.CSSProperties}>
+    return <article className={`paper cash-bill-paper ${paperClass} cash-bill-${cashBillFormat} ${theme.dark?'theme-dark':''}`} style={{'--accent':accentColor,'--table':primaryColor,'--line':lineColor,'--paper-bg':paperBackground,'--paper-text':paperText,'--paper-radius':radius+'px','--row-padding':rowPadding+'px',backgroundColor:paperBackground,color:paperText,fontFamily:text(studio.font_family||'Inter'),position:'relative',overflow:'hidden'} as React.CSSProperties}>
       {!thermal&&<CornerVectorArt templateKey={theme.className.replace('template-','')} primary={primaryColor} accent={accentColor}/>}
       {thermal ? <div className="cash-thermal">
         <div className="cash-thermal-brand">{business.name||business.legal_name||'Business'}</div>
@@ -306,7 +306,7 @@ function Paper({ type, payload, business, customer, items, theme, fields, logoUr
     const businessEmail=text(business.email||business.alternate_email||'').trim();
     const businessWebsite=text(business.website||'').trim();
     const businessAddress=receiptAddressLine(business);
-    return <article className={`paper receipt-paper receipt-template-${theme.className.replace('template-','')} ${theme.dark?'theme-dark':''}`} style={{'--accent':accentColor,'--table':primaryColor,'--line':lineColor,'--paper-bg':paperBackground,'--paper-text':paperText,'--paper-radius':radius+'px','--row-padding':rowPadding+'px',backgroundColor:paperBackground,color:paperText,fontFamily:text(studio.font_family||'Inter')} as React.CSSProperties}>
+    return <article className={`paper receipt-paper receipt-template-${theme.className.replace('template-','')} ${theme.dark?'theme-dark':''}`} style={{'--accent':accentColor,'--table':primaryColor,'--line':lineColor,'--paper-bg':paperBackground,'--paper-text':paperText,'--paper-radius':radius+'px','--row-padding':rowPadding+'px',backgroundColor:paperBackground,color:paperText,fontFamily:text(studio.font_family||'Inter'),position:'relative',overflow:'hidden'} as React.CSSProperties}>
       <CornerVectorArt templateKey={theme.className.replace('template-','')} primary={primaryColor} accent={accentColor} compact/>
       <header className='receipt-head'>
         {showLogo&&<Logo url={resolvedLogoUrl}/>} 
@@ -335,7 +335,7 @@ function Paper({ type, payload, business, customer, items, theme, fields, logoUr
       <footer className='receipt-footer'><p className='receipt-disclaimer'>This is a computer-generated payment receipt and does not require signature.</p><div className='platform receipt-platform'><span className='platform-mark' aria-hidden='true'>M</span><span className='receipt-brand-label'>Powered by <strong className='receipt-brand-name'>Moneymatters</strong></span></div></footer>
     </article>;
   }
-  return <article className={`paper ${theme.className} ${(type==='invoice'||taxInvoice||type==='quotation')?'sales-document-standard':''} ${theme.dark?'theme-dark':''}`} style={{'--accent':accentColor,'--table':primaryColor,'--line':lineColor,'--paper-bg':paperBackground,'--paper-text':paperText,'--paper-radius':radius+'px','--row-padding':rowPadding+'px',backgroundColor:paperBackground,color:paperText,fontFamily:text(studio.font_family||'Inter')} as React.CSSProperties}>
+  return <article className={`paper ${theme.className} ${(type==='invoice'||taxInvoice||type==='quotation')?'sales-document-standard':''} ${theme.dark?'theme-dark':''}`} style={{'--accent':accentColor,'--table':primaryColor,'--line':lineColor,'--paper-bg':paperBackground,'--paper-text':paperText,'--paper-radius':radius+'px','--row-padding':rowPadding+'px',backgroundColor:paperBackground,color:paperText,fontFamily:text(studio.font_family||'Inter'),position:'relative',overflow:'hidden'} as React.CSSProperties}>
     <CornerVectorArt templateKey={theme.className.replace('template-','')} primary={primaryColor} accent={accentColor}/>
     <header className='document-header'><div className='identity-column'><BusinessIdentity business={business} logoUrl={resolvedLogoUrl} fields={fields} showLogo={showLogo} showAddress={showBusinessAddress}/></div><div className='invoice-heading'><div className='document-title'>{type==='invoice'||taxInvoice?invoiceTitle:type==='quotation'?'QUOTATION':text(fields.title||title)}</div>{(type==='invoice'||taxInvoice||type==='quotation')&&<div className='mt-3 inline-flex rounded-full border border-slate-200 bg-slate-100 px-3 py-1 text-xs font-extrabold uppercase tracking-wider text-slate-700'>{text(payload.status||'draft').replace(/_/g,' ')}</div>}<div className='document-meta'>{meta.map(([label,value]:any)=><div className='meta-row' key={label}><span>{label}</span><strong>{text(value)||'—'}</strong></div>)}</div></div></header>
     {taxInvoice && <TaxInvoiceCompliance payload={payload} business={business} customer={customer}/>}
