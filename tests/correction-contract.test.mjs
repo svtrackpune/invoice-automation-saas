@@ -103,12 +103,16 @@ test('purchase order line inserts include parent bill id and vendor mapping sche
   const editor = await read('app/next-workspace/purchases/new/page.tsx');
   const migration = await read('supabase/migrations/20260820130500_vendor_supply_reference_imports.sql');
   const discountMigration = await read('supabase/migrations/20261016120000_fix_purchase_bill_discount_storage.sql');
+  const atomicPurchaseMigration = await read('supabase/migrations/20261017150000_atomic_purchase_document_create.sql');
 
-  assert.ok(editor.includes("insert(payload.map(item=>({...item,bill_id:bill.id})))"));
+  assert.match(editor, /supabase\.rpc\('create_purchase_document'/);
+  assert.doesNotMatch(editor, /supabase\.from\('bill_items'\)\.insert\(/);
+  assert.match(atomicPurchaseMigration, /CREATE OR REPLACE FUNCTION public\.create_purchase_document/);
+  assert.match(atomicPurchaseMigration, /INSERT INTO public\.bills[\s\S]*?INSERT INTO public\.bill_items/);
   assert.ok(editor.includes("discount_type:r.discount_type==='percentage'?'percentage':'fixed'"));
   assert.ok(editor.includes("discount_type:x.discount_type==='percentage'?'percentage':'amount'"));
   assert.match(discountMigration, /CASE WHEN v_disc_type = 'amount' THEN 'fixed' ELSE v_disc_type END/);
-  assert.match(editor, /if\(ie\)\{await supabase\.from\('bills'\)\.delete\(\)[\s\S]*?throw ie;\}/);
+  assert.doesNotMatch(editor, /if\(ie\)\{await supabase\.from\('bills'\)\.delete\(\)/);
   assert.match(migration, /create table if not exists public\.vendor_supply_mappings/);
   assert.match(migration, /alter table public\.vendor_supply_mappings enable row level security/);
   assert.match(migration, /create policy vendor_supply_mappings_insert/);
