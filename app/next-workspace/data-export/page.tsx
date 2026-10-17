@@ -5,6 +5,27 @@ import { supabase } from '@/lib/supabase';
 import { downloadBusinessSetupTemplate, downloadBusinessSetupWorkbook, type BusinessSetupWorkbookData } from '@/lib/business-setup-workbook';
 import { exportFullBusinessDataToExcel } from '@/lib/business-data-export';
 
+type PagedRowsResult = { data: any[]; error: null };
+async function fetchPagedRows(
+  loadPage: (from: number, to: number) => Promise<{ data: any[] | null; error: { message: string } | null }>,
+  label: string,
+  maxRows = 5000,
+): Promise<PagedRowsResult> {
+  const all: any[] = [];
+  const pageSize = 500;
+  for (let from = 0; from <= maxRows; from += pageSize) {
+    const { data, error } = await loadPage(from, from + pageSize - 1);
+    if (error) throw new Error('Could not export ' + label + ': ' + error.message);
+    const batch = data || [];
+    all.push(...batch);
+    if (all.length > maxRows) {
+      throw new Error(label + ' exceeds the export safety limit of ' + maxRows.toLocaleString() + ' rows. No partial workbook was returned.');
+    }
+    if (batch.length < pageSize) return { data: all, error: null };
+  }
+  throw new Error(label + ' exceeded the export safety limit of ' + maxRows.toLocaleString() + ' rows.');
+}
+
 export default function DataExportPage() {
   const [running, setRunning] = useState(false);
   const [message, setMessage] = useState('');

@@ -253,7 +253,7 @@ const PROFILE_ALIASES: Record<string,string> = {
 const BANK_ALIASES: Record<string,string> = {
   recordtype:'record_type',accountname:'account_name',accountcode:'account_code',accounttype:'account_type',
   normalbalance:'normal_balance',institutionname:'institution_name',accountnumber:'account_number',
-  accountholder:'account_holder_name',accountholdername:'account_holder_name',ifsc:'ifsc_code',ifsccode:'ifsc_code',bankinstitution:'institution_name',institution:'institution_name',primary:'is_primary',bankinstitution:'institution_name',institution:'institution_name',primary:'is_primary',
+  accountholder:'account_holder_name',accountholdername:'account_holder_name',ifsc:'ifsc_code',ifsccode:'ifsc_code',bankinstitution:'institution_name',institution:'institution_name',primary:'is_primary',
   branch:'branch_name',branchname:'branch_name',currency:'currency_code',currencycode:'currency_code',
   upiid:'upi_id',isprimary:'is_primary',openingbalance:'opening_balance',description:'description',
 };
