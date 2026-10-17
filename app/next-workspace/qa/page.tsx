@@ -7,7 +7,7 @@ const scenarios = [
   ['S01','Customer → Product → Quotation → Invoice','Create a customer, add an item, create a quotation, accept it and convert it to an invoice.','/next-workspace/customers'],
   ['S02','Invoice → Partial Payment → Receipt','Create an invoice, record a partial payment, verify the balance and receipt, then record the remainder.','/next-workspace/sales'],
   ['S03','Invoice → Full Payment → Accounting','Pay an invoice in full and verify it becomes paid with exactly one accounting posting.','/next-workspace/payments'],
-  ['S04','Vendor → Bill → Payment','Create a vendor bill, record the payment and verify the payable balance falls correctly.','/next-workspace/purchases'],
+  ['S04','Vendor → Bill → Payment','Create a vendor bill, record the payment and verify the payable balance falls correctly.','/next-workspace/bills'],
   ['S05','Bank Transaction → Match → Reconcile','Review a bank transaction, match/categorize it and reconcile the period.','/next-workspace/banking'],
   ['S06','Recurring Billing','Create a recurring schedule, run one cycle and inspect the execution history.','/next-workspace/recurring'],
   ['S07','Customer 360','Open a customer and verify invoices, payments, balance, statements and activity agree.','/next-workspace/customers'],
@@ -18,7 +18,7 @@ const scenarios = [
   ['S12','Documents & Branding','Configure logo/color/template and generate invoice/quotation/receipt previews.','/next-workspace/brand'],
   ['S13','Cash Bill Correction','Create a Cash Bill, correct item/rate/quantity and verify the same bill/payment/receipt identities remain synchronized.','/next-workspace/cash-bill'],
   ['S14','Invoice Correction','Post an invoice, correct it from the document popup, then verify payment balance, journal and inventory remain consistent.','/next-workspace/invoices'],
-  ['S15','Purchase Bill Correction','Post a purchase bill, correct it from the bill popup, and verify AP, journal and inventory remain consistent.','/next-workspace/purchases'],
+  ['S15','Purchase Bill Correction','Post a purchase bill, correct it from the bill popup, and verify AP, journal and inventory remain consistent.','/next-workspace/bills'],
   ['S16','Payment Correction','Edit a customer payment and verify its linked invoice and receipt are synchronized without creating a duplicate payment.','/next-workspace/payments'],
   ['S17','Expense Correction','Correct a posted expense and verify the original expense ID remains stable while accounting is reversed/reposted.','/next-workspace/expenses'],
 ];
