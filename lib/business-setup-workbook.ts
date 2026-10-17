@@ -168,15 +168,16 @@ async function makeWorkbook(data: BusinessSetupWorkbookData) {
   const profileSheet = addRowsSheet(workbook, SHEET_NAMES.profile, PROFILE_COLUMNS, [data.profile])
   profileSheet.getCell('C2').dataValidation = { type: 'list', allowBlank: true, formulae: ['"sole_proprietorship,partnership,llp,private_limited,public_limited,trust,society,individual,other"'] };
   const bank = addRowsSheet(workbook, SHEET_NAMES.bank, BANK_COLUMNS, data.bank_accounts);
-  bank.getColumn(14).numFmt = '#,##0.00';
+  bank.getColumn(10).numFmt = '#,##0.00';
   addRowsSheet(workbook, SHEET_NAMES.customers, CUSTOMER_COLUMNS, data.customers);
   addRowsSheet(workbook, SHEET_NAMES.vendors, VENDOR_COLUMNS, data.vendors);
   const categories = addRowsSheet(workbook, SHEET_NAMES.categories, CATEGORY_COLUMNS, data.categories);
-  categories.getColumn(5).numFmt = '0.##';
   const products = addRowsSheet(workbook, SHEET_NAMES.products, PRODUCT_COLUMNS, data.products_services);
-  for (const index of [8, 9, 12, 13]) products.getColumn(index).numFmt = '#,##0.00';
+  products.getColumn(8).numFmt = '#,##0.00';
+  products.getColumn(9).numFmt = '#,##0.00';
   products.getColumn(10).numFmt = '0.##';
   products.getColumn(11).numFmt = '#,##0.###';
+  products.getColumn(12).numFmt = '#,##0.00';
   for (const sheet of [bank, categories, products]) {
     sheet.eachRow((row: any, rowNumber: number) => {
       if (rowNumber > 1) row.alignment = { vertical: 'top', wrapText: true };

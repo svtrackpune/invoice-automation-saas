@@ -77,6 +77,9 @@ test('Instructions worksheet gives field-level required/optional definitions for
   assert.ok(workbook.includes("['Section', 'Required columns', 'Optional columns', 'What to enter']"));
   for (const field of ['Business Name','Record Type','Account Code','Opening Balance Date','HSN / SAC','Type (product/service)','Opening Stock Cost','Opening Stock']) assert.ok(workbook.includes("'" + field + "'"));
   assert.ok(workbook.includes('Maximum 5,000 rows per data worksheet'));
+  assert.ok(workbook.includes("bank.getColumn(10).numFmt = '#,##0.00';"));
+  assert.ok(workbook.includes("products.getColumn(12).numFmt = '#,##0.00';"));
+  assert.ok(!workbook.includes('products.getColumn(13).numFmt'));
   assert.ok(workbook.includes("['CUSTOMERS', 'Name'"));
   assert.ok(workbook.includes("['VENDORS', 'Name'"));
   assert.ok(workbook.includes("sheet.views = [{ state: 'frozen', ySplit: 1 }];"));
