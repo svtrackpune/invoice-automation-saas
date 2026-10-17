@@ -41,6 +41,7 @@ test('Windows deployment gates install, typecheck, lint and build without execut
   ]) assert.ok(deployScript.includes(step), 'missing deployment gate: ' + step);
   assert.match(deployScript, /if \(\$LASTEXITCODE -ne 0\)/);
   assert.match(deployScript, /node_modules\\next\\dist\\bin\\next/);
+  assert.doesNotMatch(deployScript, /Invoke-NpmStep -Label 'Automated tests'/);
 });
 
 test('build script explains a missing Next.js CLI instead of emitting an opaque module-not-found error', () => {
