@@ -67,22 +67,24 @@ const baseGroups: NavGroup[] = [
  * /purchases, but must keep the canonical sidebar item highlighted.
  */
 function normalizeNavigationPath(pathname: string): string {
-  const normalizedPath = pathname.replace(/\\/+$/, '') || '/';
+  let normalizedPath = pathname;
+  while (normalizedPath.length > 1 && normalizedPath.endsWith('/')) {
+    normalizedPath = normalizedPath.slice(0, -1);
+  }
   const legacyPurchasesPath = '/next-workspace/purchases';
   if (normalizedPath === legacyPurchasesPath) return '/next-workspace/bills';
   if (normalizedPath.startsWith(legacyPurchasesPath + '/')) {
     return '/next-workspace/bills' + normalizedPath.slice(legacyPurchasesPath.length);
   }
-  return normalizedPath;
+  return normalizedPath || '/';
 }
-
 /**
  * Resolve the most specific sidebar group for a pathname. The workspace root
  * is an exact-match route only; treating it as a prefix would steal every
  * nested route and leave the Sales & Billing default open.
  */
 function getActiveGroupId(pathname: string): string | null {
-  const normalizedPath = pathname.replace(/\/+$/, '') || '/';
+  const normalizedPath = normalizeNavigationPath(pathname);
   let activeMatch: { groupId: string; hrefLength: number } | null = null;
 
   for (const group of baseGroups) {
@@ -102,7 +104,7 @@ function getActiveGroupId(pathname: string): string | null {
 
 /** Prefer the longest registered route so only one matching item is highlighted. */
 function getActiveNavHref(pathname: string): string | null {
-  const normalizedPath = pathname.replace(/\/+$/, '') || '/';
+  const normalizedPath = normalizeNavigationPath(pathname);
   let activeMatch: { href: string; hrefLength: number } | null = null;
   for (const group of baseGroups) {
     for (const item of group.items) {
