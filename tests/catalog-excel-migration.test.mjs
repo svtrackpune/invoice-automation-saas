@@ -41,6 +41,19 @@ test('atomic import RPC enforces tenant permission, bounds input, upserts items,
   assert.ok(!migration.includes('GRANT EXECUTE ON FUNCTION public.import_product_catalog(uuid, jsonb) TO anon'));
 });
 
+test('catalog UI keeps the page heading full-width and renders migration controls in a separate responsive toolbar', () => {
+  const headerStart = page.indexOf('<PageHeader breadcrumbs=');
+  const headerEnd = page.indexOf('/><div className="mb-5 flex w-full min-w-0 flex-col gap-3 rounded-2xl', headerStart);
+  assert.ok(headerStart >= 0 && headerEnd > headerStart);
+  const header = page.slice(headerStart, headerEnd);
+  assert.ok(header.includes('title="Products & Services"'));
+  assert.ok(header.includes('actions={<Button onClick={()=>{reset();setShow(true)}}>＋ Add item / service</Button>}'));
+  assert.ok(!header.includes('Download Migration Template'));
+  assert.ok(!header.includes('Import Excel'));
+  assert.ok(!header.includes('Export Master Excel'));
+  assert.ok(page.includes('sm:flex-row sm:flex-wrap sm:items-center sm:justify-between'));
+});
+
 test('catalog UI exposes template import and master export with row-level result feedback', () => {
   assert.ok(page.includes('Download Migration Template (.xlsx)'));
   assert.ok(page.includes('Import Excel'));
