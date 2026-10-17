@@ -90,3 +90,19 @@ test('setup preview and commit make the target active business explicit', () => 
   assert.ok(migrationPage.includes('setupBusinessName'));
   assert.ok(migrationPage.includes('Commit this validated business setup to "'));
 });
+
+test('export uses bounded pagination for setup master sheets and full business tables', () => {
+  assert.ok(exportPage.includes('async function fetchPagedRows('));
+  assert.ok(exportPage.includes('.range(from,to)'));
+  assert.ok(exportPage.includes(",'customers',5000)"));
+  assert.ok(exportPage.includes("async (from,to)=>await supabase.from(table).select('*').eq('business_id',businessId).range(from,to)"));
+  assert.ok(exportPage.includes('for (let index=0; index<parentIds.length; index+=250)'));
+  assert.ok(exportPage.includes('Use the full business-data export for larger historical datasets.'));
+});
+
+test('setup migration preview warns which active business will receive the commit', () => {
+  assert.ok(migrationPage.includes('Import target business'));
+  assert.ok(migrationPage.includes('setSetupBusinessName(target.business_name'));
+  assert.ok(migrationPage.includes('Commit this validated business setup to "'));
+  assert.ok(migrationPage.includes("setSetupBusinessName('');setSetupError('')"));
+});

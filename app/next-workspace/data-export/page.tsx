@@ -84,6 +84,27 @@ function downloadWorkbook(buffer: unknown, filename: string) {
   window.setTimeout(() => URL.revokeObjectURL(url), 0);
 }
 
+type PagedRowsResult = { data: any[]; error: null };
+async function fetchPagedRows(
+  loadPage: (from: number, to: number) => Promise<{ data: any[] | null; error: { message: string } | null }>,
+  label: string,
+  maxRows = 5000,
+): Promise<PagedRowsResult> {
+  const all: any[] = [];
+  const pageSize = 500;
+  for (let from = 0; from <= maxRows; from += pageSize) {
+    const { data, error } = await loadPage(from, from + pageSize - 1);
+    if (error) throw new Error('Could not export ' + label + ': ' + error.message);
+    const batch = data || [];
+    all.push(...batch);
+    if (all.length > maxRows) {
+      const recovery = maxRows <= 5000 ? 'Use the full business-data export for larger historical datasets.' : 'Split this export by dataset and retry.';
+      throw new Error(label + ' exceeds the safe export limit of ' + maxRows.toLocaleString() + ' rows. ' + recovery);
+    }
+    if (batch.length < pageSize) return { data: all, error: null };
+  }
+  throw new Error(label + ' exceeded the safe export limit of ' + maxRows.toLocaleString() + ' rows.');
+}
 export default function DataExportPage() {
   const [running, setRunning] = useState(false);
   const [message, setMessage] = useState('');
@@ -136,19 +157,18 @@ export default function DataExportPage() {
       const exported = new Set<string>();
 
       for (const table of DIRECT_BUSINESS_TABLES) {
-        const { data, error } = await supabase
-          .from(table)
-          .select('*')
-          .eq('business_id', businessId);
-
-        if (error) {
+        try {
+          const { data } = await fetchPagedRows(
+            async (from,to)=>await supabase.from(table).select('*').eq('business_id',businessId).range(from,to),
+            table,
+            100000,
+          );
+          if (data.length) {
+            appendRowsAsWorksheet(workbook, table, data as Record<string, unknown>[]);
+            exported.add(table);
+          }
+        } catch {
           failures.push(table);
-          continue;
-        }
-
-        if (data?.length) {
-          appendRowsAsWorksheet(workbook, table, data as Record<string, unknown>[]);
-          exported.add(table);
         }
       }
 
@@ -171,28 +191,29 @@ export default function DataExportPage() {
         const relation = relationMap[table];
         if (!relation || !exported.has(relation.parent)) continue;
 
-        const { data: parents } = await supabase
-          .from(relation.parent)
-          .select(relation.parentKey)
-          .eq('business_id', businessId);
-
-        const ids = (parents || []) as unknown as Array<Record<string, unknown>>;
-        const parentIds = ids.map((row) => row[relation.parentKey])
-          .filter(Boolean);
-
-        if (!ids.length) continue;
-
-        const { data, error } = await supabase
-          .from(table)
-          .select('*')
-          .in(relation.childKey, parentIds);
-
-        if (error) {
+        try {
+          const { data: parents } = await fetchPagedRows(
+            async (from,to)=>await supabase.from(relation.parent).select(relation.parentKey).eq('business_id',businessId).range(from,to),
+            relation.parent,
+            100000,
+          );
+          const parentIds = parents.map((row: Record<string, unknown>) => row[relation.parentKey]).filter(Boolean);
+          if (!parentIds.length) continue;
+          const childRows: Record<string, unknown>[] = [];
+          for (let index=0; index<parentIds.length; index+=250) {
+            const idBatch=parentIds.slice(index,index+250);
+            const {data:batch}=await fetchPagedRows(
+              async (from,to)=>await supabase.from(table).select('*').in(relation.childKey,idBatch).range(from,to),
+              table,
+              100000,
+            );
+            childRows.push(...batch as Record<string, unknown>[]);
+            if(childRows.length>100000)throw new Error(table+' exceeded the safe child-row export limit.');
+          }
+          if(childRows.length)appendRowsAsWorksheet(workbook,table,childRows);
+        } catch {
           failures.push(table);
-          continue;
         }
-
-        if (data?.length) appendRowsAsWorksheet(workbook, table, data as Record<string, unknown>[]);
       }
 
       if (!workbook.worksheets.length) {
@@ -248,15 +269,15 @@ export default function DataExportPage() {
       if(!businessId||!auth.user) throw new Error('No active business or authenticated user was found.');
       const [bizR,acctR,bankR,custR,vendorR,catR,subR,itemR,taxR,balR,journalR]=await Promise.all([
         supabase.from('businesses').select('id,name,legal_name,business_type,phone,email,website,tax_registration_number,registration_number,address,address_iso,country_code,currency_code,timezone').eq('id',businessId).single(),
-        supabase.from('accounts').select('id,code,name,account_type,normal_balance,account_subtype,description').eq('business_id',businessId).order('code'),
-        supabase.from('bank_accounts').select('*').eq('business_id',businessId).eq('is_active',true).order('name'),
-        supabase.from('customers').select('id,display_name,legal_name,phone,email,tax_id,tax_type,billing_address,shipping_address,credit_limit,payment_terms_days,notes,metadata').eq('business_id',businessId).order('display_name'),
-        supabase.from('vendors').select('id,display_name,legal_name,contact_person_name,phone,email,tax_id,tax_type,address,payment_terms_days,notes,metadata').eq('business_id',businessId).order('display_name'),
-        supabase.from('product_categories').select('id,name,description,default_hsn_sac,default_tax_rate_id').eq('business_id',businessId).order('name'),
-        supabase.from('product_subcategories').select('id,category_id,name,description').eq('business_id',businessId).order('name'),
-        supabase.from('products_services').select('id,name,sku,description,item_type,unit,hsn_sac,sales_price,purchase_price,default_tax_rate_id,is_active,inventory_tracked,reorder_level,barcode,sell_enabled,purchase_enabled,category_id,subcategory_id').eq('business_id',businessId).order('name'),
-        supabase.from('tax_rates').select('id,rate').eq('business_id',businessId).eq('is_active',true),
-        supabase.from('inventory_balances').select('product_service_id,quantity_on_hand,average_cost').eq('business_id',businessId),
+        fetchPagedRows(async (from,to)=>await supabase.from('accounts').select('id,code,name,account_type,normal_balance,account_subtype,description').eq('business_id',businessId).order('code').range(from,to),'chart of accounts',5000),
+        fetchPagedRows(async (from,to)=>await supabase.from('bank_accounts').select('*').eq('business_id',businessId).eq('is_active',true).order('name').range(from,to),'bank accounts',5000),
+        fetchPagedRows(async (from,to)=>await supabase.from('customers').select('id,display_name,legal_name,phone,email,tax_id,tax_type,billing_address,shipping_address,credit_limit,payment_terms_days,notes,metadata').eq('business_id',businessId).order('display_name').range(from,to),'customers',5000),
+        fetchPagedRows(async (from,to)=>await supabase.from('vendors').select('id,display_name,legal_name,contact_person_name,phone,email,tax_id,tax_type,address,payment_terms_days,notes,metadata').eq('business_id',businessId).order('display_name').range(from,to),'vendors',5000),
+        fetchPagedRows(async (from,to)=>await supabase.from('product_categories').select('id,name,description,default_hsn_sac,default_tax_rate_id').eq('business_id',businessId).order('name').range(from,to),'categories',5000),
+        fetchPagedRows(async (from,to)=>await supabase.from('product_subcategories').select('id,category_id,name,description').eq('business_id',businessId).order('name').range(from,to),'subcategories',5000),
+        fetchPagedRows(async (from,to)=>await supabase.from('products_services').select('id,name,sku,description,item_type,unit,hsn_sac,sales_price,purchase_price,default_tax_rate_id,is_active,inventory_tracked,reorder_level,barcode,sell_enabled,purchase_enabled,category_id,subcategory_id').eq('business_id',businessId).order('name').range(from,to),'products and services',5000),
+        fetchPagedRows(async (from,to)=>await supabase.from('tax_rates').select('id,rate').eq('business_id',businessId).eq('is_active',true).order('rate').range(from,to),'tax rates',5000),
+        fetchPagedRows(async (from,to)=>await supabase.from('inventory_balances').select('product_service_id,quantity_on_hand,average_cost').eq('business_id',businessId).order('product_service_id').range(from,to),'inventory balances',5000),
         supabase.from('journal_entries').select('id,entry_date').eq('business_id',businessId).eq('source_type','business_setup_opening_balance').in('status',['posted','locked']).order('entry_date').limit(1)
       ]);
       const results=[bizR,acctR,bankR,custR,vendorR,catR,subR,itemR,taxR,balR,journalR];
