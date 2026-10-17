@@ -104,12 +104,12 @@ export default function Items(){
  <table className="w-full table-fixed border-collapse text-left text-sm">
   <colgroup><col style={{width:'29%'}}/><col style={{width:'19%'}}/><col style={{width:'16%'}}/><col style={{width:'8%'}}/><col style={{width:'10%'}}/><col style={{width:'9%'}}/><col style={{width:'9%'}}/></colgroup>
   <thead className="bg-slate-50 text-[10px] font-bold uppercase tracking-wide text-slate-500"><tr>
-   ${sortHead('name','Product / service')}
-   ${sortHead('category','Category')}
-   ${sortHead('price','Sale / purchase')}
-   ${sortHead('tax','Tax')}
-   ${sortHead('stock','Stock')}
-   ${sortHead('capabilities','Sell / buy')}
+   {sortHead('name','Product / service')}
+   {sortHead('category','Category')}
+   {sortHead('price','Sale / purchase')}
+   {sortHead('tax','Tax')}
+   {sortHead('stock','Stock')}
+   {sortHead('capabilities','Sell / buy')}
    <th scope="col" className="px-2 py-3 text-right text-[10px] font-bold uppercase tracking-wide text-slate-500">Actions</th>
   </tr></thead>
   <tbody>{pageItems.map(x=><tr key={x.id} className="border-t border-slate-100 align-middle hover:bg-violet-50/30">
