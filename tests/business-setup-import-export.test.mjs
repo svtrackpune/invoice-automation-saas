@@ -130,6 +130,8 @@ test('optional master worksheets may be empty after sample rows are deleted', ()
 test('full business Excel export is directly available from Integration & Data and reused by export center', () => {
   assert.ok(migrationPage.includes('Export Full Business Data (.xlsx)'));
   assert.ok(migrationPage.includes('onClick={exportFullBusinessExcel}'));
+  assert.ok(migrationPage.includes("from('data_export_logs').insert"));
+  assert.ok(migrationPage.includes("status:'completed',sheet_count:summary.sheetCount"));
   assert.ok(migrationPage.includes('Migration-ready export options'));
   assert.ok(migrationPage.includes("import { exportFullBusinessDataToExcel } from '@/lib/business-data-export'"));
   assert.ok(exportPage.includes("import { exportFullBusinessDataToExcel } from '@/lib/business-data-export'"));
