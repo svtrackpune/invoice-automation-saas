@@ -20,7 +20,7 @@ test('products and services supports ascending and descending sort from list hea
   assert.ok(page.includes("type SortKey='name'|'category'|'sku'|'tax'|'price'|'stock'|'capabilities'"));
   assert.ok(page.includes("type SortDirection='asc'|'desc'"));
   assert.ok(page.includes('function toggleSort(key:SortKey)'));
-  assert.ok(page.includes("sortDir==='asc'?'desc':'asc'"));
+  assert.ok(page.includes("value=>value==='asc'?'desc':'asc'"));
   assert.ok(page.includes('const sorted=useMemo'));
   assert.ok(page.includes("sortHead('name','Product / service')"));
   assert.ok(page.includes("sortHead('stock','Stock')"));
