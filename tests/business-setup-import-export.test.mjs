@@ -75,7 +75,7 @@ test('data export offers the sample and populated setup workbooks alongside the 
 
 test('Instructions worksheet gives field-level required/optional definitions for setup data', () => {
   assert.ok(workbook.includes("['Section', 'Required columns', 'Optional columns', 'What to enter']"));
-  for (const field of ['Business Name','Record Type','Account Code','Opening Balance Date','Customers','Vendors','Default HSN/SAC','Item Type','Opening Stock Cost','Opening Stock']) assert.ok(workbook.includes("'" + field + "'"));
+  for (const field of ['Business Name','Record Type','Account Code','Opening Balance Date','Customers','Vendors','HSN / SAC','Item Type','Opening Stock Cost','Opening Stock']) assert.ok(workbook.includes("'" + field + "'"));
   assert.ok(workbook.includes('Maximum 5,000 rows per data worksheet'));
   assert.ok(workbook.includes("sheet.views = [{ state: 'frozen', ySplit: 1 }];"));
 });
