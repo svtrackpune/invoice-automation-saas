@@ -96,11 +96,11 @@ if (-not (Test-Path $nextBin)) {
     throw "npm ci returned success but the Next.js CLI is missing at $nextBin. Check npm output and package-lock.json."
 }
 
-Invoke-NpmStep -Label 'TypeScript' -Arguments @('run', 'typecheck')
-Invoke-NpmStep -Label 'ESLint' -Arguments @('run', 'lint')
+Invoke-NpmStep -Label 'TypeScript' -NpmArguments @('run', 'typecheck')
+Invoke-NpmStep -Label 'ESLint' -NpmArguments @('run', 'lint')
 # Do not run the integration/E2E suite on a live production Plesk instance:
 # configured smoke-test fixtures can create financial transactions. CI owns test execution.
-Invoke-NpmStep -Label 'Production build' -Arguments @('run', 'build')
+Invoke-NpmStep -Label 'Production build' -NpmArguments @('run', 'build')
 
 Write-Host ""
 Write-Host "Dependency install, typecheck, lint, and production build all passed. CI tests must pass before deploying this commit." -ForegroundColor Green
