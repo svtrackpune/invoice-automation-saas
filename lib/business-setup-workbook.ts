@@ -1,4 +1,4 @@
-export type BusinessSetupRow = Record<string, string> & { _sheet_row?: number };
+export type BusinessSetupRow = { [key: string]: string | number | undefined; _sheet_row?: number };
 export type BusinessSetupPayload = {
   profile: BusinessSetupRow;
   bank_accounts: BusinessSetupRow[];
