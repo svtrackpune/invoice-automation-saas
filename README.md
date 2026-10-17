@@ -100,7 +100,7 @@ The same application entrypoint and environment contract are used for Plesk and 
 
 The supported Plesk runtime is Node.js **24.18.1**. On Windows, do not run `npm ci` while the app is serving requests: Windows can refuse to remove Sharp's native `libvips` DLL when the Next.js process or antivirus has the file open.
 
-After pulling the latest `main`, open PowerShell or the Plesk terminal in the application root and run this single command:
+After pulling the latest `main`, **stop/disable the `mm.nilanga.in` Node.js application or its IIS application pool in Plesk first**. A live IIS pool can respawn a worker after a process is stopped, causing the DLL lock to return. Then open PowerShell or the Plesk terminal in the application root and run:
 
 ```powershell
 npm run deploy:windows
