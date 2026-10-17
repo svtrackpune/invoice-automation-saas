@@ -243,6 +243,7 @@ export async function exportFullBusinessDataToExcel(client: SupabaseExportClient
   workbook.lastModifiedBy = 'Moneymatters';
   workbook.created = new Date();
   workbook.modified = new Date();
+  const manifest = workbook.addWorksheet('00 Export Manifest');
   const counts = new Map<string, number>();
   const worksheetByDataset = new Map<string, string>();
   const failures: string[] = [];
@@ -310,7 +311,6 @@ export async function exportFullBusinessDataToExcel(client: SupabaseExportClient
   }
 
   if (!workbook.worksheets.length) throw new Error('No business datasets were exportable.');
-  const manifest = workbook.addWorksheet('00 Export Manifest',0);
   manifest.addRow(['Dataset','Records exported','Worksheet','Status']);
   for (const table of [...DIRECT_BUSINESS_TABLES,...CHILD_TABLES]) {
     const count = counts.get(table) || 0;

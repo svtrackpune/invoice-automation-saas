@@ -138,7 +138,7 @@ test('full business Excel export is directly available from Integration & Data a
 test('full business Excel export pages through all table data, includes a manifest and strips secrets', () => {
   assert.ok(dataExportUtility.includes('EXCEL_MAX_DATA_ROWS = 1_000_000'));
   assert.ok(dataExportUtility.includes('.range(from,to)'));
-  assert.ok(dataExportUtility.includes('00 Export Manifest'));
+  assert.ok(dataExportUtility.includes("const manifest = workbook.addWorksheet('00 Export Manifest');"));
   assert.ok(dataExportUtility.includes('SENSITIVE_KEY'));
   assert.ok(dataExportUtility.includes('no partial workbook was downloaded') || dataExportUtility.includes('no partial workbook'));
   assert.ok(dataExportUtility.includes('CHILD_RELATIONS'));
