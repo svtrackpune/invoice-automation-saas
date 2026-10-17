@@ -83,7 +83,7 @@ function setSheetStyle(sheet: any, color = 'FF4F46E5') {
   header.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: color } };
   header.alignment = { vertical: 'middle', wrapText: true };
   header.height = 32;
-  sheet.views = [{ state: '', ySplit: 1 }];
+  sheet.views = [{ state: 'frozen', ySplit: 1 }];
   if (sheet.rowCount > 0 && sheet.columnCount > 0) {
     sheet.autoFilter = { from: 'A1', to: sheet.getRow(1).getCell(sheet.columnCount).address };
   }
@@ -145,29 +145,86 @@ async function makeWorkbook(data: BusinessSetupWorkbookData) {
   workbook.modified = new Date();
 
   const instructions = workbook.addWorksheet(SHEET_NAMES.instructions);
-  instructions.addRow(['Topic', 'Instructions']);
+  instructions.addRow(['Sheet / Section', 'Column / Topic', 'Required?', 'Definition, allowed values & safety rules']);
   const guide = [
-    ['Purpose', 'Use this workbook to set up or port master data for the active business. It does not import invoices, bills, payments, or historical transactions.'],
-    ['Two-stage safety', 'Upload → Validate & Preview → correct every error → Commit setup. No business data changes during preview.'],
-    ['Mandatory fields', 'Replace all rows marked SAMPLE or REPLACE. Do not leave the sample rows in the file.'],
-    ['Business Profile', 'One row only. Business Name is required. Blank optional fields leave existing values unchanged.'],
-    ['Bank & Accounts', 'Record Type is cash, bank, upi, or account. Account Type is asset, liability, equity, income, or expense. Normal Balance is debit or credit.'],
-    ['Customers', 'Name is required. Opening Balance is the amount the customer owes the business; use zero when not applicable.'],
-    ['Vendors', 'Name is required. Opening Balance is the amount the business owes the vendor; use zero when not applicable.'],
-    ['Opening balances', 'If any opening balance is non-zero, provide one Opening Balance Date in Business Profile. Balances are posted as one balanced opening journal using the system Opening Balance Equity account.'],
-    ['Categories', 'Category is the parent category. Subcategory is optional and is linked to that category.'],
-    ['Products & Services', 'Item Type must be product or service. Goods need Unit, HSN and opening stock. Services use SAC in HSN/SAC, default unit hrs, and no stock.'],
-    ['Tax Rate (%)', 'Use a configured GST rate where possible. If a rate is not present, the import will create a generic sales tax rate with that percentage. Confirm your GST treatment before issuing tax documents.'],
-    ['Duplicate matching', 'Customers/vendors are matched by GSTIN when supplied, otherwise by exact name. Products are matched by SKU when supplied, otherwise by exact name and type.'],
-    ['Stock safety', 'Opening stock is set only for newly created goods. Re-importing matched items never resets or adds stock again.'],
-    ['Data safety', 'Maximum 5,000 data rows per workbook. Invalid workbook data cannot be committed. Fix errors and validate again.'],
-    ['Security', 'The file is imported only into the currently selected business after server-side permission and tenant checks.'],
+    ['Purpose', 'Use this workbook to set up or port master data for the active business. It does not import invoices, bills, receipts, payments or historical transactions.'],
+    ['Two-stage safety', 'Upload → Validate & Preview → correct every error → Commit setup. Preview stores only a temporary staging record; live business data changes only after commit.'],
+    ['Sample rows', 'Replace every SAMPLE / REPLACE row with real data or delete that example row. Never commit sample names or sample account details.'],
+    ['Business Profile', 'Exactly one populated data row. Business Name is required; blank optional fields leave existing business values unchanged.'],
+    ['Bank & Accounts', 'Record Type is cash, bank, upi or account. Account Type is asset, liability, equity, income or expense. Normal Balance is debit or credit. Only one record may be primary.'],
+    ['Customers', 'Name is required. Customer Opening Balance is the amount customers owe the business; use zero when not applicable.'],
+    ['Vendors', 'Name is required. Vendor Opening Balance is the amount the business owes vendors; use zero when not applicable.'],
+    ['Opening balances', 'Any non-zero account/customer/vendor opening balance requires an Opening Balance Date. Balances are posted together through one balanced opening journal. Import is blocked if balances were already posted for this business.'],
+    ['Categories', 'Category is the root; Subcategory is optional and always belongs to the named parent category.'],
+    ['Products & Services', 'Item Type must be product or service. Goods need Unit, HSN and opening stock. Services use SAC in HSN/SAC, default unit hrs and never receive stock.'],
+    ['Tax Rate (%)', 'Enter a percentage from 0 to 100. A missing configured rate is created as a sales-tax rate at commit. Confirm your GST treatment before issuing statutory tax documents.'],
+    ['Duplicate matching', 'Customers/vendors match by GSTIN when supplied, otherwise by name. Catalog items match by SKU when supplied, otherwise by exact name and type. Existing opening stock is never reset on re-import.'],
+    ['Limits', 'Maximum 5,000 data rows per worksheet; workbook must be no larger than 15 MB. Invalid workbook content cannot be committed.'],
+    ['Security', 'The workbook is imported only into the active business displayed in the wizard, after server-side permission and tenant checks. Keep this workbook private because it may contain customer, vendor and bank details.'],
   ];
-  for (const row of guide) instructions.addRow(row);
+  for (const [topic, instruction] of guide) instructions.addRow(['GENERAL', topic, '—', instruction]);
+
+  const fieldDefinitions: Array<[string, string, string, string]> = [
+    ['Business Profile','Business Name','Required','Trade name used by the workspace. Replace the sample placeholder.'],
+    ['Business Profile','Legal Name','Optional','Registered legal name; blank preserves the existing value.'],
+    ['Business Profile','Business Type','Optional','One of: sole_proprietorship, partnership, llp, private_limited, public_limited, trust, society, individual, other.'],
+    ['Business Profile','Phone / Email / Website','Optional','Business contact details; email should be a valid address.'],
+    ['Business Profile','GSTIN','Optional','15-character Indian GSTIN; format is validated.'],
+    ['Business Profile','PAN','Optional','10-character PAN; format is validated.'],
+    ['Business Profile','Address Line 1 / 2, City, State, PIN Code','Optional','Business address components. Blank values preserve existing address components.'],
+    ['Business Profile','Country Code','Optional','Two-letter ISO country code, normally IN.'],
+    ['Business Profile','Currency Code','Optional','Three-letter currency code, e.g. INR. Changing currency affects the business default.'],
+    ['Business Profile','Time Zone','Optional','IANA time zone, e.g. Asia/Kolkata.'],
+    ['Business Profile','Opening Balance Date','Required when balances are non-zero','Date in YYYY-MM-DD format. Required before customer, vendor or account opening balances can be posted.'],
+    ['Bank & Accounts','Record Type','Required','One of: cash, bank, upi, account. Cash/bank/UPI create payment-capable account records.'],
+    ['Bank & Accounts','Account Name','Required','Readable account / cash book / bank display name.'],
+    ['Bank & Accounts','Account Code','Optional','Chart-of-accounts code. Existing code matches are reused; do not reuse a code for another account.'],
+    ['Bank & Accounts','Account Type','Required for account rows','One of: asset, liability, equity, income, expense. Cash/bank/UPI must be debit-balance assets.'],
+    ['Bank & Accounts','Normal Balance','Required for account rows','debit or credit, according to the chart of accounts.'],
+    ['Bank & Accounts','Institution Name, Account Number, Account Holder, IFSC, Branch','Optional','Bank details. Account Number is stored in the business record; keep the workbook private.'],
+    ['Bank & Accounts','Currency','Optional','Three-letter currency code; defaults to the business currency.'],
+    ['Bank & Accounts','UPI ID','Required for UPI collection','UPI VPA used to enable UPI payment and QR settings.'],
+    ['Bank & Accounts','Is Primary','Optional','true or false. Mark at most one row as primary.'],
+    ['Bank & Accounts','Opening Balance','Optional','Non-negative number. Non-zero balances post through the opening balance journal and cannot be imported a second time.'],
+    ['Bank & Accounts','Description','Optional','Internal account description.'],
+    ['Customers','Name','Required','Customer display name. Duplicate names within this workbook are rejected.'],
+    ['Customers','Legal Name, Phone, Email, GSTIN, Tax Type','Optional','Contact and tax profile. GSTIN format is validated when provided.'],
+    ['Customers','Billing Address / Shipping Address','Optional','Address text for customer documents.'],
+    ['Customers','Credit Limit','Optional','Non-negative number in the business currency.'],
+    ['Customers','Payment Terms (Days)','Optional','Whole number, zero or greater.'],
+    ['Customers','Opening Balance','Optional','Non-negative receivable amount. Requires an opening date and accounting permission.'],
+    ['Customers','Notes','Optional','Internal notes.'],
+    ['Vendors','Name','Required','Supplier display name. Duplicate names within this workbook are rejected.'],
+    ['Vendors','Legal Name, Contact Person, Phone, Email, GSTIN, Tax Type','Optional','Supplier contact and tax profile. GSTIN format is validated when provided.'],
+    ['Vendors','Address','Optional','Supplier address text.'],
+    ['Vendors','Payment Terms (Days)','Optional','Whole number, zero or greater.'],
+    ['Vendors','Opening Balance','Optional','Non-negative payable amount. Requires an opening date and accounting permission.'],
+    ['Vendors','Notes','Optional','Internal notes.'],
+    ['Categories','Category','Required','Parent/root product or service category.'],
+    ['Categories','Subcategory','Optional','Child category linked under the Category in the same row.'],
+    ['Categories','Description','Optional','Category or subcategory description.'],
+    ['Categories','Default HSN/SAC','Optional','Default classification code inherited by catalog items where applicable.'],
+    ['Categories','Tax Rate (%)','Optional','0–100. Non-zero rates are resolved or created as a sales-tax rate at commit.'],
+    ['Products & Services','Item Type','Required','product or service. Products are inventory-trackable; services never create stock.'],
+    ['Products & Services','SKU / Item Code','Optional but recommended','Unique business-scoped code; import matches this field first for existing catalog items.'],
+    ['Products & Services','Name','Required','Product/service name. Used with Item Type if SKU is blank.'],
+    ['Products & Services','HSN/SAC','Required','HSN for goods or SAC for services.'],
+    ['Products & Services','Unit','Required for products','Unit such as pcs, kg, box. Services default to hrs when blank.'],
+    ['Products & Services','Sale Price / Purchase Price','Optional','Non-negative numeric amounts in the business currency.'],
+    ['Products & Services','Tax Rate (%)','Optional','0–100; resolves to an active sales-tax rate or creates one at commit.'],
+    ['Products & Services','Opening Stock','Optional for goods; zero for services','Non-negative quantity. Applied only to newly created goods; re-import never adds stock to an existing item.'],
+    ['Products & Services','Opening Stock Cost','Optional','Total cost for the opening quantity. If omitted, purchase price × quantity is used.'],
+    ['Products & Services','Reorder Level','Optional','Non-negative stock threshold for reorder attention.'],
+    ['Products & Services','Barcode / Description','Optional','Barcode identifier and item details.'],
+    ['Products & Services','Sell Enabled / Purchase Enabled / Active','Optional','true or false. Blank values use safe defaults where defined.'],
+  ];
+  for (const row of fieldDefinitions) instructions.addRow(row);
   setSheetStyle(instructions, 'FF0F766E');
-  instructions.columns = [{ width: 28 }, { width: 105 }];
-  instructions.getColumn(2).alignment = { wrapText: true, vertical: 'top' };
-  for (let row = 2; row <= instructions.rowCount; row += 1) instructions.getRow(row).height = 36;
+  instructions.columns = [{ width: 25 }, { width: 34 }, { width: 28 }, { width: 105 }];
+  for (let row = 2; row <= instructions.rowCount; row += 1) {
+    instructions.getRow(row).alignment = { wrapText: true, vertical: 'top' };
+    instructions.getRow(row).height = 34;
+  }
 
   const profileSheet = addRowsSheet(workbook, SHEET_NAMES.profile, PROFILE_COLUMNS, [data.profile])
   profileSheet.getCell('C2').dataValidation = { type: 'list', allowBlank: true, formulae: ['"sole_proprietorship,partnership,llp,private_limited,public_limited,trust,society,individual,other"'] };
@@ -294,7 +351,12 @@ export async function parseBusinessSetupWorkbook(file: File): Promise<BusinessSe
   const vendors = parseRows(workbook.getWorksheet(SHEET_NAMES.vendors), VENDOR_ALIASES, SHEET_NAMES.vendors);
   const categories = parseRows(workbook.getWorksheet(SHEET_NAMES.categories), CATEGORY_ALIASES, SHEET_NAMES.categories);
   const products_services = parseRows(workbook.getWorksheet(SHEET_NAMES.products), PRODUCT_ALIASES, SHEET_NAMES.products);
-  const count = bank_accounts.length + customers.length + vendors.length + categories.length + products_services.length;
-  if (count > 5000) throw new Error('Workbook contains ' + count + ' data rows; maximum is 5,000.');
+  const sheetCounts: Array<[string, number]> = [
+    [SHEET_NAMES.bank, bank_accounts.length], [SHEET_NAMES.customers, customers.length],
+    [SHEET_NAMES.vendors, vendors.length], [SHEET_NAMES.categories, categories.length],
+    [SHEET_NAMES.products, products_services.length],
+  ];
+  const oversized = sheetCounts.find(([, count]) => count > 5000);
+  if (oversized) throw new Error('Worksheet "' + oversized[0] + '" contains ' + oversized[1] + ' data rows; maximum is 5,000 per worksheet.');
   return { profile, bank_accounts, customers, vendors, categories, products_services };
 }

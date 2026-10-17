@@ -70,3 +70,23 @@ test('data export offers the sample and populated setup workbooks alongside the 
   assert.ok(exportPage.includes("if(String(acct?.code||'')==='3000')continue"));
   assert.ok(exportPage.includes('average_cost'));
 });
+
+test('Instructions worksheet gives field-level required/optional definitions for setup data', () => {
+  assert.ok(workbook.includes("['Sheet / Section', 'Column / Topic', 'Required?', 'Definition, allowed values & safety rules']"));
+  for (const field of ['Business Name','Record Type','Account Code','Opening Balance Date','Customer','Vendor','Default HSN/SAC','Item Type','Opening Stock Cost','Sell Enabled / Purchase Enabled / Active']) assert.ok(workbook.includes("'" + field + "'"));
+  assert.ok(workbook.includes('5,000 data rows per worksheet'));
+  assert.ok(workbook.includes("sheet.views = [{ state: 'frozen', ySplit: 1 }];"));
+});
+
+test('Workbook parser row limits match the server per-sheet guard', () => {
+  assert.ok(workbook.includes('const sheetCounts: Array<[string, number]>'));
+  assert.ok(workbook.includes('const oversized = sheetCounts.find(([, count]) => count > 5000)'));
+  assert.ok(workbook.includes('maximum is 5,000 per worksheet'));
+});
+
+test('setup preview and commit make the target active business explicit', () => {
+  assert.ok(migrationPage.includes('type ActiveBusinessContext={business_id:string;business_name:string}'));
+  assert.ok(migrationPage.includes('Import target business'));
+  assert.ok(migrationPage.includes('setupBusinessName'));
+  assert.ok(migrationPage.includes('Commit this validated business setup to "'));
+});
