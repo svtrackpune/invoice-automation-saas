@@ -17,8 +17,10 @@ function normalizeNavigationPath(pathname){
  return p||'/';
 }
 function bestMatch(pathname){
- const p=normalizeNavigationPath(pathname);
- return routes().filter(r=>{const h=r.href.replace(/\\/+$/,'')||'/';return p===h||(h!=='/next-workspace'&&p.startsWith(h+'/'));})
+ let p=pathname;
+ while(p.length>1&&p.endsWith('/'))p=p.slice(0,-1);
+ p=normalizeNavigationPath(p);
+ return routes().filter(r=>{const h=r.href;return p===h||(h!=='/next-workspace'&&p.startsWith(h+'/'));})
   .sort((a,b)=>b.href.length-a.href.length)[0]??null;
 }
 test('route parent resolves by longest registered route',()=>{
@@ -55,5 +57,5 @@ test('purchase navigation has one canonical list entry and preserves legacy deta
  assert.equal(bestMatch('/next-workspace/purchases/abc123').href,'/next-workspace/bills');
  assert.equal(bestMatch('/next-workspace/purchases/new').href,'/next-workspace/bills');
  assert.match(layout,/function normalizeNavigationPath/);
- assert.match(layout,/const normalizedPath = normalizeNavigationPath\\(pathname\\)/);
+ assert.ok(layout.includes('const normalizedPath = normalizeNavigationPath(pathname)'));
 });
