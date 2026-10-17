@@ -77,7 +77,7 @@ test('saved invoice and quotation terms are reloaded for the viewer and public P
   assert.match(viewer,/source\.data\.terms \?\? ''/);
   assert.match(viewer,/from\('quotations'\)[\s\S]*?select\('quotation_number,status,notes,terms,valid_until'\)/);
   assert.match(viewer,/const shareActionsVisible = canSharePublicDocument\(type\)/);
-  assert.match(viewer,/documentFilenameLabel\(type\)/);
+  assert.match(viewer,/documentFilenameLabel\(isCashBillDocument \? 'cash_bill' : type\)/);
   assert.match(pdf,/drawInvoiceInfoSection\('TERMS & CONDITIONS'/);
   assert.doesNotMatch(pdf,/wrap\(doc\.terms, 47\)\.slice/);
   assert.doesNotMatch(pdf,/lines\.slice\(0,6\)/);
@@ -87,7 +87,7 @@ test('saved invoice and quotation terms remain visible in document preview and o
   const viewer=readFileSync('app/next-workspace/documents/DocumentViewer.tsx','utf8');
   const pdf=readFileSync('lib/server/documents/public-pdf.ts','utf8');
   assert.match(viewer,/source\.data\.terms \?\? ''/);
-  assert.match(viewer,/documentFilenameLabel\(type\)/);
+  assert.match(viewer,/documentFilenameLabel\(isCashBillDocument \? 'cash_bill' : type\)/);
   assert.match(pdf,/drawInvoiceInfoSection\('TERMS & CONDITIONS'/);
   assert.doesNotMatch(pdf,/wrap\(doc\.terms, 47\)\.slice/);
   assert.doesNotMatch(pdf,/lines\.slice\(0,6\)/);

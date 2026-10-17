@@ -116,7 +116,7 @@ test('invoice and quotation print footers center disclaimers and print names use
   assert.ok(viewer.includes('.paper>footer.document-footer{display:flex!important;flex-direction:column;align-items:center;justify-content:center;gap:4px;text-align:center}'));
   assert.ok(viewer.includes('buildDocumentFilenameBase('));
   assert.ok(viewer.includes("String(mergedBusiness?.name || mergedBusiness?.legal_name || 'Business')"));
-  assert.ok(viewer.includes("String(documentFilenameLabel(type))"));
+  assert.ok(viewer.includes("String(documentFilenameLabel(isCashBillDocument ? 'cash_bill' : type))"));
   assert.ok(viewer.includes("String(number || 'Document')"));
 });
 
