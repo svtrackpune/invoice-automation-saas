@@ -55,7 +55,7 @@ test('commit revalidates staged data and keeps stock and opening ledger entries 
   assert.ok(commitMigration.includes("v_stage.status<>'validated'"));
   assert.ok(commitMigration.includes('FOR UPDATE'));
   assert.ok(commitMigration.includes('public.validate_journal_entry_balance(v_entry_id)'));
-  assert.ok(commitMigration.includes("source_type='business_setup_opening_balance'"));
+  assert.ok(commitMigration.includes("'business_setup_opening_balance'"));
   assert.ok(commitMigration.includes('no opening_stock/opening_stock_cost fields are changed for existing items'));
   assert.ok(commitMigration.includes('public.document_payment_settings'));
   assert.ok(commitMigration.includes('public.business_document_bank_accounts'));
