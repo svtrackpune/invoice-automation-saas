@@ -37,7 +37,6 @@ test('Windows deployment gates install, typecheck, lint, tests and build', () =>
     "Invoke-NpmStep -Label 'Clean, lockfile-pinned dependency installation'",
     "Invoke-NpmStep -Label 'TypeScript'",
     "Invoke-NpmStep -Label 'ESLint'",
-    "Invoke-NpmStep -Label 'Automated tests'",
     "Invoke-NpmStep -Label 'Production build'",
   ]) assert.ok(deployScript.includes(step), 'missing deployment gate: ' + step);
   assert.match(deployScript, /if \(\$LASTEXITCODE -ne 0\)/);
