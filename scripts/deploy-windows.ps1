@@ -97,9 +97,10 @@ if (-not (Test-Path $nextBin)) {
 
 Invoke-NpmStep -Label 'TypeScript' -Arguments @('run', 'typecheck')
 Invoke-NpmStep -Label 'ESLint' -Arguments @('run', 'lint')
-Invoke-NpmStep -Label 'Automated tests' -Arguments @('test')
+# Do not run the integration/E2E suite on a live production Plesk instance:
+# configured smoke-test fixtures can create financial transactions. CI owns test execution.
 Invoke-NpmStep -Label 'Production build' -Arguments @('run', 'build')
 
 Write-Host ""
-Write-Host "Dependency install, typecheck, lint, tests, and production build all passed." -ForegroundColor Green
+Write-Host "Dependency install, typecheck, lint, and production build all passed. CI tests must pass before deploying this commit." -ForegroundColor Green
 Write-Host "The site process was stopped for the clean install. Start/restart the mm.nilanga.in Node.js application in Plesk now." -ForegroundColor Yellow
