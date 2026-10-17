@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
 const migration = readFileSync(
-  'supabase/migrations/20261017210000_fix_vendor_payment_led001_posting_order.sql',
+  'supabase/migrations/20261017150633_fix_vendor_payment_led001_posting_order.sql',
   'utf8',
 );
 const purchasePage = readFileSync('app/next-workspace/purchases/[id]/page.tsx', 'utf8');
