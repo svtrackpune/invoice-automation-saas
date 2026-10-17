@@ -8,9 +8,17 @@ function routes(){
  return [...m[1].matchAll(/\{ id: '([^']+)', name: '[^']+', items: \[([\s\S]*?)\]\s*\}/g)]
   .flatMap(([,id,block])=>[...block.matchAll(/href: '([^']+)'/g)].map(([,href])=>({id,href})));
 }
+function normalizeNavigationPath(pathname){
+ let p=pathname;
+ while(p.length>1&&p.endsWith('/'))p=p.slice(0,-1);
+ const legacy='/next-workspace/purchases';
+ if(p===legacy)return '/next-workspace/bills';
+ if(p.startsWith(legacy+'/'))return '/next-workspace/bills'+p.slice(legacy.length);
+ return p||'/';
+}
 function bestMatch(pathname){
- const p=pathname.replace(/\/+$/,'')||'/';
- return routes().filter(r=>{const h=r.href.replace(/\/+$/,'')||'/';return p===h||(h!=='/next-workspace'&&p.startsWith(h+'/'));})
+ const p=normalizeNavigationPath(pathname);
+ return routes().filter(r=>{const h=r.href.replace(/\\/+$/,'')||'/';return p===h||(h!=='/next-workspace'&&p.startsWith(h+'/'));})
   .sort((a,b)=>b.href.length-a.href.length)[0]??null;
 }
 test('route parent resolves by longest registered route',()=>{
@@ -19,6 +27,7 @@ test('route parent resolves by longest registered route',()=>{
  assert.equal(bestMatch('/next-workspace/day-book').id,'reports');
  assert.equal(bestMatch('/next-workspace/banking').id,'treasury');
  assert.equal(bestMatch('/next-workspace/purchases').id,'purchases');
+ assert.equal(bestMatch('/next-workspace/purchases').href,'/next-workspace/bills');
  assert.equal(bestMatch('/next-workspace/settings/payments').id,'settings');
 });
 test('active child item wins over a matching parent link',()=>{
@@ -37,4 +46,14 @@ test('path changes add the active group without discarding user-opened sections'
 test('primary navigation groups have stable ids',()=>{
  for(const [id,name] of [['overview','Overview'],['sales','Sales & Billing'],['purchases','Purchases & Expenses'],['documents','Documents'],['treasury','Treasury & Banking'],['reports','Reports & Compliance'],['settings','Settings & Configuration']])
   assert.ok(layout.includes(`id: '${id}', name: '${name}'`));
+});
+
+test('purchase navigation has one canonical list entry and preserves legacy detail highlighting',()=>{
+ const purchaseRoutes=routes().filter(r=>r.id==='purchases');
+ assert.equal(purchaseRoutes.filter(r=>r.href==='/next-workspace/bills').length,1);
+ assert.ok(!purchaseRoutes.some(r=>r.href==='/next-workspace/purchases'));
+ assert.equal(bestMatch('/next-workspace/purchases/abc123').href,'/next-workspace/bills');
+ assert.equal(bestMatch('/next-workspace/purchases/new').href,'/next-workspace/bills');
+ assert.match(layout,/function normalizeNavigationPath/);
+ assert.match(layout,/const normalizedPath = normalizeNavigationPath\\(pathname\\)/);
 });
