@@ -14,7 +14,7 @@ const dataExportUtility = read('lib/business-data-export.ts');
 
 test('sample workbook contains seven expected worksheets, sample rows, and instructions', () => {
   for (const sheet of ['0. Instructions & Legend','1. Business Profile','2. Bank & Accounts','3. Customers','4. Vendors','5. Categories','6. Products & Services']) assert.ok(workbook.includes(sheet));
-  for (const field of ['Business Name','GSTIN','PAN','UPI ID','Opening Balance','Customer','Vendor','Category','Subcategory','HSN/SAC','Opening Stock']) assert.ok(workbook.includes(field));
+  for (const field of ['Business Name','GSTIN','PAN','UPI ID','Opening Balance','Customer','Vendor','Category','Subcategory','HSN / SAC','Opening Stock']) assert.ok(workbook.includes(field));
   assert.ok(workbook.includes('SAMPLE CUSTOMER - REPLACE OR DELETE'));
   assert.ok(workbook.includes('SAMPLE PRODUCT - REPLACE OR DELETE'));
   assert.ok(workbook.includes('Moneymatters-Sample-Business-Setup-Template.xlsx'));
@@ -32,7 +32,7 @@ test('parser enforces complete workbook schema, size limits, and sheet row ident
 });
 
 test('migration UI presents local row preview before commit and preserves the existing migration tools', () => {
-  assert.ok(migrationPage.includes('Download Sample Business Setup Template (.xlsx)'));
+  assert.ok(migrationPage.includes('Download Sample Template (.xlsx)'));
   assert.ok(migrationPage.includes('Validate & Preview'));
   assert.ok(migrationPage.includes("supabase.rpc('preview_business_setup_import'"));
   assert.ok(migrationPage.includes("supabase.rpc('commit_business_setup_import'"));
@@ -74,9 +74,9 @@ test('data export offers the sample and populated setup workbooks alongside the 
 });
 
 test('Instructions worksheet gives field-level required/optional definitions for setup data', () => {
-  assert.ok(workbook.includes("['Sheet / Section', 'Column / Topic', 'Required?', 'Definition, allowed values & safety rules']"));
-  for (const field of ['Business Name','Record Type','Account Code','Opening Balance Date','Customers','Vendors','Default HSN/SAC','Item Type','Opening Stock Cost','Sell Enabled / Purchase Enabled / Active']) assert.ok(workbook.includes("'" + field + "'"));
-  assert.ok(workbook.includes('5,000 data rows per worksheet'));
+  assert.ok(workbook.includes("['Section', 'Required columns', 'Optional columns', 'What to enter']"));
+  for (const field of ['Business Name','Record Type','Account Code','Opening Balance Date','Customers','Vendors','Default HSN/SAC','Item Type','Opening Stock Cost','Opening Stock']) assert.ok(workbook.includes("'" + field + "'"));
+  assert.ok(workbook.includes('Maximum 5,000 rows per data worksheet'));
   assert.ok(workbook.includes("sheet.views = [{ state: 'frozen', ySplit: 1 }];"));
 });
 
@@ -97,9 +97,10 @@ test('export uses bounded pagination for setup master sheets and full business t
   assert.ok(exportPage.includes('async function fetchPagedRows('));
   assert.ok(exportPage.includes('.range(from,to)'));
   assert.ok(exportPage.includes(",'customers',5000)"));
-  assert.ok(exportPage.includes("async (from,to)=>await supabase.from(table).select('*').eq('business_id',businessId).range(from,to)"));
-  assert.ok(exportPage.includes('for (let index=0; index<parentIds.length; index+=250)'));
-  assert.ok(exportPage.includes('Use the full business-data export for larger historical datasets.'));
+  assert.ok(dataExportUtility.includes(".eq('business_id',businessId).range(from,to)"));
+  assert.ok(dataExportUtility.includes('index += 250'));
+  assert.ok(dataExportUtility.includes('EXCEL_MAX_DATA_ROWS = 1_000_000'));
+  assert.ok(dataExportUtility.includes('no partial workbook was downloaded'));
 });
 
 test('setup migration preview warns which active business will receive the commit', () => {

@@ -94,7 +94,7 @@ test('release workflow is gated on successful canonical CI', async () => {
 });
 
 test('production dependency and export boundaries stay hardened', async () => {
-  const pkg = JSON.parse(await read('package.json')); const lock = JSON.parse(await read('package-lock.json')); const exportPage = await read('app/next-workspace/data-export/page.tsx'); const vendorPage = await read('app/next-workspace/vendors/page.tsx');
+  const pkg = JSON.parse(await read('package.json')); const lock = JSON.parse(await read('package-lock.json')); const exportPage = await read('app/next-workspace/data-export/page.tsx'); const exporter = await read('lib/business-data-export.ts'); const vendorPage = await read('app/next-workspace/vendors/page.tsx');
   assert.equal(pkg.dependencies.xlsx, undefined); assert.equal(pkg.dependencies['@andreeewill/exceljs'], '5.0.3'); assert.equal(pkg.overrides?.sharp, '0.35.5'); assert.equal(lock.packages['node_modules/sharp']?.version, '0.35.5'); assert.equal(lock.packages['node_modules/xlsx'], undefined); assert.match(exportPage, /@andreeewill\/exceljs\/dist\/exceljs\.min\.js/); assert.doesNotMatch(exportPage, /from ['"]xlsx['"]/); assert.doesNotMatch(vendorPage, /from ['"]xlsx['"]/);
 });
 
