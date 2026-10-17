@@ -27,7 +27,8 @@
     "cap:build:android:debug": "npm run cap:sync && cd android && (gradlew.bat bundleDebug || ./gradlew bundleDebug)",
     "cap:build:android:release": "npm run cap:sync && cd android && (gradlew.bat bundleRelease -PrequireReleaseSigning=true || ./gradlew bundleRelease -PrequireReleaseSigning=true)",
     "android:aab:debug": "npm run cap:build:android:debug",
-    "android:aab:release": "npm run cap:build:android:release"
+    "android:aab:release": "npm run cap:build:android:release",
+    "deploy:windows": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/deploy-windows.ps1"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.117.2",
