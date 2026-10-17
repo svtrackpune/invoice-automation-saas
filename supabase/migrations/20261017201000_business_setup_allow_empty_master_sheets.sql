@@ -150,8 +150,7 @@ BEGIN
   'opening_balances_present',has_balance
  ));
 END;
-$function$
-
+$function$;
 
 REVOKE ALL ON FUNCTION public._validate_business_setup_payload(uuid,jsonb) FROM PUBLIC,anon,authenticated;
 NOTIFY pgrst, 'reload schema';
