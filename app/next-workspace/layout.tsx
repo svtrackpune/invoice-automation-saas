@@ -29,7 +29,6 @@ const baseGroups: NavGroup[] = [
   { id: 'purchases', name: 'Purchases & Expenses', items: [
     { label: 'Expenses', href: '/next-workspace/expenses', icon: 'expense' },
     { label: 'Bills & Purchase Orders', href: '/next-workspace/bills', icon: 'statement' },
-    { label: 'Purchases', href: '/next-workspace/purchases', icon: 'statement' },
     { label: 'Vendors', href: '/next-workspace/vendors', icon: 'vendor' },
   ]},
   { id: 'treasury', name: 'Treasury & Banking', items: [
@@ -61,6 +60,21 @@ const baseGroups: NavGroup[] = [
     { label: 'Profile', href: '/next-workspace/profile', icon: 'profile' },
   ]},
 ];
+
+/**
+ * Map legacy purchase URLs to the single canonical Bills & Purchase Orders
+ * navigation destination. The detail/create routes still live under
+ * /purchases, but must keep the canonical sidebar item highlighted.
+ */
+function normalizeNavigationPath(pathname: string): string {
+  const normalizedPath = pathname.replace(/\\/+$/, '') || '/';
+  const legacyPurchasesPath = '/next-workspace/purchases';
+  if (normalizedPath === legacyPurchasesPath) return '/next-workspace/bills';
+  if (normalizedPath.startsWith(legacyPurchasesPath + '/')) {
+    return '/next-workspace/bills' + normalizedPath.slice(legacyPurchasesPath.length);
+  }
+  return normalizedPath;
+}
 
 /**
  * Resolve the most specific sidebar group for a pathname. The workspace root
@@ -118,7 +132,7 @@ const titles: Record<string, string> = {
   '/next-workspace/reports/daily-cash-book': 'Daily Cash Book',
   '/next-workspace/reports/statutory-hub': 'Statutory Hub',
   '/next-workspace/purchases': 'Vendor Bills',
-  '/next-workspace/bills': 'Bills & Purchase Orders',
+  '/next-workspace/bills': 'Purchases & Orders',
   '/next-workspace/expenses': 'Expenses',
   '/next-workspace/banking': 'Banking & Reconciliation',
   '/next-workspace/payments': 'Payments',
