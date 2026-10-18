@@ -94,6 +94,7 @@ FOR EACH ROW EXECUTE FUNCTION mm_private.guard_used_fx_rate_mutation();
 
 -- Keep the explicit validator and deferred LED-001 constraint guard consistent with dual-currency journals.
 
+
 CREATE OR REPLACE FUNCTION public.validate_journal_entry_balance(p_entry_id uuid)
 RETURNS boolean
 LANGUAGE plpgsql
