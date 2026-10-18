@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { supabase, type BusinessContext } from '@/lib/supabase';
+import { formatMoney } from '@/lib/i18n';
+import { useLocale } from '@/lib/locale-context';
 import { getPublicDocumentUrl, sharePublicDocument } from '@/lib/client/share-document';
 import CopyButton from '@/components/ui/copy-button';
 import { PageHeader } from '@/components/ui/finops/PageHeader';
@@ -15,16 +17,14 @@ type QuotationRow = {
 type CustomerRow = { id: string; display_name: string; legal_name: string | null; payment_terms_days: number };
 type SortKey = 'quotation' | 'customer' | 'date' | 'amount' | 'status';
 type SortDirection = 'asc' | 'desc';
-const money = (amount: number, currency: string) => {
-  const code = /^[A-Z]{3}$/.test(String(currency || '').toUpperCase()) ? String(currency).toUpperCase() : 'INR';
-  try { return new Intl.NumberFormat('en-IN', { style: 'currency', currency: code, maximumFractionDigits: 2 }).format(Number(amount || 0)); }
-  catch { return code + ' ' + Number(amount || 0).toFixed(2); }
-};
+const money = (amount: number, currency: string, locale: string) =>
+  formatMoney(Number(amount || 0), currency || 'INR', locale, { maximumFractionDigits: 2 });
 const dateLabel = (value?: string | null) => value ? new Date(value + 'T00:00:00').toLocaleDateString('en-IN') : '—';
 const today = () => new Date().toISOString().slice(0, 10);
 const statusLabel = (value: string, validUntil: string | null) => value === 'sent' && validUntil && validUntil < today() ? 'Sent · Expired' : value.charAt(0).toUpperCase() + value.slice(1);
 
 export default function QuotationsListPage() {
+  const { locale } = useLocale();
   const [businessId, setBusinessId] = useState('');
   const [currencyCode, setCurrencyCode] = useState('INR');
   const [rows, setRows] = useState<QuotationRow[]>([]);
@@ -308,7 +308,7 @@ export default function QuotationsListPage() {
                         <td className="px-4 py-4 font-semibold text-slate-900">{row.quotation_number}</td>
                         <td className="px-4 py-4">{customer?.legal_name || customer?.display_name || '—'}</td>
                         <td className="px-4 py-4 text-slate-600">{dateLabel(row.quotation_date)}</td>
-                        <td className="px-4 py-4 text-right font-medium tabular-nums">{money(Number(row.total), row.currency_code || currencyCode)}</td>
+                        <td className="px-4 py-4 text-right font-medium tabular-nums">{money(Number(row.total), row.currency_code || currencyCode, locale)}</td>
                         <td className="px-4 py-4"><span className={'inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ' + (row.status === 'converted' || row.status === 'accepted' ? 'bg-emerald-50 text-emerald-700' : row.status === 'sent' ? 'bg-sky-50 text-sky-700' : row.status === 'cancelled' || row.status === 'rejected' ? 'bg-rose-50 text-rose-700' : 'bg-slate-100 text-slate-700')}>{statusLabel(row.status, row.valid_until)}</span></td>
                         <td className="px-4 py-4">
                           <div className="relative flex justify-end" ref={openActionsId === row.id ? actionsRef : null}>
