@@ -31,7 +31,7 @@ BEGIN
     RETURN;
   END IF;
   RETURN QUERY
-    SELECT fr.rate,coalesce(nullif(btrim(fr.source),''),'MANUAL_FX'),fr.created_at
+    SELECT fr.rate,coalesce(nullif(btrim(fr.source),''),'MANUAL_FX'),(fr.rate_date::timestamp AT TIME ZONE 'UTC')
     FROM public.fx_rates fr
     WHERE fr.business_id=p_business_id
       AND upper(fr.currency_code)=v_currency
@@ -46,6 +46,46 @@ BEGIN
 END;
 $function$;
 REVOKE ALL ON FUNCTION mm_private.resolve_business_fx_rate(uuid,text,text,date) FROM PUBLIC,anon,authenticated;
+
+-- Rate rows become immutable after a journal entry snapshots their effective date/rate.
+CREATE OR REPLACE FUNCTION mm_private.guard_used_fx_rate_mutation()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path TO 'public','mm_private','pg_temp'
+AS $function$
+DECLARE
+  v_used boolean;
+BEGIN
+  SELECT EXISTS(
+    SELECT 1
+    FROM public.journal_lines jl
+    JOIN public.journal_entries je ON je.id=jl.journal_entry_id
+    WHERE je.business_id=OLD.business_id
+      AND upper(jl.transaction_currency_code)=upper(OLD.currency_code)
+      AND upper(jl.base_currency_code)=upper(OLD.base_currency_code)
+      AND jl.exchange_rate_timestamp=(OLD.rate_date::timestamp AT TIME ZONE 'UTC')
+  ) INTO v_used;
+  IF v_used AND (
+    TG_OP='DELETE'
+    OR OLD.rate IS DISTINCT FROM NEW.rate
+    OR OLD.source IS DISTINCT FROM NEW.source
+    OR OLD.rate_date IS DISTINCT FROM NEW.rate_date
+    OR OLD.currency_code IS DISTINCT FROM NEW.currency_code
+    OR OLD.base_currency_code IS DISTINCT FROM NEW.base_currency_code
+  ) THEN
+    RAISE EXCEPTION 'FX rate % %/% has already been used by a journal entry and is immutable; add a new effective-date rate instead',
+      OLD.rate_date,upper(OLD.currency_code),upper(OLD.base_currency_code);
+  END IF;
+  IF TG_OP='DELETE' THEN RETURN OLD; END IF;
+  RETURN NEW;
+END;
+$function$;
+REVOKE ALL ON FUNCTION mm_private.guard_used_fx_rate_mutation() FROM PUBLIC,anon,authenticated;
+DROP TRIGGER IF EXISTS trg_fx_rates_used_immutable ON public.fx_rates;
+CREATE TRIGGER trg_fx_rates_used_immutable
+BEFORE UPDATE OR DELETE ON public.fx_rates
+FOR EACH ROW EXECUTE FUNCTION mm_private.guard_used_fx_rate_mutation();
 
 -- Seed realized FX gain/loss accounts idempotently for existing businesses; no posted ledger is rewritten.
 INSERT INTO public.accounts(business_id,code,name,account_type,normal_balance,is_system,is_active,description)
