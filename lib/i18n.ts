@@ -152,7 +152,7 @@ export function formatDate(value: string | Date, locale = 'en-US', options?: Int
   // locally so browsers west of UTC do not display the previous day.
   let date: Date;
   if (typeof value === 'string') {
-    const match = value.match(/^(\\d{4})-(\\d{2})-(\\d{2})$/);
+    const match = value.match(/^(\d{4})-(\d{2})-(\d{2})$/);
     date = match
       ? new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]))
       : new Date(value);
