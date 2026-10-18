@@ -21,7 +21,7 @@ const tabs:Array<{key:TabKey;label:string}>=[
  {key:'journals',label:'Journal Entries'},{key:'periods',label:'Period Management'}
 ];
 
-const money=(n:number,currency='INR',locale='en-IN')=>formatMoney(Number(n||0),currency,locale,{maximumFractionDigits:2});
+
 const round2=(n:number)=>Math.round((Number(n||0)+Number.EPSILON)*100)/100;
 const today=()=>new Date().toISOString().slice(0,10);
 const yearStart=()=>new Date().toISOString().slice(0,4)+'-01-01';
@@ -29,7 +29,7 @@ const yearStart=()=>new Date().toISOString().slice(0,4)+'-01-01';
 export default function AccountingCockpit(){
  const {locale}=useLocale();
  const[baseCurrencyCode,setBaseCurrencyCode]=useState('INR');
- const baseMoney=(n:number)=>money(n,baseCurrencyCode,locale);
+ const baseMoney=(n:number)=>formatMoney(Number(n||0),baseCurrencyCode,locale,{maximumFractionDigits:2});
  const[ctx,setCtx]=useState<BusinessContext|null>(null),[accounts,setAccounts]=useState<Account[]>([]),[entries,setEntries]=useState<JournalEntry[]>([]),[periods,setPeriods]=useState<Period[]>([]);
  const[activeTab,setActiveTab]=useState<TabKey>('trial'),[from,setFrom]=useState(yearStart()),[to,setTo]=useState(today()),[asOf,setAsOf]=useState(today()),[accountFilter,setAccountFilter]=useState('');
  const[ledgerRows,setLedgerRows]=useState<GeneralLedgerRow[]>([]),[trialRows,setTrialRows]=useState<TrialBalanceRow[]>([]),[balanceRows,setBalanceRows]=useState<BalanceSheetRow[]>([]);
@@ -89,7 +89,7 @@ export default function AccountingCockpit(){
   if(!journalDate){setJournalError('Select the journal date.');return}
   const normalized=journalLines.map(r=>({...r,debitValue:Number(r.debit||0),creditValue:Number(r.credit||0)}));
   if(normalized.length<2||normalized.some(r=>!r.accountId||(r.debitValue<=0&&r.creditValue<=0)||(r.debitValue>0&&r.creditValue>0)||r.debitValue<0||r.creditValue<0)){setJournalError('Each journal line needs an account and exactly one positive debit or credit amount.');return}
-  if(round2(normalized.reduce((n,r)=>n+r.debitValue-r.creditValue,0))!==0){setJournalError('Debits and credits must balance to exactly ${baseMoney(0)} before posting.');return}
+  if(round2(normalized.reduce((n,r)=>n+r.debitValue-r.creditValue,0))!==0){setJournalError(`Debits and credits must balance to exactly ${baseMoney(0)} before posting.`);return}
   setJournalBusy(true);
   const created=await supabase.rpc('create_journal_entry',{
    p_business_id:ctx.business_id,p_entry_date:journalDate,p_description:journalDescription.trim(),p_source_type:'manual',p_source_id:null,
