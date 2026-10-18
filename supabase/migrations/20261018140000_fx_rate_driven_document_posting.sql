@@ -95,6 +95,7 @@ FOR EACH ROW EXECUTE FUNCTION mm_private.guard_used_fx_rate_mutation();
 -- Keep the explicit validator and deferred LED-001 constraint guard consistent with dual-currency journals.
 
 
+
 CREATE OR REPLACE FUNCTION public.validate_journal_entry_balance(p_entry_id uuid)
 RETURNS boolean
 LANGUAGE plpgsql
@@ -1762,26 +1763,17 @@ $function$;
 
 CREATE OR REPLACE FUNCTION public.set_draft_invoice_currency(p_invoice_id uuid,p_currency_code text)
 RETURNS uuid
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path TO 'public','pg_temp'
+LANGUAGE plpgsql SECURITY DEFINER SET search_path TO 'public','pg_temp'
 AS $function$
-DECLARE
-  inv public.invoices%rowtype;
-  v_currency char(3):=upper(btrim(coalesce(p_currency_code,'')));
+DECLARE inv public.invoices%rowtype; v_currency char(3):=upper(btrim(coalesce(p_currency_code,'')));
 BEGIN
-  SELECT * INTO inv FROM public.invoices WHERE id=p_invoice_id FOR UPDATE;
-  IF inv.id IS NULL THEN RAISE EXCEPTION 'Invoice not found'; END IF;
-  IF NOT (
-    mm_private.has_business_permission(inv.business_id,'sales.create')
-    OR mm_private.has_business_permission(inv.business_id,'sales.edit')
-  ) THEN RAISE EXCEPTION 'Access denied'; END IF;
-  IF inv.status<>'draft' OR inv.journal_entry_id IS NOT NULL THEN
-    RAISE EXCEPTION 'Transaction currency can only be set before an invoice is posted';
-  END IF;
-  IF v_currency !~ '^[A-Z]{3}$' THEN RAISE EXCEPTION 'A valid three-letter ISO currency code is required'; END IF;
-  UPDATE public.invoices SET currency_code=v_currency,updated_at=now() WHERE id=inv.id;
-  RETURN inv.id;
+ SELECT * INTO inv FROM public.invoices WHERE id=p_invoice_id FOR UPDATE;
+ IF inv.id IS NULL THEN RAISE EXCEPTION 'Invoice not found'; END IF;
+ IF NOT (mm_private.has_business_permission(inv.business_id,'sales.create') OR mm_private.has_business_permission(inv.business_id,'sales.edit')) THEN RAISE EXCEPTION 'Access denied'; END IF;
+ IF inv.status<>'draft' OR inv.journal_entry_id IS NOT NULL THEN RAISE EXCEPTION 'Transaction currency can only be set before an invoice is posted'; END IF;
+ IF v_currency !~ '^[A-Z]{3}$' THEN RAISE EXCEPTION 'A valid three-letter ISO currency code is required'; END IF;
+ UPDATE public.invoices SET currency_code=v_currency,updated_at=now() WHERE id=inv.id;
+ RETURN inv.id;
 END;
 $function$;
 REVOKE ALL ON FUNCTION public.set_draft_invoice_currency(uuid,text) FROM PUBLIC,anon;
@@ -1789,31 +1781,21 @@ GRANT EXECUTE ON FUNCTION public.set_draft_invoice_currency(uuid,text) TO authen
 
 CREATE OR REPLACE FUNCTION public.set_draft_quotation_currency(p_quotation_id uuid,p_currency_code text)
 RETURNS uuid
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path TO 'public','pg_temp'
+LANGUAGE plpgsql SECURITY DEFINER SET search_path TO 'public','pg_temp'
 AS $function$
-DECLARE
-  q public.quotations%rowtype;
-  v_currency char(3):=upper(btrim(coalesce(p_currency_code,'')));
+DECLARE q public.quotations%rowtype; v_currency char(3):=upper(btrim(coalesce(p_currency_code,'')));
 BEGIN
-  SELECT * INTO q FROM public.quotations WHERE id=p_quotation_id FOR UPDATE;
-  IF q.id IS NULL THEN RAISE EXCEPTION 'Quotation not found'; END IF;
-  IF NOT (
-    mm_private.has_business_permission(q.business_id,'sales.create')
-    OR mm_private.has_business_permission(q.business_id,'sales.edit')
-  ) THEN RAISE EXCEPTION 'Access denied'; END IF;
-  IF q.status<>'draft' OR q.invoice_id IS NOT NULL THEN
-    RAISE EXCEPTION 'Transaction currency can only be changed while a quotation is a draft';
-  END IF;
-  IF v_currency !~ '^[A-Z]{3}$' THEN RAISE EXCEPTION 'A valid three-letter ISO currency code is required'; END IF;
-  UPDATE public.quotations SET currency_code=v_currency,updated_at=now() WHERE id=q.id;
-  RETURN q.id;
+ SELECT * INTO q FROM public.quotations WHERE id=p_quotation_id FOR UPDATE;
+ IF q.id IS NULL THEN RAISE EXCEPTION 'Quotation not found'; END IF;
+ IF NOT (mm_private.has_business_permission(q.business_id,'sales.create') OR mm_private.has_business_permission(q.business_id,'sales.edit')) THEN RAISE EXCEPTION 'Access denied'; END IF;
+ IF q.status<>'draft' OR q.invoice_id IS NOT NULL THEN RAISE EXCEPTION 'Transaction currency can only be changed while a quotation is a draft'; END IF;
+ IF v_currency !~ '^[A-Z]{3}$' THEN RAISE EXCEPTION 'A valid three-letter ISO currency code is required'; END IF;
+ UPDATE public.quotations SET currency_code=v_currency,updated_at=now() WHERE id=q.id;
+ RETURN q.id;
 END;
 $function$;
 REVOKE ALL ON FUNCTION public.set_draft_quotation_currency(uuid,text) FROM PUBLIC,anon;
 GRANT EXECUTE ON FUNCTION public.set_draft_quotation_currency(uuid,text) TO authenticated;
-
 
 CREATE OR REPLACE FUNCTION public.convert_quotation_to_invoice(p_quotation_id uuid, p_invoice_date date DEFAULT CURRENT_DATE, p_due_date date DEFAULT NULL::date)
  RETURNS uuid
@@ -2458,78 +2440,16 @@ BEGIN
   FROM public.businesses
   WHERE id=p_business_id;
 
-  IF v_currency IS NULL OR v_currency !~ '^[A-Z]{3}
-  IF p_amount>v_balance+0.005 THEN
-    RAISE EXCEPTION 'Refund exceeds available customer credit in refund currency';
-  END IF;
-
-  IF NOT EXISTS(
-    SELECT 1 FROM public.customers
-    WHERE id=p_customer_id AND business_id=p_business_id AND is_active
-  ) THEN RAISE EXCEPTION 'Customer not found or inactive'; END IF;
-
-  IF NOT EXISTS(
-    SELECT 1 FROM public.accounts
-    WHERE id=p_account_id AND business_id=p_business_id
-      AND is_active AND account_subtype IN ('cash','bank')
-  ) THEN RAISE EXCEPTION 'Refund account must be an active Cash or Bank account'; END IF;
-
-  SELECT id INTO v_credit_acct
-  FROM public.accounts
-  WHERE business_id=p_business_id AND code='2150' AND is_active;
-  IF v_credit_acct IS NULL THEN RAISE EXCEPTION 'Customer credit account is missing'; END IF;
-
-  INSERT INTO public.customer_refunds(
-    business_id,customer_id,refund_date,amount,currency_code,method,account_id,
-    reference,reason,created_by
-  ) VALUES(
-    p_business_id,p_customer_id,p_refund_date,p_amount,v_currency,p_method,
-    p_account_id,p_reference,p_reason,auth.uid()
-  ) RETURNING id INTO v_refund;
-
-  INSERT INTO public.customer_credit_ledger(
-    business_id,customer_id,refund_id,entry_type,amount,currency_code,description,created_by
-  ) VALUES(
-    p_business_id,p_customer_id,v_refund,'refund',-p_amount,v_currency,
-    'Customer credit refund',auth.uid()
-  );
-
-  PERFORM pg_advisory_xact_lock(hashtext('journal-entry-number:'||p_business_id::text));
-
-  INSERT INTO public.journal_entries(
-    business_id,entry_number,entry_date,description,source_type,source_id,status,
-    posted_at,posted_by,created_by,currency_code,total_debit,total_credit,is_system_generated
-  ) VALUES(
-    p_business_id,
-    (SELECT coalesce(max(entry_number),0)+1 FROM public.journal_entries WHERE business_id=p_business_id),
-    p_refund_date,'Customer credit refund','refund',v_refund,'posted',
-    now(),auth.uid(),auth.uid(),v_currency,p_amount,p_amount,true
-  ) RETURNING id INTO v_entry;
-
-  INSERT INTO public.journal_lines(
-    journal_entry_id,account_id,description,debit,credit,currency_code,entity_type,entity_id
-  ) VALUES
-    (v_entry,v_credit_acct,'Customer credit refund',p_amount,0,v_currency,'customer',p_customer_id),
-    (v_entry,p_account_id,'Refund paid',0,p_amount,v_currency,'customer',p_customer_id);
-
-  PERFORM public.validate_journal_entry_balance(v_entry);
-
-  UPDATE public.customer_refunds
-  SET journal_entry_id=v_entry,status='posted'
-  WHERE id=v_refund;
-
-  RETURN v_refund;
-END;
-$function$ THEN
+  IF v_currency IS NULL OR v_currency !~ '^[A-Z]{3}$' THEN
     RAISE EXCEPTION 'Valid refund currency is required';
   END IF;
   SELECT upper(coalesce(nullif(btrim(base_currency_code),''),nullif(btrim(currency_code),''),'INR'))
-    INTO v_base_currency
-  FROM public.businesses WHERE id=p_business_id;
+    INTO v_base_currency FROM public.businesses WHERE id=p_business_id;
   IF v_base_currency IS NULL THEN RAISE EXCEPTION 'Business base currency is missing'; END IF;
   IF v_currency<>v_base_currency THEN
     RAISE EXCEPTION 'Foreign-currency customer-credit refunds are disabled until source FX carrying values and realized settlement accounting are implemented';
   END IF;
+
   SELECT public.customer_credit_balance(p_business_id,p_customer_id,v_currency) INTO v_balance;
   IF p_amount>v_balance+0.005 THEN
     RAISE EXCEPTION 'Refund exceeds available customer credit in refund currency';
@@ -2592,7 +2512,8 @@ $function$ THEN
 
   RETURN v_refund;
 END;
-$function$;
+$function$
+;
 
 CREATE OR REPLACE FUNCTION public.receive_vendor_refund(p_business_id uuid, p_vendor_id uuid, p_vendor_credit_id uuid, p_amount numeric, p_method text, p_account_id uuid, p_reference text DEFAULT NULL::text, p_refund_date date DEFAULT CURRENT_DATE, p_notes text DEFAULT NULL::text)
  RETURNS uuid
@@ -4198,10 +4119,8 @@ INSERT INTO public.accounts(business_id,code,name,account_type,normal_balance,is
 SELECT b.id,'4050','Realized FX Gain','income','credit',true,true,'Realized foreign-exchange gains on settlement'
 FROM public.businesses b WHERE b.is_active
 ON CONFLICT (business_id,code) DO NOTHING;
-
 INSERT INTO public.accounts(business_id,code,name,account_type,normal_balance,is_system,is_active,description)
 SELECT b.id,'6050','Realized FX Loss','expense','debit',true,true,'Realized foreign-exchange losses on settlement'
 FROM public.businesses b WHERE b.is_active
 ON CONFLICT (business_id,code) DO NOTHING;
-
 COMMIT;
