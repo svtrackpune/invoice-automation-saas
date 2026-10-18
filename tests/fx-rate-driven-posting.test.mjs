@@ -165,7 +165,8 @@ test('draft currency setters validate state and quotation conversion preserves t
   assert.match(invoiceSetter, /has_business_permission\(inv\.business_id,'sales\.create'\)/);
   assert.match(quotationSetter, /q\.status<>'draft' OR q\.invoice_id IS NOT NULL/);
   assert.match(quotationSetter, /has_business_permission\(q\.business_id,'sales\.create'\)/);
-  assert.ok(invoiceSetter.includes("v_currency !~ '^[A-Z]{3}
+  assert.ok(invoiceSetter.includes("v_currency !~ '^[A-Z]{3}$'"));
+  assert.ok(quotationSetter.includes("v_currency !~ '^[A-Z]{3}$'"));
   assert.match(conversion, /SET currency_code=upper\(q\.currency_code\)/);
 });
 
