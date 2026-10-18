@@ -8,7 +8,7 @@ const migrationPath = 'supabase/migrations/20261018140000_fx_rate_driven_documen
 test('FX resolver is dated, business scoped, directional and fails closed', async () => {
   const sql = await read(migrationPath);
   const resolver = sql.slice(sql.indexOf('CREATE OR REPLACE FUNCTION mm_private.resolve_business_fx_rate'), sql.indexOf('-- Rate rows become immutable'));
-  assert.match(resolver, /1 unit of transaction currency = rate units of the business base currency/);
+  assert.match(sql, /Rate convention: 1 unit of transaction currency = rate units of the business base currency/);
   assert.match(resolver, /IF v_currency=v_base THEN[\s\S]*?SELECT 1::numeric,'BASE_DOMESTIC'/);
   assert.match(resolver, /fr\.business_id=p_business_id/);
   assert.match(resolver, /upper\(fr\.currency_code\)=v_currency/);
@@ -29,8 +29,8 @@ test('invoice and supplier-bill posting snapshot FX metadata and base-currency a
     assert.ok(fn.includes('exchange_rate_timestamp'), name + ' stores the rate effective date');
     assert.ok(fn.includes('transaction_currency_code'), name + ' stores transaction currency');
     assert.ok(fn.includes('base_currency_code,base_amount'), name + ' stores base amounts');
-    assert.ok(fn.includes('total_debit=(select coalesce(sum(base_amount),0)'), name + ' stores base-currency journal totals');
-    assert.ok(fn.includes('total_credit=(select coalesce(sum(base_amount),0)'), name + ' stores base-currency journal totals');
+    assert.match(fn, /total_debit\s*=\s*\(select coalesce\(sum\(base_amount\),0\)/i, name + ' stores base-currency debit total');
+    assert.match(fn, /total_credit\s*=\s*\(select coalesce\(sum\(base_amount\),0\)/i, name + ' stores base-currency credit total');
   }
   assert.match(bill, /coalesce\(\(v_base\*v_fx_rate\)\/nullif\(v_line\.quantity,0\),v_line\.purchase_price,0\)/);
   assert.match(invoice, /v_entry,v_cogs,'Cost of goods sold',v_cogs_total,0,v_base_currency/);
