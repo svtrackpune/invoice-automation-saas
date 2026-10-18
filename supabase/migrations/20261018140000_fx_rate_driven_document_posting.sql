@@ -4992,6 +4992,115 @@ END;
 $function$
 
 
+-- FX-safe invoice void/reversal: copy original transaction/base carrying values and post draft-first.
+CREATE OR REPLACE FUNCTION public.void_invoice(p_invoice_id uuid,p_reason text DEFAULT NULL::text)
+RETURNS uuid
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path TO 'public','pg_temp'
+AS $function$
+DECLARE
+  inv public.invoices%rowtype;
+  original public.journal_entries%rowtype;
+  rev uuid;
+  v_entry_no bigint;
+  v_base_currency char(3);
+  line record;
+  mov record;
+BEGIN
+  SELECT * INTO inv FROM public.invoices WHERE id=p_invoice_id FOR UPDATE;
+  IF inv.id IS NULL THEN RAISE EXCEPTION 'Invoice not found'; END IF;
+  IF NOT mm_private.has_business_permission(inv.business_id,'accounting.post') THEN RAISE EXCEPTION 'Access denied'; END IF;
+  IF inv.status='void' THEN RETURN inv.journal_entry_id; END IF;
+  IF inv.status='draft' THEN
+    UPDATE public.invoices SET status='void'::invoice_status,updated_at=now(),
+      notes=CASE WHEN p_reason IS NULL OR trim(p_reason)='' THEN notes ELSE coalesce(notes||E'\n','')||'Void reason: '||p_reason END
+    WHERE id=inv.id;
+    RETURN NULL;
+  END IF;
+  IF inv.journal_entry_id IS NULL THEN RAISE EXCEPTION 'Posted invoice has no journal entry'; END IF;
+  IF coalesce(inv.amount_paid,0)>0 OR EXISTS(
+    SELECT 1 FROM public.payment_allocations pa WHERE pa.invoice_id=inv.id AND pa.amount>0
+  ) OR EXISTS(
+    SELECT 1 FROM public.payments p
+    WHERE p.invoice_id=inv.id AND p.direction='inbound' AND p.journal_entry_id IS NOT NULL
+  ) THEN
+    RAISE EXCEPTION 'An invoice with recorded customer payments cannot be voided directly. Reverse/refund the settlement through the credit and refund workflow first.';
+  END IF;
+  IF EXISTS(SELECT 1 FROM public.credit_notes cn WHERE cn.invoice_id=inv.id AND cn.status='posted') THEN
+    RAISE EXCEPTION 'An invoice with posted credit notes cannot be voided directly. Reverse the credit-note chain through a controlled accounting workflow.';
+  END IF;
+
+  SELECT * INTO original FROM public.journal_entries WHERE id=inv.journal_entry_id FOR UPDATE;
+  IF original.id IS NULL THEN RAISE EXCEPTION 'Original journal entry not found'; END IF;
+  IF original.status<>'posted' THEN RAISE EXCEPTION 'Only a posted invoice journal can be reversed'; END IF;
+  IF EXISTS(SELECT 1 FROM public.journal_entries WHERE reversal_of_id=original.id) THEN
+    RAISE EXCEPTION 'Invoice has already been reversed';
+  END IF;
+  SELECT upper(coalesce(nullif(btrim(base_currency_code),''),nullif(btrim(currency_code),''),'INR'))
+    INTO v_base_currency FROM public.businesses WHERE id=inv.business_id AND is_active;
+  IF v_base_currency IS NULL THEN RAISE EXCEPTION 'Business base currency is missing'; END IF;
+  PERFORM public.assert_accounting_period_open(inv.business_id,current_date);
+  PERFORM pg_advisory_xact_lock(hashtext('journal-entry-number:'||inv.business_id::text));
+  SELECT coalesce(max(entry_number),0)+1 INTO v_entry_no
+  FROM public.journal_entries WHERE business_id=inv.business_id;
+
+  INSERT INTO public.journal_entries(
+    business_id,entry_number,entry_date,description,source_type,source_id,status,
+    posted_at,posted_by,created_by,currency_code,total_debit,total_credit,
+    is_system_generated,reversal_of_id,metadata
+  ) VALUES(
+    inv.business_id,v_entry_no,current_date,'Void invoice '||inv.invoice_number,
+    'invoice_void',inv.id,'draft',NULL,NULL,auth.uid(),inv.currency_code,0,0,
+    true,original.id,jsonb_build_object('reason',p_reason,'original_journal_entry_id',original.id)
+  ) RETURNING id INTO rev;
+
+  INSERT INTO public.journal_lines(
+    journal_entry_id,account_id,description,debit,credit,currency_code,
+    transaction_currency_code,transaction_amount,base_currency_code,base_amount,
+    exchange_rate,exchange_rate_source,exchange_rate_timestamp,entity_type,entity_id,metadata
+  )
+  SELECT
+    rev,jl.account_id,'Reversal: '||coalesce(jl.description,''),jl.credit,jl.debit,jl.currency_code,
+    jl.transaction_currency_code,jl.transaction_amount,jl.base_currency_code,jl.base_amount,
+    jl.exchange_rate,jl.exchange_rate_source,jl.exchange_rate_timestamp,jl.entity_type,jl.entity_id,jl.metadata
+  FROM public.journal_lines jl WHERE jl.journal_entry_id=original.id;
+
+  UPDATE public.journal_entries
+  SET total_debit=(SELECT coalesce(sum(base_amount),0) FROM public.journal_lines WHERE journal_entry_id=rev AND debit>0),
+      total_credit=(SELECT coalesce(sum(base_amount),0) FROM public.journal_lines WHERE journal_entry_id=rev AND credit>0)
+  WHERE id=rev;
+  PERFORM public.validate_journal_entry_balance(rev);
+
+  UPDATE public.journal_entries
+  SET status='posted',posted_at=now(),posted_by=auth.uid(),updated_at=now()
+  WHERE id=rev AND status='draft';
+  IF NOT FOUND THEN RAISE EXCEPTION 'Invoice void refused: reversal journal % did not transition from draft to posted',rev; END IF;
+  PERFORM public.validate_journal_entry_balance(rev);
+
+  FOR mov IN
+    SELECT location_id,product_service_id,quantity,unit_cost,batch_number,serial_number
+    FROM public.inventory_movements
+    WHERE reference_type='invoice' AND reference_id=inv.id AND movement_type='sale'
+  LOOP
+    INSERT INTO public.inventory_movements(
+      business_id,location_id,product_service_id,movement_type,quantity,unit_cost,
+      reference_type,reference_id,batch_number,serial_number,notes,created_by
+    ) VALUES(
+      inv.business_id,mov.location_id,mov.product_service_id,'sale_reversal',mov.quantity,mov.unit_cost,
+      'invoice_void',inv.id,mov.batch_number,mov.serial_number,
+      coalesce(p_reason,'Invoice void reversal'),auth.uid()
+    );
+  END LOOP;
+
+  UPDATE public.invoices
+  SET status='void'::invoice_status,updated_at=now(),
+      notes=CASE WHEN p_reason IS NULL OR trim(p_reason)='' THEN notes ELSE coalesce(notes||E'\n','')||'Void reason: '||p_reason END
+  WHERE id=inv.id;
+  RETURN rev;
+END;
+$function$;
+
 -- Seed realized FX gain/loss accounts idempotently for existing businesses; no posted ledger is rewritten.
 INSERT INTO public.accounts(business_id,code,name,account_type,normal_balance,is_system,is_active,description)
 SELECT b.id,'4050','Realized FX Gain','income','credit',true,true,'Realized foreign-exchange gains on settlement'
