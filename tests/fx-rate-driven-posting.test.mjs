@@ -145,7 +145,7 @@ test('FX credit notes and supplier credits reverse source-booking rates and post
   assert.ok(creditNote.indexOf('INSERT INTO public.journal_lines') < creditNote.indexOf("SET status='posted'"));
   assert.match(creditNote, /total_debit=\(SELECT coalesce\(sum\(base_amount\),0\)/);
   assert.match(creditNote, /Inventory returned/);
-  assert.match(creditNote, /v_base_currency,v_base_currency/);
+  assert.match(creditNote, /1,'BASE_DOMESTIC',v_fx_timestamp,v_base_currency,cogs_total,v_base_currency,cogs_total/);
 
   assert.match(vendorCredit, /Source purchase-bill booking FX rate is missing/);
   assert.match(vendorCredit, /Unlinked foreign-currency supplier credits are disabled/);
