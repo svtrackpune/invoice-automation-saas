@@ -630,7 +630,7 @@ BEGIN
  IF v_transaction_currency<>v_business_currency AND v_excess>0 THEN
    RAISE EXCEPTION 'Foreign-currency overpayments are disabled until FX credit application is supported. Limit this payment to the invoice balance.';
  END IF;
- v_fx_delta:=round(v_allocated*(v_fx_rate-v_invoice_rate),6);
+ v_fx_delta:=round(round(v_allocated*v_fx_rate,6)-round(v_allocated*v_invoice_rate,6),6);
  IF v_fx_delta>0 THEN
    SELECT id INTO v_fx_gain FROM public.accounts WHERE business_id=p_business_id AND code='4050' AND is_active;
    IF v_fx_gain IS NULL THEN RAISE EXCEPTION 'Realized FX gain account (4050) is missing'; END IF;
@@ -794,7 +794,7 @@ BEGIN
    AND upper(transaction_currency_code)=upper(v_bill.currency_code)
  ORDER BY id LIMIT 1;
  IF NOT FOUND THEN RAISE EXCEPTION 'Original purchase-bill FX booking rate is missing; payment cannot be posted safely'; END IF;
- v_fx_delta:=round(least(p_amount,v_remaining)*(v_fx_rate-v_bill_rate),6);
+ v_fx_delta:=round(round(least(p_amount,v_remaining)*v_fx_rate,6)-round(least(p_amount,v_remaining)*v_bill_rate,6),6);
  IF v_fx_delta>0 THEN
    SELECT id INTO v_fx_loss FROM public.accounts WHERE business_id=p_business_id AND code='6050' AND is_active;
    IF v_fx_loss IS NULL THEN RAISE EXCEPTION 'Realized FX loss account (6050) is missing'; END IF;
