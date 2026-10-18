@@ -2,6 +2,8 @@
 
 import {useEffect,useMemo,useState} from 'react';
 import {supabase,type BusinessContext} from '@/lib/supabase';
+import { formatMoney } from '@/lib/i18n';
+import { useLocale } from '@/lib/locale-context';
 
 type Customer={id:string;display_name:string;email:string|null;phone:string|null;payment_terms_days:number;payment_reminders_enabled:boolean;reminder_days_before_due:number;default_discount_type:string;default_discount_value:number};
 type Product={id:string;name:string;sku:string|null;sales_price:number;default_tax_rate_id:string|null;inventory_tracked:boolean;discount_enabled:boolean;max_discount_type:string;max_discount_value:number};
@@ -28,6 +30,8 @@ function CustomerField({label,children,wide=false,required=false}:{label:string;
 export default function SalesWorkflow(){
  const[ctx,setCtx]=useState<BusinessContext|null>(null),[customers,setCustomers]=useState<Customer[]>([]),[products,setProducts]=useState<Product[]>([]),[taxes,setTaxes]=useState<Tax[]>([]),[accounts,setAccounts]=useState<Account[]>([]),[templates,setTemplates]=useState<Template[]>([]),[taxMode,setTaxMode]=useState('auto'),[invoiceTemplate,setInvoiceTemplate]=useState(''),[step,setStep]=useState(1),[customerId,setCustomerId]=useState(''),[invoiceDate,setInvoiceDate]=useState(today()),[dueDate,setDueDate]=useState(plusDays(30)),[lines,setLines]=useState<Line[]>([]),[discountType,setDiscountType]=useState(''),[discountValue,setDiscountValue]=useState(0),[notes,setNotes]=useState(''),[terms,setTerms]=useState('Payment due within the agreed credit period.'),[busy,setBusy]=useState(false),[error,setError]=useState(''),[success,setSuccess]=useState(''),[created,setCreated]=useState<Invoice|null>(null),[payAmount,setPayAmount]=useState(0),[payMethod,setPayMethod]=useState('upi'),[payAccount,setPayAccount]=useState(''),[reference,setReference]=useState('');
  const[quickCustomerOpen,setQuickCustomerOpen]=useState(false),[quickCustomer,setQuickCustomer]=useState<CustomerForm>({...blankCustomer}),[quickCustomerBusy,setQuickCustomerBusy]=useState(false);
+ const {locale}=useLocale();
+ const money=(n:number)=>formatMoney(Number(n||0),ctx?.currency_code||'INR',locale,{maximumFractionDigits:2});
  useEffect(()=>{(async()=>{const r=await supabase.rpc('get_my_business_context');const c=r.data?.[0] as BusinessContext|undefined;if(!c){location.href='/';return}setCtx(c);const[cs,ps,ts,as,bp,dp,tm]=await Promise.all([
  supabase.from('customers').select('id,display_name,email,phone,payment_terms_days,payment_reminders_enabled,reminder_days_before_due,default_discount_type,default_discount_value').eq('business_id',c.business_id).eq('is_active',true).order('display_name'),
  supabase.from('products_services').select('id,name,sku,sales_price,default_tax_rate_id,inventory_tracked,discount_enabled,max_discount_type,max_discount_value').eq('business_id',c.business_id).eq('is_active',true).order('name'),
