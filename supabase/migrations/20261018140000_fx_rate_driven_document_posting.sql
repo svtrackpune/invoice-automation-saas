@@ -202,6 +202,104 @@ BEGIN
 END;
 $function$;
 
+-- Accounting reports are always expressed in business base currency. Raw debit/credit amounts
+-- remain in transaction currency on journal lines and must not be summed across currencies.
+CREATE OR REPLACE FUNCTION public.get_general_ledger(
+  p_business_id uuid,
+  p_start date,
+  p_end date,
+  p_account_id uuid DEFAULT NULL::uuid
+)
+RETURNS TABLE(entry_id uuid,entry_number bigint,entry_date date,description text,account_id uuid,account_code text,account_name text,debit numeric,credit numeric,balance numeric)
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path TO 'public','pg_temp'
+AS $function$
+BEGIN
+  IF NOT mm_private.has_business_permission(p_business_id,'accounting.view') THEN RAISE EXCEPTION 'Access denied'; END IF;
+  RETURN QUERY
+  SELECT je.id,je.entry_number,je.entry_date,je.description,a.id,a.code,a.name,
+         CASE WHEN jl.debit>0 THEN jl.base_amount ELSE 0 END,
+         CASE WHEN jl.credit>0 THEN jl.base_amount ELSE 0 END,
+         sum((CASE WHEN jl.debit>0 THEN jl.base_amount ELSE 0 END)-(CASE WHEN jl.credit>0 THEN jl.base_amount ELSE 0 END))
+           OVER(PARTITION BY a.id ORDER BY je.entry_date,je.entry_number,je.id,jl.id)
+  FROM public.journal_entries je
+  JOIN public.journal_lines jl ON jl.journal_entry_id=je.id
+  JOIN public.accounts a ON a.id=jl.account_id
+  WHERE je.business_id=p_business_id AND je.status='posted'
+    AND je.entry_date BETWEEN p_start AND p_end
+    AND (p_account_id IS NULL OR a.id=p_account_id)
+  ORDER BY je.entry_date,je.entry_number,jl.id;
+END;
+$function$;
+
+CREATE OR REPLACE FUNCTION public.get_trial_balance(p_business_id uuid,p_start date,p_end date)
+RETURNS TABLE(account_id uuid,account_code text,account_name text,account_type text,debit numeric,credit numeric,balance numeric)
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path TO 'public','pg_temp'
+AS $function$
+BEGIN
+  IF NOT mm_private.has_business_permission(p_business_id,'accounting.view') THEN RAISE EXCEPTION 'Access denied'; END IF;
+  RETURN QUERY
+  SELECT a.id,a.code,a.name,a.account_type::text,
+         coalesce(sum(CASE WHEN je.id IS NOT NULL AND jl.debit>0 THEN jl.base_amount ELSE 0 END),0),
+         coalesce(sum(CASE WHEN je.id IS NOT NULL AND jl.credit>0 THEN jl.base_amount ELSE 0 END),0),
+         coalesce(sum(CASE WHEN je.id IS NOT NULL AND jl.debit>0 THEN jl.base_amount
+                           WHEN je.id IS NOT NULL AND jl.credit>0 THEN -jl.base_amount ELSE 0 END),0)
+  FROM public.accounts a
+  LEFT JOIN public.journal_lines jl ON jl.account_id=a.id
+  LEFT JOIN public.journal_entries je ON je.id=jl.journal_entry_id
+    AND je.business_id=p_business_id AND je.status='posted' AND je.entry_date BETWEEN p_start AND p_end
+  WHERE a.business_id=p_business_id
+  GROUP BY a.id,a.code,a.name,a.account_type
+  ORDER BY a.code;
+END;
+$function$;
+
+CREATE OR REPLACE FUNCTION public.get_balance_sheet(p_business_id uuid,p_as_of date)
+RETURNS TABLE(account_id uuid,account_code text,account_name text,account_type text,amount numeric)
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path TO 'public','pg_temp'
+AS $function$
+BEGIN
+  IF NOT mm_private.has_business_permission(p_business_id,'accounting.view') THEN RAISE EXCEPTION 'Access denied'; END IF;
+  RETURN QUERY
+  SELECT a.id,a.code,a.name,a.account_type::text,
+         coalesce(sum(CASE WHEN jl.debit>0 THEN jl.base_amount ELSE 0 END)-sum(CASE WHEN jl.credit>0 THEN jl.base_amount ELSE 0 END),0)
+  FROM public.accounts a
+  JOIN public.journal_lines jl ON jl.account_id=a.id
+  JOIN public.journal_entries je ON je.id=jl.journal_entry_id
+  WHERE a.business_id=p_business_id AND je.business_id=p_business_id AND je.status='posted'
+    AND je.entry_date<=p_as_of AND a.account_type::text IN ('asset','liability','equity')
+  GROUP BY a.id,a.code,a.name,a.account_type
+  ORDER BY a.code;
+END;
+$function$;
+
+CREATE OR REPLACE FUNCTION public.get_profit_loss(p_business_id uuid,p_start date,p_end date)
+RETURNS TABLE(account_id uuid,account_code text,account_name text,account_type text,amount numeric)
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path TO 'public','pg_temp'
+AS $function$
+BEGIN
+  IF NOT mm_private.has_business_permission(p_business_id,'accounting.view') THEN RAISE EXCEPTION 'Access denied'; END IF;
+  RETURN QUERY
+  SELECT a.id,a.code,a.name,a.account_type::text,
+         coalesce(sum(CASE WHEN jl.credit>0 THEN jl.base_amount ELSE -jl.base_amount END),0)
+  FROM public.accounts a
+  JOIN public.journal_lines jl ON jl.account_id=a.id
+  JOIN public.journal_entries je ON je.id=jl.journal_entry_id
+  WHERE a.business_id=p_business_id AND je.business_id=p_business_id AND je.status='posted'
+    AND je.entry_date BETWEEN p_start AND p_end
+    AND a.account_type::text IN ('income','revenue','expense','cost_of_goods_sold','cogs')
+  GROUP BY a.id,a.code,a.name,a.account_type
+  ORDER BY a.code;
+END;
+$function$;
+
 -- Seed realized FX gain/loss accounts idempotently for existing businesses; no posted ledger is rewritten.
 INSERT INTO public.accounts(business_id,code,name,account_type,normal_balance,is_system,is_active,description)
 SELECT b.id,'4050','Realized FX Gain','income','credit',true,true,'Realized foreign-exchange gains on settlement'
