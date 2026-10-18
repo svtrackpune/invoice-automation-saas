@@ -2,7 +2,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
-import { isSupportedLocale, type SupportedLocale } from '@/lib/i18n';
+import { isSupportedLocale, localeDirection, type SupportedLocale } from '@/lib/i18n';
 
 type LocaleContextValue = {
   locale: SupportedLocale;
@@ -24,6 +24,18 @@ export function LocaleProvider({ initialLocale, children }: {
   useEffect(() => {
     setLocaleState(safeSupportedLocale(initialLocale));
   }, [initialLocale]);
+
+  useEffect(() => {
+    const root = document.documentElement;
+    const previousLanguage = root.lang;
+    const previousDirection = root.dir;
+    root.lang = locale;
+    root.dir = localeDirection(locale);
+    return () => {
+      root.lang = previousLanguage;
+      root.dir = previousDirection;
+    };
+  }, [locale]);
 
   useEffect(() => {
     const receiveSavedLocale = (event: Event) => {
