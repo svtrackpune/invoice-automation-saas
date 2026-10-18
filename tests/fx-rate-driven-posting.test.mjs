@@ -145,6 +145,7 @@ test('FX credit notes and supplier credits reverse source-booking rates and post
   assert.ok(creditNote.indexOf('INSERT INTO public.journal_lines') < creditNote.indexOf("SET status='posted'"));
   assert.match(creditNote, /total_debit=\(SELECT coalesce\(sum\(base_amount\),0\)/);
   assert.match(creditNote, /Inventory returned/);
+  assert.match(creditNote, /Unlinked foreign-currency customer credit notes are disabled/);
   assert.match(creditNote, /1,'BASE_DOMESTIC',v_fx_timestamp,v_base_currency,cogs_total,v_base_currency,cogs_total/);
 
   assert.match(vendorCredit, /Source purchase-bill booking FX rate is missing/);
@@ -193,6 +194,7 @@ test('invoice voids copy FX carrying values into a draft reversal and block unse
   assert.match(voidInvoice, /An invoice with recorded customer payments cannot be voided directly/);
   assert.match(voidInvoice, /An invoice with posted credit notes cannot be voided directly/);
   assert.match(voidInvoice, /sale_reversal/);
+  assert.match(voidInvoice, /Invoices generated from delivery challans cannot be voided directly/);
 });
 
 test('FX-aware credit/refund/allocation/correction routes stay blocked where source carrying values are not tracked', async () => {
@@ -208,6 +210,8 @@ test('FX-aware credit/refund/allocation/correction routes stay blocked where sou
   assert.match(vendorApply, /Applying foreign-currency supplier credits is disabled/);
   assert.match(vendorAllocate, /Reallocating a foreign-currency supplier payment is disabled/);
   assert.match(customerRefund, /Foreign-currency customer-credit refunds are disabled/);
+  assert.match(customerRefund, /IF v_currency<>v_base_currency THEN/);
+  assert.match(customerRefund, /Valid refund currency is required/);
   assert.match(vendorRefund, /Foreign-currency supplier refunds are disabled/);
   assert.match(customerPaymentEdit, /Foreign-currency customer payment corrections are disabled/);
   assert.match(vendorPaymentEdit, /Foreign-currency supplier payment corrections are disabled/);
