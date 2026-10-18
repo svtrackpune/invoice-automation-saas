@@ -590,4 +590,345 @@ end;
 $function$
 
 
+
+-- FX-aware settlement preserves each document's booking rate and posts realized FX differences in base currency.
+CREATE OR REPLACE FUNCTION public.record_customer_payment(p_business_id uuid, p_customer_id uuid, p_invoice_id uuid, p_amount numeric, p_method payment_method, p_account_id uuid, p_reference text DEFAULT NULL::text, p_gateway_transaction_id text DEFAULT NULL::text, p_payment_date date DEFAULT CURRENT_DATE, p_notes text DEFAULT NULL::text, p_currency_code text DEFAULT NULL::text)
+ RETURNS uuid
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public', 'pg_temp'
+AS $function$
+DECLARE inv public.invoices%rowtype; v_payment uuid; v_receipt uuid; v_entry uuid; v_ar uuid; v_credit_acct uuid; v_number text; v_allocated numeric; v_excess numeric; v_total numeric; v_business_currency char(3); v_transaction_currency char(3); v_fx_rate numeric; v_fx_source text; v_fx_timestamp timestamptz; v_invoice_rate numeric; v_invoice_rate_source text; v_invoice_rate_timestamp timestamptz; v_fx_delta numeric:=0; v_fx_gain uuid; v_fx_loss uuid;
+BEGIN
+ IF NOT mm_private.has_business_permission(p_business_id,'payments.receive') THEN RAISE EXCEPTION 'Access denied'; END IF;
+ IF p_amount<=0 THEN RAISE EXCEPTION 'Payment amount must be greater than zero'; END IF;
+ PERFORM public.assert_accounting_period_open(p_business_id,p_payment_date);
+ SELECT * INTO inv FROM public.invoices WHERE id=p_invoice_id AND business_id=p_business_id AND customer_id=p_customer_id FOR UPDATE;
+ IF inv.id IS NULL THEN RAISE EXCEPTION 'Invoice not found'; END IF;
+ IF inv.status='void' THEN RAISE EXCEPTION 'Cannot pay a void invoice'; END IF;
+ IF inv.journal_entry_id IS NULL THEN PERFORM public.post_invoice(inv.id,NULL); SELECT * INTO inv FROM public.invoices WHERE id=inv.id FOR UPDATE; END IF;
+ IF NOT EXISTS(SELECT 1 FROM public.accounts WHERE id=p_account_id AND business_id=p_business_id AND is_active AND account_subtype IN ('cash','bank')) THEN RAISE EXCEPTION 'Deposit account must be Cash or Bank. Inventory, Furniture & Fixtures and other non-settlement accounts are not valid customer deposit accounts.'; END IF;
+ SELECT upper(coalesce(nullif(btrim(base_currency_code),''),nullif(btrim(currency_code),''),'INR')) INTO v_business_currency FROM public.businesses WHERE id=p_business_id AND is_active;
+ IF v_business_currency IS NULL THEN RAISE EXCEPTION 'Business not found'; END IF;
+ v_transaction_currency:=upper(coalesce(nullif(btrim(p_currency_code),''),nullif(btrim(inv.currency_code),''),v_business_currency));
+ IF v_transaction_currency<>upper(inv.currency_code) THEN
+   RAISE EXCEPTION 'Payment currency % must match invoice currency %; cross-currency settlement is not supported in this workflow',v_transaction_currency,upper(inv.currency_code);
+ END IF;
+ SELECT exchange_rate,exchange_rate_source,exchange_rate_timestamp
+   INTO v_fx_rate,v_fx_source,v_fx_timestamp
+ FROM mm_private.resolve_business_fx_rate(p_business_id,v_transaction_currency,v_business_currency,p_payment_date);
+ SELECT id INTO v_ar FROM public.accounts WHERE business_id=p_business_id AND code='1100' AND is_active;
+ IF v_ar IS NULL THEN RAISE EXCEPTION 'Accounts receivable account is missing'; END IF;
+ SELECT exchange_rate,exchange_rate_source,exchange_rate_timestamp
+   INTO v_invoice_rate,v_invoice_rate_source,v_invoice_rate_timestamp
+ FROM public.journal_lines
+ WHERE journal_entry_id=inv.journal_entry_id AND account_id=v_ar AND debit>0
+   AND upper(transaction_currency_code)=upper(inv.currency_code)
+ ORDER BY id LIMIT 1;
+ IF NOT FOUND THEN RAISE EXCEPTION 'Original invoice FX booking rate is missing; payment cannot be posted safely'; END IF;
+ v_allocated:=least(p_amount,greatest(inv.balance_due,0)); v_excess:=greatest(p_amount-v_allocated,0);
+ IF v_transaction_currency<>v_business_currency AND v_excess>0 THEN
+   RAISE EXCEPTION 'Foreign-currency overpayments are disabled until FX credit application is supported. Limit this payment to the invoice balance.';
+ END IF;
+ v_fx_delta:=round(v_allocated*(v_fx_rate-v_invoice_rate),6);
+ IF v_fx_delta>0 THEN
+   SELECT id INTO v_fx_gain FROM public.accounts WHERE business_id=p_business_id AND code='4050' AND is_active;
+   IF v_fx_gain IS NULL THEN RAISE EXCEPTION 'Realized FX gain account (4050) is missing'; END IF;
+ ELSIF v_fx_delta<0 THEN
+   SELECT id INTO v_fx_loss FROM public.accounts WHERE business_id=p_business_id AND code='6050' AND is_active;
+   IF v_fx_loss IS NULL THEN RAISE EXCEPTION 'Realized FX loss account (6050) is missing'; END IF;
+ END IF;
+ IF v_excess>0 THEN INSERT INTO public.accounts(business_id,code,name,account_type,normal_balance,is_system,is_active,description) SELECT p_business_id,'2150','Customer Credits','liability','credit',true,true,'Customer overpayments and unapplied credits' WHERE NOT EXISTS(SELECT 1 FROM public.accounts WHERE business_id=p_business_id AND code='2150'); END IF;
+ SELECT id INTO v_credit_acct FROM public.accounts WHERE business_id=p_business_id AND code='2150' AND is_active;
+ INSERT INTO public.payments(business_id,direction,customer_id,invoice_id,account_id,amount,currency_code,payment_date,method,reference,gateway_transaction_id,notes,created_by) VALUES(p_business_id,'inbound',p_customer_id,p_invoice_id,p_account_id,p_amount,v_transaction_currency,p_payment_date,p_method,p_reference,p_gateway_transaction_id,p_notes,auth.uid()) RETURNING id INTO v_payment;
+ IF v_allocated>0 THEN INSERT INTO public.payment_allocations(business_id,payment_id,invoice_id,amount) VALUES(p_business_id,v_payment,p_invoice_id,v_allocated); END IF;
+ IF v_excess>0 THEN INSERT INTO public.customer_credit_ledger(business_id,customer_id,payment_id,entry_type,amount,currency_code,description,created_by) VALUES(p_business_id,p_customer_id,v_payment,'overpayment',v_excess,v_transaction_currency,'Unapplied customer overpayment',auth.uid()); END IF;
+ PERFORM pg_advisory_xact_lock(hashtext('journal-entry-number:'||p_business_id::text));
+ INSERT INTO public.journal_entries(business_id,entry_number,entry_date,description,source_type,source_id,status,posted_at,posted_by,created_by,currency_code,total_debit,total_credit,is_system_generated) VALUES(p_business_id,(select coalesce(max(entry_number),0)+1 from public.journal_entries where business_id=p_business_id),p_payment_date,'Payment received for invoice '||inv.invoice_number,'payment',v_payment,'draft',NULL,NULL,auth.uid(),v_transaction_currency,p_amount,p_amount,true) RETURNING id INTO v_entry;
+ INSERT INTO public.journal_lines(
+   journal_entry_id,account_id,description,debit,credit,currency_code,entity_type,entity_id,
+   exchange_rate,exchange_rate_source,exchange_rate_timestamp,
+   transaction_currency_code,transaction_amount,base_currency_code,base_amount
+ ) VALUES(
+   v_entry,p_account_id,'Customer payment',p_amount,0,v_transaction_currency,'customer',p_customer_id,
+   v_fx_rate,v_fx_source,v_fx_timestamp,v_transaction_currency,p_amount,v_business_currency,round(p_amount*v_fx_rate,6)
+ );
+ IF v_allocated>0 THEN
+   INSERT INTO public.journal_lines(
+     journal_entry_id,account_id,description,debit,credit,currency_code,entity_type,entity_id,
+     exchange_rate,exchange_rate_source,exchange_rate_timestamp,
+     transaction_currency_code,transaction_amount,base_currency_code,base_amount
+   ) VALUES(
+     v_entry,v_ar,'Receivable settlement',0,v_allocated,v_transaction_currency,'customer',p_customer_id,
+     v_invoice_rate,coalesce(v_invoice_rate_source,'INVOICE_BOOKING'),v_invoice_rate_timestamp,
+     v_transaction_currency,v_allocated,v_business_currency,round(v_allocated*v_invoice_rate,6)
+   );
+ END IF;
+ IF v_excess>0 THEN
+   INSERT INTO public.journal_lines(
+     journal_entry_id,account_id,description,debit,credit,currency_code,entity_type,entity_id,
+     exchange_rate,exchange_rate_source,exchange_rate_timestamp,
+     transaction_currency_code,transaction_amount,base_currency_code,base_amount
+   ) VALUES(
+     v_entry,v_credit_acct,'Customer credit',0,v_excess,v_transaction_currency,'customer',p_customer_id,
+     v_fx_rate,v_fx_source,v_fx_timestamp,v_transaction_currency,v_excess,v_business_currency,round(v_excess*v_fx_rate,6)
+   );
+ END IF;
+ IF v_fx_delta>0 THEN
+   INSERT INTO public.journal_lines(
+     journal_entry_id,account_id,description,debit,credit,currency_code,entity_type,entity_id,
+     exchange_rate,exchange_rate_source,exchange_rate_timestamp,
+     transaction_currency_code,transaction_amount,base_currency_code,base_amount
+   ) VALUES(
+     v_entry,v_fx_gain,'Realized FX gain on customer settlement',0,v_fx_delta,v_business_currency,'customer',p_customer_id,
+     1,'BASE_DOMESTIC',v_fx_timestamp,v_business_currency,v_fx_delta,v_business_currency,v_fx_delta
+   );
+ ELSIF v_fx_delta<0 THEN
+   INSERT INTO public.journal_lines(
+     journal_entry_id,account_id,description,debit,credit,currency_code,entity_type,entity_id,
+     exchange_rate,exchange_rate_source,exchange_rate_timestamp,
+     transaction_currency_code,transaction_amount,base_currency_code,base_amount
+   ) VALUES(
+     v_entry,v_fx_loss,'Realized FX loss on customer settlement',abs(v_fx_delta),0,v_business_currency,'customer',p_customer_id,
+     1,'BASE_DOMESTIC',v_fx_timestamp,v_business_currency,abs(v_fx_delta),v_business_currency,abs(v_fx_delta)
+   );
+ END IF;
+ UPDATE public.journal_entries
+ SET total_debit=(SELECT coalesce(sum(base_amount),0) FROM public.journal_lines WHERE journal_entry_id=v_entry AND debit>0),
+     total_credit=(SELECT coalesce(sum(base_amount),0) FROM public.journal_lines WHERE journal_entry_id=v_entry AND credit>0)
+ WHERE id=v_entry;
+ PERFORM public.validate_journal_entry_balance(v_entry);
+ -- LED-001: journal lines can only be attached while the header is draft.
+ UPDATE public.journal_entries SET status='posted', posted_at=now(), posted_by=auth.uid() WHERE id=v_entry AND status='draft';
+ IF NOT FOUND THEN RAISE EXCEPTION 'Payment posting refused: journal entry % did not transition from draft to posted', v_entry; END IF;
+ PERFORM public.validate_journal_entry_balance(v_entry);
+ UPDATE public.payments SET journal_entry_id=v_entry WHERE id=v_payment;
+ SELECT coalesce(sum(pa.amount),0) INTO v_total FROM public.payment_allocations pa WHERE pa.invoice_id=inv.id;
+ UPDATE public.invoices SET amount_paid=v_total,balance_due=greatest(total-v_total,0),status=case when v_total>=total then 'paid'::invoice_status when v_total>0 and due_date<current_date then 'overdue'::invoice_status when v_total>0 then 'partially_paid'::invoice_status when due_date<current_date then 'overdue'::invoice_status else 'sent'::invoice_status end,updated_at=now() WHERE id=inv.id;
+ v_number:=public.next_document_number(p_business_id,'receipt');
+ INSERT INTO public.receipts(business_id,customer_id,payment_id,receipt_number,receipt_date,amount,currency_code,payment_method,reference_number,notes,created_by) VALUES(p_business_id,p_customer_id,v_payment,v_number,p_payment_date,p_amount,v_transaction_currency,p_method::text,p_reference,p_notes,auth.uid()) RETURNING id INTO v_receipt;
+ RETURN v_receipt;
+END; $function$
+
+
+CREATE OR REPLACE FUNCTION public.record_vendor_payment(p_business_id uuid, p_vendor_id uuid, p_bill_id uuid, p_amount numeric, p_method text, p_account_id uuid, p_reference text DEFAULT NULL::text, p_payment_date date DEFAULT CURRENT_DATE, p_notes text DEFAULT NULL::text, p_currency_code text DEFAULT NULL::text)
+ RETURNS uuid
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public', 'mm_private'
+AS $function$
+DECLARE
+ v_payment uuid;
+ v_bill public.bills%rowtype;
+ v_alloc numeric;
+ v_remaining numeric;
+ v_credit numeric;
+ v_ap uuid;
+ v_advance uuid;
+ v_entry uuid;
+ v_method payment_method;
+ v_entry_number bigint;
+ v_paid numeric;
+ v_business_currency char(3);
+ v_transaction_currency char(3);
+ v_fx_rate numeric;
+ v_fx_source text;
+ v_fx_timestamp timestamptz;
+ v_bill_rate numeric;
+ v_bill_rate_source text;
+ v_bill_rate_timestamp timestamptz;
+ v_fx_delta numeric:=0;
+ v_fx_gain uuid;
+ v_fx_loss uuid;
+BEGIN
+ IF NOT mm_private.has_business_permission(p_business_id,'payments.pay') THEN
+   RAISE EXCEPTION 'Access denied';
+ END IF;
+ IF p_amount IS NULL OR p_amount<=0 THEN
+   RAISE EXCEPTION 'Payment amount must be positive';
+ END IF;
+ PERFORM public.assert_accounting_period_open(p_business_id,p_payment_date);
+ v_method:=CASE lower(p_method) WHEN 'gateway' THEN 'payment_gateway'::payment_method ELSE lower(p_method)::payment_method END;
+
+ SELECT * INTO v_bill
+ FROM public.bills
+ WHERE id=p_bill_id AND business_id=p_business_id AND vendor_id=p_vendor_id
+ FOR UPDATE;
+ IF v_bill.id IS NULL THEN RAISE EXCEPTION 'Bill not found'; END IF;
+
+ SELECT upper(coalesce(nullif(btrim(base_currency_code),''),nullif(btrim(currency_code),''),'INR'))
+ INTO v_business_currency
+ FROM public.businesses WHERE id=p_business_id AND is_active;
+ IF v_business_currency IS NULL THEN RAISE EXCEPTION 'Business not found'; END IF;
+ v_transaction_currency:=upper(coalesce(nullif(btrim(p_currency_code),''),nullif(btrim(v_bill.currency_code),''),v_business_currency));
+ IF v_transaction_currency<>upper(v_bill.currency_code) THEN
+   RAISE EXCEPTION 'Payment currency % must match bill currency %; cross-currency settlement is not supported in this workflow',v_transaction_currency,upper(v_bill.currency_code);
+ END IF;
+ IF v_bill.journal_entry_id IS NULL THEN RAISE EXCEPTION 'Purchase bill must be posted before payment'; END IF;
+ SELECT exchange_rate,exchange_rate_source,exchange_rate_timestamp
+   INTO v_fx_rate,v_fx_source,v_fx_timestamp
+ FROM mm_private.resolve_business_fx_rate(p_business_id,v_transaction_currency,v_business_currency,p_payment_date);
+
+ SELECT coalesce(sum(vpa.amount),0) INTO v_alloc
+ FROM public.vendor_payment_allocations vpa WHERE vpa.bill_id=p_bill_id;
+ v_remaining:=greatest(v_bill.total-v_alloc,0);
+ v_credit:=greatest(p_amount-v_remaining,0);
+ IF v_transaction_currency<>v_business_currency AND v_credit>0 THEN
+   RAISE EXCEPTION 'Foreign-currency overpayments are disabled until FX supplier-credit allocation is supported. Limit this payment to the bill balance.';
+ END IF;
+
+ IF NOT EXISTS (
+   SELECT 1 FROM public.accounts
+   WHERE id=p_account_id AND business_id=p_business_id AND is_active
+     AND account_subtype IN ('cash','bank')
+ ) THEN
+   RAISE EXCEPTION 'Payment account must be an active Cash or Bank account';
+ END IF;
+ SELECT id INTO v_ap FROM public.accounts
+ WHERE business_id=p_business_id AND code='2000' AND is_active;
+ IF v_ap IS NULL THEN RAISE EXCEPTION 'Accounts payable account is missing'; END IF;
+ SELECT exchange_rate,exchange_rate_source,exchange_rate_timestamp
+   INTO v_bill_rate,v_bill_rate_source,v_bill_rate_timestamp
+ FROM public.journal_lines
+ WHERE journal_entry_id=v_bill.journal_entry_id AND account_id=v_ap AND credit>0
+   AND upper(transaction_currency_code)=upper(v_bill.currency_code)
+ ORDER BY id LIMIT 1;
+ IF NOT FOUND THEN RAISE EXCEPTION 'Original purchase-bill FX booking rate is missing; payment cannot be posted safely'; END IF;
+ v_fx_delta:=round(least(p_amount,v_remaining)*(v_fx_rate-v_bill_rate),6);
+ IF v_fx_delta>0 THEN
+   SELECT id INTO v_fx_loss FROM public.accounts WHERE business_id=p_business_id AND code='6050' AND is_active;
+   IF v_fx_loss IS NULL THEN RAISE EXCEPTION 'Realized FX loss account (6050) is missing'; END IF;
+ ELSIF v_fx_delta<0 THEN
+   SELECT id INTO v_fx_gain FROM public.accounts WHERE business_id=p_business_id AND code='4050' AND is_active;
+   IF v_fx_gain IS NULL THEN RAISE EXCEPTION 'Realized FX gain account (4050) is missing'; END IF;
+ END IF;
+
+ INSERT INTO public.payments(
+   business_id,direction,vendor_id,bill_id,account_id,amount,currency_code,
+   payment_date,method,reference,notes,created_by
+ ) VALUES (
+   p_business_id,'outbound',p_vendor_id,p_bill_id,p_account_id,p_amount,
+   v_transaction_currency,p_payment_date,v_method,p_reference,p_notes,auth.uid()
+ ) RETURNING id INTO v_payment;
+
+ IF v_remaining>0 THEN
+   INSERT INTO public.vendor_payment_allocations(business_id,payment_id,vendor_id,bill_id,amount)
+   VALUES(p_business_id,v_payment,p_vendor_id,p_bill_id,least(p_amount,v_remaining));
+ END IF;
+ IF v_credit>0 THEN
+   INSERT INTO public.vendor_credit_ledger(
+     business_id,vendor_id,payment_id,entry_type,amount,currency_code,description,created_by
+   ) VALUES(
+     p_business_id,p_vendor_id,v_payment,'overpayment',v_credit,v_transaction_currency,
+     'Unapplied vendor overpayment',auth.uid()
+   );
+ END IF;
+
+ PERFORM pg_advisory_xact_lock(hashtext('journal-entry-number:'||p_business_id::text));
+ SELECT coalesce(max(entry_number),0)+1 INTO v_entry_number
+ FROM public.journal_entries WHERE business_id=p_business_id;
+
+ INSERT INTO public.journal_entries(
+   business_id,entry_number,entry_date,description,source_type,source_id,status,
+   posted_at,posted_by,created_by,currency_code,total_debit,total_credit,is_system_generated
+ ) VALUES(
+   p_business_id,v_entry_number,p_payment_date,
+   'Payment made to vendor for bill '||v_bill.bill_number,
+   'vendor_payment',v_payment,'draft',NULL,NULL,auth.uid(),
+   v_transaction_currency,0,0,true
+ ) RETURNING id INTO v_entry;
+
+ -- Avoid a zero/zero AP journal line if the bill is already fully allocated.
+ IF v_remaining>0 THEN
+   INSERT INTO public.journal_lines(
+     journal_entry_id,account_id,description,debit,credit,currency_code,entity_type,entity_id,
+     exchange_rate,exchange_rate_source,exchange_rate_timestamp,
+     transaction_currency_code,transaction_amount,base_currency_code,base_amount
+   ) VALUES(
+     v_entry,v_ap,'Accounts payable settlement',least(p_amount,v_remaining),0,
+     v_transaction_currency,'vendor',p_vendor_id,v_bill_rate,coalesce(v_bill_rate_source,'BILL_BOOKING'),v_bill_rate_timestamp,
+     v_transaction_currency,least(p_amount,v_remaining),v_business_currency,round(least(p_amount,v_remaining)*v_bill_rate,6)
+   );
+ END IF;
+
+ INSERT INTO public.journal_lines(
+   journal_entry_id,account_id,description,debit,credit,currency_code,entity_type,entity_id,
+   exchange_rate,exchange_rate_source,exchange_rate_timestamp,
+   transaction_currency_code,transaction_amount,base_currency_code,base_amount
+ ) VALUES(
+   v_entry,p_account_id,'Vendor payment',0,p_amount,v_transaction_currency,'vendor',p_vendor_id,
+   v_fx_rate,v_fx_source,v_fx_timestamp,v_transaction_currency,p_amount,v_business_currency,round(p_amount*v_fx_rate,6)
+ );
+
+ IF v_credit>0 THEN
+   SELECT id INTO v_advance FROM public.accounts
+   WHERE business_id=p_business_id AND code='1255' AND is_active;
+   IF v_advance IS NULL THEN
+     INSERT INTO public.accounts(
+       business_id,code,name,account_type,normal_balance,is_system,is_active,description
+     ) VALUES(
+       p_business_id,'1255','Vendor Advances','asset','debit',true,true,
+       'Vendor overpayments and advances'
+     ) RETURNING id INTO v_advance;
+   END IF;
+   INSERT INTO public.journal_lines(
+     journal_entry_id,account_id,description,debit,credit,currency_code,entity_type,entity_id,
+     exchange_rate,exchange_rate_source,exchange_rate_timestamp,
+     transaction_currency_code,transaction_amount,base_currency_code,base_amount
+   ) VALUES(
+     v_entry,v_advance,'Vendor overpayment / advance',v_credit,0,v_transaction_currency,
+     'vendor',p_vendor_id,v_fx_rate,v_fx_source,v_fx_timestamp,v_transaction_currency,v_credit,
+     v_business_currency,round(v_credit*v_fx_rate,6)
+   );
+ END IF;
+
+ UPDATE public.journal_entries
+ SET total_debit=(SELECT coalesce(sum(base_amount),0) FROM public.journal_lines WHERE journal_entry_id=v_entry AND debit>0),
+     total_credit=(SELECT coalesce(sum(base_amount),0) FROM public.journal_lines WHERE journal_entry_id=v_entry AND credit>0)
+ WHERE id=v_entry;
+ PERFORM public.validate_journal_entry_balance(v_entry);
+ UPDATE public.journal_entries
+ SET status='posted',posted_at=now(),posted_by=auth.uid()
+ WHERE id=v_entry AND status='draft';
+ IF NOT FOUND THEN RAISE EXCEPTION 'Vendor payment posting refused: journal entry % did not transition from draft to posted',v_entry; END IF;
+ IF v_fx_delta>0 THEN
+   INSERT INTO public.journal_lines(
+     journal_entry_id,account_id,description,debit,credit,currency_code,entity_type,entity_id,
+     exchange_rate,exchange_rate_source,exchange_rate_timestamp,
+     transaction_currency_code,transaction_amount,base_currency_code,base_amount
+   ) VALUES(
+     v_entry,v_fx_loss,'Realized FX loss on supplier settlement',v_fx_delta,0,v_business_currency,'vendor',p_vendor_id,
+     1,'BASE_DOMESTIC',v_fx_timestamp,v_business_currency,v_fx_delta,v_business_currency,v_fx_delta
+   );
+ ELSIF v_fx_delta<0 THEN
+   INSERT INTO public.journal_lines(
+     journal_entry_id,account_id,description,debit,credit,currency_code,entity_type,entity_id,
+     exchange_rate,exchange_rate_source,exchange_rate_timestamp,
+     transaction_currency_code,transaction_amount,base_currency_code,base_amount
+   ) VALUES(
+     v_entry,v_fx_gain,'Realized FX gain on supplier settlement',0,abs(v_fx_delta),v_business_currency,'vendor',p_vendor_id,
+     1,'BASE_DOMESTIC',v_fx_timestamp,v_business_currency,abs(v_fx_delta),v_business_currency,abs(v_fx_delta)
+   );
+ END IF;
+ PERFORM public.validate_journal_entry_balance(v_entry);
+ UPDATE public.payments SET journal_entry_id=v_entry WHERE id=v_payment;
+
+ SELECT coalesce(sum(vpa.amount),0) INTO v_paid
+ FROM public.vendor_payment_allocations vpa WHERE vpa.bill_id=p_bill_id;
+ UPDATE public.bills
+ SET amount_paid=least(total,v_paid),
+     balance_due=greatest(total-v_paid,0),
+     status=CASE
+       WHEN total<=v_paid THEN 'paid'::bill_status
+       WHEN v_paid>0 THEN 'partially_paid'::bill_status
+       ELSE status
+     END,
+     updated_at=now()
+ WHERE id=p_bill_id;
+
+ RETURN v_payment;
+END;
+$function$
+
+
 COMMIT;
