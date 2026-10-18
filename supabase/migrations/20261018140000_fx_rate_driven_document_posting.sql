@@ -70,11 +70,14 @@ BEGIN
     IF TG_OP='DELETE' THEN
       RAISE EXCEPTION 'FX rate % %/% has already been used by a journal entry and cannot be deleted; add a new effective-date rate instead',
         OLD.rate_date,upper(OLD.currency_code),upper(OLD.base_currency_code);
-    ELSIF OLD.rate IS DISTINCT FROM NEW.rate
+    ELSIF OLD.id IS DISTINCT FROM NEW.id
+       OR OLD.business_id IS DISTINCT FROM NEW.business_id
+       OR OLD.rate IS DISTINCT FROM NEW.rate
        OR OLD.source IS DISTINCT FROM NEW.source
        OR OLD.rate_date IS DISTINCT FROM NEW.rate_date
        OR OLD.currency_code IS DISTINCT FROM NEW.currency_code
-       OR OLD.base_currency_code IS DISTINCT FROM NEW.base_currency_code THEN
+       OR OLD.base_currency_code IS DISTINCT FROM NEW.base_currency_code
+       OR OLD.created_at IS DISTINCT FROM NEW.created_at THEN
       RAISE EXCEPTION 'FX rate % %/% has already been used by a journal entry and is immutable; add a new effective-date rate instead',
         OLD.rate_date,upper(OLD.currency_code),upper(OLD.base_currency_code);
     END IF;
