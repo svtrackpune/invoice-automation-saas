@@ -88,3 +88,43 @@ test('ISO date-only formatting is local-calendar safe', async () => {
   assert.match(i18n, /const match = value\.match\(\/\^\(\\d\{4\}\)-\(\\d\{2\}\)-\(\\d\{2\}\)\$\//);
   assert.match(i18n, /new Date\(Number\(match\[1\]\), Number\(match\[2\]\) - 1, Number\(match\[3\]\)\)/);
 });
+
+test('transaction-currency selectors require manual repricing and preserve currency across posting paths', async () => {
+  const [sales, procurement, quotation, billDetail, translations] = await Promise.all([
+    read('app/next-workspace/sales/SalesWorkflow.tsx'),
+    read('app/next-workspace/purchases/new/page.tsx'),
+    read('app/next-workspace/quotation/QuotationEditorCore.tsx'),
+    read('app/next-workspace/purchases/[id]/page.tsx'),
+    read('lib/translations.ts'),
+  ]);
+  assert.match(sales, /getCurrencyOptions\(locale\)/);
+  assert.match(sales, /set_draft_invoice_currency/);
+  assert.match(sales, /p_currency_code:created\.currency_code\|\|transactionCurrency/);
+  assert.match(sales, /unit_price:0/);
+  assert.match(procurement, /getCurrencyOptions\(locale\)/);
+  assert.match(procurement, /p_currency_code:transactionCurrency/);
+  assert.match(procurement, /disabled=\{Boolean\(editId\)\}/);
+  assert.match(procurement, /unit_price:0,discount:0/);
+  assert.match(procurement, /post_error=\$\{encodeURIComponent\(pe\.message\|\|'Posting failed'\)\}/);
+  assert.match(billDetail, /p_currency_code:bill\.currency_code\|\|ctx\.currency_code\|\|'INR'/);
+  assert.match(billDetail, /Bill saved as draft; posting was blocked/);
+  assert.match(quotation, /getCurrencyOptions\(locale\)/);
+  assert.match(quotation, /set_draft_quotation_currency/);
+  assert.match(quotation, /currencyCode:quote\.currency_code\|\|ctx\?\.currency_code\|\|'INR'/);
+  assert.match(quotation, /unit_price:0,discount_value:0/);
+  assert.match(translations, /'Transaction currency':/);
+  assert.match(translations, /'Currency changed\. Re-enter unit prices in the selected currency; product prices are not automatically converted\.'/);
+});
+
+test('Hindi translation catalog does not contain accidentally localized Spanish payment labels', async () => {
+  const source = await read('lib/translations.ts');
+  const start = source.indexOf("  'hi-IN': {");
+  const end = source.indexOf("  'mr-IN': {", start);
+  const hindi = source.slice(start, end);
+  assert.match(hindi, /'Show': 'दिखाएँ'/);
+  assert.match(hindi, /'Received': 'प्राप्त'/);
+  assert.match(hindi, /'No payments found': 'कोई भुगतान नहीं मिला'/);
+  assert.match(hindi, /'Bills & Procurement': 'बिल और खरीद'/);
+  assert.doesNotMatch(hindi, /'Show': 'Mostrar'/);
+  assert.doesNotMatch(hindi, /'Received': 'Recibido'/);
+});
