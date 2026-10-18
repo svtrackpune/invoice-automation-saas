@@ -18,7 +18,7 @@ test('inline purchase payment keeps its existing RPC and sends the required scop
     'p_method:payMethod',
     'p_account_id:payAccount',
     'p_payment_date:payDate',
-    'p_currency_code:ctx.currency_code||\'INR\'',
+    'p_currency_code:bill.currency_code||ctx.currency_code||\'INR\'',
   ]) assert.ok(purchasePage.includes(arg), 'missing inline RPC argument: ' + arg);
   assert.match(purchasePage, /amount>Number\(bill\.balance_due\)\+0\.005/);
 });
