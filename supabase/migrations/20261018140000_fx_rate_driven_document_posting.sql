@@ -300,6 +300,597 @@ BEGIN
 END;
 $function$;
 
+-- FX-aware credit notes reverse the source invoice's original booking rate. Supplier credits
+-- use the source bill's booking rate and are limited to outstanding foreign-currency bills until
+-- unapplied credit refunds/applications have source-rate layers.
+CREATE OR REPLACE FUNCTION public.post_credit_note(p_credit_note_id uuid, p_location_id uuid DEFAULT NULL::uuid)
+ RETURNS uuid
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public', 'pg_temp'
+AS $function$
+DECLARE
+  n public.credit_notes%rowtype;
+  src public.invoices%rowtype;
+  e uuid;
+  ar uuid;
+  sales uuid;
+  tax uuid;
+  invacct uuid;
+  cogs uuid;
+  loc uuid;
+  cost numeric;
+  qty_on_hand numeric;
+  cogs_total numeric:=0;
+  r record;
+  v_base_currency char(3);
+  v_fx_rate numeric;
+  v_fx_source text;
+  v_fx_timestamp timestamptz;
+BEGIN
+  SELECT * INTO n
+  FROM public.credit_notes
+  WHERE id=p_credit_note_id
+  FOR UPDATE;
+
+  IF n.id IS NULL THEN
+    RAISE EXCEPTION 'Credit note not found';
+  END IF;
+
+  IF NOT mm_private.has_business_permission(n.business_id,'accounting.post') THEN
+    RAISE EXCEPTION 'Access denied';
+  END IF;
+
+  IF n.status='void' THEN
+    RAISE EXCEPTION 'Cannot post a void credit note';
+  END IF;
+
+  IF n.journal_entry_id IS NOT NULL THEN
+    RETURN n.journal_entry_id;
+  END IF;
+
+  PERFORM public.assert_accounting_period_open(n.business_id,n.credit_note_date);
+  PERFORM public.recalculate_credit_note_totals(n.id);
+
+  SELECT * INTO n FROM public.credit_notes WHERE id=n.id FOR UPDATE;
+
+  IF n.total<=0 THEN
+    RAISE EXCEPTION 'Credit note total must be greater than zero';
+  END IF;
+
+  SELECT * INTO src
+  FROM public.invoices
+  WHERE id=n.invoice_id
+    AND business_id=n.business_id
+    AND customer_id=n.customer_id
+  FOR UPDATE;
+
+  IF n.invoice_id IS NOT NULL THEN
+    IF src.id IS NULL OR src.status='void' THEN
+      RAISE EXCEPTION 'Source invoice not found';
+    END IF;
+
+    IF src.journal_entry_id IS NULL THEN
+      RAISE EXCEPTION 'Source invoice must be posted before the credit note';
+    END IF;
+
+    IF n.total>src.balance_due+0.005 THEN
+      RAISE EXCEPTION 'Credit note exceeds the current invoice balance; use customer-credit/refund handling for settled amounts';
+    END IF;
+  END IF;
+
+  SELECT id INTO ar FROM public.accounts WHERE business_id=n.business_id AND code='1100' AND is_active;
+  SELECT id INTO sales FROM public.accounts WHERE business_id=n.business_id AND code='4000' AND is_active;
+  SELECT id INTO tax FROM public.accounts WHERE business_id=n.business_id AND code='2100' AND is_active;
+  SELECT id INTO invacct FROM public.accounts WHERE business_id=n.business_id AND code='1200' AND is_active;
+  SELECT id INTO cogs FROM public.accounts WHERE business_id=n.business_id AND code='5000' AND is_active;
+
+  IF ar IS NULL OR sales IS NULL THEN
+    RAISE EXCEPTION 'Default AR or Sales account is missing';
+  END IF;
+  SELECT upper(coalesce(nullif(btrim(base_currency_code),''),nullif(btrim(currency_code),''),'INR'))
+    INTO v_base_currency
+  FROM public.businesses WHERE id=n.business_id AND is_active;
+  IF v_base_currency IS NULL THEN RAISE EXCEPTION 'Business base currency is missing'; END IF;
+
+  IF n.invoice_id IS NOT NULL THEN
+    IF upper(n.currency_code) IS DISTINCT FROM upper(src.currency_code) THEN
+      RAISE EXCEPTION 'Credit note currency must match the source invoice currency';
+    END IF;
+    SELECT exchange_rate,exchange_rate_source,exchange_rate_timestamp
+      INTO v_fx_rate,v_fx_source,v_fx_timestamp
+    FROM public.journal_lines
+    WHERE journal_entry_id=src.journal_entry_id
+      AND account_id=ar AND debit>0
+      AND upper(transaction_currency_code)=upper(src.currency_code)
+    ORDER BY id LIMIT 1;
+    IF NOT FOUND THEN
+      RAISE EXCEPTION 'Source invoice booking FX rate is missing; credit note posting is blocked for accounting safety';
+    END IF;
+  ELSE
+    SELECT exchange_rate,exchange_rate_source,exchange_rate_timestamp
+      INTO v_fx_rate,v_fx_source,v_fx_timestamp
+    FROM mm_private.resolve_business_fx_rate(n.business_id,n.currency_code,v_base_currency,n.credit_note_date);
+  END IF;
+
+  PERFORM pg_advisory_xact_lock(hashtext('journal-entry-number:'||n.business_id::text));
+
+  INSERT INTO public.journal_entries(
+    business_id,entry_number,entry_date,description,source_type,source_id,status,
+    posted_at,posted_by,created_by,currency_code,total_debit,total_credit,is_system_generated
+  ) VALUES(
+    n.business_id,
+    (SELECT coalesce(max(je.entry_number),0)+1 FROM public.journal_entries je WHERE je.business_id=n.business_id),
+    n.credit_note_date,
+    'Credit note '||n.credit_note_number,
+    'credit_note',
+    n.id,
+    'draft',
+    NULL,NULL,auth.uid(),n.currency_code,0,0,true
+  ) RETURNING id INTO e;
+
+  INSERT INTO public.journal_lines(
+    journal_entry_id,account_id,description,debit,credit,currency_code,entity_type,entity_id,
+    exchange_rate,exchange_rate_source,exchange_rate_timestamp,
+    transaction_currency_code,transaction_amount,base_currency_code,base_amount
+  ) VALUES(
+    e,sales,'Sales reversal',n.subtotal,0,n.currency_code,NULL,NULL,
+    v_fx_rate,v_fx_source,v_fx_timestamp,n.currency_code,n.subtotal,v_base_currency,round(n.subtotal*v_fx_rate,6)
+  ),(
+    e,ar,'Customer receivable reduction',0,n.total,n.currency_code,'customer',n.customer_id,
+    v_fx_rate,v_fx_source,v_fx_timestamp,n.currency_code,n.total,v_base_currency,round(n.total*v_fx_rate,6)
+  );
+
+  IF n.tax_total>0 THEN
+    IF tax IS NULL THEN
+      RAISE EXCEPTION 'Output tax account is missing';
+    END IF;
+
+    INSERT INTO public.journal_lines(
+      journal_entry_id,account_id,description,debit,credit,currency_code,
+      exchange_rate,exchange_rate_source,exchange_rate_timestamp,
+      transaction_currency_code,transaction_amount,base_currency_code,base_amount
+    ) VALUES(
+      e,tax,'Output tax reversal',n.tax_total,0,n.currency_code,
+      v_fx_rate,v_fx_source,v_fx_timestamp,n.currency_code,n.tax_total,
+      v_base_currency,round(n.tax_total*v_fx_rate,6)
+    );
+  END IF;
+
+  IF p_location_id IS NULL
+     AND EXISTS (
+       SELECT 1
+       FROM public.credit_note_items cni
+       JOIN public.products_services ps
+         ON ps.id = cni.product_service_id
+        AND ps.business_id = n.business_id
+       WHERE cni.credit_note_id = n.id
+         AND cni.product_service_id IS NOT NULL
+         AND ps.inventory_tracked
+     ) THEN
+    SELECT il.id INTO loc
+    FROM public.inventory_locations il
+    WHERE il.business_id = n.business_id
+      AND il.is_active
+    ORDER BY il.is_default DESC, il.name, il.id
+    LIMIT 1;
+
+    IF loc IS NULL THEN
+      RAISE EXCEPTION 'Inventory location is required to return tracked items on a credit note';
+    END IF;
+  ELSE
+    loc:=p_location_id;
+
+    IF loc IS NOT NULL
+       AND NOT EXISTS(
+         SELECT 1 FROM public.inventory_locations
+         WHERE id=loc
+           AND business_id=n.business_id
+           AND is_active
+       ) THEN
+      RAISE EXCEPTION 'Inventory location is invalid';
+    END IF;
+  END IF;
+
+  IF loc IS NOT NULL THEN
+    FOR r IN
+      SELECT cni.product_service_id,cni.quantity
+      FROM public.credit_note_items cni
+      JOIN public.products_services ps ON ps.id=cni.product_service_id
+      WHERE cni.credit_note_id=n.id
+        AND cni.product_service_id IS NOT NULL
+        AND ps.inventory_tracked
+    LOOP
+      SELECT average_cost,quantity_on_hand
+        INTO cost,qty_on_hand
+      FROM public.inventory_balances
+      WHERE business_id=n.business_id
+        AND location_id=loc
+        AND product_service_id=r.product_service_id
+      FOR UPDATE;
+
+      IF cost IS NULL THEN
+        RAISE EXCEPTION 'Inventory balance not found for returned product %',r.product_service_id;
+      END IF;
+
+      cogs_total:=cogs_total+round(r.quantity*cost,2);
+
+
+      INSERT INTO public.inventory_movements(
+        business_id,location_id,product_service_id,movement_type,quantity,unit_cost,
+        reference_type,reference_id,created_by
+      ) VALUES(
+        n.business_id,loc,r.product_service_id,'sale_return',r.quantity,cost,
+        'credit_note',n.id,auth.uid()
+      );
+    END LOOP;
+  END IF;
+
+  IF cogs_total>0 THEN
+    IF cogs IS NULL OR invacct IS NULL THEN
+      RAISE EXCEPTION 'Inventory accounting accounts are missing';
+    END IF;
+
+    INSERT INTO public.journal_lines(
+      journal_entry_id,account_id,description,debit,credit,currency_code,
+      exchange_rate,exchange_rate_source,exchange_rate_timestamp,
+      transaction_currency_code,transaction_amount,base_currency_code,base_amount
+    ) VALUES(
+      e,invacct,'Inventory returned',cogs_total,0,v_base_currency,
+      1,'BASE_DOMESTIC',v_fx_timestamp,v_base_currency,cogs_total,v_base_currency,cogs_total
+    ),(
+      e,cogs,'Cost of goods sold reversal',0,cogs_total,v_base_currency,
+      1,'BASE_DOMESTIC',v_fx_timestamp,v_base_currency,cogs_total,v_base_currency,cogs_total
+    );
+  END IF;
+
+  UPDATE public.journal_entries
+  SET total_debit=(SELECT coalesce(sum(base_amount),0) FROM public.journal_lines WHERE journal_entry_id=e AND debit>0),
+      total_credit=(SELECT coalesce(sum(base_amount),0) FROM public.journal_lines WHERE journal_entry_id=e AND credit>0)
+  WHERE id=e;
+  PERFORM public.validate_journal_entry_balance(e);
+  UPDATE public.journal_entries
+  SET status='posted',posted_at=now(),posted_by=auth.uid()
+  WHERE id=e AND status='draft';
+  IF NOT FOUND THEN RAISE EXCEPTION 'Credit note posting refused: journal entry % did not transition from draft to posted',e; END IF;
+  PERFORM public.validate_journal_entry_balance(e);
+
+  UPDATE public.credit_notes
+  SET journal_entry_id=e,status='posted',updated_at=now()
+  WHERE id=n.id;
+
+  IF n.invoice_id IS NOT NULL THEN
+    UPDATE public.invoices
+    SET balance_due=greatest(balance_due-n.total,0),
+        status=CASE
+          WHEN greatest(balance_due-n.total,0)<=0 THEN 'paid'::invoice_status
+          WHEN due_date<current_date THEN 'overdue'::invoice_status
+          WHEN amount_paid>0 THEN 'partially_paid'::invoice_status
+          ELSE 'sent'::invoice_status
+        END,
+        updated_at=now()
+    WHERE id=n.invoice_id;
+  END IF;
+
+  RETURN e;
+END;
+$function$
+
+
+CREATE OR REPLACE FUNCTION public.post_vendor_credit(p_vendor_credit_id uuid, p_location_id uuid DEFAULT NULL::uuid)
+ RETURNS uuid
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public', 'pg_temp'
+AS $function$
+DECLARE
+  n public.vendor_credits%rowtype;
+  src public.bills%rowtype;
+  e uuid;
+  ap uuid;
+  inventory_acct uuid;
+  input_tax uuid;
+  expense_acct uuid;
+  loc uuid;
+  line record;
+  post_tax numeric;
+  base numeric;
+  old_qty numeric;
+  old_cost numeric;
+  unit_cost numeric;
+  v_paid numeric:=0;
+  v_credit_applied numeric:=0;
+  v_outstanding numeric:=0;
+  v_apply numeric:=0;
+  tax_registered boolean:=false;
+  tax_creditable boolean:=false;
+  entry_number bigint;
+  v_base_currency char(3);
+  v_fx_rate numeric;
+  v_fx_source text;
+  v_fx_timestamp timestamptz;
+BEGIN
+  SELECT * INTO n FROM public.vendor_credits WHERE id=p_vendor_credit_id FOR UPDATE;
+  IF n.id IS NULL THEN RAISE EXCEPTION 'Supplier credit not found'; END IF;
+
+  IF NOT mm_private.has_business_permission(n.business_id,'accounting.post') THEN
+    RAISE EXCEPTION 'Access denied';
+  END IF;
+
+  IF n.status='void' THEN
+    RAISE EXCEPTION 'Cannot post a void supplier credit';
+  END IF;
+
+  IF n.journal_entry_id IS NOT NULL THEN
+    RETURN n.journal_entry_id;
+  END IF;
+
+  PERFORM public.assert_accounting_period_open(n.business_id,n.credit_date);
+
+  SELECT * INTO src
+  FROM public.bills
+  WHERE id=n.bill_id
+    AND business_id=n.business_id
+    AND vendor_id=n.vendor_id
+  FOR UPDATE;
+
+  IF n.bill_id IS NOT NULL AND src.id IS NULL THEN
+    RAISE EXCEPTION 'Source purchase bill not found';
+  END IF;
+
+  IF n.bill_id IS NOT NULL AND src.status='void' THEN
+    RAISE EXCEPTION 'Cannot post a supplier credit against a void bill';
+  END IF;
+
+  IF n.bill_id IS NOT NULL AND src.journal_entry_id IS NULL THEN
+    RAISE EXCEPTION 'Source purchase bill must be posted before the supplier credit';
+  END IF;
+
+  PERFORM pg_advisory_xact_lock(hashtext('journal-entry-number:'||n.business_id::text));
+
+  SELECT coalesce(sum(vci.line_subtotal),0),
+         coalesce(sum(vci.line_tax),0),
+         coalesce(sum(vci.line_total),0)
+    INTO n.subtotal,n.tax_total,n.total
+  FROM public.vendor_credit_items vci
+  WHERE vci.vendor_credit_id=n.id;
+
+  IF n.total<=0 THEN
+    RAISE EXCEPTION 'Supplier credit total must be greater than zero';
+  END IF;
+
+  UPDATE public.vendor_credits
+  SET subtotal=round(n.subtotal,2),
+      tax_total=round(n.tax_total,2),
+      total=round(n.total,2),
+      updated_at=now()
+  WHERE id=n.id;
+
+  IF n.bill_id IS NOT NULL THEN
+    IF upper(n.currency_code) IS DISTINCT FROM upper(src.currency_code) THEN
+      RAISE EXCEPTION 'Supplier credit currency must match the source bill currency';
+    END IF;
+    IF upper(n.currency_code)<>v_base_currency AND n.total>greatest(src.balance_due,0)+0.005 THEN
+      RAISE EXCEPTION 'Foreign-currency supplier credits must not exceed the outstanding source bill until foreign-currency credit refund/application is enabled';
+    END IF;
+  ELSIF upper(n.currency_code)<>v_base_currency THEN
+    RAISE EXCEPTION 'Unlinked foreign-currency supplier credits are disabled until FX-aware credit application and refund accounting is available';
+  END IF;
+
+  IF n.bill_id IS NOT NULL THEN
+    SELECT exchange_rate,exchange_rate_source,exchange_rate_timestamp
+      INTO v_fx_rate,v_fx_source,v_fx_timestamp
+    FROM public.journal_lines
+    WHERE journal_entry_id=src.journal_entry_id AND account_id=ap AND credit>0
+      AND upper(transaction_currency_code)=upper(src.currency_code)
+    ORDER BY id LIMIT 1;
+    IF NOT FOUND THEN
+      RAISE EXCEPTION 'Source purchase-bill booking FX rate is missing; supplier credit posting is blocked for accounting safety';
+    END IF;
+  ELSE
+    SELECT exchange_rate,exchange_rate_source,exchange_rate_timestamp
+      INTO v_fx_rate,v_fx_source,v_fx_timestamp
+    FROM mm_private.resolve_business_fx_rate(n.business_id,n.currency_code,v_base_currency,n.credit_date);
+  END IF;
+
+  SELECT coalesce(bp.tax_regime='GST',false),
+         coalesce(bp.tax_regime='GST' AND bp.gst_registration_type<>'COMPOSITION',false)
+    INTO tax_registered,tax_creditable
+  FROM public.business_tax_profiles bp
+  WHERE bp.business_id=n.business_id;
+
+  SELECT id INTO ap
+  FROM public.accounts
+  WHERE business_id=n.business_id AND code='2000' AND is_active;
+
+  SELECT id INTO inventory_acct
+  FROM public.accounts
+  WHERE business_id=n.business_id AND code='1200' AND is_active;
+
+  SELECT id INTO input_tax
+  FROM public.accounts
+  WHERE business_id=n.business_id AND code='1300' AND is_active;
+
+  SELECT id INTO expense_acct
+  FROM public.accounts
+  WHERE business_id=n.business_id AND code='6000' AND is_active;
+
+  IF ap IS NULL THEN
+    RAISE EXCEPTION 'Accounts Payable account is missing';
+  END IF;
+  SELECT upper(coalesce(nullif(btrim(base_currency_code),''),nullif(btrim(currency_code),''),'INR'))
+    INTO v_base_currency
+  FROM public.businesses WHERE id=n.business_id AND is_active;
+  IF v_base_currency IS NULL THEN RAISE EXCEPTION 'Business base currency is missing'; END IF;
+
+  IF tax_registered AND tax_creditable AND n.tax_total>0 AND input_tax IS NULL THEN
+    RAISE EXCEPTION 'Input GST account (1300) is missing';
+  END IF;
+
+  IF p_location_id IS NOT NULL THEN
+    SELECT id INTO loc
+    FROM public.inventory_locations
+    WHERE id=p_location_id AND business_id=n.business_id AND is_active;
+    IF loc IS NULL THEN RAISE EXCEPTION 'Inventory location is invalid'; END IF;
+  ELSE
+    SELECT id INTO loc
+    FROM public.inventory_locations
+    WHERE business_id=n.business_id AND is_default AND is_active
+    LIMIT 1;
+  END IF;
+
+  entry_number:=(
+    SELECT coalesce(max(je.entry_number),0)+1
+    FROM public.journal_entries je
+    WHERE je.business_id=n.business_id
+  );
+
+  INSERT INTO public.journal_entries(
+    business_id,entry_number,entry_date,description,source_type,source_id,status,
+    posted_at,posted_by,created_by,currency_code,total_debit,total_credit,is_system_generated
+  ) VALUES(
+    n.business_id,entry_number,n.credit_date,'Supplier credit '||n.credit_number,
+    'vendor_credit',n.id,'draft',NULL,NULL,auth.uid(),
+    n.currency_code,0,0,true
+  ) RETURNING id INTO e;
+
+  FOR line IN
+    SELECT vci.*,ps.inventory_tracked,ps.purchase_price,ps.expense_account_id
+    FROM public.vendor_credit_items vci
+    LEFT JOIN public.products_services ps ON ps.id=vci.product_service_id
+    WHERE vci.vendor_credit_id=n.id
+    ORDER BY vci.sort_order
+  LOOP
+    post_tax:=CASE
+      WHEN tax_registered AND tax_creditable THEN round(coalesce(line.line_tax,0),2)
+      ELSE 0
+    END;
+    base:=round(coalesce(line.line_total,0)-post_tax,2);
+
+    IF coalesce(line.inventory_tracked,false) AND inventory_acct IS NOT NULL AND loc IS NOT NULL THEN
+      SELECT quantity_on_hand,average_cost
+      INTO old_qty,old_cost
+      FROM public.inventory_balances
+      WHERE business_id=n.business_id
+        AND location_id=loc
+        AND product_service_id=line.product_service_id
+      FOR UPDATE;
+
+      IF coalesce(old_qty,0)+0.000001<line.quantity THEN
+        RAISE EXCEPTION 'Cannot post supplier credit because current stock is below the return quantity for product %',line.product_service_id;
+      END IF;
+
+      unit_cost:=coalesce(old_cost,round(line.line_subtotal*v_fx_rate/nullif(line.quantity,0),2),round(line.purchase_price*v_fx_rate,2),0);
+
+      INSERT INTO public.journal_lines(
+        journal_entry_id,account_id,description,debit,credit,currency_code,
+        exchange_rate,exchange_rate_source,exchange_rate_timestamp,
+        transaction_currency_code,transaction_amount,base_currency_code,base_amount
+      ) VALUES(
+        e,inventory_acct,line.description,0,base,n.currency_code,
+        v_fx_rate,v_fx_source,v_fx_timestamp,n.currency_code,base,v_base_currency,round(base*v_fx_rate,6)
+      );
+
+
+      INSERT INTO public.inventory_movements(
+        business_id,location_id,product_service_id,movement_type,quantity,unit_cost,
+        reference_type,reference_id,notes,created_by
+      ) VALUES(
+        n.business_id,loc,line.product_service_id,'purchase_return',line.quantity,unit_cost,
+        'vendor_credit',n.id,'Supplier credit / purchase return',auth.uid()
+      );
+    ELSE
+      IF coalesce(line.expense_account_id,expense_acct,inventory_acct) IS NULL THEN
+        RAISE EXCEPTION 'No expense or inventory account is available for supplier credit line %',line.description;
+      END IF;
+
+      INSERT INTO public.journal_lines(
+        journal_entry_id,account_id,description,debit,credit,currency_code,
+        exchange_rate,exchange_rate_source,exchange_rate_timestamp,
+        transaction_currency_code,transaction_amount,base_currency_code,base_amount
+      ) VALUES(
+        e,coalesce(line.expense_account_id,expense_acct,inventory_acct),
+        line.description,0,base,n.currency_code,
+        v_fx_rate,v_fx_source,v_fx_timestamp,n.currency_code,base,v_base_currency,round(base*v_fx_rate,6)
+      );
+    END IF;
+
+    IF post_tax>0 THEN
+      INSERT INTO public.journal_lines(
+        journal_entry_id,account_id,description,debit,credit,currency_code,
+        exchange_rate,exchange_rate_source,exchange_rate_timestamp,
+        transaction_currency_code,transaction_amount,base_currency_code,base_amount
+      ) VALUES(
+        e,input_tax,'Input GST reversal',0,post_tax,n.currency_code,
+        v_fx_rate,v_fx_source,v_fx_timestamp,n.currency_code,post_tax,v_base_currency,round(post_tax*v_fx_rate,6)
+      );
+    END IF;
+  END LOOP;
+
+  INSERT INTO public.journal_lines(
+    journal_entry_id,account_id,description,debit,credit,currency_code,
+    exchange_rate,exchange_rate_source,exchange_rate_timestamp,
+    transaction_currency_code,transaction_amount,base_currency_code,base_amount
+  ) VALUES(
+    e,ap,'Accounts payable reduction',n.total,0,n.currency_code,
+    v_fx_rate,v_fx_source,v_fx_timestamp,n.currency_code,n.total,v_base_currency,round(n.total*v_fx_rate,6)
+  );
+
+  UPDATE public.journal_entries
+  SET total_debit=(SELECT coalesce(sum(base_amount),0) FROM public.journal_lines WHERE journal_entry_id=e AND debit>0),
+      total_credit=(SELECT coalesce(sum(base_amount),0) FROM public.journal_lines WHERE journal_entry_id=e AND credit>0)
+  WHERE id=e;
+  PERFORM public.validate_journal_entry_balance(e);
+  UPDATE public.journal_entries
+  SET status='posted',posted_at=now(),posted_by=auth.uid()
+  WHERE id=e AND status='draft';
+  IF NOT FOUND THEN RAISE EXCEPTION 'Supplier credit posting refused: journal entry % did not transition from draft to posted',e; END IF;
+  PERFORM public.validate_journal_entry_balance(e);
+
+  INSERT INTO public.vendor_credit_ledger(
+    business_id,vendor_id,vendor_credit_id,bill_id,entry_type,amount,currency_code,
+    description,created_by
+  ) VALUES(
+    n.business_id,n.vendor_id,n.id,n.bill_id,'credit_note',n.total,n.currency_code,
+    'Posted supplier credit '||n.credit_number,auth.uid()
+  );
+
+  IF n.bill_id IS NOT NULL THEN
+    SELECT coalesce(sum(vpa.amount),0)
+      INTO v_paid
+    FROM public.vendor_payment_allocations vpa
+    WHERE vpa.bill_id=n.bill_id;
+
+    SELECT greatest(-coalesce(sum(vcl.amount) FILTER (WHERE vcl.entry_type='application'),0),0)
+      INTO v_credit_applied
+    FROM public.vendor_credit_ledger vcl
+    WHERE vcl.bill_id=n.bill_id;
+
+    v_outstanding:=greatest(src.total-v_paid-v_credit_applied,0);
+    v_apply:=least(n.total,v_outstanding);
+
+    IF v_apply>0 THEN
+      INSERT INTO public.vendor_credit_ledger(
+        business_id,vendor_id,vendor_credit_id,bill_id,entry_type,amount,
+        currency_code,description,created_by
+      ) VALUES(
+        n.business_id,n.vendor_id,n.id,n.bill_id,'application',-v_apply,
+        n.currency_code,'Applied to source purchase bill '||src.bill_number,auth.uid()
+      );
+    END IF;
+
+    PERFORM public.recalculate_bill_settlement_state(n.bill_id);
+  END IF;
+
+  UPDATE public.vendor_credits
+  SET journal_entry_id=e,status='posted',updated_at=now()
+  WHERE id=n.id;
+
+  RETURN e;
+END;
+$function$
+
+
 -- Seed realized FX gain/loss accounts idempotently for existing businesses; no posted ledger is rewritten.
 INSERT INTO public.accounts(business_id,code,name,account_type,normal_balance,is_system,is_active,description)
 SELECT b.id,'4050','Realized FX Gain','income','credit',true,true,'Realized foreign-exchange gains on settlement'
