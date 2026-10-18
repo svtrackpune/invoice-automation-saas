@@ -882,15 +882,7 @@ BEGIN
    );
  END IF;
 
- UPDATE public.journal_entries
- SET total_debit=(SELECT coalesce(sum(base_amount),0) FROM public.journal_lines WHERE journal_entry_id=v_entry AND debit>0),
-     total_credit=(SELECT coalesce(sum(base_amount),0) FROM public.journal_lines WHERE journal_entry_id=v_entry AND credit>0)
- WHERE id=v_entry;
- PERFORM public.validate_journal_entry_balance(v_entry);
- UPDATE public.journal_entries
- SET status='posted',posted_at=now(),posted_by=auth.uid()
- WHERE id=v_entry AND status='draft';
- IF NOT FOUND THEN RAISE EXCEPTION 'Vendor payment posting refused: journal entry % did not transition from draft to posted',v_entry; END IF;
+ -- Add every line while the header is still draft; posted journal entries are immutable.
  IF v_fx_delta>0 THEN
    INSERT INTO public.journal_lines(
      journal_entry_id,account_id,description,debit,credit,currency_code,entity_type,entity_id,
@@ -910,6 +902,15 @@ BEGIN
      1,'BASE_DOMESTIC',v_fx_timestamp,v_business_currency,abs(v_fx_delta),v_business_currency,abs(v_fx_delta)
    );
  END IF;
+ UPDATE public.journal_entries
+ SET total_debit=(SELECT coalesce(sum(base_amount),0) FROM public.journal_lines WHERE journal_entry_id=v_entry AND debit>0),
+     total_credit=(SELECT coalesce(sum(base_amount),0) FROM public.journal_lines WHERE journal_entry_id=v_entry AND credit>0)
+ WHERE id=v_entry;
+ PERFORM public.validate_journal_entry_balance(v_entry);
+ UPDATE public.journal_entries
+ SET status='posted',posted_at=now(),posted_by=auth.uid()
+ WHERE id=v_entry AND status='draft';
+ IF NOT FOUND THEN RAISE EXCEPTION 'Vendor payment posting refused: journal entry % did not transition from draft to posted',v_entry; END IF;
  PERFORM public.validate_journal_entry_balance(v_entry);
  UPDATE public.payments SET journal_entry_id=v_entry WHERE id=v_payment;
 
