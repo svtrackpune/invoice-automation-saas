@@ -120,3 +120,94 @@ test('LED-001 and the accounting reports compare/summarize multi-currency journa
     assert.match(body, /has_business_permission\(p_business_id,'accounting\.view'\)/, fn + ' keeps the accounting permission check');
   }
 });
+
+function migrationFunction(sql, name) {
+  const start = sql.indexOf('CREATE OR REPLACE FUNCTION public.' + name + '(');
+  assert.ok(start >= 0, name + ' definition exists in migration');
+  const candidates = [
+    sql.indexOf('CREATE OR REPLACE FUNCTION public.', start + 32),
+    sql.indexOf('CREATE OR REPLACE FUNCTION mm_private.', start + 32),
+  ].filter((index) => index >= 0);
+  const end = candidates.length ? Math.min(...candidates) : sql.length;
+  return sql.slice(start, end);
+}
+
+test('FX credit notes and supplier credits reverse source-booking rates and post draft-first', async () => {
+  const sql = await read(migrationPath);
+  const creditNote = migrationFunction(sql, 'post_credit_note');
+  const vendorCredit = migrationFunction(sql, 'post_vendor_credit');
+  assert.match(creditNote, /Source invoice booking FX rate is missing/);
+  assert.match(creditNote, /exchange_rate_source[\s\S]*?transaction_currency_code/);
+  assert.match(creditNote, /v_entry[^;]*'draft'/);
+  assert.ok(creditNote.indexOf('INSERT INTO public.journal_lines') < creditNote.indexOf("SET status='posted'"));
+  assert.match(creditNote, /total_debit=\(SELECT coalesce\(sum\(base_amount\),0\)/);
+  assert.match(creditNote, /Inventory returned/);
+  assert.match(creditNote, /v_base_currency,v_base_currency/);
+
+  assert.match(vendorCredit, /Source purchase-bill booking FX rate is missing/);
+  assert.match(vendorCredit, /Unlinked foreign-currency supplier credits are disabled/);
+  assert.match(vendorCredit, /Foreign-currency supplier credits must not exceed the outstanding source bill/);
+  assert.match(vendorCredit, /exchange_rate_source[\s\S]*?transaction_currency_code/);
+  assert.match(vendorCredit, /'vendor_credit',n\.id,'draft'/);
+  assert.ok(vendorCredit.indexOf('INSERT INTO public.journal_lines') < vendorCredit.indexOf("SET status='posted'"));
+  assert.match(vendorCredit, /total_credit=\(SELECT coalesce\(sum\(base_amount\),0\)/);
+});
+
+test('draft currency setters validate state and quotation conversion preserves the selected currency', async () => {
+  const sql = await read(migrationPath);
+  const invoiceSetter = migrationFunction(sql, 'set_draft_invoice_currency');
+  const quotationSetter = migrationFunction(sql, 'set_draft_quotation_currency');
+  const conversion = migrationFunction(sql, 'convert_quotation_to_invoice');
+  assert.match(invoiceSetter, /inv\.status<>'draft' OR inv\.journal_entry_id IS NOT NULL/);
+  assert.match(invoiceSetter, /has_business_permission\(inv\.business_id,'sales\.create'\)/);
+  assert.match(quotationSetter, /q\.status<>'draft' OR q\.invoice_id IS NOT NULL/);
+  assert.match(quotationSetter, /has_business_permission\(q\.business_id,'sales\.create'\)/);
+  assert.match(invoiceSetter, /v_currency !~ '\^\[A-Z\]\{3\}\$'/);
+  assert.match(quotationSetter, /v_currency !~ '\^\[A-Z\]\{3\}\$'/);
+  assert.match(conversion, /SET currency_code=upper\(q\.currency_code\)/);
+});
+
+test('financial corrections to posted foreign-currency invoices and bills fail closed', async () => {
+  const sql = await read(migrationPath);
+  const invoiceUpdate = migrationFunction(sql, 'update_invoice_any_state');
+  const billUpdate = migrationFunction(sql, 'update_bill_any_state');
+  assert.match(invoiceUpdate, /v_financial_change AND upper\(inv\.currency_code\) IS DISTINCT FROM upper\(/);
+  assert.match(invoiceUpdate, /Financial corrections to foreign-currency invoices are disabled/);
+  assert.ok(invoiceUpdate.indexOf('Financial corrections to foreign-currency invoices are disabled') < invoiceUpdate.indexOf('PERFORM public.reverse_journal_entry'));
+  assert.match(billUpdate, /b\.journal_entry_id IS NOT NULL AND upper\(b\.currency_code\) IS DISTINCT FROM upper\(/);
+  assert.match(billUpdate, /Corrections to posted foreign-currency purchase bills are disabled/);
+  assert.ok(billUpdate.indexOf('Corrections to posted foreign-currency purchase bills are disabled') < billUpdate.indexOf('PERFORM public.reverse_journal_entry'));
+});
+
+test('invoice voids copy FX carrying values into a draft reversal and block unsettled chains', async () => {
+  const sql = await read(migrationPath);
+  const voidInvoice = migrationFunction(sql, 'void_invoice');
+  assert.match(voidInvoice, /'invoice_void',inv\.id,'draft',NULL,NULL/);
+  assert.match(voidInvoice, /transaction_currency_code,transaction_amount,base_currency_code,base_amount/);
+  assert.match(voidInvoice, /exchange_rate,exchange_rate_source,exchange_rate_timestamp/);
+  assert.match(voidInvoice, /SET total_debit=\(SELECT coalesce\(sum\(base_amount\),0\)/);
+  assert.ok(voidInvoice.indexOf('INSERT INTO public.journal_lines') < voidInvoice.indexOf("SET status='posted'"));
+  assert.match(voidInvoice, /An invoice with recorded customer payments cannot be voided directly/);
+  assert.match(voidInvoice, /An invoice with posted credit notes cannot be voided directly/);
+  assert.match(voidInvoice, /sale_reversal/);
+});
+
+test('FX-aware credit/refund/allocation/correction routes stay blocked where source carrying values are not tracked', async () => {
+  const sql = await read(migrationPath);
+  const customerApply = migrationFunction(sql, 'apply_customer_credit_to_invoice');
+  const vendorApply = migrationFunction(sql, 'apply_vendor_credit_to_bill');
+  const vendorAllocate = migrationFunction(sql, 'allocate_vendor_payment');
+  const customerRefund = migrationFunction(sql, 'refund_customer_credit');
+  const vendorRefund = migrationFunction(sql, 'receive_vendor_refund');
+  const customerPaymentEdit = migrationFunction(sql, 'update_customer_payment');
+  const vendorPaymentEdit = migrationFunction(sql, 'update_vendor_payment');
+  assert.match(customerApply, /Applying foreign-currency customer credits is disabled/);
+  assert.match(vendorApply, /Applying foreign-currency supplier credits is disabled/);
+  assert.match(vendorAllocate, /Reallocating a foreign-currency supplier payment is disabled/);
+  assert.match(customerRefund, /Foreign-currency customer-credit refunds are disabled/);
+  assert.match(vendorRefund, /Foreign-currency supplier refunds are disabled/);
+  assert.match(customerPaymentEdit, /Foreign-currency customer payment corrections are disabled/);
+  assert.match(vendorPaymentEdit, /Foreign-currency supplier payment corrections are disabled/);
+  assert.match(vendorRefund, /has_business_permission\(p_business_id,'payments\.receive'\)/);
+  assert.match(customerRefund, /has_business_permission\(p_business_id,'payments\.receive'\)/);
+});
