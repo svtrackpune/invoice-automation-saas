@@ -148,7 +148,17 @@ export function formatBusinessMoney(
 }
 
 export function formatDate(value: string | Date, locale = 'en-US', options?: Intl.DateTimeFormatOptions) {
-  const date = new Date(value);
+  // ISO date-only values are calendar dates, not UTC timestamps. Parse them
+  // locally so browsers west of UTC do not display the previous day.
+  let date: Date;
+  if (typeof value === 'string') {
+    const match = value.match(/^(\\d{4})-(\\d{2})-(\\d{2})$/);
+    date = match
+      ? new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]))
+      : new Date(value);
+  } else {
+    date = value;
+  }
   if (Number.isNaN(date.getTime())) return String(value ?? '');
   return new Intl.DateTimeFormat(safeLocale(locale), options ?? { year: 'numeric', month: 'short', day: 'numeric' }).format(date);
 }
