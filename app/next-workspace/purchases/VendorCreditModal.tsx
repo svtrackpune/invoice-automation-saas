@@ -2,12 +2,14 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { Button, DateInput, Field, Input, Modal, Textarea } from '@/components/moneymatters';
+import { formatMoney } from '@/lib/i18n';
+import { useLocale } from '@/lib/locale-context';
 
 type Bill={id:string;bill_number:string;bill_date:string;total:number;currency_code:string};
 type Item={id:string;description:string;quantity:number;unit_price:number;line_total:number;product_service_id:string|null;tax_rate_id:string|null};
 type Row={item:Item;quantity:number};
 
-const money=(n:number)=>new Intl.NumberFormat('en-IN',{style:'currency',currency:'INR',maximumFractionDigits:2}).format(Number(n||0));
+const money=(n:number,currency='INR',locale='en-IN')=>formatMoney(Number(n||0),currency,locale,{maximumFractionDigits:2});
 
 export default function VendorCreditModal({
   open,bill,businessId,vendorId,items,creditedQtyByItem,onClose,onSaved
@@ -21,6 +23,7 @@ export default function VendorCreditModal({
   onClose:()=>void;
   onSaved:()=>void|Promise<void>;
 }){
+  const {locale}=useLocale();
   const [date,setDate]=useState('');
   const [reason,setReason]=useState('Purchase return / supplier adjustment');
   const [notes,setNotes]=useState('');
@@ -104,7 +107,7 @@ export default function VendorCreditModal({
             const credited=creditedQtyByItem[r.item.id]||0;
             const max=Math.max(r.item.quantity-credited,0);
             return <tr key={r.item.id} className="border-t border-slate-100">
-              <td className="p-3"><b>{r.item.description}</b><span className="mt-0.5 block text-xs text-slate-400">{money(r.item.unit_price)}</span></td>
+              <td className="p-3"><b>{r.item.description}</b><span className="mt-0.5 block text-xs text-slate-400">{money(r.item.unit_price,bill.currency_code,locale)}</span></td>
               <td className="p-3 text-right">{r.item.quantity}</td>
               <td className="p-3 text-right text-slate-500">{credited}</td>
               <td className="p-3 text-right"><Input aria-label={'Return quantity for '+r.item.description} type="number" min="0" max={max} step="0.001" value={r.quantity} disabled={max<=0} onChange={e=>setQty(r.item.id,Number(e.target.value))} className="w-28 text-right" /></td>
@@ -116,7 +119,7 @@ export default function VendorCreditModal({
     </div>
     <div className="mt-4 grid gap-4 sm:grid-cols-2">
       <Field label="Notes"><Textarea rows={3} value={notes} onChange={e=>setNotes(e.target.value)} placeholder="Optional supplier/return notes." /></Field>
-      <div className="rounded-xl bg-slate-50 p-4"><span className="text-xs text-slate-500">Estimated credit</span><b className="mt-1 block text-xl text-slate-900">{money(estimate)}</b><p className="mt-1 text-[11px] text-slate-400">The server derives the return amount and tax from the posted bill line before posting.</p></div>
+      <div className="rounded-xl bg-slate-50 p-4"><span className="text-xs text-slate-500">Estimated credit</span><b className="mt-1 block text-xl text-slate-900">{money(estimate,bill.currency_code,locale)}</b><p className="mt-1 text-[11px] text-slate-400">The server derives the return amount and tax from the posted bill line before posting.</p></div>
     </div>
   </Modal>;
 }
