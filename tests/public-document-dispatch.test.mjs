@@ -82,7 +82,7 @@ test('receipt copy/share actions use short-lived public receipt links, not works
  assert.ok(helper.includes("supabase.rpc('get_public_document_link'"));
  assert.ok(helper.includes("'path' in data"));
  assert.ok(helper.includes('[A-Fa-f0-9]{48,128}'));
- assert.ok(ui.includes('<CopyButton getValue={()=>getPublicReceiptUrl(r.id)} label="Copy link"'));
+ assert.ok(ui.includes('<CopyButton getValue={()=>getPublicReceiptUrl(r.id)} label={t(\'Copy link\')}'));
  assert.ok(ui.includes('const shareReceipt=async(id:string)=>{'));
  assert.ok(sql.includes("public._issue_receipt_access_token(p_receipt_id, 'customer_download')"));
  assert.ok(sql.includes('REVOKE ALL ON FUNCTION public.create_public_receipt_link(uuid) FROM PUBLIC, anon'));
