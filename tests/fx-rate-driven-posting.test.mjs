@@ -102,3 +102,21 @@ test('used FX gain and loss accounts are seeded without modifying existing journ
   assert.doesNotMatch(sql, /UPDATE public\.journal_lines SET/);
   assert.doesNotMatch(sql, /DELETE FROM public\.journal_lines/);
 });
+test('LED-001 and the accounting reports compare/summarize multi-currency journals in base currency', async () => {
+  const sql = await read(migrationPath);
+  const balanceCheck = sql.slice(sql.indexOf('CREATE OR REPLACE FUNCTION public.validate_journal_entry_balance'), sql.indexOf('CREATE OR REPLACE FUNCTION public.fn_validate_journal_entry_balance'));
+  const deferredGuard = sql.slice(sql.indexOf('CREATE OR REPLACE FUNCTION public.fn_validate_journal_entry_balance'), sql.indexOf('-- Seed realized FX gain/loss accounts'));
+  assert.match(balanceCheck, /count\(DISTINCT transaction_currency_code\)/);
+  assert.match(balanceCheck, /v_currency_count<=1 AND round\(v_transaction_debit,2\)<>round\(v_transaction_credit,2\)/);
+  assert.match(balanceCheck, /round\(v_base_debit,2\)<>round\(v_base_credit,2\)/);
+  assert.match(deferredGuard, /count\(DISTINCT transaction_currency_code\)/);
+  assert.match(deferredGuard, /v_base_debit<>v_base_credit/);
+  for (const fn of ['get_general_ledger','get_trial_balance','get_balance_sheet','get_profit_loss']) {
+    const start = sql.indexOf('CREATE OR REPLACE FUNCTION public.' + fn + '(');
+    assert.ok(start >= 0, fn + ' replacement is included');
+    const next = sql.indexOf('CREATE OR REPLACE FUNCTION public.', start + 20);
+    const body = sql.slice(start, next < 0 ? sql.length : next);
+    assert.match(body, /jl\.base_amount/, fn + ' summarizes base-currency amounts');
+    assert.match(body, /has_business_permission\(p_business_id,'accounting\.view'\)/, fn + ' keeps the accounting permission check');
+  }
+});
