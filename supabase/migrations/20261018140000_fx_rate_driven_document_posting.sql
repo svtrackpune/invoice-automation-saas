@@ -66,16 +66,18 @@ BEGIN
       AND upper(jl.base_currency_code)=upper(OLD.base_currency_code)
       AND jl.exchange_rate_timestamp=(OLD.rate_date::timestamp AT TIME ZONE 'UTC')
   ) INTO v_used;
-  IF v_used AND (
-    TG_OP='DELETE'
-    OR OLD.rate IS DISTINCT FROM NEW.rate
-    OR OLD.source IS DISTINCT FROM NEW.source
-    OR OLD.rate_date IS DISTINCT FROM NEW.rate_date
-    OR OLD.currency_code IS DISTINCT FROM NEW.currency_code
-    OR OLD.base_currency_code IS DISTINCT FROM NEW.base_currency_code
-  ) THEN
-    RAISE EXCEPTION 'FX rate % %/% has already been used by a journal entry and is immutable; add a new effective-date rate instead',
-      OLD.rate_date,upper(OLD.currency_code),upper(OLD.base_currency_code);
+  IF v_used THEN
+    IF TG_OP='DELETE' THEN
+      RAISE EXCEPTION 'FX rate % %/% has already been used by a journal entry and cannot be deleted; add a new effective-date rate instead',
+        OLD.rate_date,upper(OLD.currency_code),upper(OLD.base_currency_code);
+    ELSIF OLD.rate IS DISTINCT FROM NEW.rate
+       OR OLD.source IS DISTINCT FROM NEW.source
+       OR OLD.rate_date IS DISTINCT FROM NEW.rate_date
+       OR OLD.currency_code IS DISTINCT FROM NEW.currency_code
+       OR OLD.base_currency_code IS DISTINCT FROM NEW.base_currency_code THEN
+      RAISE EXCEPTION 'FX rate % %/% has already been used by a journal entry and is immutable; add a new effective-date rate instead',
+        OLD.rate_date,upper(OLD.currency_code),upper(OLD.base_currency_code);
+    END IF;
   END IF;
   IF TG_OP='DELETE' THEN RETURN OLD; END IF;
   RETURN NEW;
