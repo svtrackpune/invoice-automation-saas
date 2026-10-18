@@ -3,11 +3,13 @@
 import { useEffect, useMemo, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { Button, Field, Input, Modal } from '@/components/moneymatters';
+import { formatMoney } from '@/lib/i18n';
+import { useLocale } from '@/lib/locale-context';
 
 type Payment={id:string;amount:number;payment_date:string;vendor_id:string|null;bill_id:string|null;currency_code:string};
 type Bill={id:string;bill_number:string;bill_date:string;due_date:string;total:number;balance_due:number;currency_code:string;status:string;journal_entry_id:string|null};
 
-const money=(n:number)=>new Intl.NumberFormat('en-IN',{style:'currency',currency:'INR',maximumFractionDigits:2}).format(Number(n||0));
+const money=(n:number,currency='INR',locale='en-IN')=>formatMoney(Number(n||0),currency,locale,{maximumFractionDigits:2});
 
 export default function VendorPaymentAllocationModal({
   open,
@@ -22,6 +24,8 @@ export default function VendorPaymentAllocationModal({
   onClose:()=>void;
   onSaved:()=>Promise<void>|void;
 }){
+  const {locale}=useLocale();
+  const paymentCurrency=payment?.currency_code||'INR';
   const [bills,setBills]=useState<Bill[]>([]);
   const [allocations,setAllocations]=useState<Record<string,string>>({});
   const [loading,setLoading]=useState(false);
@@ -52,7 +56,7 @@ export default function VendorPaymentAllocationModal({
       if(!active)return;
       if(billsResult.error){setError(billsResult.error.message);setLoading(false);return}
       if(allocResult.error){setError(allocResult.error.message);setLoading(false);return}
-      const eligible=((billsResult.data||[]) as Bill[]).filter(b=>b.journal_entry_id&&b.status!=='draft'&&b.status!=='void');
+      const eligible=((billsResult.data||[]) as Bill[]).filter(b=>b.journal_entry_id&&b.status!=='draft'&&b.status!=='void'&&String(b.currency_code||'INR').trim().toUpperCase()===String(payment.currency_code||'INR').trim().toUpperCase());
       setBills(eligible);
       const current:Record<string,string>={};
       ((allocResult.data||[]) as {bill_id:string;amount:number}[]).forEach(a=>{current[a.bill_id]=String(a.amount)});
@@ -109,23 +113,23 @@ export default function VendorPaymentAllocationModal({
     open={open}
     onClose={()=>{if(!busy)onClose()}}
     title="Allocate supplier payment"
-    description={payment?'Payment '+money(payment.amount)+' · '+payment.payment_date+'. Split or reassign this payment across posted purchase bills.':undefined}
+    description={payment?'Payment '+money(payment.amount,payment.currency_code,locale)+' · '+payment.payment_date+'. Split or reassign this payment across posted purchase bills in the same currency.':undefined}
     size="lg"
   >
     {loading?<div className="py-10 text-center text-sm text-slate-500">Loading purchase bills…</div>:!payment?<div className="py-10 text-center text-sm text-slate-500">No supplier payment selected.</div>:<div className="space-y-5">
       {error&&<div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800">{error}</div>}
       {success&&<div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">{success}</div>}
       <div className="grid gap-3 sm:grid-cols-3">
-        <div className="rounded-xl border border-slate-100 bg-slate-50 p-3"><span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Payment</span><b className="mt-1 block text-sm text-slate-800">{money(payment.amount)}</b></div>
-        <div className="rounded-xl border border-slate-100 bg-slate-50 p-3"><span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Allocated</span><b className="mt-1 block text-sm text-slate-800">{money(totalAllocated)}</b></div>
-        <div className="rounded-xl border border-slate-100 bg-slate-50 p-3"><span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Unapplied</span><b className={unallocated<-0.005?'mt-1 block text-sm text-rose-700':'mt-1 block text-sm text-emerald-700'}>{money(Math.max(unallocated,0))}</b></div>
+        <div className="rounded-xl border border-slate-100 bg-slate-50 p-3"><span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Payment</span><b className="mt-1 block text-sm text-slate-800">{money(payment.amount,payment.currency_code,locale)}</b></div>
+        <div className="rounded-xl border border-slate-100 bg-slate-50 p-3"><span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Allocated</span><b className="mt-1 block text-sm text-slate-800">{money(totalAllocated,paymentCurrency,locale)}</b></div>
+        <div className="rounded-xl border border-slate-100 bg-slate-50 p-3"><span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Unapplied</span><b className={unallocated<-0.005?'mt-1 block text-sm text-rose-700':'mt-1 block text-sm text-emerald-700'}>{money(Math.max(unallocated,0),paymentCurrency,locale)}</b></div>
       </div>
       {!rows.length?<div className="rounded-xl bg-slate-50 p-5 text-sm text-slate-500">No posted purchase bills for this supplier are available for allocation.</div>:<div className="space-y-3">
         {rows.map(({bill,max})=><div key={bill.id} className="grid gap-3 rounded-xl border border-slate-200 p-4 md:grid-cols-[1fr_150px_auto] md:items-end">
           <div>
             <b className="block text-sm text-slate-800">{bill.bill_number}</b>
-            <span className="text-xs text-slate-400">Bill {bill.bill_date} · Due {bill.due_date} · {money(bill.total)} total</span>
-            <span className="mt-1 block text-[11px] text-slate-500">Current outstanding: {money(bill.balance_due)} · available for this payment: {money(max)}</span>
+            <span className="text-xs text-slate-400">Bill {bill.bill_date} · Due {bill.due_date} · {money(bill.total,bill.currency_code,locale)} total</span>
+            <span className="mt-1 block text-[11px] text-slate-500">Current outstanding: {money(bill.balance_due,bill.currency_code,locale)} · available for this payment: {money(max,paymentCurrency,locale)}</span>
           </div>
           <Field label="Allocation"><Input type="number" min="0" step="0.01" value={allocations[bill.id]||''} onChange={e=>setAmount(bill.id,e.target.value)} /></Field>
           <Button type="button" size="sm" variant="secondary" onClick={()=>fillMax(bill.id,max)} disabled={max<=0}>Use max</Button>
