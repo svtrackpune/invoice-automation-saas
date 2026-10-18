@@ -4211,6 +4211,787 @@ END;
 $function$
 
 
+-- Existing amendment RPCs predate complete FX carrying-value treatment. Preserve metadata-only
+-- edits but fail closed on financial corrections to posted foreign-currency documents.
+CREATE OR REPLACE FUNCTION public.update_invoice_any_state(p_invoice_id uuid, p_customer_id uuid, p_invoice_date date, p_due_date date, p_items jsonb, p_invoice_discount_type text DEFAULT NULL::text, p_invoice_discount_value numeric DEFAULT 0, p_notes text DEFAULT NULL::text, p_terms text DEFAULT NULL::text, p_template_id uuid DEFAULT NULL::uuid, p_delivery_date date DEFAULT NULL::date, p_location_id uuid DEFAULT NULL::uuid, p_payment_display_mode text DEFAULT 'none'::text, p_payment_bank_account_id uuid DEFAULT NULL::uuid)
+ RETURNS uuid
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public', 'pg_temp'
+AS $function$
+DECLARE
+  inv public.invoices%rowtype;
+  v_tax_enabled boolean;
+  v_paid numeric := 0;
+  v_item_count integer;
+  v_item jsonb;
+  v_product uuid;
+  v_qty numeric;
+  v_price numeric;
+  v_desc text;
+  v_disc_type text;
+  v_disc_value numeric;
+  v_tax uuid;
+  v_hsn text;
+  v_base numeric;
+  v_line_discount numeric;
+  v_tax_rate numeric;
+  v_tax_amount numeric;
+  v_line_total numeric;
+  v_discount_type text;
+  v_location uuid;
+  v_cogs_total numeric := 0;
+  v_cost numeric;
+  v_stock numeric;
+  v_product_row record;
+  v_account_ar uuid;
+  v_account_sales uuid;
+  v_account_tax uuid;
+  v_account_inventory uuid;
+  v_account_cogs uuid;
+  v_journal uuid;
+  v_journal_number bigint;
+  v_financial_change boolean := false;
+  v_exchange_rate numeric := 1;
+  v_exchange_rate_source text;
+  v_exchange_rate_timestamp timestamptz;
+BEGIN
+  SELECT * INTO inv FROM public.invoices WHERE id=p_invoice_id FOR UPDATE;
+  IF inv.id IS NULL THEN RAISE EXCEPTION 'Invoice not found'; END IF;
+  IF inv.status='void' THEN RAISE EXCEPTION 'Void invoices cannot be edited'; END IF;
+  IF NOT (mm_private.has_business_permission(inv.business_id,'sales.edit') OR mm_private.has_business_permission(inv.business_id,'sales.create')) THEN
+    RAISE EXCEPTION 'Access denied';
+  END IF;
+
+  SELECT coalesce(sum(pa.amount),0) INTO v_paid
+  FROM public.payment_allocations pa WHERE pa.invoice_id=inv.id;
+
+  SELECT count(*) INTO v_item_count FROM jsonb_array_elements(coalesce(p_items,'[]'::jsonb));
+  IF v_item_count=0 THEN RAISE EXCEPTION 'Invoice must contain at least one item'; END IF;
+  IF p_customer_id IS NULL OR NOT EXISTS(SELECT 1 FROM public.customers WHERE id=p_customer_id AND business_id=inv.business_id AND is_active) THEN
+    RAISE EXCEPTION 'Customer not found or inactive';
+  END IF;
+  IF p_invoice_discount_type IS NOT NULL AND p_invoice_discount_type NOT IN ('amount','fixed','percentage','') THEN RAISE EXCEPTION 'Invalid invoice discount type'; END IF;
+  IF coalesce(p_invoice_discount_value,0)<0 THEN RAISE EXCEPTION 'Invoice discount cannot be negative'; END IF;
+  IF p_template_id IS NOT NULL AND NOT EXISTS(SELECT 1 FROM public.document_templates WHERE id=p_template_id AND document_type='invoice' AND is_active) THEN RAISE EXCEPTION 'Invalid or inactive invoice template'; END IF;
+  IF p_payment_display_mode NOT IN ('none','bank','online') THEN RAISE EXCEPTION 'Invalid invoice payment display mode'; END IF;
+  IF p_payment_display_mode='bank' AND p_payment_bank_account_id IS NULL THEN RAISE EXCEPTION 'Select a bank account for the invoice'; END IF;
+  IF p_payment_bank_account_id IS NOT NULL AND NOT EXISTS(SELECT 1 FROM public.bank_accounts WHERE id=p_payment_bank_account_id AND business_id=inv.business_id AND is_active) THEN RAISE EXCEPTION 'Invoice bank account is invalid'; END IF;
+
+  -- Defer accounting-adjustment/period checks until a financial change is established.
+  -- Notes, terms, due date, template, and other metadata-only corrections do not touch journals.
+
+  SELECT mm_private.business_tax_enabled(inv.business_id) INTO v_tax_enabled
+  FROM public.businesses b WHERE b.id=inv.business_id;
+  v_discount_type:=case when p_invoice_discount_type in ('amount','fixed') then 'fixed' when p_invoice_discount_type='percentage' then 'percentage' else null end;
+
+  CREATE TEMP TABLE IF NOT EXISTS pg_temp.mm_invoice_amend_lines(
+    sort_order integer, product_service_id uuid, description text, quantity numeric, unit_price numeric,
+    discount_type text, discount_value numeric, tax_rate_id uuid, hsn_sac text,
+    discount numeric, tax_amount numeric, line_total numeric
+  ) ON COMMIT DROP;
+  TRUNCATE pg_temp.mm_invoice_amend_lines;
+
+  FOR v_item IN SELECT * FROM jsonb_array_elements(p_items) LOOP
+    v_product:=nullif(v_item->>'product_service_id','')::uuid;
+    v_qty:=coalesce((v_item->>'quantity')::numeric,0);
+    v_price:=coalesce((v_item->>'unit_price')::numeric,0);
+    v_desc:=coalesce(nullif(v_item->>'description',''),(select name from public.products_services where id=v_product));
+    v_disc_type:=nullif(v_item->>'discount_type',''); IF v_disc_type='amount' THEN v_disc_type='fixed'; END IF;
+    v_disc_value:=coalesce((v_item->>'discount_value')::numeric,0);
+    v_tax:=nullif(v_item->>'tax_rate_id','')::uuid;
+    v_hsn:=nullif(trim(v_item->>'hsn_sac'),'');
+    IF v_qty<=0 OR v_price<0 OR v_desc IS NULL THEN RAISE EXCEPTION 'Invalid invoice item'; END IF;
+    IF v_product IS NOT NULL AND NOT EXISTS(SELECT 1 FROM public.products_services WHERE id=v_product AND business_id=inv.business_id AND is_active AND sell_enabled) THEN RAISE EXCEPTION 'Product/service not found'; END IF;
+    IF v_disc_type IS NOT NULL AND v_disc_type NOT IN ('percentage','fixed') THEN RAISE EXCEPTION 'Invalid line discount type'; END IF;
+    IF v_disc_value<0 THEN RAISE EXCEPTION 'Discount value cannot be negative'; END IF;
+    IF mm_private.has_valid_gst_registration(inv.business_id) THEN
+      IF v_product IS NULL THEN RAISE EXCEPTION 'HSN / SAC is required for every tax-registered invoice line'; END IF;
+      SELECT nullif(trim(hsn_sac),'') INTO v_hsn FROM public.products_services WHERE id=v_product AND business_id=inv.business_id;
+      IF v_hsn IS NULL THEN RAISE EXCEPTION 'HSN / SAC is required for tax-registered invoice item %',v_desc; END IF;
+    END IF;
+    v_base:=round(v_qty*v_price,2);
+    v_line_discount:=public.calculate_invoice_line_discount(inv.business_id,v_product,v_base,v_disc_type,v_disc_value);
+    v_tax_rate:=case when v_tax_enabled and v_tax is not null then coalesce((select rate from public.tax_rates where id=v_tax and business_id=inv.business_id and is_active),0) else 0 end;
+    v_tax_amount:=round((v_base-v_line_discount)*v_tax_rate/100,2);
+    v_line_total:=round(v_base-v_line_discount+v_tax_amount,2);
+    INSERT INTO pg_temp.mm_invoice_amend_lines VALUES(
+      coalesce(nullif(v_item->>'sort_order','')::integer,(select coalesce(max(sort_order),-1)+1 from pg_temp.mm_invoice_amend_lines)),
+      v_product,v_desc,v_qty,v_price,v_disc_type,v_disc_value,v_tax,v_hsn,v_line_discount,v_tax_amount,v_line_total
+    );
+  END LOOP;
+
+  IF inv.source_challan_id IS NOT NULL THEN
+    IF NOT EXISTS (
+      SELECT 1 FROM public.delivery_challans dc
+      WHERE dc.id = inv.source_challan_id
+        AND dc.business_id = inv.business_id
+        AND dc.status = 'invoiced'
+        AND dc.converted_invoice_id = inv.id
+    ) THEN
+      RAISE EXCEPTION 'Source delivery challan is invalid for this invoice';
+    END IF;
+
+    IF EXISTS (
+      (SELECT product_service_id, round(sum(quantity), 6) AS quantity
+       FROM pg_temp.mm_invoice_amend_lines GROUP BY product_service_id)
+      EXCEPT
+      (SELECT product_service_id, round(sum(quantity), 6) AS quantity
+       FROM public.delivery_challan_items WHERE challan_id = inv.source_challan_id
+       GROUP BY product_service_id)
+    ) OR EXISTS (
+      (SELECT product_service_id, round(sum(quantity), 6) AS quantity
+       FROM public.delivery_challan_items WHERE challan_id = inv.source_challan_id
+       GROUP BY product_service_id)
+      EXCEPT
+      (SELECT product_service_id, round(sum(quantity), 6) AS quantity
+       FROM pg_temp.mm_invoice_amend_lines GROUP BY product_service_id)
+    ) THEN
+      RAISE EXCEPTION 'Source delivery challan quantities must match invoice quantities';
+    END IF;
+  END IF;
+
+  CREATE TEMP TABLE IF NOT EXISTS pg_temp.mm_invoice_amend_totals(subtotal numeric,discount numeric,tax numeric,total numeric) ON COMMIT DROP;
+  TRUNCATE pg_temp.mm_invoice_amend_totals;
+  INSERT INTO pg_temp.mm_invoice_amend_totals
+  SELECT subtotal, line_discount + invoice_discount, tax, round(subtotal-line_discount-invoice_discount+tax,2)
+  FROM (SELECT sum(quantity*unit_price) subtotal,sum(discount) line_discount,sum(tax_amount) tax FROM pg_temp.mm_invoice_amend_lines) s
+  CROSS JOIN LATERAL (
+    SELECT least(greatest(s.subtotal-s.line_discount,0),greatest(case when v_discount_type='percentage' then (s.subtotal-s.line_discount)*coalesce(p_invoice_discount_value,0)/100 else coalesce(p_invoice_discount_value,0) end,0)) invoice_discount
+  ) d;
+
+  IF (SELECT total FROM pg_temp.mm_invoice_amend_totals) < v_paid THEN
+    RAISE EXCEPTION 'Corrected invoice total cannot be below payments already received (%). Reduce/refund the payment first.',v_paid;
+  END IF;
+
+  -- Only accounting-relevant changes need a reversal. Compare individual components and
+  -- normalized invoice lines so equal totals with changed products/tax/discount are handled.
+  v_financial_change := inv.journal_entry_id IS NOT NULL AND (
+    p_customer_id IS DISTINCT FROM inv.customer_id
+    OR coalesce(p_invoice_date,inv.invoice_date) IS DISTINCT FROM inv.invoice_date
+    OR coalesce(p_location_id,inv.inventory_location_id) IS DISTINCT FROM inv.inventory_location_id
+    OR round(coalesce(inv.subtotal,0),2) IS DISTINCT FROM round((SELECT subtotal FROM pg_temp.mm_invoice_amend_totals),2)
+    OR round(coalesce(inv.discount_total,0),2) IS DISTINCT FROM round((SELECT discount FROM pg_temp.mm_invoice_amend_totals),2)
+    OR round(coalesce(inv.tax_total,0),2) IS DISTINCT FROM round((SELECT tax FROM pg_temp.mm_invoice_amend_totals),2)
+    OR round(coalesce(inv.total,0),2) IS DISTINCT FROM round((SELECT total FROM pg_temp.mm_invoice_amend_totals),2)
+    OR EXISTS (
+      SELECT 1
+      FROM (
+        SELECT row_number() OVER (ORDER BY sort_order,id) AS rn,
+               product_service_id,quantity,unit_price,discount_type,discount_value,tax_rate_id,hsn_sac
+        FROM public.invoice_items WHERE invoice_id=inv.id
+      ) old_line
+      FULL OUTER JOIN (
+        SELECT row_number() OVER (ORDER BY sort_order,product_service_id) AS rn,
+               product_service_id,quantity,unit_price,discount_type,discount_value,tax_rate_id,hsn_sac
+        FROM pg_temp.mm_invoice_amend_lines
+      ) new_line USING (rn)
+      WHERE old_line.rn IS NULL OR new_line.rn IS NULL
+         OR old_line.product_service_id IS DISTINCT FROM new_line.product_service_id
+         OR old_line.quantity IS DISTINCT FROM new_line.quantity
+         OR old_line.unit_price IS DISTINCT FROM new_line.unit_price
+         OR old_line.discount_type IS DISTINCT FROM new_line.discount_type
+         OR old_line.discount_value IS DISTINCT FROM new_line.discount_value
+         OR old_line.tax_rate_id IS DISTINCT FROM new_line.tax_rate_id
+         OR old_line.hsn_sac IS DISTINCT FROM new_line.hsn_sac
+    )
+  );
+
+  IF v_financial_change AND upper(inv.currency_code) IS DISTINCT FROM upper((
+    SELECT coalesce(nullif(btrim(base_currency_code),''),nullif(btrim(currency_code),''),'INR')
+    FROM public.businesses WHERE id=inv.business_id
+  )) THEN
+    RAISE EXCEPTION 'Financial corrections to foreign-currency invoices are disabled until invoice correction carries source-rate/base-cost layers; use a credit note for value changes';
+  END IF;
+  IF v_financial_change THEN
+    IF NOT mm_private.has_business_permission(inv.business_id,'accounting.adjust') THEN
+      RAISE EXCEPTION 'Accounting adjustment permission required to change a posted invoice';
+    END IF;
+    IF p_customer_id IS DISTINCT FROM inv.customer_id AND EXISTS (
+      SELECT 1 FROM public.payments p
+      JOIN public.journal_entries je ON je.id=p.journal_entry_id
+      WHERE p.invoice_id=inv.id AND je.status::text IN ('posted','locked')
+    ) THEN
+      RAISE EXCEPTION 'Customer identity cannot be changed while posted payment journals are linked. Use a Credit Note and reissue the invoice.';
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM public.journal_entries je WHERE je.id=inv.journal_entry_id AND je.status::text='posted') THEN
+      RAISE EXCEPTION 'The linked invoice journal is not posted. Repair the accounting state before correcting this invoice.';
+    END IF;
+    PERFORM public.assert_accounting_period_open(inv.business_id,inv.invoice_date);
+    PERFORM public.assert_accounting_period_open(inv.business_id,coalesce(p_invoice_date,inv.invoice_date));
+    SELECT jl.exchange_rate,jl.exchange_rate_source,jl.exchange_rate_timestamp
+      INTO v_exchange_rate,v_exchange_rate_source,v_exchange_rate_timestamp
+    FROM public.journal_lines jl
+    WHERE jl.journal_entry_id=inv.journal_entry_id
+    ORDER BY CASE WHEN jl.debit>0 THEN 0 ELSE 1 END,jl.id
+    LIMIT 1;
+    v_exchange_rate:=coalesce(v_exchange_rate,1);
+    PERFORM public.reverse_journal_entry(
+      inv.journal_entry_id,
+      coalesce(p_invoice_date,inv.invoice_date),
+      'Invoice correction reversal for '||inv.invoice_number,
+      auth.uid()
+    );
+  END IF;
+
+  IF inv.journal_entry_id IS NOT NULL AND v_financial_change THEN
+    FOR v_product_row IN
+      SELECT location_id,product_service_id,quantity,unit_cost,batch_number,serial_number
+      FROM public.inventory_movements
+      WHERE reference_type='invoice' AND reference_id=inv.id AND movement_type='sale'
+    LOOP
+
+      INSERT INTO public.inventory_movements(business_id,location_id,product_service_id,movement_type,quantity,unit_cost,reference_type,reference_id,batch_number,serial_number,notes,created_by)
+      VALUES(inv.business_id,v_product_row.location_id,v_product_row.product_service_id,'sale_reversal',v_product_row.quantity,v_product_row.unit_cost,'invoice_amendment',inv.id,v_product_row.batch_number,v_product_row.serial_number,'Invoice correction reversal',auth.uid());
+    END LOOP;
+  END IF;
+
+  UPDATE public.invoices SET customer_id=p_customer_id,invoice_date=coalesce(p_invoice_date,invoice_date),due_date=coalesce(p_due_date,due_date),subtotal=(SELECT subtotal FROM pg_temp.mm_invoice_amend_totals),discount_total=(SELECT discount FROM pg_temp.mm_invoice_amend_totals),tax_total=(SELECT tax FROM pg_temp.mm_invoice_amend_totals),total=(SELECT total FROM pg_temp.mm_invoice_amend_totals),amount_paid=v_paid,balance_due=greatest((SELECT total FROM pg_temp.mm_invoice_amend_totals)-v_paid,0),notes=p_notes,terms=p_terms,discount_type=v_discount_type,discount_value=coalesce(p_invoice_discount_value,0),template_id=p_template_id,delivery_date=p_delivery_date,inventory_location_id=p_location_id,payment_display_mode=p_payment_display_mode,payment_bank_account_id=case when p_payment_display_mode='bank' then p_payment_bank_account_id else null end,correction_count=coalesce(correction_count,0)+1,updated_at=now() WHERE id=inv.id;
+
+  DELETE FROM public.invoice_items WHERE invoice_id=inv.id;
+  INSERT INTO public.invoice_items(invoice_id,product_service_id,description,quantity,unit_price,discount,discount_type,discount_value,unit_price_before_discount,tax_rate_id,tax_amount,line_total,sort_order,hsn_sac)
+  SELECT inv.id,product_service_id,description,quantity,unit_price,discount,discount_type,discount_value,unit_price,tax_rate_id,tax_amount,line_total,sort_order,hsn_sac FROM pg_temp.mm_invoice_amend_lines ORDER BY sort_order;
+
+  IF p_customer_id IS DISTINCT FROM inv.customer_id THEN
+    UPDATE public.payments SET customer_id=p_customer_id WHERE invoice_id=inv.id;
+    UPDATE public.receipts r SET customer_id=p_customer_id WHERE r.payment_id IN (SELECT p.id FROM public.payments p WHERE p.invoice_id=inv.id);
+  END IF;
+
+  IF inv.journal_entry_id IS NOT NULL
+     AND v_financial_change
+     AND inv.source_challan_id IS NOT NULL
+     AND EXISTS (
+       SELECT 1
+       FROM pg_temp.mm_invoice_amend_lines l
+       JOIN public.products_services ps
+         ON ps.id = l.product_service_id
+       WHERE ps.business_id = inv.business_id
+         AND ps.inventory_tracked
+     )
+  THEN
+    -- Challan dispatch already moved stock. Recompute COGS from its movements;
+    -- never create invoice sale movements for a challan-sourced invoice.
+    FOR v_product_row IN
+      SELECT l.product_service_id, sum(l.quantity) AS quantity
+      FROM pg_temp.mm_invoice_amend_lines l
+      JOIN public.products_services ps ON ps.id = l.product_service_id
+      WHERE ps.business_id = inv.business_id
+        AND ps.inventory_tracked
+      GROUP BY l.product_service_id
+    LOOP
+      SELECT coalesce(sum(im.quantity), 0),
+             coalesce(sum(im.quantity * im.unit_cost), 0)
+        INTO v_stock, v_cost
+      FROM public.inventory_movements im
+      WHERE im.business_id = inv.business_id
+        AND im.reference_type = 'delivery_challan'
+        AND im.reference_id = inv.source_challan_id
+        AND im.movement_type = 'delivery_challan_out'
+        AND im.product_service_id = v_product_row.product_service_id;
+
+      IF round(coalesce(v_stock, 0), 6) <> round(v_product_row.quantity, 6) THEN
+        RAISE EXCEPTION 'Delivery challan inventory movement is missing or duplicated for product %',
+          v_product_row.product_service_id;
+      END IF;
+      v_cogs_total := v_cogs_total + round(coalesce(v_cost, 0), 2);
+    END LOOP;
+  END IF;
+
+  IF inv.journal_entry_id IS NOT NULL
+     AND v_financial_change
+     AND inv.source_challan_id IS NULL
+     AND EXISTS (
+       SELECT 1
+       FROM pg_temp.mm_invoice_amend_lines l
+       JOIN public.products_services ps
+         ON ps.id = l.product_service_id
+       WHERE ps.business_id = inv.business_id
+         AND ps.inventory_tracked
+     )
+  THEN
+    SELECT coalesce(
+      p_location_id,
+      (
+        SELECT il.id
+        FROM public.inventory_locations il
+        WHERE il.business_id = inv.business_id
+          AND il.is_active
+        ORDER BY il.is_default DESC, il.name, il.id
+        LIMIT 1
+      )
+    ) INTO v_location;
+
+    IF v_location IS NULL THEN
+      RAISE EXCEPTION 'Inventory location is required before amending a tracked-item invoice';
+    END IF;
+    IF NOT EXISTS (
+      SELECT 1 FROM public.inventory_locations il
+      WHERE il.id = v_location
+        AND il.business_id = inv.business_id
+        AND il.is_active
+    ) THEN
+      RAISE EXCEPTION 'Inventory location is invalid';
+    END IF;
+    IF v_location IS NOT NULL THEN
+      FOR v_product_row IN SELECT l.product_service_id,l.quantity,p.inventory_tracked,l.sort_order,nullif(p_items->l.sort_order->>'batch_number','') batch_number,nullif(p_items->l.sort_order->>'serial_number','') serial_number FROM pg_temp.mm_invoice_amend_lines l JOIN public.products_services p ON p.id=l.product_service_id WHERE l.product_service_id IS NOT NULL AND p.inventory_tracked LOOP
+        SELECT average_cost,quantity_on_hand INTO v_cost,v_stock FROM public.inventory_balances WHERE business_id=inv.business_id AND location_id=v_location AND product_service_id=v_product_row.product_service_id FOR UPDATE;
+        -- The movement trigger enforces stock policy on the eventual sale
+        -- movement; retain cost information for COGS even when negative stock is allowed.
+        IF v_cost IS NULL THEN
+          SELECT coalesce(ps.purchase_price, 0) INTO v_cost
+          FROM public.products_services ps
+          WHERE ps.id = v_product_row.product_service_id
+            AND ps.business_id = inv.business_id;
+        END IF;
+        v_cost := coalesce(v_cost, 0);
+        v_cogs_total:=v_cogs_total+round(v_product_row.quantity*v_cost,2);
+
+        INSERT INTO public.inventory_movements(business_id,location_id,product_service_id,movement_type,quantity,unit_cost,reference_type,reference_id,batch_number,serial_number,created_by) VALUES(inv.business_id,v_location,v_product_row.product_service_id,'sale',v_product_row.quantity,v_cost,'invoice',inv.id,v_product_row.batch_number,v_product_row.serial_number,auth.uid());
+      END LOOP;
+    END IF;
+  END IF;
+
+  IF inv.journal_entry_id IS NOT NULL AND v_financial_change THEN
+    SELECT id INTO v_account_ar FROM public.accounts WHERE business_id=inv.business_id AND code='1100' AND is_active;
+    SELECT id INTO v_account_sales FROM public.accounts WHERE business_id=inv.business_id AND code='4000' AND is_active;
+    SELECT id INTO v_account_tax FROM public.accounts WHERE business_id=inv.business_id AND code='2100' AND is_active;
+    SELECT id INTO v_account_inventory FROM public.accounts WHERE business_id=inv.business_id AND code='1200' AND is_active;
+    SELECT id INTO v_account_cogs FROM public.accounts WHERE business_id=inv.business_id AND code='5000' AND is_active;
+    IF v_account_ar IS NULL OR v_account_sales IS NULL THEN RAISE EXCEPTION 'Default AR or Sales account is missing'; END IF;
+    PERFORM pg_advisory_xact_lock(hashtext('journal-entry-number:'||inv.business_id::text));
+    SELECT coalesce(max(entry_number),0)+1 INTO v_journal_number FROM public.journal_entries WHERE business_id=inv.business_id;
+    INSERT INTO public.journal_entries(
+      business_id,entry_number,entry_date,description,source_type,source_id,status,
+      created_by,currency_code,total_debit,total_credit,is_system_generated
+    ) VALUES(
+      inv.business_id,v_journal_number,coalesce(p_invoice_date,inv.invoice_date),
+      'Invoice '||inv.invoice_number||' (corrected)','invoice_correction',inv.id,'draft',
+      coalesce(inv.created_by,auth.uid()),inv.currency_code,0,0,true
+    ) RETURNING id INTO v_journal;
+    INSERT INTO public.journal_lines(journal_entry_id,account_id,description,debit,credit,currency_code,exchange_rate,exchange_rate_source,exchange_rate_timestamp,entity_type,entity_id) VALUES(v_journal,v_account_ar,'Invoice receivable',(SELECT total FROM pg_temp.mm_invoice_amend_totals),0,inv.currency_code,v_exchange_rate,v_exchange_rate_source,v_exchange_rate_timestamp,'customer',p_customer_id),(v_journal,v_account_sales,'Sales revenue',0,(SELECT subtotal-discount FROM pg_temp.mm_invoice_amend_totals),inv.currency_code,v_exchange_rate,v_exchange_rate_source,v_exchange_rate_timestamp,NULL,NULL);
+    IF (SELECT tax FROM pg_temp.mm_invoice_amend_totals)>0 THEN IF v_account_tax IS NULL THEN RAISE EXCEPTION 'Output tax account is missing'; END IF; INSERT INTO public.journal_lines(journal_entry_id,account_id,description,debit,credit,currency_code,exchange_rate,exchange_rate_source,exchange_rate_timestamp) VALUES(v_journal,v_account_tax,'Output tax',0,(SELECT tax FROM pg_temp.mm_invoice_amend_totals),inv.currency_code,v_exchange_rate,v_exchange_rate_source,v_exchange_rate_timestamp); END IF;
+    IF v_cogs_total>0 THEN IF v_account_cogs IS NULL OR v_account_inventory IS NULL THEN RAISE EXCEPTION 'Inventory accounting accounts are missing'; END IF; INSERT INTO public.journal_lines(journal_entry_id,account_id,description,debit,credit,currency_code,exchange_rate,exchange_rate_source,exchange_rate_timestamp) VALUES(v_journal,v_account_cogs,'Cost of goods sold',v_cogs_total,0,inv.currency_code,v_exchange_rate,v_exchange_rate_source,v_exchange_rate_timestamp),(v_journal,v_account_inventory,'Inventory asset reduction',0,v_cogs_total,inv.currency_code,v_exchange_rate,v_exchange_rate_source,v_exchange_rate_timestamp); END IF;
+    UPDATE public.journal_entries SET entry_date=coalesce(p_invoice_date,entry_date),description='Invoice '||inv.invoice_number,total_debit=(SELECT total FROM pg_temp.mm_invoice_amend_totals)+v_cogs_total,total_credit=(SELECT total FROM pg_temp.mm_invoice_amend_totals)+v_cogs_total,updated_at=now() WHERE id=v_journal;
+    PERFORM public.validate_journal_entry_balance(v_journal);
+    UPDATE public.journal_entries SET status='posted',posted_at=now(),posted_by=auth.uid(),updated_at=now()
+    WHERE id=v_journal;
+    PERFORM public.validate_journal_entry_balance(v_journal);
+    UPDATE public.invoices SET journal_entry_id=v_journal,updated_at=now() WHERE id=inv.id;
+  END IF;
+
+  UPDATE public.invoices SET status=case when v_paid >= (SELECT total FROM pg_temp.mm_invoice_amend_totals) then 'paid'::invoice_status when v_paid>0 AND coalesce(p_due_date,inv.due_date)<current_date then 'overdue'::invoice_status when v_paid>0 then 'partially_paid'::invoice_status when coalesce(p_due_date,inv.due_date)<current_date then 'overdue'::invoice_status WHEN inv.journal_entry_id IS NULL THEN 'draft'::invoice_status ELSE 'sent'::invoice_status END,updated_at=now() WHERE id=inv.id;
+  RETURN inv.id;
+END;
+$function$
+
+
+CREATE OR REPLACE FUNCTION public.update_bill_any_state(p_bill_id uuid, p_vendor_id uuid, p_bill_date date, p_due_date date, p_items jsonb, p_supply_type text, p_reverse_charge boolean, p_tax_inclusive boolean, p_notes text DEFAULT NULL::text, p_terms text DEFAULT NULL::text)
+ RETURNS uuid
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public', 'pg_temp'
+AS $function$
+DECLARE
+  b public.bills%rowtype;
+  v_paid numeric := 0;
+  v_subtotal numeric := 0;
+  v_discount numeric := 0;
+  v_tax numeric := 0;
+  v_total numeric := 0;
+  v_item jsonb;
+  v_product uuid;
+  v_qty numeric;
+  v_price numeric;
+  v_disc_type text;
+  v_disc_value numeric;
+  v_gross numeric;
+  v_disc numeric;
+  v_net numeric;
+  v_base numeric;
+  v_tax_rate numeric;
+  v_tax_amount numeric;
+  v_line_total numeric;
+  v_desc text;
+  v_tax_registered boolean := false;
+  v_tax_creditable boolean := false;
+  v_ap uuid;
+  v_inventory uuid;
+  v_expense uuid;
+  v_input_tax uuid;
+  v_location uuid;
+  v_entry uuid;
+  v_entry_number bigint;
+  v_line record;
+  v_old_qty numeric;
+  v_old_cost numeric;
+  v_unit_cost numeric;
+  v_journal_was_posted boolean := false;
+  v_status public.bill_status;
+BEGIN
+  SELECT * INTO b
+  FROM public.bills
+  WHERE id = p_bill_id
+  FOR UPDATE;
+
+  IF b.id IS NULL THEN
+    RAISE EXCEPTION 'Purchase bill not found';
+  END IF;
+
+  IF b.status = 'void' THEN
+    RAISE EXCEPTION 'Void purchase bills cannot be edited';
+  END IF;
+
+  IF NOT (
+    mm_private.has_business_permission(b.business_id, 'purchases.manage')
+    OR mm_private.has_business_permission(b.business_id, 'accounting.adjust')
+  ) THEN
+    RAISE EXCEPTION 'Access denied';
+  END IF;
+
+  IF b.journal_entry_id IS NOT NULL AND upper(b.currency_code) IS DISTINCT FROM upper((
+    SELECT coalesce(nullif(btrim(base_currency_code),''),nullif(btrim(currency_code),''),'INR')
+    FROM public.businesses WHERE id=b.business_id
+  )) THEN
+    RAISE EXCEPTION 'Corrections to posted foreign-currency purchase bills are disabled until reversal/repost retains source FX booking values; use a source-rate supplier credit for value reductions';
+  END IF;
+
+  IF jsonb_typeof(coalesce(p_items, '[]'::jsonb)) <> 'array'
+     OR jsonb_array_length(coalesce(p_items, '[]'::jsonb)) = 0 THEN
+    RAISE EXCEPTION 'Purchase bill must contain at least one item';
+  END IF;
+
+  IF p_vendor_id IS NULL OR NOT EXISTS (
+    SELECT 1 FROM public.vendors
+    WHERE id = p_vendor_id AND business_id = b.business_id AND is_active
+  ) THEN
+    RAISE EXCEPTION 'Vendor not found or inactive';
+  END IF;
+
+  SELECT coalesce(sum(vpa.amount), 0)
+  INTO v_paid
+  FROM public.vendor_payment_allocations vpa
+  WHERE vpa.bill_id = b.id;
+
+  IF p_vendor_id <> b.vendor_id AND v_paid > 0 THEN
+    RAISE EXCEPTION 'A paid purchase bill cannot change supplier. Correct supplier identity through a controlled reallocation/refund workflow.';
+  END IF;
+
+  IF b.journal_entry_id IS NULL AND v_paid > 0 THEN
+    RAISE EXCEPTION 'Purchase bill has payments but no posted accounting entry. Repair the accounting state before editing.';
+  END IF;
+
+  IF b.journal_entry_id IS NOT NULL THEN
+    IF NOT mm_private.has_business_permission(b.business_id, 'accounting.adjust') THEN
+      RAISE EXCEPTION 'Accounting adjustment permission required to edit a posted purchase bill';
+    END IF;
+    PERFORM public.assert_accounting_period_open(b.business_id, b.bill_date);
+    PERFORM public.assert_accounting_period_open(b.business_id, coalesce(p_bill_date, b.bill_date));
+    v_journal_was_posted := true;
+  END IF;
+
+  SELECT
+    coalesce((bp.tax_regime = 'GST'), false),
+    coalesce((bp.tax_regime = 'GST' AND bp.gst_registration_type <> 'COMPOSITION'), false)
+  INTO v_tax_registered, v_tax_creditable
+  FROM public.business_tax_profiles bp
+  WHERE bp.business_id = b.business_id;
+
+  FOR v_item IN SELECT * FROM jsonb_array_elements(p_items) LOOP
+    v_product := nullif(v_item->>'product_service_id', '')::uuid;
+    v_qty := coalesce((v_item->>'quantity')::numeric, 0);
+    v_price := coalesce((v_item->>'unit_price')::numeric, 0);
+    v_desc := nullif(trim(v_item->>'description'), '');
+    v_disc_type := nullif(v_item->>'discount_type', '');
+    IF v_disc_type = 'fixed' THEN v_disc_type := 'amount'; END IF;
+    v_disc_value := coalesce((v_item->>'discount_value')::numeric, (v_item->>'discount')::numeric, 0);
+
+    IF v_desc IS NULL AND v_product IS NOT NULL THEN
+      SELECT name INTO v_desc
+      FROM public.products_services
+      WHERE id = v_product AND business_id = b.business_id;
+    END IF;
+
+    IF v_qty <= 0 OR v_price < 0 OR v_desc IS NULL THEN
+      RAISE EXCEPTION 'Invalid purchase bill item';
+    END IF;
+
+    IF v_product IS NOT NULL AND NOT EXISTS (
+      SELECT 1 FROM public.products_services
+      WHERE id = v_product AND business_id = b.business_id AND is_active AND purchase_enabled
+    ) THEN
+      RAISE EXCEPTION 'Product/service not found or purchase-disabled';
+    END IF;
+
+    IF v_disc_type IS NOT NULL AND v_disc_type NOT IN ('amount', 'percentage') THEN
+      RAISE EXCEPTION 'Invalid line discount type';
+    END IF;
+    IF v_disc_value < 0 THEN
+      RAISE EXCEPTION 'Discount value cannot be negative';
+    END IF;
+
+    v_gross := round(v_qty * v_price, 2);
+    v_disc := CASE
+      WHEN v_disc_type = 'percentage' THEN round(v_gross * v_disc_value / 100, 2)
+      ELSE least(round(v_disc_value, 2), v_gross)
+    END;
+    v_net := greatest(v_gross - v_disc, 0);
+
+    IF v_tax_registered THEN
+      v_tax_rate := coalesce((
+        SELECT rate FROM public.tax_rates
+        WHERE id = nullif(v_item->>'tax_rate_id', '')::uuid
+          AND business_id = b.business_id AND is_active
+      ), 0);
+    ELSE
+      v_tax_rate := 0;
+    END IF;
+
+    IF p_tax_inclusive AND v_tax_rate > 0 THEN
+      v_base := round(v_net / (1 + v_tax_rate / 100), 2);
+      v_tax_amount := round(v_net - v_base, 2);
+    ELSE
+      v_base := round(v_net, 2);
+      v_tax_amount := round(v_base * v_tax_rate / 100, 2);
+    END IF;
+
+    v_line_total := round(v_base + v_tax_amount, 2);
+    v_subtotal := v_subtotal + v_base;
+    v_discount := v_discount + v_disc;
+    v_tax := v_tax + v_tax_amount;
+  END LOOP;
+
+  v_total := round(v_subtotal + v_tax, 2);
+
+  IF v_total <= 0 THEN
+    RAISE EXCEPTION 'Corrected purchase bill total must be greater than zero';
+  END IF;
+
+  IF v_total < v_paid THEN
+    RAISE EXCEPTION 'Corrected purchase bill total cannot be below supplier payments already made (%). Correct/refund the payment first.', v_paid;
+  END IF;
+
+  -- Reverse the previous inventory movement before changing the bill. A correction
+  -- is rejected when the current balance cannot safely absorb that reversal.
+  IF v_journal_was_posted THEN
+    FOR v_line IN
+      SELECT location_id, product_service_id, quantity, unit_cost, batch_number, serial_number
+      FROM public.inventory_movements
+      WHERE reference_type = 'bill'
+        AND reference_id = b.id
+        AND movement_type = 'purchase'
+    LOOP
+      SELECT quantity_on_hand, average_cost
+      INTO v_old_qty, v_old_cost
+      FROM public.inventory_balances
+      WHERE business_id = b.business_id
+        AND location_id = v_line.location_id
+        AND product_service_id = v_line.product_service_id
+      FOR UPDATE;
+
+      IF coalesce(v_old_qty, 0) + 0.000001 < v_line.quantity THEN
+        RAISE EXCEPTION 'Cannot safely correct purchase bill % because current stock is below the original purchased quantity for product %', b.bill_number, v_line.product_service_id;
+      END IF;
+
+
+      INSERT INTO public.inventory_movements(
+        business_id, location_id, product_service_id, movement_type, quantity,
+        unit_cost, reference_type, reference_id, batch_number, serial_number,
+        notes, created_by
+      )
+      VALUES(
+        b.business_id, v_line.location_id, v_line.product_service_id,
+        'adjustment_out', v_line.quantity, v_line.unit_cost,
+        'bill_amendment', b.id, v_line.batch_number, v_line.serial_number,
+        'Purchase bill correction reversal', auth.uid()
+      );
+    END LOOP;
+
+    PERFORM public.reverse_journal_entry(
+      b.journal_entry_id,
+      coalesce(p_bill_date, b.bill_date),
+      'Purchase bill correction: ' || b.bill_number,
+      auth.uid()
+    );
+  END IF;
+
+  UPDATE public.bills
+  SET vendor_id = p_vendor_id,
+      bill_date = coalesce(p_bill_date, bill_date),
+      due_date = coalesce(p_due_date, due_date),
+      subtotal = v_subtotal,
+      discount_total = v_discount,
+      tax_total = v_tax,
+      total = v_total,
+      amount_paid = v_paid,
+      balance_due = greatest(v_total - v_paid, 0),
+      notes = p_notes,
+      terms = p_terms,
+      supply_type = coalesce(nullif(p_supply_type, ''), supply_type),
+      reverse_charge = coalesce(p_reverse_charge, reverse_charge),
+      tax_inclusive = coalesce(p_tax_inclusive, tax_inclusive),
+      journal_entry_id = NULL,
+      status = 'draft',
+      updated_at = now()
+  WHERE id = b.id;
+
+  DELETE FROM public.bill_items WHERE bill_id = b.id;
+
+  FOR v_item IN SELECT value FROM jsonb_array_elements(p_items) WITH ORDINALITY AS x(value, ord) ORDER BY x.ord LOOP
+    v_product := nullif(v_item->>'product_service_id', '')::uuid;
+    v_qty := coalesce((v_item->>'quantity')::numeric, 0);
+    v_price := coalesce((v_item->>'unit_price')::numeric, 0);
+    v_desc := nullif(trim(v_item->>'description'), '');
+    IF v_desc IS NULL AND v_product IS NOT NULL THEN
+      SELECT name INTO v_desc FROM public.products_services WHERE id = v_product AND business_id = b.business_id;
+    END IF;
+    v_disc_type := nullif(v_item->>'discount_type', '');
+    IF v_disc_type = 'fixed' THEN v_disc_type := 'amount'; END IF;
+    v_disc_value := coalesce((v_item->>'discount_value')::numeric, (v_item->>'discount')::numeric, 0);
+    v_gross := round(v_qty * v_price, 2);
+    v_disc := CASE WHEN v_disc_type = 'percentage' THEN round(v_gross * v_disc_value / 100, 2) ELSE least(round(v_disc_value,2), v_gross) END;
+    v_net := greatest(v_gross - v_disc, 0);
+    IF v_tax_registered THEN
+      v_tax_rate := coalesce((SELECT rate FROM public.tax_rates WHERE id = nullif(v_item->>'tax_rate_id', '')::uuid AND business_id = b.business_id AND is_active), 0);
+    ELSE
+      v_tax_rate := 0;
+    END IF;
+    IF p_tax_inclusive AND v_tax_rate > 0 THEN
+      v_base := round(v_net / (1 + v_tax_rate / 100), 2);
+      v_tax_amount := round(v_net - v_base, 2);
+    ELSE
+      v_base := round(v_net, 2);
+      v_tax_amount := round(v_base * v_tax_rate / 100, 2);
+    END IF;
+    v_line_total := round(v_base + v_tax_amount, 2);
+    INSERT INTO public.bill_items(
+      bill_id, product_service_id, description, quantity, unit_price,
+      discount, discount_type, discount_value, tax_rate_id, tax_amount,
+      line_total, expense_account_id, sort_order
+    )
+    VALUES(
+      b.id, v_product, v_desc, v_qty, v_price, v_disc, CASE WHEN v_disc_type = 'amount' THEN 'fixed' ELSE v_disc_type END, v_disc_value,
+      nullif(v_item->>'tax_rate_id','')::uuid, v_tax_amount, v_line_total,
+      (SELECT expense_account_id FROM public.products_services WHERE id = v_product AND business_id = b.business_id),
+      ((SELECT count(*) FROM public.bill_items WHERE bill_id = b.id)::integer)
+    );
+  END LOOP;
+
+  IF v_journal_was_posted THEN
+    SELECT id INTO v_ap FROM public.accounts WHERE business_id=b.business_id AND code='2000' AND is_active;
+    SELECT id INTO v_inventory FROM public.accounts WHERE business_id=b.business_id AND code='1200' AND is_active;
+    SELECT id INTO v_expense FROM public.accounts WHERE business_id=b.business_id AND code='6000' AND is_active;
+    SELECT id INTO v_input_tax FROM public.accounts WHERE business_id=b.business_id AND code='1300' AND is_active;
+    SELECT id INTO v_location FROM public.inventory_locations WHERE business_id=b.business_id AND is_default AND is_active LIMIT 1;
+
+    IF v_ap IS NULL THEN RAISE EXCEPTION 'Accounts Payable account is missing'; END IF;
+    IF v_tax_registered AND v_tax_creditable AND v_tax > 0 AND v_input_tax IS NULL THEN
+      RAISE EXCEPTION 'Input GST account (1300) is missing';
+    END IF;
+
+    PERFORM pg_advisory_xact_lock(hashtext('journal-entry-number:' || b.business_id::text));
+    SELECT coalesce(max(entry_number),0)+1
+    INTO v_entry_number
+    FROM public.journal_entries
+    WHERE business_id=b.business_id;
+
+    INSERT INTO public.journal_entries(
+      business_id, entry_number, entry_date, description,
+      source_type, source_id, status, posted_at, posted_by, created_by,
+      currency_code, total_debit, total_credit, is_system_generated
+    )
+    VALUES(
+      b.business_id, v_entry_number, coalesce(p_bill_date,b.bill_date),
+      'Bill ' || b.bill_number || ' (corrected)',
+      'bill', b.id, 'posted', now(), auth.uid(), b.created_by,
+      b.currency_code, v_total, v_total, true
+    )
+    RETURNING id INTO v_entry;
+
+    FOR v_line IN
+      SELECT bi.*, ps.inventory_tracked, ps.purchase_price
+      FROM public.bill_items bi
+      LEFT JOIN public.products_services ps ON ps.id=bi.product_service_id
+      WHERE bi.bill_id=b.id
+      ORDER BY bi.sort_order
+    LOOP
+      v_tax_amount := CASE WHEN v_tax_registered AND v_tax_creditable THEN round(coalesce(v_line.tax_amount,0),2) ELSE 0 END;
+      v_base := round(coalesce(v_line.line_total,0) - v_tax_amount,2);
+
+      IF coalesce(v_line.inventory_tracked,false) AND v_inventory IS NOT NULL THEN
+        INSERT INTO public.journal_lines(journal_entry_id,account_id,description,debit,credit,currency_code)
+        VALUES(v_entry,v_inventory,v_line.description,v_base,0,b.currency_code);
+
+        IF v_location IS NOT NULL THEN
+          SELECT quantity_on_hand, average_cost
+          INTO v_old_qty, v_old_cost
+          FROM public.inventory_balances
+          WHERE business_id=b.business_id
+            AND location_id=v_location
+            AND product_service_id=v_line.product_service_id
+          FOR UPDATE;
+
+          v_unit_cost := coalesce(
+            v_base / nullif(v_line.quantity,0),
+            v_line.purchase_price,
+            0
+          );
+
+
+
+          INSERT INTO public.inventory_movements(
+            business_id,location_id,product_service_id,movement_type,quantity,unit_cost,
+            reference_type,reference_id,created_by
+          )
+          VALUES(
+            b.business_id,v_location,v_line.product_service_id,'purchase',v_line.quantity,
+            v_unit_cost,'bill',b.id,auth.uid()
+          );
+        END IF;
+      ELSE
+        INSERT INTO public.journal_lines(journal_entry_id,account_id,description,debit,credit,currency_code)
+        VALUES(
+          v_entry,
+          coalesce(v_line.expense_account_id,v_expense,v_inventory),
+          v_line.description,
+          v_base,
+          0,
+          b.currency_code
+        );
+      END IF;
+
+      IF v_tax_amount > 0 THEN
+        INSERT INTO public.journal_lines(journal_entry_id,account_id,description,debit,credit,currency_code)
+        VALUES(v_entry,v_input_tax,'Input GST / eligible tax credit',v_tax_amount,0,b.currency_code);
+      END IF;
+    END LOOP;
+
+    INSERT INTO public.journal_lines(journal_entry_id,account_id,description,debit,credit,currency_code)
+    VALUES(v_entry,v_ap,'Accounts payable',0,v_total,b.currency_code);
+
+    PERFORM public.validate_journal_entry_balance(v_entry);
+
+    UPDATE public.bills
+    SET journal_entry_id=v_entry,
+        status=CASE
+          WHEN v_paid >= v_total THEN 'paid'::bill_status
+          WHEN v_paid > 0 THEN 'partially_paid'::bill_status
+          WHEN coalesce(p_due_date,b.due_date) < current_date THEN 'overdue'::bill_status
+          ELSE 'received'::bill_status
+        END,
+        updated_at=now()
+    WHERE id=b.id;
+  ELSE
+    UPDATE public.bills
+    SET status='draft'::bill_status,
+        updated_at=now()
+    WHERE id=b.id;
+  END IF;
+
+  RETURN b.id;
+END;
+$function$
+
+
 -- Seed realized FX gain/loss accounts idempotently for existing businesses; no posted ledger is rewritten.
 INSERT INTO public.accounts(business_id,code,name,account_type,normal_balance,is_system,is_active,description)
 SELECT b.id,'4050','Realized FX Gain','income','credit',true,true,'Realized foreign-exchange gains on settlement'
