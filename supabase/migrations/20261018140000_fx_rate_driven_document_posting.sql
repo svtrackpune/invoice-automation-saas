@@ -89,6 +89,119 @@ CREATE TRIGGER trg_fx_rates_used_immutable
 BEFORE UPDATE OR DELETE ON public.fx_rates
 FOR EACH ROW EXECUTE FUNCTION mm_private.guard_used_fx_rate_mutation();
 
+-- Keep the explicit validator and deferred LED-001 constraint guard consistent with dual-currency journals.
+CREATE OR REPLACE FUNCTION public.validate_journal_entry_balance(p_entry_id uuid)
+RETURNS boolean
+LANGUAGE plpgsql
+SET search_path TO 'public'
+AS $function$
+DECLARE
+  v_business_id uuid;
+  v_business_base char(3);
+  v_line_count integer;
+  v_transaction_debit numeric;
+  v_transaction_credit numeric;
+  v_base_debit numeric;
+  v_base_credit numeric;
+  v_currency_count integer;
+BEGIN
+  SELECT je.business_id,upper(coalesce(nullif(btrim(b.base_currency_code),''),nullif(btrim(b.currency_code),''),'INR'))
+    INTO v_business_id,v_business_base
+  FROM public.journal_entries je
+  JOIN public.businesses b ON b.id=je.business_id
+  WHERE je.id=p_entry_id;
+  IF v_business_id IS NULL THEN RAISE EXCEPTION 'Journal entry not found'; END IF;
+
+  SELECT count(*),coalesce(sum(debit),0),coalesce(sum(credit),0),
+         coalesce(sum(CASE WHEN debit>0 THEN base_amount ELSE 0 END),0),
+         coalesce(sum(CASE WHEN credit>0 THEN base_amount ELSE 0 END),0),
+         count(DISTINCT transaction_currency_code)
+    INTO v_line_count,v_transaction_debit,v_transaction_credit,v_base_debit,v_base_credit,v_currency_count
+  FROM public.journal_lines WHERE journal_entry_id=p_entry_id;
+
+  IF v_line_count<2 THEN RAISE EXCEPTION 'Journal entry must contain at least two lines'; END IF;
+  IF EXISTS(
+    SELECT 1 FROM public.journal_lines jl
+    WHERE jl.journal_entry_id=p_entry_id
+      AND upper(coalesce(nullif(btrim(jl.base_currency_code),''),v_business_base)) IS DISTINCT FROM v_business_base
+  ) THEN
+    RAISE EXCEPTION 'Journal entry contains a line with a base currency different from the business base currency';
+  END IF;
+  IF v_currency_count<=1 AND round(v_transaction_debit,2)<>round(v_transaction_credit,2) THEN
+    RAISE EXCEPTION 'Journal entry is not balanced in transaction currency: debit %, credit %',v_transaction_debit,v_transaction_credit;
+  END IF;
+  IF round(v_base_debit,2)<>round(v_base_credit,2) THEN
+    RAISE EXCEPTION 'Journal entry is not balanced in business base currency: debit %, credit %',v_base_debit,v_base_credit;
+  END IF;
+  RETURN true;
+END;
+$function$;
+
+CREATE OR REPLACE FUNCTION public.fn_validate_journal_entry_balance()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path TO 'public','pg_temp'
+AS $function$
+DECLARE
+  v_ids uuid[];
+  v_id uuid;
+  v_status text;
+  v_business_id uuid;
+  v_business_base char(3);
+  v_count bigint;
+  v_debit numeric;
+  v_credit numeric;
+  v_base_debit numeric;
+  v_base_credit numeric;
+  v_currency_count integer;
+BEGIN
+  IF TG_TABLE_NAME='journal_entries' THEN
+    IF TG_OP='DELETE' THEN v_ids := ARRAY[OLD.id]; ELSE v_ids := ARRAY[NEW.id]; END IF;
+  ELSIF TG_OP='INSERT' THEN v_ids := ARRAY[NEW.journal_entry_id];
+  ELSIF TG_OP='DELETE' THEN v_ids := ARRAY[OLD.journal_entry_id];
+  ELSE v_ids := ARRAY[OLD.journal_entry_id,NEW.journal_entry_id];
+  END IF;
+
+  FOREACH v_id IN ARRAY v_ids LOOP
+    IF v_id IS NULL THEN CONTINUE; END IF;
+    SELECT je.status::text,je.business_id,
+           upper(coalesce(nullif(btrim(b.base_currency_code),''),nullif(btrim(b.currency_code),''),'INR'))
+      INTO v_status,v_business_id,v_business_base
+    FROM public.journal_entries je
+    JOIN public.businesses b ON b.id=je.business_id
+    WHERE je.id=v_id;
+    IF NOT FOUND THEN CONTINUE; END IF;
+    IF v_status IN ('posted','locked') THEN
+      SELECT count(*),round(coalesce(sum(debit),0),2),round(coalesce(sum(credit),0),2),
+             round(coalesce(sum(CASE WHEN debit>0 THEN base_amount ELSE 0 END),0),2),
+             round(coalesce(sum(CASE WHEN credit>0 THEN base_amount ELSE 0 END),0),2),
+             count(DISTINCT transaction_currency_code)
+        INTO v_count,v_debit,v_credit,v_base_debit,v_base_credit,v_currency_count
+      FROM public.journal_lines WHERE journal_entry_id=v_id;
+
+      IF EXISTS(
+        SELECT 1 FROM public.journal_lines jl
+        WHERE jl.journal_entry_id=v_id
+          AND upper(coalesce(nullif(btrim(jl.base_currency_code),''),v_business_base)) IS DISTINCT FROM v_business_base
+      ) THEN
+        RAISE EXCEPTION 'LED-001 VIOLATION: journal entry % contains a line with a non-business base currency',v_id
+          USING ERRCODE='23514',CONSTRAINT='journal_entries_balance_guard';
+      END IF;
+      IF v_count<2
+         OR (v_currency_count<=1 AND v_debit<>v_credit)
+         OR v_base_debit<>v_base_credit THEN
+        RAISE EXCEPTION
+          'LED-001 VIOLATION: journal entry % needs at least two lines and balanced base-currency totals (lines %, transaction debit %, transaction credit %, base debit %, base credit %)',
+          v_id,v_count,v_debit,v_credit,v_base_debit,v_base_credit
+          USING ERRCODE='23514',CONSTRAINT='journal_entries_balance_guard';
+      END IF;
+    END IF;
+  END LOOP;
+  RETURN NULL;
+END;
+$function$;
+
 -- Seed realized FX gain/loss accounts idempotently for existing businesses; no posted ledger is rewritten.
 INSERT INTO public.accounts(business_id,code,name,account_type,normal_balance,is_system,is_active,description)
 SELECT b.id,'4050','Realized FX Gain','income','credit',true,true,'Realized foreign-exchange gains on settlement'
