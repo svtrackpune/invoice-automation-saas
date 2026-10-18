@@ -49,7 +49,7 @@ export default function BusinessSettings(){
   const currency=String(fxCurrency||'').trim().toUpperCase();
   const base=String(business.base_currency_code||business.currency_code||'INR').trim().toUpperCase();
   const rate=Number(fxRateValue);
-  if(!/^\[A-Z\]{3}$/.test(currency)){setFxRateError(t('Choose a valid three-letter currency code.'));return}
+  if(!/^[A-Z]{3}$/.test(currency)){setFxRateError(t('Choose a valid three-letter currency code.'));return}
   if(currency===base){setFxRateError(t('The base currency uses a rate of 1 and does not need an exchange-rate row.'));return}
   if(!fxRateDate||!Number.isFinite(rate)||rate<=0){setFxRateError(t('Enter an effective date and a positive exchange rate.'));return}
   if(!fxSource.trim()){setFxRateError(t('Enter the source or reference for this rate.'));return}
