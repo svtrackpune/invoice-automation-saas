@@ -430,8 +430,8 @@ export function translate(locale: string | null | undefined, sourceText: string)
 }
 
 export function translatedLocaleCoverage(locale: string | null | undefined): 'translated' | 'english-fallback' {
-  const normalized = dictionaryLocale(locale || 'en-IN');
-  return normalized === 'mr-IN' || normalized === 'hi-IN' || normalized === 'en-IN'
+  const normalized = String(locale || 'en-IN').toLowerCase();
+  return normalized.startsWith('en-') || normalized.startsWith('mr-') || normalized.startsWith('hi-')
     ? 'translated'
     : 'english-fallback';
 }
