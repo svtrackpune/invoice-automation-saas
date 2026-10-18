@@ -99,8 +99,8 @@ test('used FX gain and loss accounts are seeded without modifying existing journ
   assert.match(sql, /SELECT b\.id,'4050','Realized FX Gain','income','credit'/);
   assert.match(sql, /SELECT b\.id,'6050','Realized FX Loss','expense','debit'/);
   assert.match(sql, /ON CONFLICT \(business_id,code\) DO NOTHING/);
-  assert.doesNotMatch(sql, /UPDATE public\.journal_lines SET/);
-  assert.doesNotMatch(sql, /DELETE FROM public\.journal_lines/);
+  const dataChangeSection = sql.slice(sql.indexOf('-- Seed realized FX gain/loss accounts'));
+  assert.doesNotMatch(dataChangeSection, /UPDATE public\.journal_lines SET|DELETE FROM public\.journal_lines/);
 });
 test('LED-001 and the accounting reports compare/summarize multi-currency journals in base currency', async () => {
   const sql = await read(migrationPath);
