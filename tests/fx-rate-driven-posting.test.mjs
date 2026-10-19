@@ -242,7 +242,7 @@ test('FX migration reuses the existing base-currency immutability guard without 
     read('supabase/migrations/20261002130000_global_multi_currency_v1.sql'),
   ]);
   const guardStart = foundation.indexOf('CREATE OR REPLACE FUNCTION public.guard_business_base_currency_change()');
-  const guardEnd = foundation.indexOf('$function$', foundation.indexOf('$function$', guardStart + 1) + 1);
+  const guardEnd = foundation.indexOf('$$', foundation.indexOf('$$', guardStart + 1) + 2);
   assert.ok(guardStart >= 0 && guardEnd > guardStart);
   const guard = foundation.slice(guardStart, guardEnd + '$function$'.length);
   assert.match(guard, /NEW\.base_currency_code IS DISTINCT FROM OLD\.base_currency_code/);
