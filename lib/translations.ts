@@ -526,6 +526,8 @@ const dictionaries: Record<TranslationLocale, Record<string, string>> = {
     'No prior baseline': 'मागील तुलनेसाठी आधार उपलब्ध नाही',
     'vs last month': 'मागील महिन्याच्या तुलनेत',
     'Language saved, but the locale cookie could not be synchronized.': 'भाषा जतन झाली, परंतु लोकेल कुकी समक्रमित करता आली नाही.',
+    'Sales': 'विक्री',
+    'Purchases': 'खरेदी',
     'Automation alerts': 'ऑटोमेशन सूचना',
     'Failures and important automation events.': 'त्रुटी आणि महत्त्वाच्या ऑटोमेशन घटनांच्या सूचना.',
   },
