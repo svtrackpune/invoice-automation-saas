@@ -1,86 +1,32 @@
-name: Deploy Production (Plesk / mm.nilanga.in)
+name: Plesk Deployment (Manual Only — No SSH)
 
+# Production is updated manually from Plesk. This workflow must never SSH to
+# production or deploy automatically after CI; it is only a reminder when
+# explicitly dispatched by an operator.
 on:
-  workflow_run:
-    workflows: ["CI"]
-    types:
-      - completed
-    branches:
-      - main
   workflow_dispatch:
 
 permissions:
   contents: read
 
-concurrency:
-  group: deploy-production
-  cancel-in-progress: false
-
 jobs:
-  deploy:
+  manual-only:
+    name: Manual Plesk deployment reminder (does not deploy)
     runs-on: ubuntu-latest
-    timeout-minutes: 20
-    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
-    env:
-      PROD_SSH_HOST: ${{ secrets.PROD_SSH_HOST }}
-      PROD_SSH_USER: ${{ secrets.PROD_SSH_USER }}
-      PROD_SSH_KEY: ${{ secrets.PROD_SSH_KEY }}
-      PROD_SSH_PORT: ${{ secrets.PROD_SSH_PORT || 22 }}
     steps:
-      - name: Validate Deployment Secrets
-        id: preflight
+      - name: Show manual deployment instructions
         shell: bash
         run: |
-          set -euo pipefail
-          missing=()
-          [[ -n "${PROD_SSH_HOST:-}" ]] || missing+=("PROD_SSH_HOST")
-          [[ -n "${PROD_SSH_USER:-}" ]] || missing+=("PROD_SSH_USER")
-          [[ -n "${PROD_SSH_KEY:-}" ]] || missing+=("PROD_SSH_KEY")
-
-          if (("${#missing[@]}" > 0)); then
-            printf '::error::Deployment halted. Missing repository Actions secrets:%s\n' "$(printf ' %s' "${missing[@]}")"
-            echo "Configure the listed secrets in GitHub Settings -> Secrets and variables -> Actions."
-            exit 1
-          fi
-
-          if [[ ! "${PROD_SSH_PORT:-}" =~ ^[0-9]+$ ]] || (( PROD_SSH_PORT < 1 || PROD_SSH_PORT > 65535 )); then
-            echo "::error::PROD_SSH_PORT must be an integer between 1 and 65535 (or leave it unset to use port 22)."
-            exit 1
-          fi
-
-          echo "deploy_enabled=true" >> "$GITHUB_OUTPUT"
-          echo "All required deployment secrets are present; SSH deployment can proceed."
-
-      - name: Execute Remote Deployment & Rebuild
-        if: steps.preflight.outputs.deploy_enabled == 'true'
-        uses: appleboy/ssh-action@7eaf76671a0d7eec5d98ee897acda4f968735a17 # v1.2.0
-        with:
-          host: ${{ env.PROD_SSH_HOST }}
-          username: ${{ env.PROD_SSH_USER }}
-          key: ${{ env.PROD_SSH_KEY }}
-          port: ${{ env.PROD_SSH_PORT }}
-          ssh_args: "-o StrictHostKeyChecking=no"
-          script: |
-            set -eu
-            cd /var/www/vhosts/nilanga.in/mm.nilanga.in
-            TARGET_SHA="${{ github.event.workflow_run.head_sha || github.sha }}"
-            if ! printf '%s\n' "$TARGET_SHA" | grep -Eq '^[0-9a-f]{40}$'; then
-              echo "Refusing deployment: invalid target commit SHA."
-              exit 1
-            fi
-            echo "Deploying verified commit: $TARGET_SHA"
-            git fetch origin "$TARGET_SHA"
-            git reset --hard "$TARGET_SHA"
-            rm -rf .next
-            npm ci --prefer-offline --no-audit
-            npm run build
-            mkdir -p tmp && touch tmp/restart.txt
-
-      - name: Verify Live Endpoints
-        if: steps.preflight.outputs.deploy_enabled == 'true'
-        shell: bash
-        run: |
-          set -euo pipefail
-          sleep 10
-          curl -f -sS --max-time 10 https://mm.nilanga.in/healthz | grep -q '"status":"healthy"'
-          curl -f -sS --max-time 15 https://mm.nilanga.in/readyz | grep -q '"database":"connected"'
+          {
+            echo "## Manual Plesk deployment required"
+            echo
+            echo "**No deployment was performed by this workflow.** No SSH connection"
+            echo "was attempted and no production files were changed."
+            echo
+            echo "Use the existing manual Plesk procedure to pull the intended commit"
+            echo "from `main`, then rebuild/restart using the established Plesk process."
+            echo
+            echo "Before pulling, confirm the corresponding CI run has passed:"
+            echo "https://github.com/svtrackpune/invoice-automation-saas/actions/workflows/ci.yml"
+          } >> "$GITHUB_STEP_SUMMARY"
+          echo "::notice::Manual Plesk deployment is operator-managed; this workflow does not deploy."
