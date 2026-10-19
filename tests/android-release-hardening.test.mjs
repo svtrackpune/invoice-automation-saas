@@ -20,12 +20,12 @@ test('release has a production version, shrink settings and env signing',()=>{
  assert.match(appBuild,/minifyEnabled true/);assert.match(appBuild,/shrinkResources true/);assert.match(appBuild,/ANDROID_KEYSTORE_PASSWORD/);
  assert.match(appBuild,/ANDROID_KEY_ALIAS/);assert.match(appBuild,/ANDROID_KEY_PASSWORD/);
 });
-test('AAB workflow pins Java 17, preserves SDK 36, and requires signing',()=>{
- assert.match(workflow,/java-version: '17'/);assert.match(workflow,/ANDROID_KEYSTORE_BASE64/);
+test('Android workflows use Java 21, preserve SDK 36, and require signing',()=>{
+ assert.match(workflow,/java-version: '21'/);assert.match(workflow,/ANDROID_KEYSTORE_BASE64/);
  assert.match(workflow,/git checkout -- android\/app\/build\.gradle android\/variables\.gradle/);
  assert.match(workflow,/grep -Fq 'compileSdk 36' android\/app\/build\.gradle/);
  assert.match(workflow,/gradlew bundleRelease -PrequireReleaseSigning=true/);assert.match(workflow,/app-release\.aab/);
- assert.match(nativeWorkflow,/java-version: '17'/);
+ assert.match(nativeWorkflow,/java-version: '21'/);
  assert.match(nativeWorkflow,/git checkout -- android\/app\/build\.gradle android\/variables\.gradle/);
  assert.match(nativeWorkflow,/grep -Fq 'compileSdk 36' android\/app\/build\.gradle/);
 
