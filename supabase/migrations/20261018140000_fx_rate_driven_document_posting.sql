@@ -4364,36 +4364,6 @@ END;
 $function$;
 
 
--- Keep the business base currency immutable once its ledger has posted entries.
--- Otherwise old journal carrying values and base-currency-only expenses become mislabelled.
-CREATE OR REPLACE FUNCTION mm_private.guard_business_base_currency_change()
-RETURNS trigger
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path TO 'public','mm_private','pg_temp'
-AS $function$
-DECLARE
-  v_old_base char(3);
-  v_new_base char(3);
-BEGIN
-  v_old_base:=upper(coalesce(nullif(btrim(OLD.base_currency_code),''),nullif(btrim(OLD.currency_code),''),'INR'));
-  v_new_base:=upper(coalesce(nullif(btrim(NEW.base_currency_code),''),nullif(btrim(NEW.currency_code),''),'INR'));
-  IF v_old_base IS DISTINCT FROM v_new_base
-     AND EXISTS (
-       SELECT 1 FROM public.journal_entries je
-       WHERE je.business_id=OLD.id AND je.status='posted'
-     ) THEN
-    RAISE EXCEPTION 'Base/accounting currency cannot be changed after journal entries are posted. Create a controlled ledger conversion instead.';
-  END IF;
-  RETURN NEW;
-END;
-$function$;
-REVOKE ALL ON FUNCTION mm_private.guard_business_base_currency_change() FROM PUBLIC,anon,authenticated;
-DROP TRIGGER IF EXISTS trg_business_base_currency_immutable ON public.businesses;
-CREATE TRIGGER trg_business_base_currency_immutable
-BEFORE UPDATE OF base_currency_code ON public.businesses
-FOR EACH ROW EXECUTE FUNCTION mm_private.guard_business_base_currency_change();
-
 -- Seed realized FX gain/loss accounts idempotently; never rewrite existing journal history.
 INSERT INTO public.accounts(business_id,code,name,account_type,normal_balance,is_system,is_active,description)
 SELECT b.id,'4050','Realized FX Gain','income','credit',true,true,'Realized foreign-exchange gains on settlement'
