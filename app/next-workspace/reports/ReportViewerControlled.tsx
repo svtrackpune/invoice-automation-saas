@@ -1,6 +1,6 @@
 'use client';
 
-import { Fragment, useEffect, useMemo, useState } from 'react';
+import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import { supabase, type BusinessContext } from '@/lib/supabase';
 import { getCurrencyOptions } from '@/lib/i18n';
 import { PageHeader } from '@/components/ui/finops/PageHeader';
@@ -35,7 +35,7 @@ export default function ReportViewerControlled(p:Props){
  const[ctx,setCtx]=useState<BusinessContext|null>(null),[rows,setRows]=useState<ReportDataRow[]>([]),[periods,setPeriods]=useState<Period[]>([]),[currencyCode,setCurrencyCode]=useState('INR');
  const[range,setRange]=useState<RangeKey>(p.initialFrom?'custom':'mtd'),[from,setFrom]=useState(p.initialFrom||startFor('mtd')),[to,setTo]=useState(p.initialTo||today());
  const[groupBy,setGroupBy]=useState<GroupKey>(p.initialGroup||'none'),[status,setStatus]=useState<StatusKey>(p.initialStatus||'all'),[q,setQ]=useState(p.initialQuery||'');
- const[loading,setLoading]=useState(true),[error,setError]=useState(''),[saving,setSaving]=useState(false),[collapsed,setCollapsed]=useState<Record<string,boolean>>({});
+ const[loading,setLoading]=useState(true),[error,setError]=useState(''),[saving,setSaving]=useState(false),[collapsed,setCollapsed]=useState<Record<string,boolean>>({});const currencyInitialized=useRef(false);
  useEffect(()=>{if(range!=='custom'){setFrom(startFor(range));setTo(today())}},[range]);
 
  useEffect(()=>{
@@ -43,7 +43,7 @@ export default function ReportViewerControlled(p:Props){
   const load=async()=>{
    setLoading(true);setError('');
    const c=await supabase.rpc('get_my_business_context');const business=c.data?.[0] as BusinessContext|undefined;
-   if(!business){p.onBack();return}if(!active)return;setCtx(business);if(!ctx)setCurrencyCode(business.currency_code||'INR');
+   if(!business){p.onBack();return}if(!active)return;setCtx(business);if(!currencyInitialized.current){setCurrencyCode(business.currency_code||'INR');currencyInitialized.current=true;}
    const periodResult=await supabase.from('accounting_periods').select('period_start,period_end,status').eq('business_id',business.business_id).order('period_end',{ascending:false}).limit(24);
    if(active)setPeriods((periodResult.data||[]) as Period[]);
    try{const data=await fetchRows(template,business.business_id,from,to,currencyCode);if(active)setRows(data)}
@@ -61,7 +61,7 @@ export default function ReportViewerControlled(p:Props){
    const map=new Map<string,ReportDataRow[]>();filtered.forEach(row=>{const label=String(row.data[field]??'Unassigned')||'Unassigned';if(!map.has(label))map.set(label,[]);map.get(label)!.push(row)});
    return [...map.entries()].sort((a,b)=>a[0].localeCompare(b[0],undefined,{numeric:true,sensitivity:'base'})).map(([label,groupRows])=>({key:label,label,rows:groupRows}));
  },[filtered,groupBy,groupSupported,template]);
- const kpis=useMemo(()=>aggregateRows(template,filtered,currencyCode),[template,filtered,ctx?.currency_code]);
+ const kpis=useMemo(()=>aggregateRows(template,filtered,currencyCode),[template,filtered,currencyCode]);
  const lockedPeriods=useMemo(()=>periods.filter(x=>x.status==='closed'||x.status==='locked').filter(x=>x.period_start<=to&&x.period_end>=from),[periods,from,to]);
  const activeGroup=groupBy!=='none'&&groupSupported.has(groupBy);
 
