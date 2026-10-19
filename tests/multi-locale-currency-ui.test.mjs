@@ -155,3 +155,34 @@ test('operational reports use one explicitly selected transaction currency per r
   assert.match(report, /Transaction currency: \{currencyCode\}/);
   assert.match(definitions, /aggregateRows\(template:ReportTemplate,rows:ReportDataRow\[\],_currency:string\)/);
 });
+
+test('base-currency-only expense and POS screens format currency consistently and block non-INR UPI', async () => {
+  const [expense, cashPage, cashUi, thermal] = await Promise.all([
+    read('app/next-workspace/expenses/ExpenseWorkspaceControlled.tsx'),
+    read('app/next-workspace/cash-bill/page.tsx'),
+    read('app/next-workspace/cash-bill/CashBillControlled.tsx'),
+    read('lib/hardware/thermal-printer.ts'),
+  ]);
+  assert.match(expense, /businesses'\)\.select\('tax_settings,base_currency_code,currency_code'\)/);
+  assert.match(expense, /currency:baseCurrencyCode\|\|'INR'/);
+  assert.match(expense, /Expense amounts and totals are recorded in the business base currency/);
+  assert.match(expense, /Paid amount \(\$\{currencyCode\}\)/);
+  assert.match(expense, /Amount \(\$\{currencyCode\}\)/);
+  assert.match(expense, /currencyCode=\{baseCurrencyCode\} form=\{form\}/);
+  assert.match(expense, /currencyCode=\{baseCurrencyCode\} form=\{rf\}/);
+
+  assert.match(cashPage, /businesses'\)\.select\('name,base_currency_code,currency_code'\)/);
+  assert.match(cashPage, /baseCurrencyCode=String\(businessResult\.data\?\.base_currency_code/);
+  assert.match(cashPage, /UPI \/ QR settlement is only supported for an INR base currency/);
+  assert.match(cashPage, /baseCurrencyCode!=='INR'\|\|!upiId/);
+  assert.match(cashPage, /currencyCode:baseCurrencyCode/);
+  assert.match(cashPage, /CashBillControlled currencyCode=\{baseCurrencyCode\}/);
+
+  assert.match(cashUi, /currencyCode:string/);
+  assert.match(cashUi, /currencyCode='INR'/);
+  assert.match(cashUi, /p\.currencyCode!=='INR'\|\|!p\.upiBankLabel\|\|!p\.upiId/);
+  assert.match(cashUi, /<option value="amount">\{p\.currencyCode\}<\/option>/);
+  assert.match(thermal, /currencyCode\?: string/);
+  assert.match(thermal, /currencyCode === 'INR' \? '₹' : currencyCode \+ ' '/);
+});
+
