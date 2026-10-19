@@ -4162,7 +4162,7 @@ begin
  perform public.validate_journal_entry_balance(v_entry);
  update public.expenses set journal_entry_id=v_entry,updated_at=now() where id=e.id;
  return v_entry;
-end; $function$
+end; $function$;
 
 
 CREATE OR REPLACE FUNCTION public.update_expense_any_state(p_expense_id uuid, p_vendor_id uuid, p_expense_date date, p_description text, p_amount numeric, p_tax_amount numeric, p_account_id uuid, p_payment_account_id uuid, p_payment_method text DEFAULT NULL::text, p_reference text DEFAULT NULL::text, p_tax_creditable boolean DEFAULT false, p_expense_type text DEFAULT 'operating'::text, p_category_id uuid DEFAULT NULL::uuid, p_tax_rate numeric DEFAULT 0, p_tax_inclusive boolean DEFAULT true, p_tax_components jsonb DEFAULT '{}'::jsonb)
@@ -4361,7 +4361,7 @@ BEGIN
 
   RETURN e.id;
 END;
-$function$
+$function$;
 
 
 -- Keep the business base currency immutable once its ledger has posted entries.
