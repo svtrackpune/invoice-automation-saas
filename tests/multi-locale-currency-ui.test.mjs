@@ -139,3 +139,19 @@ test('document library displays each invoice, quotation, and receipt in its stor
   assert.match(library, /money\(row\.amount,row\.currencyCode\)/);
   assert.match(library, /sortBy==='amount'\?\(a\.currencyCode\.localeCompare\(b\.currencyCode\)\|\|Number\(a\.amount\)-Number\(b\.amount\)\)/);
 });
+
+test('operational reports use one explicitly selected transaction currency per run', async () => {
+  const [report, definitions] = await Promise.all([
+    read('app/next-workspace/reports/ReportViewerControlled.tsx'),
+    read('lib/reports/report-definitions.ts'),
+  ]);
+  assert.match(report, /const\[ctx,setCtx\][\s\S]*?\[currencyCode,setCurrencyCode\]=useState\('INR'\)/);
+  assert.match(report, /value=\{currencyCode\} onChange=\{e=>\{setCurrencyCode\(e\.target\.value\);setCollapsed\(\{\}\)\}\}/);
+  assert.match(report, /fetchRows\(template,business\.business_id,from,to,currencyCode\)/);
+  assert.match(report, /\},\[p\.reportId,from,to,currencyCode\]\)/);
+  assert.match(report, /invoices\.filter\(i=>i\.currency_code===currency\)/);
+  assert.match(report, /payments\.filter\(x=>x\.currency_code===currency/);
+  assert.match(report, /inv\.currency_code!==currency/);
+  assert.match(report, /Transaction currency: \{currencyCode\}/);
+  assert.match(definitions, /aggregateRows\(template:ReportTemplate,rows:ReportDataRow\[\],_currency:string\)/);
+});
