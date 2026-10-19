@@ -63,24 +63,7 @@ jobs:
             set -eu
             cd /var/www/vhosts/nilanga.in/mm.nilanga.in
             TARGET_SHA="${{ github.event.workflow_run.head_sha || github.sha }}"
-            if ! printf '%s\n' "$TARGET_SHA" | grep -Eq '^[0-9a-f]{40}
-            echo "Deploying verified commit: $TARGET_SHA"
-            git fetch origin "$TARGET_SHA"
-            git reset --hard "$TARGET_SHA"
-            rm -rf .next
-            npm ci --prefer-offline --no-audit
-            npm run build
-            mkdir -p tmp && touch tmp/restart.txt
-
-      - name: Verify Live Endpoints
-        if: steps.preflight.outputs.deploy_enabled == 'true'
-        shell: bash
-        run: |
-          set -euo pipefail
-          sleep 10
-          curl -f -sS --max-time 10 https://mm.nilanga.in/healthz | grep -q '"status":"healthy"'
-          curl -f -sS --max-time 15 https://mm.nilanga.in/readyz | grep -q '"database":"connected"'
-; then
+            if ! printf '%s\n' "$TARGET_SHA" | grep -Eq '^[0-9a-f]{40}$'; then
               echo "Refusing deployment: invalid target commit SHA."
               exit 1
             fi
