@@ -218,3 +218,34 @@ test('FX-aware credit/refund/allocation/correction routes stay blocked where sou
   assert.match(vendorRefund, /has_business_permission\(p_business_id,'payments\.receive'\)/);
   assert.match(customerRefund, /has_business_permission\(p_business_id,'payments\.receive'\)/);
 });
+
+test('expense posting and corrections use business base currency and post journal entries draft-first', async () => {
+  const sql = await read(migrationPath);
+  const postExpense = migrationFunction(sql, 'post_expense');
+  const updateExpense = migrationFunction(sql, 'update_expense_any_state');
+  assert.match(postExpense, /select upper\(coalesce\(nullif\(btrim\(base_currency_code\),''\),nullif\(btrim\(currency_code\),''\),'INR'\)\) into v_base_currency/);
+  assert.match(postExpense, /'expense',e\.id,'draft',NULL,NULL,e\.created_by,v_base_currency,0,0,true/);
+  assert.match(postExpense, /v_payment_account,e\.description,0,v_total,v_base_currency,'expense',e\.id/);
+  assert.match(postExpense, /total_debit=\(select coalesce\(sum\(base_amount\),0\)/);
+  assert.ok(postExpense.indexOf('insert into public.journal_lines') < postExpense.indexOf("set status='posted'"));
+  assert.match(postExpense, /Expense posting refused: journal entry/);
+  assert.match(updateExpense, /nullif\(btrim\(currency_code\),''\),'INR'\)\)/);
+  assert.match(updateExpense, /'expense',e\.id,'draft',NULL,NULL,e\.created_by/);
+  assert.match(updateExpense, /total_credit=\(SELECT coalesce\(sum\(base_amount\),0\)/);
+  assert.ok(updateExpense.indexOf('INSERT INTO public.journal_lines') < updateExpense.indexOf("SET status='posted'"));
+  assert.match(updateExpense, /Expense correction refused: journal entry/);
+});
+
+test('base currency cannot be changed after a business has posted accounting entries', async () => {
+  const sql = await read(migrationPath);
+  const guardStart = sql.indexOf('CREATE OR REPLACE FUNCTION mm_private.guard_business_base_currency_change()');
+  const guardEnd = sql.indexOf('$function$', sql.indexOf('$function$', guardStart + 1) + 1);
+  assert.ok(guardStart >= 0 && guardEnd > guardStart);
+  const guard = sql.slice(guardStart, guardEnd + '$function$'.length);
+  assert.match(guard, /v_old_base IS DISTINCT FROM v_new_base/);
+  assert.match(guard, /SELECT 1 FROM public\.journal_entries je/);
+  assert.match(guard, /je\.business_id=OLD\.id AND je\.status='posted'/);
+  assert.match(guard, /Base\/accounting currency cannot be changed after journal entries are posted/);
+  assert.match(sql, /CREATE TRIGGER trg_business_base_currency_immutable\s+BEFORE UPDATE OF base_currency_code ON public\.businesses/);
+  assert.match(sql, /REVOKE ALL ON FUNCTION mm_private\.guard_business_base_currency_change\(\) FROM PUBLIC,anon,authenticated/);
+});
