@@ -80,7 +80,47 @@ test('translation catalogs contain no duplicate keys and unsupported locales are
   }
   assert.match(source, /'mr-IN': \{[\s\S]*?'Overview': 'आढावा'/);
   assert.match(source, /'hi-IN': \{[\s\S]*?'Overview': 'अवलोकन'/);
-  assert.match(source, /normalized\.startsWith\('en-'\) \|\| normalized\.startsWith\('mr-'\) \|\| normalized\.startsWith\('hi-'\)/);
+  assert.ok(source.includes("return /^(en|mr|hi)(?:-|$)/.test(normalized)"), 'language-only locale tags are supported');
+});
+
+test('legacy language-only locales persist through the cookie and update the app language', async () => {
+  const [i18n, context, workspaceLayout, profile, route, rootLayout, middleware, css] = await Promise.all([
+    read('lib/i18n.ts'),
+    read('lib/locale-context.tsx'),
+    read('app/next-workspace/layout.tsx'),
+    read('app/next-workspace/profile/page.tsx'),
+    read('app/api/preferences/locale/route.ts'),
+    read('app/layout.tsx'),
+    read('middleware.ts'),
+    read('app/globals.css'),
+  ]);
+  assert.ok(i18n.includes("mr: 'mr-IN'"), 'legacy mr value must resolve to canonical locale');
+  assert.ok(context.includes("return resolveSupportedLocale(value) ?? 'en-IN'"));
+  assert.ok(workspaceLayout.includes("setLocale(resolveSupportedLocale(savedLocale) ?? 'en-IN')"));
+  assert.ok(profile.includes("fetch('/api/preferences/locale'"));
+  assert.ok(profile.includes("router.refresh()"));
+  assert.ok(route.includes("name: 'NEXT_LOCALE'"));
+  assert.ok(route.includes("value: locale.split('-')[0]"));
+  assert.ok(route.includes('maxAge: 31536000'));
+  assert.ok(route.includes("sameSite: 'lax'"));
+  assert.ok(route.includes("path: '/'"));
+  assert.ok(rootLayout.includes('<html lang={locale}'));
+  assert.ok(middleware.includes("requestHeaders.set('x-locale', requestLocale)"));
+  assert.ok(css.includes('Noto Sans Devanagari') && css.includes('Mukta'));
+});
+
+test('main dashboard translates operational labels through the active locale catalog', async () => {
+  const dashboard = await read('app/next-workspace/page.tsx');
+  const catalog = await read('lib/translations.ts');
+  assert.ok(dashboard.includes('const { locale } = useLocale()'));
+  assert.ok(dashboard.includes("t('Transaction Ledger')"));
+  assert.ok(dashboard.includes("t('Fast Reconciliation Queue')"));
+  assert.ok(dashboard.includes("t('Open POS Cash Bill (F10)')"));
+  assert.ok(dashboard.includes("<th>{t('Document #')}</th>"));
+  assert.ok(catalog.includes("'Save': 'जतन करा'"));
+  assert.ok(catalog.includes("'Cancel': 'रद्द करा'"));
+  assert.ok(catalog.includes("'Tax Invoice': 'कर बीजक / इनव्हॉइस'"));
+  assert.ok(catalog.includes("'Payment Receipt': 'पावती'"));
 });
 
 test('ISO date-only formatting is local-calendar safe', async () => {
