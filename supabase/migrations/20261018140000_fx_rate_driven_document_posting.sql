@@ -4141,7 +4141,7 @@ begin
  v_total:=round(e.amount+e.tax_amount,2);
  perform pg_advisory_xact_lock(hashtext('journal-entry-number:'||e.business_id::text));
  select coalesce(max(entry_number),0)+1 into v_entry_number from public.journal_entries where business_id=e.business_id;
- insert into public.journal_entries(business_id,entry_number,entry_date,description,source_type,source_id,status,posted_at,posted_by,created_by,currency_code,total_debit,total_credit,is_system_generated) values(e.business_id,v_entry_number,e.expense_date,'Expense: '||e.description,'expense',e.id,'posted',now(),auth.uid(),e.created_by,v_base_currency,v_total,v_total,true) returning id into v_entry;
+ insert into public.journal_entries(business_id,entry_number,entry_date,description,source_type,source_id,status,posted_at,posted_by,created_by,currency_code,total_debit,total_credit,is_system_generated) values(e.business_id,v_entry_number,e.expense_date,'Expense: '||e.description,'expense',e.id,'draft',NULL,NULL,e.created_by,v_base_currency,0,0,true) returning id into v_entry;
  if e.tax_creditable and e.tax_amount>0 then
    select id into v_tax_account from public.accounts where business_id=e.business_id and code='1300' and is_active;
    if v_tax_account is null then raise exception 'Input Tax Credit account (1300) is missing'; end if;
@@ -4151,6 +4151,14 @@ begin
    insert into public.journal_lines(journal_entry_id,account_id,description,debit,credit,currency_code,entity_type,entity_id) values
     (v_entry,e.account_id,e.description,v_total,0,v_base_currency,'expense',e.id),(v_entry,v_payment_account,e.description,0,v_total,v_base_currency,'expense',e.id);
  end if;
+ update public.journal_entries
+ set total_debit=(select coalesce(sum(base_amount),0) from public.journal_lines where journal_entry_id=v_entry and debit>0),
+     total_credit=(select coalesce(sum(base_amount),0) from public.journal_lines where journal_entry_id=v_entry and credit>0)
+ where id=v_entry;
+ perform public.validate_journal_entry_balance(v_entry);
+ update public.journal_entries set status='posted',posted_at=now(),posted_by=auth.uid(),updated_at=now()
+ where id=v_entry and status='draft';
+ if not found then raise exception 'Expense posting refused: journal entry % did not transition from draft to posted',v_entry; end if;
  perform public.validate_journal_entry_balance(v_entry);
  update public.expenses set journal_entry_id=v_entry,updated_at=now() where id=e.id;
  return v_entry;
@@ -4307,8 +4315,8 @@ BEGIN
   VALUES(
     e.business_id,v_entry_number,p_expense_date,
     'Expense: '||trim(p_description),
-    'expense',e.id,'posted',now(),auth.uid(),e.created_by,
-    v_base_currency,v_total,v_total,true
+    'expense',e.id,'draft',NULL,NULL,e.created_by,
+    v_base_currency,0,0,true
   )
   RETURNING id INTO v_journal;
 
@@ -4337,6 +4345,14 @@ BEGIN
       (v_journal,v_payment_account,trim(p_description),0,v_total,v_base_currency,'expense',e.id);
   END IF;
 
+  UPDATE public.journal_entries
+  SET total_debit=(SELECT coalesce(sum(base_amount),0) FROM public.journal_lines WHERE journal_entry_id=v_journal AND debit>0),
+      total_credit=(SELECT coalesce(sum(base_amount),0) FROM public.journal_lines WHERE journal_entry_id=v_journal AND credit>0)
+  WHERE id=v_journal;
+  PERFORM public.validate_journal_entry_balance(v_journal);
+  UPDATE public.journal_entries SET status='posted',posted_at=now(),posted_by=auth.uid(),updated_at=now()
+  WHERE id=v_journal AND status='draft';
+  IF NOT FOUND THEN RAISE EXCEPTION 'Expense correction refused: journal entry % did not transition from draft to posted',v_journal; END IF;
   PERFORM public.validate_journal_entry_balance(v_journal);
 
   UPDATE public.expenses
