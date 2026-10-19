@@ -49,6 +49,7 @@ jobs:
           fi
 
           echo "deploy_enabled=true" >> "$GITHUB_OUTPUT"
+          echo "All required deployment secrets are present; SSH deployment can proceed."
 
       - name: Execute Remote Deployment & Rebuild
         if: steps.preflight.outputs.deploy_enabled == 'true'
