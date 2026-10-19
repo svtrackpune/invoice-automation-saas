@@ -60,7 +60,7 @@ test('profile locale updates the active workspace and browser language/direction
   assert.match(layout, /translate\(locale, item\.label\)/);
   assert.match(translations, /export function translate\(/);
   assert.match(translations, /export function translatedLocaleCoverage\(/);
-  assert.match(translations, /return normalized\.startsWith\('en-'\) \|\| normalized\.startsWith\('mr-'\) \|\| normalized\.startsWith\('hi-'\)/);
+  assert.ok(translations.includes("return /^(en|mr|hi)(?:-|$)/.test(normalized)"), 'language-only locale tags are supported');
 });
 
 test('translation catalogs contain no duplicate keys and unsupported locales are marked as English fallback', async () => {
