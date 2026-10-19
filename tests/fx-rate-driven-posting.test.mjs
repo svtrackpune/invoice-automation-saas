@@ -248,7 +248,12 @@ test('FX migration reuses the existing base-currency immutability guard without 
   assert.match(guard, /NEW\.base_currency_code IS DISTINCT FROM OLD\.base_currency_code/);
   assert.match(guard, /FROM public\.journal_entries/);
   assert.match(guard, /Business base currency cannot be changed after journal activity exists/);
-  assert.match(foundation, /CREATE TRIGGER trg_business_base_currency_change[\\s\\S]*?BEFORE UPDATE OF base_currency_code ON public\.businesses/);
+  const triggerStart = foundation.indexOf('CREATE TRIGGER trg_business_base_currency_change');
+  const triggerEnd = foundation.indexOf(';', triggerStart);
+  assert.ok(triggerStart >= 0 && triggerEnd > triggerStart);
+  const trigger = foundation.slice(triggerStart, triggerEnd + 1);
+  assert.match(trigger, /BEFORE UPDATE OF base_currency_code ON public\.businesses/);
+  assert.match(trigger, /EXECUTE FUNCTION public\.guard_business_base_currency_change/);
   assert.doesNotMatch(sql, /CREATE OR REPLACE FUNCTION mm_private\.guard_business_base_currency_change/);
   assert.doesNotMatch(sql, /CREATE TRIGGER trg_business_base_currency_immutable/);
 });
