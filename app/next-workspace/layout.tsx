@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { usePathname } from 'next/navigation';
 import type { Dispatch, ReactNode, SetStateAction } from 'react';
 import { supabase, type BusinessContext } from '@/lib/supabase';
-import { isSupportedLocale, type SupportedLocale } from '@/lib/i18n';
+import { resolveSupportedLocale, type SupportedLocale } from '@/lib/i18n';
 import { LocaleProvider, useLocale } from '@/lib/locale-context';
 import { translate } from '@/lib/translations';
 import GlobalSearch from './GlobalSearch';
@@ -376,7 +376,7 @@ export default function WorkspaceLayout({ children }: { children: ReactNode }) {
       if (user.user) {
         const profile = await supabase.from('user_profiles').select('locale').eq('user_id', user.user.id).maybeSingle();
         const savedLocale = profile.data?.locale;
-        setLocale(savedLocale && isSupportedLocale(savedLocale) ? savedLocale : 'en-IN');
+        setLocale(resolveSupportedLocale(savedLocale) ?? 'en-IN');
       }
       const rows = (context.data || []) as BusinessContext[];
       setBusinesses(rows);
