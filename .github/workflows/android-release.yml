@@ -43,30 +43,13 @@ jobs:
         run: npm run cap:prepare && npx cap sync android
 
       # Capacitor sync can rewrite generated Android Gradle files. Restore the
-      # reviewed release SDK declarations from this verified commit before building.
+      # reviewed SDK declarations from this verified commit before building.
       - name: Preserve checked-in Android SDK configuration
         run: |
           git checkout -- android/app/build.gradle android/variables.gradle
-          grep -Eq '^[[:space:]]*compileSdk[[:space:]]+36[[:space:]]*
-      - name: Build signed production AAB
-        working-directory: android
-        env:
-          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
-          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
-          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
-          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
-        run: ./gradlew bundleRelease -PrequireReleaseSigning=true
-
-      - name: Upload signed AAB artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: moneymatters-release-aab
-          path: android/app/build/outputs/bundle/release/app-release.aab
-          if-no-files-found: error
-          retention-days: 14
- android/app/build.gradle
-          grep -Eq '^[[:space:]]*compileSdkVersion[[:space:]]*=[[:space:]]*36' android/variables.gradle
-          grep -Eq '^[[:space:]]*targetSdkVersion[[:space:]]*=[[:space:]]*36' android/variables.gradle
+          grep -Fq 'compileSdk 36' android/app/build.gradle
+          grep -Fq 'compileSdkVersion = 36' android/variables.gradle
+          grep -Fq 'targetSdkVersion = 36' android/variables.gradle
 
       - name: Build signed production AAB
         working-directory: android
