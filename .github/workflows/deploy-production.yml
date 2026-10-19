@@ -24,7 +24,7 @@ jobs:
             echo "was attempted and no production files were changed."
             echo
             echo "Use the existing manual Plesk procedure to pull the intended commit"
-            echo "from `main`, then rebuild/restart using the established Plesk process."
+            echo "from main, then rebuild/restart using the established Plesk process."
             echo
             echo "Before pulling, confirm the corresponding CI run has passed:"
             echo "https://github.com/svtrackpune/invoice-automation-saas/actions/workflows/ci.yml"
