@@ -4128,7 +4128,7 @@ begin
  if e.id is null then raise exception 'Expense not found'; end if;
  if not mm_private.has_business_permission(e.business_id,'accounting.post') then raise exception 'Access denied'; end if;
  if e.journal_entry_id is not null then return e.journal_entry_id; end if;
- select upper(coalesce(nullif(btrim(base_currency_code),''),nullif(btrim(currency_code),''),v_base_currency)) into v_base_currency from public.businesses where id=e.business_id and is_active;
+ select upper(coalesce(nullif(btrim(base_currency_code),''),nullif(btrim(currency_code),''),'INR')) into v_base_currency from public.businesses where id=e.business_id and is_active;
  if v_base_currency is null then raise exception 'Business base currency is missing'; end if;
  if e.account_id is null or not exists(select 1 from public.accounts a where a.id=e.account_id and a.business_id=e.business_id and a.is_active) then raise exception 'Expense account is invalid'; end if;
  v_payment_account:=e.payment_account_id;
@@ -4200,7 +4200,7 @@ BEGIN
     RAISE EXCEPTION 'Access denied';
   END IF;
 
-  SELECT upper(coalesce(nullif(btrim(base_currency_code),''),nullif(btrim(currency_code),''),v_base_currency))
+  SELECT upper(coalesce(nullif(btrim(base_currency_code),''),nullif(btrim(currency_code),''),'INR'))
     INTO v_base_currency
   FROM public.businesses
   WHERE id=e.business_id AND is_active;
