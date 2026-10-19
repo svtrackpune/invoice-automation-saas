@@ -2,6 +2,8 @@
 
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { supabase, type BusinessContext } from '@/lib/supabase';
+import { useLocale } from '@/lib/locale-context';
+import { translate } from '@/lib/translations';
 import StatusBadge, { normalizeFinOpsStatus } from '@/components/ui/finops/StatusBadge';
 import DetailDrawer from '@/components/ui/finops/DetailDrawer';
 import { FinOpsCard, FinOpsIcon, FinOpsPrimaryButton, FinOpsSectionLabel, FinOpsSecondaryButton, FinOpsStatusPill } from '@/components/ui/finops/FinOpsPrimitives';
@@ -18,7 +20,7 @@ type Rec = { id: string; bank_account_id: string; period_end: string; status: st
 type BankTx = { id: string; bank_account_id: string; transaction_date: string; description: string | null; amount: number; direction: string; status: string };
 
 const money = (value: number) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(Number(value || 0));
-const dateLabel = (value: string) => new Intl.DateTimeFormat('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }).format(new Date(value));
+const dateLabel = (value: string, locale = 'en-IN') => new Intl.DateTimeFormat(locale, { day: '2-digit', month: 'short', year: 'numeric' }).format(new Date(value));
 const dateKey = (d: Date) => { const x = new Date(d.getTime() - d.getTimezoneOffset() * 60000); return x.toISOString().slice(0, 10); };
 const monthStart = (offset = 0) => { const d = new Date(); return dateKey(new Date(d.getFullYear(), d.getMonth() + offset, 1)); };
 const today = () => dateKey(new Date());
@@ -28,11 +30,11 @@ function trendPercent(current: number, previous: number) {
   return ((current - previous) / Math.abs(previous)) * 100;
 }
 
-function Trend({ current, previous }: { current: number; previous: number }) {
+function Trend({ current, previous, locale }: { current: number; previous: number; locale: string }) {
   const pct = trendPercent(current, previous);
-  if (pct === null) return <span className="rounded-full bg-slate-100 px-2 py-1 text-[10px] font-semibold text-slate-600">No prior baseline</span>;
+  if (pct === null) return <span className="rounded-full bg-slate-100 px-2 py-1 text-[10px] font-semibold text-slate-600">{translate(locale, 'No prior baseline')}</span>;
   const positive = pct >= 0;
-  return <span className={`rounded-full px-2 py-1 text-[10px] font-semibold ${positive ? 'bg-finops-inflow-tint text-finops-inflow' : 'bg-finops-outflow-tint text-finops-outflow'}`}>{positive ? '↑' : '↓'} {Math.abs(pct).toFixed(1)}% vs last month</span>;
+  return <span className={`rounded-full px-2 py-1 text-[10px] font-semibold ${positive ? 'bg-finops-inflow-tint text-finops-inflow' : 'bg-finops-outflow-tint text-finops-outflow'}`}>{positive ? '↑' : '↓'} {Math.abs(pct).toFixed(1)}% {translate(locale, 'vs last month')}</span>;
 }
 
 function Sparkline({ values }: { values: number[] }) {
@@ -52,6 +54,8 @@ function KpiCard({ label, value, children, sparkline, tone = 'neutral' }: { labe
 }
 
 export default function NextWorkspace() {
+  const { locale } = useLocale();
+  const t = (source: string) => translate(locale, source);
   const [contexts, setContexts] = useState<BusinessContext[]>([]);
   const [ctx, setCtx] = useState<BusinessContext | null>(null);
   const [customers, setCustomers] = useState<Customer[]>([]);
@@ -178,74 +182,74 @@ export default function NextWorkspace() {
   }
 
   if (!ctx) {
-    return <main className="finops-page"><div className="finops-page-inner"><FinOpsCard className="p-8 text-center"><h1 className="text-xl font-bold text-slate-900">Business setup required</h1><p className="mt-2 text-sm text-slate-500">{error || 'Create a business before using the workspace.'}</p><FinOpsPrimaryButton className="mt-5" onClick={() => go('/')}>Open setup</FinOpsPrimaryButton></FinOpsCard></div></main>;
+    return <main className="finops-page"><div className="finops-page-inner"><FinOpsCard className="p-8 text-center"><h1 className="text-xl font-bold text-slate-900">{t('Business setup required')}</h1><p className="mt-2 text-sm text-slate-500">{error || t('Create a business before using the workspace.')}</p><FinOpsPrimaryButton className="mt-5" onClick={() => go('/')}>{t('Open setup')}</FinOpsPrimaryButton></FinOpsCard></div></main>;
   }
 
   return (
     <main className="finops-page">
       <div className="finops-page-inner space-y-4">
         <PageHeader
-          breadcrumbs={[{label:'Workspace',href:'/next-workspace'},{label:'Executive Overview'}]}
+          breadcrumbs={[{label:t('Workspace'),href:'/next-workspace'},{label:t('Executive Overview')}]}
           title={ctx.business_name}
-          subtitle="Executive command center for cash movement, receivables, bank control and compliant document operations."
-          badge={{label:'Period: ' + periodLabel + ' • Open',variant:'neutral'}}
-          actions={<><div>{contexts.length > 1 ? <select aria-label="Active business" value={ctx.business_id} onChange={event => { const next = contexts.find(item => item.business_id === event.target.value); if (next) { setCtx(next); localStorage.setItem('moneymatters.activeBusinessId', next.business_id); } }} className="rounded-md border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-700">{contexts.map(item => <option key={item.business_id} value={item.business_id}>{item.business_name}</option>)}</select> : null}</div><FinOpsSecondaryButton onClick={() => go('/next-workspace/cash-bill')} disabled={!cashBillEnabled}><FinOpsIcon name="cash"/>+ Cash Bill</FinOpsSecondaryButton><FinOpsSecondaryButton onClick={() => go('/next-workspace/invoices/new')}><FinOpsIcon name="invoice"/>+ New Invoice</FinOpsSecondaryButton><FinOpsSecondaryButton onClick={() => go('/next-workspace/banking')}><FinOpsIcon name="import"/>Import Statement</FinOpsSecondaryButton><FinOpsSecondaryButton onClick={() => setRefresh(v => v + 1)}><FinOpsIcon name="refresh"/>Refresh</FinOpsSecondaryButton></>}
+          subtitle={t('Executive command center for cash movement, receivables, bank control and compliant document operations.')}
+          badge={{label:t('Period') + ': ' + periodLabel + ' • ' + t('Open'),variant:'neutral'}}
+          actions={<><div>{contexts.length > 1 ? <select aria-label="Active business" value={ctx.business_id} onChange={event => { const next = contexts.find(item => item.business_id === event.target.value); if (next) { setCtx(next); localStorage.setItem('moneymatters.activeBusinessId', next.business_id); } }} className="rounded-md border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-700">{contexts.map(item => <option key={item.business_id} value={item.business_id}>{item.business_name}</option>)}</select> : null}</div><FinOpsSecondaryButton onClick={() => go('/next-workspace/cash-bill')} disabled={!cashBillEnabled}><FinOpsIcon name="cash"/>+ {t('Cash Bill')}</FinOpsSecondaryButton><FinOpsSecondaryButton onClick={() => go('/next-workspace/invoices/new')}><FinOpsIcon name="invoice"/>+ {t('New Invoice')}</FinOpsSecondaryButton><FinOpsSecondaryButton onClick={() => go('/next-workspace/banking')}><FinOpsIcon name="import"/>{t('Import Statement')}</FinOpsSecondaryButton><FinOpsSecondaryButton onClick={() => setRefresh(v => v + 1)}><FinOpsIcon name="refresh"/>{t('Refresh')}</FinOpsSecondaryButton></>}
         />
 
         {error ? <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-2.5 text-xs text-amber-800">{error}</div> : null}
 
-        <section aria-label="Executive KPIs" className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-          <KpiCard label="Net Cash Flow · MTD" value={money(metrics.netCash)} tone="treasury" sparkline={<Sparkline values={[metrics.previousNetCash, metrics.netCash, metrics.netCash * 0.8, metrics.netCash * 1.04]}/>}>
+        <section aria-label={t('Executive KPIs')} className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <KpiCard label={t('Net Cash Flow · MTD')} value={money(metrics.netCash)} tone="treasury" sparkline={<Sparkline values={[metrics.previousNetCash, metrics.netCash, metrics.netCash * 0.8, metrics.netCash * 1.04]}/>}>
             <div className="flex flex-wrap items-center gap-2"><span className="text-[11px] text-slate-500">Inflow {money(payments.filter(p => p.direction !== 'outbound').reduce((a,p)=>a+Number(p.amount||0),0))}</span><span className="text-slate-300">·</span><span className="text-[11px] text-slate-500">Outflow {money(payments.filter(p => p.direction === 'outbound').reduce((a,p)=>a+Number(p.amount||0),0))}</span><Trend current={metrics.netCash} previous={metrics.previousNetCash}/></div>
           </KpiCard>
-          <KpiCard label="Accounts Receivable" value={money(metrics.outstanding)} tone="inflow"><div className="flex flex-wrap gap-1.5">{[['30d',metrics.aging.n30],['60d',metrics.aging.n60],['90d+',metrics.aging.n90]].map(([label,value]) => <span key={label} className="rounded-full border border-finops-outflow-border bg-finops-outflow-tint px-2 py-1 text-[10px] font-semibold text-finops-outflow">{label} {money(Number(value))}</span>)}</div></KpiCard>
-          <KpiCard label="Bank Reconciliation" value={banks.length ? `${metrics.reconciledAccounts}/${banks.length}` : '—'} tone="treasury"><div className="flex items-center justify-between gap-3"><span className="text-[11px] text-slate-500">{metrics.pendingLines} uncleared statement lines</span><span className="text-[11px] font-semibold text-slate-700">{banks.length ? Math.round((metrics.reconciledAccounts / banks.length) * 100) : 0}%</span></div><div className="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-100"><div className="h-full rounded-full bg-slate-700 transition-all" style={{ width: `${banks.length ? Math.round((metrics.reconciledAccounts / banks.length) * 100) : 0}%` }}/></div></KpiCard>
-          <KpiCard label="E-Invoicing Clearance" value={eInvoiceConfigured ? "Ready" : "—"} tone="statutory"><div className="flex items-center gap-2">{eInvoiceConfigured ? <FinOpsStatusPill label="Endpoint configured" tone="success"/> : <FinOpsStatusPill label="Not configured" tone="warning"/>}</div><p className="mt-2 text-[11px] leading-4 text-slate-500">{eInvoiceConfigured ? 'PEPPOL endpoint identity is configured. Clearance/dispatch result is not stored in this dashboard.' : 'Configure the business endpoint to enable the existing e-invoicing document paths.'}</p></KpiCard>
+          <KpiCard label={t('Accounts Receivable')} value={money(metrics.outstanding)} tone="inflow"><div className="flex flex-wrap gap-1.5">{[['30d',metrics.aging.n30],['60d',metrics.aging.n60],['90d+',metrics.aging.n90]].map(([label,value]) => <span key={label} className="rounded-full border border-finops-outflow-border bg-finops-outflow-tint px-2 py-1 text-[10px] font-semibold text-finops-outflow">{label} {money(Number(value))}</span>)}</div></KpiCard>
+          <KpiCard label={t('Bank Reconciliation')} value={banks.length ? `${metrics.reconciledAccounts}/${banks.length}` : '—'} tone="treasury"><div className="flex items-center justify-between gap-3"><span className="text-[11px] text-slate-500">{metrics.pendingLines} uncleared statement lines</span><span className="text-[11px] font-semibold text-slate-700">{banks.length ? Math.round((metrics.reconciledAccounts / banks.length) * 100) : 0}%</span></div><div className="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-100"><div className="h-full rounded-full bg-slate-700 transition-all" style={{ width: `${banks.length ? Math.round((metrics.reconciledAccounts / banks.length) * 100) : 0}%` }}/></div></KpiCard>
+          <KpiCard label={t('E-Invoicing Clearance')} value={eInvoiceConfigured ? "Ready" : "—"} tone="statutory"><div className="flex items-center gap-2">{eInvoiceConfigured ? <FinOpsStatusPill label="Endpoint configured" tone="success"/> : <FinOpsStatusPill label="Not configured" tone="warning"/>}</div><p className="mt-2 text-[11px] leading-4 text-slate-500">{eInvoiceConfigured ? 'PEPPOL endpoint identity is configured. Clearance/dispatch result is not stored in this dashboard.' : 'Configure the business endpoint to enable the existing e-invoicing document paths.'}</p></KpiCard>
         </section>
 
         <section className="grid gap-4 xl:grid-cols-[minmax(0,62fr)_minmax(280px,38fr)]">
           <FinOpsCard className="min-w-0 overflow-hidden">
-            <div className="flex items-center justify-between gap-3 border-b border-slate-200/80 px-4 py-3"><div><FinOpsSectionLabel>Live operations</FinOpsSectionLabel><h2 className="mt-0.5 text-sm font-semibold text-slate-900">Transaction Ledger</h2></div><button type="button" onClick={() => go('/next-workspace/invoices')} className="text-xs font-semibold text-indigo-700 hover:text-indigo-800">View all →</button></div>
-            <div className="overflow-x-auto"><table className="finops-table min-w-[760px] text-left text-xs"><thead><tr><th>Date</th><th>Document #</th><th>Counterparty</th><th>Status</th><th className="text-right">Amount</th><th className="text-right">Actions</th></tr></thead><tbody>
+            <div className="flex items-center justify-between gap-3 border-b border-slate-200/80 px-4 py-3"><div><FinOpsSectionLabel>{t('Live operations')}</FinOpsSectionLabel><h2 className="mt-0.5 text-sm font-semibold text-slate-900">{t('Transaction Ledger')}</h2></div><button type="button" onClick={() => go('/next-workspace/invoices')} className="text-xs font-semibold text-indigo-700 hover:text-indigo-800">{t('View all →')}</button></div>
+            <div className="overflow-x-auto"><table className="finops-table min-w-[760px] text-left text-xs"><thead><tr><th>{t('Date')}</th><th>{t('Document #')}</th><th>{t('Counterparty')}</th><th>{t('Status')}</th><th className="text-right">{t('Amount')}</th><th className="text-right">{t('Actions')}</th></tr></thead><tbody>
               {recent.map(invoice => <tr key={invoice.id} className="cursor-pointer" onClick={() => setSelectedInvoice(invoice)}>
-                <td className="whitespace-nowrap font-mono text-[11px] text-slate-500">{dateLabel(invoice.invoice_date)}</td>
-                <td><span className="font-semibold text-slate-900">{invoice.invoice_number}</span><span className="ml-2 rounded border border-slate-200 bg-slate-50 px-1.5 py-0.5 text-[9px] font-semibold text-slate-500">{invoice.document_kind === 'cash_bill' ? 'Cash Bill' : 'Invoice'}</span></td>
+                <td className="whitespace-nowrap font-mono text-[11px] text-slate-500">{dateLabel(invoice.invoice_date, locale)}</td>
+                <td><span className="font-semibold text-slate-900">{invoice.invoice_number}</span><span className="ml-2 rounded border border-slate-200 bg-slate-50 px-1.5 py-0.5 text-[9px] font-semibold text-slate-500">{invoice.document_kind === 'cash_bill' ? t('Cash Bill') : t('Invoice')}</span></td>
                 <td className="max-w-[230px] truncate text-slate-700">{customerName(invoice.customer_id)}</td>
                 <td><StatusBadge status={normalizeFinOpsStatus(invoice.status)}/></td>
                 <td className="finops-amount text-right text-sm font-semibold text-slate-900">{money(invoice.total)}</td>
-                <td className="text-right"><button type="button" onClick={event => { event.stopPropagation(); setSelectedInvoice(invoice); }} className="rounded-md border border-slate-200 px-2 py-1 text-[10px] font-semibold text-slate-600 hover:bg-slate-50">Open</button></td>
+                <td className="text-right"><button type="button" onClick={event => { event.stopPropagation(); setSelectedInvoice(invoice); }} className="rounded-md border border-slate-200 px-2 py-1 text-[10px] font-semibold text-slate-600 hover:bg-slate-50">{t('Open')}</button></td>
               </tr>)}
-              {!recent.length ? <tr><td colSpan={6} className="p-10 text-center text-sm text-slate-500">No transactions yet.</td></tr> : null}
+              {!recent.length ? <tr><td colSpan={6} className="p-10 text-center text-sm text-slate-500">{t('No transactions yet.')}</td></tr> : null}
             </tbody></table></div>
           </FinOpsCard>
 
           <aside className="space-y-4">
             <FinOpsCard className="overflow-hidden">
-              <div className="border-b border-slate-200/80 px-4 py-3"><div className="flex items-center justify-between gap-3"><div><FinOpsSectionLabel>Bank control</FinOpsSectionLabel><h2 className="mt-0.5 text-sm font-semibold text-slate-900">Fast Reconciliation Queue</h2></div><span className="rounded-full border border-amber-200 bg-amber-50 px-2 py-1 text-[10px] font-semibold text-amber-700">{metrics.pendingLines} pending</span></div></div>
-              <div className="p-3">{queue.length ? queue.map(transaction => <button key={transaction.id} type="button" onClick={() => go('/next-workspace/banking')} className="flex w-full items-center gap-3 rounded-lg px-2.5 py-2.5 text-left hover:bg-slate-50"><span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-slate-100 text-slate-500"><FinOpsIcon name="bank"/></span><span className="min-w-0 flex-1"><b className="block truncate text-xs font-semibold text-slate-800">{transaction.description || 'Statement line'}</b><span className="font-mono text-[10px] text-slate-400">{dateLabel(transaction.transaction_date)}</span></span><span className="finops-amount text-xs font-semibold text-slate-800">{money(Math.abs(Number(transaction.amount || 0)))}</span><FinOpsIcon name="chevron" className="h-3.5 w-3.5 text-slate-300"/></button>) : <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-xs text-emerald-700"><b>Queue clear.</b> No uncleared statement lines are visible.</div>}<FinOpsSecondaryButton className="mt-2.5 w-full" onClick={() => go('/next-workspace/banking')}>Open Reconciliation</FinOpsSecondaryButton></div>
+              <div className="border-b border-slate-200/80 px-4 py-3"><div className="flex items-center justify-between gap-3"><div><FinOpsSectionLabel>{t('Bank control')}</FinOpsSectionLabel><h2 className="mt-0.5 text-sm font-semibold text-slate-900">{t('Fast Reconciliation Queue')}</h2></div><span className="rounded-full border border-amber-200 bg-amber-50 px-2 py-1 text-[10px] font-semibold text-amber-700">{metrics.pendingLines} pending</span></div></div>
+              <div className="p-3">{queue.length ? queue.map(transaction => <button key={transaction.id} type="button" onClick={() => go('/next-workspace/banking')} className="flex w-full items-center gap-3 rounded-lg px-2.5 py-2.5 text-left hover:bg-slate-50"><span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-slate-100 text-slate-500"><FinOpsIcon name="bank"/></span><span className="min-w-0 flex-1"><b className="block truncate text-xs font-semibold text-slate-800">{transaction.description || t('Statement line')}</b><span className="font-mono text-[10px] text-slate-400">{dateLabel(transaction.transaction_date, locale)}</span></span><span className="finops-amount text-xs font-semibold text-slate-800">{money(Math.abs(Number(transaction.amount || 0)))}</span><FinOpsIcon name="chevron" className="h-3.5 w-3.5 text-slate-300"/></button>) : <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-xs text-emerald-700"><b>{t('Queue clear.')}</b> {t('No uncleared statement lines are visible.')}</div>}<FinOpsSecondaryButton className="mt-2.5 w-full" onClick={() => go('/next-workspace/banking')}>{t('Open Reconciliation')}</FinOpsSecondaryButton></div>
             </FinOpsCard>
 
             <FinOpsCard className="p-4">
-              <div className="flex items-start justify-between gap-3"><div><FinOpsSectionLabel>Point of sale</FinOpsSectionLabel><h2 className="mt-0.5 text-sm font-semibold text-slate-900">High-Velocity POS</h2></div><span className={`rounded-full border px-2 py-1 text-[10px] font-semibold ${cashBillEnabled ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-slate-300 bg-slate-100 text-slate-700'}`}>{cashBillEnabled ? 'Available' : 'Disabled'}</span></div>
-              <div className="mt-4 grid grid-cols-2 gap-2"><div className="rounded-lg bg-slate-50 p-3"><span className="text-[10px] text-slate-400">Today’s register total</span><b className="finops-amount mt-1 block text-sm font-bold text-slate-900">{money(metrics.todayCashBills)}</b></div><div className="rounded-lg bg-slate-50 p-3"><span className="text-[10px] text-slate-400">Register status</span><b className="mt-1 block text-sm font-bold text-slate-900">{cashBillEnabled ? 'Ready' : 'Unavailable'}</b></div></div>
-              <FinOpsPrimaryButton disabled={!cashBillEnabled} className="mt-3 w-full" onClick={() => go('/next-workspace/cash-bill')}><FinOpsIcon name="cash"/>Open POS Cash Bill (F10)</FinOpsPrimaryButton>
+              <div className="flex items-start justify-between gap-3"><div><FinOpsSectionLabel>{t('Point of sale')}</FinOpsSectionLabel><h2 className="mt-0.5 text-sm font-semibold text-slate-900">{t('High-Velocity POS')}</h2></div><span className={`rounded-full border px-2 py-1 text-[10px] font-semibold ${cashBillEnabled ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-slate-300 bg-slate-100 text-slate-700'}`}{cashBillEnabled ? t('Available') : t('Disabled')}</span></div>
+              <div className="mt-4 grid grid-cols-2 gap-2"><div className="rounded-lg bg-slate-50 p-3"><span className="text-[10px] text-slate-400">{t('Today’s register total')}</span><b className="finops-amount mt-1 block text-sm font-bold text-slate-900">{money(metrics.todayCashBills)}</b></div><div className="rounded-lg bg-slate-50 p-3"><span className="text-[10px] text-slate-400">{t('Register status')}</span><b className="mt-1 block text-sm font-bold text-slate-900">{cashBillEnabled ? t('Ready') : t('Unavailable')}</b></div></div>
+              <FinOpsPrimaryButton disabled={!cashBillEnabled} className="mt-3 w-full" onClick={() => go('/next-workspace/cash-bill')}><FinOpsIcon name="cash"/>{t('Open POS Cash Bill (F10)')}</FinOpsPrimaryButton>
             </FinOpsCard>
 
             <FinOpsCard className="p-4">
-              <FinOpsSectionLabel>Workspace</FinOpsSectionLabel><h2 className="mt-0.5 text-sm font-semibold text-slate-900">Quick Accounting</h2>
+              <FinOpsSectionLabel>{t('Workspace')}</FinOpsSectionLabel><h2 className="mt-0.5 text-sm font-semibold text-slate-900">{t('Quick Accounting')}</h2>
               <div className="mt-3 grid grid-cols-2 gap-2">
-                {[['Customers','customer','/next-workspace/customers'],['Payments','cash','/next-workspace/payments'],['Reports','report','/next-workspace/reports'],['Ledgers','audit','/next-workspace/accounting']].map(([label, icon, href]) => <button key={label} type="button" onClick={() => go(href)} className="group rounded-lg border border-slate-200 px-3 py-2.5 text-left hover:bg-slate-50"><FinOpsIcon name={icon as Parameters<typeof FinOpsIcon>[0]['name']} className="h-4 w-4 text-slate-400 group-hover:text-indigo-600"/><span className="mt-2 block text-xs font-semibold text-slate-700">{label}</span></button>)}
+                {[['Customers','customer','/next-workspace/customers'],['Payments','cash','/next-workspace/payments'],['Reports','report','/next-workspace/reports'],['Ledgers','audit','/next-workspace/accounting']].map(([label, icon, href]) => <button key={label} type="button" onClick={() => go(href)} className="group rounded-lg border border-slate-200 px-3 py-2.5 text-left hover:bg-slate-50"><FinOpsIcon name={icon as Parameters<typeof FinOpsIcon>[0]['name']} className="h-4 w-4 text-slate-400 group-hover:text-indigo-600"/><span className="mt-2 block text-xs font-semibold text-slate-700">{t(label)}</span></button>)}
               </div>
             </FinOpsCard>
           </aside>
         </section>
 
-        <DetailDrawer open={Boolean(selectedInvoice)} onClose={() => setSelectedInvoice(null)} title={selectedInvoice?.invoice_number || 'Transaction 360'} description={selectedInvoice ? `${customerName(selectedInvoice.customer_id)} · ${dateLabel(selectedInvoice.invoice_date)}` : undefined}
-          footer={<div className="flex justify-end gap-2"><FinOpsSecondaryButton onClick={() => setSelectedInvoice(null)}>Close</FinOpsSecondaryButton><FinOpsPrimaryButton onClick={() => selectedInvoice && go('/next-workspace/documents?type=invoice&id=' + selectedInvoice.id)}>Open document</FinOpsPrimaryButton></div>}>
+        <DetailDrawer open={Boolean(selectedInvoice)} onClose={() => setSelectedInvoice(null)} title={selectedInvoice?.invoice_number || t('Transaction 360')} description={selectedInvoice ? `${customerName(selectedInvoice.customer_id)} · ${dateLabel(selectedInvoice.invoice_date, locale)}` : undefined}
+          footer={<div className="flex justify-end gap-2"><FinOpsSecondaryButton onClick={() => setSelectedInvoice(null)}>{t('Close')}</FinOpsSecondaryButton><FinOpsPrimaryButton onClick={() => selectedInvoice && go('/next-workspace/documents?type=invoice&id=' + selectedInvoice.id)}>{t('Open document')}</FinOpsPrimaryButton></div>}>
           {selectedInvoice ? <div className="space-y-5">
-            <div className="grid grid-cols-2 gap-3"><FinOpsCard className="p-3"><FinOpsSectionLabel>Document total</FinOpsSectionLabel><p className="finops-amount mt-1 text-xl font-bold text-slate-900">{money(selectedInvoice.total)}</p></FinOpsCard><FinOpsCard className="p-3"><FinOpsSectionLabel>Balance due</FinOpsSectionLabel><p className="finops-amount mt-1 text-xl font-bold text-slate-900">{money(selectedInvoice.balance_due)}</p></FinOpsCard></div>
+            <div className="grid grid-cols-2 gap-3"><FinOpsCard className="p-3"><FinOpsSectionLabel>{t('Document total')}</FinOpsSectionLabel><p className="finops-amount mt-1 text-xl font-bold text-slate-900">{money(selectedInvoice.total)}</p></FinOpsCard><FinOpsCard className="p-3"><FinOpsSectionLabel>{t('Balance due')}</FinOpsSectionLabel><p className="finops-amount mt-1 text-xl font-bold text-slate-900">{money(selectedInvoice.balance_due)}</p></FinOpsCard></div>
             <div className="flex items-center justify-between border-b border-slate-100 pb-3"><span className="text-xs font-semibold text-slate-500">Status</span><StatusBadge status={normalizeFinOpsStatus(selectedInvoice.status)}/></div>
-            <div><FinOpsSectionLabel>Transaction context</FinOpsSectionLabel><dl className="mt-2 divide-y divide-slate-100 text-xs"><div className="flex justify-between gap-4 py-2"><dt className="text-slate-500">Invoice date</dt><dd className="font-mono text-slate-800">{dateLabel(selectedInvoice.invoice_date)}</dd></div><div className="flex justify-between gap-4 py-2"><dt className="text-slate-500">Counterparty</dt><dd className="font-semibold text-slate-800">{customerName(selectedInvoice.customer_id)}</dd></div><div className="flex justify-between gap-4 py-2"><dt className="text-slate-500">Document ID</dt><dd className="max-w-[250px] truncate font-mono text-[10px] text-slate-500">{selectedInvoice.id}</dd></div></dl></div>
+            <div><FinOpsSectionLabel>{t('Transaction context')}</FinOpsSectionLabel><dl className="mt-2 divide-y divide-slate-100 text-xs"><div className="flex justify-between gap-4 py-2"><dt className="text-slate-500">Invoice date</dt><dd className="font-mono text-slate-800">{dateLabel(selectedInvoice.invoice_date)}</dd></div><div className="flex justify-between gap-4 py-2"><dt className="text-slate-500">Counterparty</dt><dd className="font-semibold text-slate-800">{customerName(selectedInvoice.customer_id)}</dd></div><div className="flex justify-between gap-4 py-2"><dt className="text-slate-500">Document ID</dt><dd className="max-w-[250px] truncate font-mono text-[10px] text-slate-500">{selectedInvoice.id}</dd></div></dl></div>
           </div> : null}
         </DetailDrawer>
       </div>
