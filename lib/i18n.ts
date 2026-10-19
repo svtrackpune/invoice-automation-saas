@@ -92,7 +92,8 @@ export function resolveSupportedLocale(value: string | null | undefined): Suppor
   const exact = SUPPORTED_LOCALES.find((item) => item.code.toLowerCase() === candidate);
   if (exact) return exact.code;
   const aliases: Record<string, SupportedLocale> = { en: 'en-IN', mr: 'mr-IN', hi: 'hi-IN' };
-  return aliases[candidate] ?? null;
+  if (aliases[candidate]) return aliases[candidate];
+  return SUPPORTED_LOCALES.find((item) => item.code.split('-')[0].toLowerCase() === candidate)?.code ?? null;
 }
 
 export function isSupportedLocale(value: string): value is SupportedLocale {
