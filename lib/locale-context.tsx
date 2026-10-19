@@ -2,7 +2,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
-import { isSupportedLocale, localeDirection, type SupportedLocale } from '@/lib/i18n';
+import { localeDirection, resolveSupportedLocale, type SupportedLocale } from '@/lib/i18n';
 
 type LocaleContextValue = {
   locale: SupportedLocale;
@@ -12,7 +12,7 @@ type LocaleContextValue = {
 const LocaleContext = createContext<LocaleContextValue | null>(null);
 
 function safeSupportedLocale(value: string | null | undefined): SupportedLocale {
-  return value && isSupportedLocale(value) ? value : 'en-IN';
+  return resolveSupportedLocale(value) ?? 'en-IN';
 }
 
 export function LocaleProvider({ initialLocale, children }: {
