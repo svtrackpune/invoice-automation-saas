@@ -75,8 +75,12 @@ jobs:
             exit 1
           fi
 
-          if ! keytool -list -v -keystore "$keystore_path" -storepass "$ANDROID_KEYSTORE_PASSWORD" -alias "$ANDROID_KEY_ALIAS" 2>/dev/null | grep -q 'Entry type: PrivateKeyEntry'; then
+          if ! keystore_info="$(keytool -list -v -keystore "$keystore_path" -storepass "$ANDROID_KEYSTORE_PASSWORD" -alias "$ANDROID_KEY_ALIAS" 2>/dev/null)"; then
             echo "::error::Release keystore validation failed. Verify the keystore bytes, store password, and key alias."
+            exit 1
+          fi
+          if ! grep -q 'Entry type: PrivateKeyEntry' <<< "$keystore_info"; then
+            echo "::error::Configured Android signing alias is not a private-key entry."
             exit 1
           fi
 
