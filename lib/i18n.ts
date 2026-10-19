@@ -85,6 +85,16 @@ export function getCountryOptions(locale = 'en-US') {
 
 export type SupportedLocale = (typeof SUPPORTED_LOCALES)[number]['code'];
 
+/** Normalize legacy language-only tags to the app's supported BCP 47 locale. */
+export function resolveSupportedLocale(value: string | null | undefined): SupportedLocale | null {
+  const candidate = String(value ?? '').trim().replace(/_/g, '-').toLowerCase();
+  if (!candidate) return null;
+  const exact = SUPPORTED_LOCALES.find((item) => item.code.toLowerCase() === candidate);
+  if (exact) return exact.code;
+  const aliases: Record<string, SupportedLocale> = { en: 'en-IN', mr: 'mr-IN', hi: 'hi-IN' };
+  return aliases[candidate] ?? null;
+}
+
 export function isSupportedLocale(value: string): value is SupportedLocale {
   return SUPPORTED_LOCALES.some((locale) => locale.code === value);
 }
