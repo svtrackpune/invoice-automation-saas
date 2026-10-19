@@ -18,7 +18,7 @@ test('first owner membership requires Supabase email and phone confirmation', as
   const migration = await read('supabase/migrations/20261019150000_fix_onboarding_rpc_overload_and_dual_auth_verification.sql');
   assert.match(migration, /u\.email_confirmed_at, u\.phone_confirmed_at/);
   assert.match(migration, /MESSAGE = 'Verify both your email address and mobile number before launching your first workspace\.'/);
-  assert.match(migration, /WHERE om\.user_id = NEW\.user_id AND om\.is_active/);
+  assert.match(migration, /WHERE om\.user_id = NEW\.user_id AND om\.is_active AND om\.role::text = 'owner'/);
   assert.match(migration, /BEFORE INSERT OR UPDATE ON public\.organization_members/);
   assert.match(migration, /REVOKE EXECUTE ON FUNCTION public\.enforce_dual_auth_for_first_workspace_owner\(\) FROM PUBLIC, anon, authenticated/);
 });

@@ -94,7 +94,7 @@ BEGIN
 
   IF EXISTS (
     SELECT 1 FROM public.organization_members om
-    WHERE om.user_id = NEW.user_id AND om.is_active
+    WHERE om.user_id = NEW.user_id AND om.is_active AND om.role::text = 'owner'
   ) THEN
     RETURN NEW;
   END IF;
