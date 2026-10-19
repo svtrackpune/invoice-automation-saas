@@ -128,3 +128,14 @@ test('Hindi translation catalog does not contain accidentally localized Spanish 
   assert.doesNotMatch(hindi, /'Show': 'Mostrar'/);
   assert.doesNotMatch(hindi, /'Received': 'Recibido'/);
 });
+
+test('document library displays each invoice, quotation, and receipt in its stored transaction currency', async () => {
+  const library = await read('app/next-workspace/documents/library/page.tsx');
+  assert.match(library, /type Row = \{[^}]*currencyCode: string/);
+  assert.match(library, /invoices'\)\.select\('id,invoice_number,invoice_date,status,total,balance_due,customer_id,currency_code'\)/);
+  assert.match(library, /quotations'\)\.select\('id,quotation_number,quotation_date,status,total,customer_id,currency_code'\)/);
+  assert.match(library, /receipts'\)\.select\('id,receipt_number,receipt_date,amount,payment_method,customer_id,currency_code'\)/);
+  assert.match(library, /currencyCode:String\(x\.currency_code\|\|business\.currency_code\|\|'INR'\)/);
+  assert.match(library, /money\(row\.amount,row\.currencyCode\)/);
+  assert.match(library, /sortBy==='amount'\?\(a\.currencyCode\.localeCompare\(b\.currencyCode\)\|\|Number\(a\.amount\)-Number\(b\.amount\)\)/);
+});
