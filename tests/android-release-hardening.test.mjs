@@ -11,6 +11,7 @@ test('Capacitor 8 and Gradle are configured for API 36',()=>{
  assert.match(variables,/minSdkVersion = 24/);assert.match(variables,/compileSdkVersion = 36/);assert.match(variables,/targetSdkVersion = 36/);
  assert.match(rootBuild,/com\.android\.tools\.build:gradle:8\.13\.0/);assert.match(wrapper,/gradle-8\.14\.3-all\.zip/);
  assert.match(pkg,/@capacitor\/(?:core|android|cli)@8\.5\.3/);
+ assert.match(appBuild,/compileSdk 36/);
 });
 test('release has a production version, shrink settings and env signing',()=>{
  assert.match(appBuild,/applicationId "in\.nilanga\.moneymatters"/);assert.match(appBuild,/versionCode 10401/);assert.match(appBuild,/versionName "1\.4\.1"/);
@@ -18,6 +19,8 @@ test('release has a production version, shrink settings and env signing',()=>{
  assert.match(appBuild,/ANDROID_KEY_ALIAS/);assert.match(appBuild,/ANDROID_KEY_PASSWORD/);
 });
 test('AAB workflow pins Java 17, preserves SDK 36, and requires signing',()=>{
- assert.match(workflow,/java-version: '17'/);assert.match(workflow,/ANDROID_KEYSTORE_BASE64/);\n assert.match(workflow,/git checkout -- android\/app\/build\.gradle android\/variables\.gradle/);\n assert.match(workflow,/grep -Eq .*compileSdk.*36/);
+ assert.match(workflow,/java-version: '17'/);assert.match(workflow,/ANDROID_KEYSTORE_BASE64/);
+ assert.match(workflow,/git checkout -- android\/app\/build\.gradle android\/variables\.gradle/);
+ assert.match(workflow,/grep -Fq 'compileSdk 36' android\/app\/build\.gradle/);
  assert.match(workflow,/gradlew bundleRelease -PrequireReleaseSigning=true/);assert.match(workflow,/app-release\.aab/);
 });
