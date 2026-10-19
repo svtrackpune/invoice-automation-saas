@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server.js';
-import { resolveSupportedLocale } from '@/lib/i18n';
 
 const API_PREFIX = '/api/';
 const PUBLIC_API_PREFIX = '/api/v1/';
@@ -63,7 +62,11 @@ export function middleware(request: NextRequest): NextResponse {
   const nonce = createNonce();
   const csp = buildContentSecurityPolicy(nonce, getSupabaseOrigin());
   const requestHeaders = new Headers(request.headers);
-  const requestLocale = resolveSupportedLocale(request.cookies.get('NEXT_LOCALE')?.value) ?? 'en-IN';
+  const cookieLocale = request.cookies.get('NEXT_LOCALE')?.value;
+  const requestLocale = cookieLocale === 'mr' ? 'mr-IN'
+    : cookieLocale === 'hi' ? 'hi-IN'
+    : cookieLocale === 'en' ? 'en-IN'
+    : cookieLocale || 'en-IN';
   requestHeaders.set('x-locale', requestLocale);
   requestHeaders.set('x-nonce', nonce);
   // Next.js uses the incoming CSP header to discover the per-request nonce
