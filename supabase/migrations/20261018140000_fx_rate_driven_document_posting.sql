@@ -4114,6 +4114,270 @@ BEGIN
 END;
 $function$;
 
+-- Expenses have no transaction-currency column; interpret recorded expense amounts in the business base currency.
+-- This keeps recurring expense generation and corrections consistent with the ledger's base currency.
+CREATE OR REPLACE FUNCTION public.post_expense(p_expense_id uuid)
+ RETURNS uuid
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public', 'pg_temp'
+AS $function$
+declare e public.expenses%rowtype; v_entry uuid; v_payment_account uuid; v_tax_account uuid; v_total numeric; v_entry_number bigint; v_base_currency char(3);
+begin
+ select * into e from public.expenses where id=p_expense_id for update;
+ if e.id is null then raise exception 'Expense not found'; end if;
+ if not mm_private.has_business_permission(e.business_id,'accounting.post') then raise exception 'Access denied'; end if;
+ if e.journal_entry_id is not null then return e.journal_entry_id; end if;
+ select upper(coalesce(nullif(btrim(base_currency_code),''),nullif(btrim(currency_code),''),v_base_currency)) into v_base_currency from public.businesses where id=e.business_id and is_active;
+ if v_base_currency is null then raise exception 'Business base currency is missing'; end if;
+ if e.account_id is null or not exists(select 1 from public.accounts a where a.id=e.account_id and a.business_id=e.business_id and a.is_active) then raise exception 'Expense account is invalid'; end if;
+ v_payment_account:=e.payment_account_id;
+ if v_payment_account is null then select id into v_payment_account from public.accounts where business_id=e.business_id and code='1000' and is_active; end if;
+ if v_payment_account is null then raise exception 'Default payment account is missing'; end if;
+ if not exists(select 1 from public.accounts where id=v_payment_account and business_id=e.business_id and is_active) then raise exception 'Payment account is invalid'; end if;
+ if e.amount<=0 then raise exception 'Expense amount must be greater than zero'; end if;
+ if e.tax_amount<0 then raise exception 'Tax amount cannot be negative'; end if;
+ perform public.assert_accounting_period_open(e.business_id,e.expense_date);
+ v_total:=round(e.amount+e.tax_amount,2);
+ perform pg_advisory_xact_lock(hashtext('journal-entry-number:'||e.business_id::text));
+ select coalesce(max(entry_number),0)+1 into v_entry_number from public.journal_entries where business_id=e.business_id;
+ insert into public.journal_entries(business_id,entry_number,entry_date,description,source_type,source_id,status,posted_at,posted_by,created_by,currency_code,total_debit,total_credit,is_system_generated) values(e.business_id,v_entry_number,e.expense_date,'Expense: '||e.description,'expense',e.id,'posted',now(),auth.uid(),e.created_by,v_base_currency,v_total,v_total,true) returning id into v_entry;
+ if e.tax_creditable and e.tax_amount>0 then
+   select id into v_tax_account from public.accounts where business_id=e.business_id and code='1300' and is_active;
+   if v_tax_account is null then raise exception 'Input Tax Credit account (1300) is missing'; end if;
+   insert into public.journal_lines(journal_entry_id,account_id,description,debit,credit,currency_code,entity_type,entity_id) values
+    (v_entry,e.account_id,e.description,e.amount,0,v_base_currency,'expense',e.id),(v_entry,v_tax_account,'Input GST / eligible tax credit',e.tax_amount,0,v_base_currency,'expense',e.id),(v_entry,v_payment_account,e.description,0,v_total,v_base_currency,'expense',e.id);
+ else
+   insert into public.journal_lines(journal_entry_id,account_id,description,debit,credit,currency_code,entity_type,entity_id) values
+    (v_entry,e.account_id,e.description,v_total,0,v_base_currency,'expense',e.id),(v_entry,v_payment_account,e.description,0,v_total,v_base_currency,'expense',e.id);
+ end if;
+ perform public.validate_journal_entry_balance(v_entry);
+ update public.expenses set journal_entry_id=v_entry,updated_at=now() where id=e.id;
+ return v_entry;
+end; $function$
+
+
+CREATE OR REPLACE FUNCTION public.update_expense_any_state(p_expense_id uuid, p_vendor_id uuid, p_expense_date date, p_description text, p_amount numeric, p_tax_amount numeric, p_account_id uuid, p_payment_account_id uuid, p_payment_method text DEFAULT NULL::text, p_reference text DEFAULT NULL::text, p_tax_creditable boolean DEFAULT false, p_expense_type text DEFAULT 'operating'::text, p_category_id uuid DEFAULT NULL::uuid, p_tax_rate numeric DEFAULT 0, p_tax_inclusive boolean DEFAULT true, p_tax_components jsonb DEFAULT '{}'::jsonb)
+ RETURNS uuid
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public', 'pg_temp'
+AS $function$
+DECLARE
+  e public.expenses%rowtype;
+  v_tax_account uuid;
+  v_journal uuid;
+  v_entry_number bigint;
+  v_payment_account uuid;
+  v_method public.payment_method;
+  v_old_journal boolean := false;
+  v_total numeric;
+  v_base_currency char(3);
+BEGIN
+  SELECT * INTO e
+  FROM public.expenses
+  WHERE id=p_expense_id
+  FOR UPDATE;
+
+  IF e.id IS NULL THEN
+    RAISE EXCEPTION 'Expense not found';
+  END IF;
+
+  IF p_description IS NULL OR trim(p_description)='' THEN
+    RAISE EXCEPTION 'Expense description is required';
+  END IF;
+  IF p_amount<=0 THEN
+    RAISE EXCEPTION 'Expense amount must be greater than zero';
+  END IF;
+  IF p_tax_amount<0 OR p_tax_rate<0 THEN
+    RAISE EXCEPTION 'Tax amount and rate cannot be negative';
+  END IF;
+
+  IF NOT (
+    mm_private.has_business_permission(e.business_id,'accounting.adjust')
+    OR (e.journal_entry_id IS NULL AND mm_private.has_business_permission(e.business_id,'accounting.post'))
+  ) THEN
+    RAISE EXCEPTION 'Access denied';
+  END IF;
+
+  SELECT upper(coalesce(nullif(btrim(base_currency_code),''),nullif(btrim(currency_code),''),v_base_currency))
+    INTO v_base_currency
+  FROM public.businesses
+  WHERE id=e.business_id AND is_active;
+  IF v_base_currency IS NULL THEN
+    RAISE EXCEPTION 'Business base currency is missing';
+  END IF;
+
+  PERFORM public.assert_accounting_period_open(e.business_id,e.expense_date);
+  PERFORM public.assert_accounting_period_open(e.business_id,p_expense_date);
+
+  IF p_vendor_id IS NOT NULL AND NOT EXISTS(
+    SELECT 1 FROM public.vendors
+    WHERE id=p_vendor_id AND business_id=e.business_id AND is_active
+  ) THEN
+    RAISE EXCEPTION 'Vendor not found or inactive';
+  END IF;
+
+  IF p_category_id IS NOT NULL AND NOT EXISTS(
+    SELECT 1 FROM public.expense_categories
+    WHERE id=p_category_id AND business_id=e.business_id AND is_active
+  ) THEN
+    RAISE EXCEPTION 'Expense category not found or inactive';
+  END IF;
+
+  IF NOT EXISTS(
+    SELECT 1 FROM public.accounts
+    WHERE id=p_account_id AND business_id=e.business_id AND is_active
+  ) THEN
+    RAISE EXCEPTION 'Expense account is invalid';
+  END IF;
+
+  v_payment_account:=p_payment_account_id;
+  IF v_payment_account IS NULL THEN
+    SELECT id INTO v_payment_account
+    FROM public.accounts
+    WHERE business_id=e.business_id AND code='1000' AND is_active;
+  END IF;
+
+  IF v_payment_account IS NULL OR NOT EXISTS(
+    SELECT 1 FROM public.accounts
+    WHERE id=v_payment_account AND business_id=e.business_id AND is_active
+  ) THEN
+    RAISE EXCEPTION 'Payment account is invalid';
+  END IF;
+
+  IF p_payment_method IS NOT NULL THEN
+    v_method:=lower(p_payment_method)::public.payment_method;
+  ELSE
+    v_method:=NULL;
+  END IF;
+
+  v_total:=round(p_amount+p_tax_amount,2);
+  IF v_total<=0 THEN
+    RAISE EXCEPTION 'Expense total must be greater than zero';
+  END IF;
+
+  IF e.journal_entry_id IS NOT NULL THEN
+    v_old_journal:=true;
+    IF EXISTS(
+      SELECT 1 FROM public.journal_entries
+      WHERE reversal_of_id=e.journal_entry_id
+    ) THEN
+      RAISE EXCEPTION 'This expense has already been reversed and cannot be edited.';
+    END IF;
+
+    PERFORM public.reverse_journal_entry(
+      e.journal_entry_id,
+      p_expense_date,
+      'Expense correction: ' || e.description,
+      auth.uid()
+    );
+  END IF;
+
+  UPDATE public.expenses
+  SET vendor_id=p_vendor_id,
+      expense_date=p_expense_date,
+      description=trim(p_description),
+      amount=round(p_amount,2),
+      tax_amount=round(p_tax_amount,2),
+      account_id=p_account_id,
+      payment_account_id=v_payment_account,
+      payment_method=v_method,
+      reference=nullif(trim(p_reference),''),
+      tax_creditable=coalesce(p_tax_creditable,false),
+      expense_type=coalesce(nullif(trim(p_expense_type),''),'operating'),
+      category_id=p_category_id,
+      tax_rate=round(p_tax_rate,4),
+      tax_inclusive=coalesce(p_tax_inclusive,true),
+      tax_components=coalesce(p_tax_components,'{}'::jsonb),
+      journal_entry_id=NULL,
+      updated_at=now()
+  WHERE id=e.id;
+
+  PERFORM pg_advisory_xact_lock(hashtext('journal-entry-number:'||e.business_id::text));
+  SELECT coalesce(max(entry_number),0)+1
+  INTO v_entry_number
+  FROM public.journal_entries
+  WHERE business_id=e.business_id;
+
+  INSERT INTO public.journal_entries(
+    business_id,entry_number,entry_date,description,source_type,source_id,
+    status,posted_at,posted_by,created_by,currency_code,total_debit,total_credit,is_system_generated
+  )
+  VALUES(
+    e.business_id,v_entry_number,p_expense_date,
+    'Expense: '||trim(p_description),
+    'expense',e.id,'posted',now(),auth.uid(),e.created_by,
+    v_base_currency,v_total,v_total,true
+  )
+  RETURNING id INTO v_journal;
+
+  IF p_tax_creditable AND p_tax_amount>0 THEN
+    SELECT id INTO v_tax_account
+    FROM public.accounts
+    WHERE business_id=e.business_id AND code='1300' AND is_active;
+
+    IF v_tax_account IS NULL THEN
+      RAISE EXCEPTION 'Input Tax Credit account (1300) is missing';
+    END IF;
+
+    INSERT INTO public.journal_lines(
+      journal_entry_id,account_id,description,debit,credit,currency_code,entity_type,entity_id
+    )
+    VALUES
+      (v_journal,p_account_id,trim(p_description),round(p_amount,2),0,v_base_currency,'expense',e.id),
+      (v_journal,v_tax_account,'Input GST / eligible tax credit',round(p_tax_amount,2),0,v_base_currency,'expense',e.id),
+      (v_journal,v_payment_account,trim(p_description),0,v_total,v_base_currency,'expense',e.id);
+  ELSE
+    INSERT INTO public.journal_lines(
+      journal_entry_id,account_id,description,debit,credit,currency_code,entity_type,entity_id
+    )
+    VALUES
+      (v_journal,p_account_id,trim(p_description),v_total,0,v_base_currency,'expense',e.id),
+      (v_journal,v_payment_account,trim(p_description),0,v_total,v_base_currency,'expense',e.id);
+  END IF;
+
+  PERFORM public.validate_journal_entry_balance(v_journal);
+
+  UPDATE public.expenses
+  SET journal_entry_id=v_journal,updated_at=now()
+  WHERE id=e.id;
+
+  RETURN e.id;
+END;
+$function$
+
+
+-- Keep the business base currency immutable once its ledger has posted entries.
+-- Otherwise old journal carrying values and base-currency-only expenses become mislabelled.
+CREATE OR REPLACE FUNCTION mm_private.guard_business_base_currency_change()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path TO 'public','mm_private','pg_temp'
+AS $function$
+DECLARE
+  v_old_base char(3);
+  v_new_base char(3);
+BEGIN
+  v_old_base:=upper(coalesce(nullif(btrim(OLD.base_currency_code),''),nullif(btrim(OLD.currency_code),''),'INR'));
+  v_new_base:=upper(coalesce(nullif(btrim(NEW.base_currency_code),''),nullif(btrim(NEW.currency_code),''),'INR'));
+  IF v_old_base IS DISTINCT FROM v_new_base
+     AND EXISTS (
+       SELECT 1 FROM public.journal_entries je
+       WHERE je.business_id=OLD.id AND je.status='posted'
+     ) THEN
+    RAISE EXCEPTION 'Base/accounting currency cannot be changed after journal entries are posted. Create a controlled ledger conversion instead.';
+  END IF;
+  RETURN NEW;
+END;
+$function$;
+REVOKE ALL ON FUNCTION mm_private.guard_business_base_currency_change() FROM PUBLIC,anon,authenticated;
+DROP TRIGGER IF EXISTS trg_business_base_currency_immutable ON public.businesses;
+CREATE TRIGGER trg_business_base_currency_immutable
+BEFORE UPDATE OF base_currency_code ON public.businesses
+FOR EACH ROW EXECUTE FUNCTION mm_private.guard_business_base_currency_change();
+
 -- Seed realized FX gain/loss accounts idempotently; never rewrite existing journal history.
 INSERT INTO public.accounts(business_id,code,name,account_type,normal_balance,is_system,is_active,description)
 SELECT b.id,'4050','Realized FX Gain','income','credit',true,true,'Realized foreign-exchange gains on settlement'
