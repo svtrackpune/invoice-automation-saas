@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
-import { headers } from "next/headers";
+import { cookies, headers } from "next/headers";
+import { resolveSupportedLocale } from "@/lib/i18n";
 import "./globals.css";
 import "./document-templates.css";
 import "./document-branding-final.css";
@@ -23,11 +24,12 @@ export const metadata: Metadata = {
 };
 
 export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-  const headersList = await headers();
+  const [headersList, cookieStore] = await Promise.all([headers(), cookies()]);
   const nonce = headersList.get("x-nonce") ?? undefined;
+  const locale = resolveSupportedLocale(headersList.get("x-locale") ?? cookieStore.get("NEXT_LOCALE")?.value) ?? "en-IN";
 
   return (
-    <html lang="en" nonce={nonce} className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}>
+    <html lang={locale} nonce={nonce} className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}>
       <head>
         <style dangerouslySetInnerHTML={{ __html: `
           /* Screen document canvas: A4 for invoices/quotations, thermal for receipts. */
