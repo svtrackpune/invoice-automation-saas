@@ -7,6 +7,7 @@ const rootBuild=readFileSync('android/build.gradle','utf8');
 const wrapper=readFileSync('android/gradle/wrapper/gradle-wrapper.properties','utf8');
 const pkg=readFileSync('package.json','utf8');
 const workflow=readFileSync('.github/workflows/android-release.yml','utf8');
+const nativeWorkflow=readFileSync('.github/workflows/android-native-build.yml','utf8');
 test('Capacitor 8 and Gradle are configured for API 36',()=>{
  assert.match(variables,/minSdkVersion = 24/);assert.match(variables,/compileSdkVersion = 36/);assert.match(variables,/targetSdkVersion = 36/);
  assert.match(rootBuild,/com\.android\.tools\.build:gradle:8\.13\.0/);assert.match(wrapper,/gradle-8\.14\.3-all\.zip/);
@@ -24,4 +25,8 @@ test('AAB workflow pins Java 17, preserves SDK 36, and requires signing',()=>{
  assert.match(workflow,/git checkout -- android\/app\/build\.gradle android\/variables\.gradle/);
  assert.match(workflow,/grep -Fq 'compileSdk 36' android\/app\/build\.gradle/);
  assert.match(workflow,/gradlew bundleRelease -PrequireReleaseSigning=true/);assert.match(workflow,/app-release\.aab/);
+ assert.match(nativeWorkflow,/java-version: '17'/);
+ assert.match(nativeWorkflow,/git checkout -- android\/app\/build\.gradle android\/variables\.gradle/);
+ assert.match(nativeWorkflow,/grep -Fq 'compileSdk 36' android\/app\/build\.gradle/);
+
 });
