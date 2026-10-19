@@ -5,7 +5,7 @@ import { readFile } from 'node:fs/promises';
 const read = (path) => readFile(new URL('../' + path, import.meta.url), 'utf8');
 
 test('workspace creation exposes one unambiguous RPC and delegates to a distinct core function', async () => {
-  const migration = await read('supabase/migrations/20261019150000_fix_onboarding_rpc_overload_and_dual_auth_verification.sql');
+  const migration = await read('supabase/migrations/20261019132047_fix_onboarding_rpc_overload_and_dual_auth_verification.sql');
   assert.match(migration, /RENAME TO create_business_for_current_user_core/);
   assert.match(migration, /CREATE OR REPLACE FUNCTION public\.create_business_for_current_user\(/);
   assert.match(migration, /v_business := public\.create_business_for_current_user_core\(/);
@@ -15,7 +15,7 @@ test('workspace creation exposes one unambiguous RPC and delegates to a distinct
 });
 
 test('first owner membership requires Supabase email and phone confirmation', async () => {
-  const migration = await read('supabase/migrations/20261019150000_fix_onboarding_rpc_overload_and_dual_auth_verification.sql');
+  const migration = await read('supabase/migrations/20261019132047_fix_onboarding_rpc_overload_and_dual_auth_verification.sql');
   assert.match(migration, /u\.email_confirmed_at, u\.phone_confirmed_at/);
   assert.match(migration, /MESSAGE = 'Verify both your email address and mobile number before launching your first workspace\.'/);
   assert.match(migration, /WHERE om\.user_id = NEW\.user_id AND om\.is_active AND om\.role::text = 'owner'/);
