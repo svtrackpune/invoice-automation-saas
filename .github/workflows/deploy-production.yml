@@ -9,9 +9,17 @@ on:
       - main
   workflow_dispatch:
 
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
     env:
       PROD_SSH_HOST: ${{ secrets.PROD_SSH_HOST }}
@@ -21,16 +29,30 @@ jobs:
     steps:
       - name: Validate Deployment Secrets
         id: preflight
+        shell: bash
         run: |
-          if [ -z "$PROD_SSH_HOST" ] || [ -z "$PROD_SSH_USER" ] || [ -z "$PROD_SSH_KEY" ]; then
-            echo "::error::Plesk deployment cannot be certified: PROD_SSH_HOST, PROD_SSH_USER, and PROD_SSH_KEY must be configured."
+          set -euo pipefail
+          missing=()
+          [[ -n "${PROD_SSH_HOST:-}" ]] || missing+=("PROD_SSH_HOST")
+          [[ -n "${PROD_SSH_USER:-}" ]] || missing+=("PROD_SSH_USER")
+          [[ -n "${PROD_SSH_KEY:-}" ]] || missing+=("PROD_SSH_KEY")
+
+          if (("${#missing[@]}" > 0)); then
+            printf '::error::Deployment halted. Missing repository Actions secrets:%s\n' "$(printf ' %s' "${missing[@]}")"
+            echo "Configure the listed secrets in GitHub Settings -> Secrets and variables -> Actions."
             exit 1
           fi
+
+          if [[ ! "${PROD_SSH_PORT:-}" =~ ^[0-9]+$ ]] || (( PROD_SSH_PORT < 1 || PROD_SSH_PORT > 65535 )); then
+            echo "::error::PROD_SSH_PORT must be an integer between 1 and 65535 (or leave it unset to use port 22)."
+            exit 1
+          fi
+
           echo "deploy_enabled=true" >> "$GITHUB_OUTPUT"
 
       - name: Execute Remote Deployment & Rebuild
         if: steps.preflight.outputs.deploy_enabled == 'true'
-        uses: appleboy/ssh-action@v1.2.0
+        uses: appleboy/ssh-action@7eaf76671a0d7eec5d98ee897acda4f968735a17 # v1.2.0
         with:
           host: ${{ env.PROD_SSH_HOST }}
           username: ${{ env.PROD_SSH_USER }}
@@ -38,9 +60,13 @@ jobs:
           port: ${{ env.PROD_SSH_PORT }}
           ssh_args: "-o StrictHostKeyChecking=no"
           script: |
-            set -e
+            set -euo pipefail
             cd /var/www/vhosts/nilanga.in/mm.nilanga.in
             TARGET_SHA="${{ github.event.workflow_run.head_sha || github.sha }}"
+            if ! [[ "$TARGET_SHA" =~ ^[0-9a-f]{40}$ ]]; then
+              echo "Refusing deployment: invalid target commit SHA."
+              exit 1
+            fi
             echo "Deploying verified commit: $TARGET_SHA"
             git fetch origin "$TARGET_SHA"
             git reset --hard "$TARGET_SHA"
@@ -51,7 +77,9 @@ jobs:
 
       - name: Verify Live Endpoints
         if: steps.preflight.outputs.deploy_enabled == 'true'
+        shell: bash
         run: |
+          set -euo pipefail
           sleep 10
           curl -f -sS --max-time 10 https://mm.nilanga.in/healthz | grep -q '"status":"healthy"'
           curl -f -sS --max-time 15 https://mm.nilanga.in/readyz | grep -q '"database":"connected"'
