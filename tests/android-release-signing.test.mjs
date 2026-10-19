@@ -19,6 +19,9 @@ test('Android release signing contract stays fail-closed and secret-free', async
   assert.match(gradle, /ANDROID_KEY_ALIAS/);
   assert.match(gradle, /ANDROID_KEY_PASSWORD/);
   assert.match(gradle, /requireReleaseSigning/);
+  assert.match(gradle, /releaseSigningFailure =/);
+  assert.match(gradle, /gradle\.taskGraph\.whenReady\s*\{[\s\S]*?throw new GradleException\(releaseSigningFailure\)/);
+  assert.ok(gradle.indexOf('android {') < gradle.indexOf('gradle.taskGraph.whenReady'));
   assert.match(gradle, /signingConfig signingConfigs\.release/);
   assert.match(gradle, /Local release bundles may be generated unsigned/);
   assert.doesNotMatch(gradle, /storePassword\s*=\s*['"][^'"]+['"]/);
