@@ -91,7 +91,7 @@ function EmailVerificationGate({user,onSignOut}:{user:User;onSignOut:()=>void|Pr
 function PhoneVerificationGate({user,onVerified,onSignOut}:{user:User;onVerified:()=>void|Promise<void>;onSignOut:()=>void|Promise<void>}){
   const metadataPhone=typeof user.user_metadata?.phone==='string'?user.user_metadata.phone:'';
   const[phone,setPhone]=useState(metadataPhone||user.phone||'');
-  const[otp,setOtp]=useState(''),[sent,setSent]=useState(false),[busy,setBusy]=useState(false),[error,setError]=useState(''),[notice,setNotice]=useState('');
+  const[otp,setOtp]=useState(''),[sent,setSent]=useState(false),[requestedPhone,setRequestedPhone]=useState(''),[busy,setBusy]=useState(false),[error,setError]=useState(''),[notice,setNotice]=useState('');
   const normalizedPhone=phone.trim().replace(/[^\d+]/g,'');
   async function sendCode(){
     if(!/^\+[1-9]\d{7,14}$/.test(normalizedPhone)){setError('Enter a valid mobile number in international format, including + and the country code.');return}
@@ -101,12 +101,13 @@ function PhoneVerificationGate({user,onVerified,onSignOut}:{user:User;onVerified
       : await supabase.auth.updateUser({phone:normalizedPhone,data:{...user.user_metadata,phone:normalizedPhone}});
     setBusy(false);
     if(response.error){setError(response.error.message);return}
-    setPhone(normalizedPhone);setOtp('');setSent(true);setNotice('We sent a verification code to this mobile number. Enter it below to verify your account.');
+    setPhone(normalizedPhone);setRequestedPhone(normalizedPhone);setOtp('');setSent(true);setNotice('We sent a verification code to this mobile number. Enter it below to verify your account.');
   }
   async function verifyCode(){
+    if(normalizedPhone!==requestedPhone){setError('The mobile number changed after the code was sent. Send a new code.');return}
     if(!/^\d{6}$/.test(otp)){setError('Enter the 6-digit code sent to your mobile.');return}
     setBusy(true);setError('');setNotice('');
-    const response=await supabase.auth.verifyOtp({phone:normalizedPhone,token:otp,type:'phone_change'});
+    const response=await supabase.auth.verifyOtp({phone:requestedPhone,token:otp,type:'phone_change'});
     if(response.error){setBusy(false);setError(response.error.message);return}
     const refreshed=await supabase.auth.getUser();
     setBusy(false);

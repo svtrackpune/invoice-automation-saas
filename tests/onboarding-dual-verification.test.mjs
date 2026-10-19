@@ -28,7 +28,9 @@ test('new account verification uses Supabase email confirmation followed by auth
   assert.match(auth, /emailRedirectTo:\`\$\{window\.location\.origin\}\/\`/);
   assert.match(auth, /supabase\.auth\.resend\(\{type:'signup'/);
   assert.match(auth, /supabase\.auth\.updateUser\(\{phone:normalizedPhone,data:/);
-  assert.match(auth, /supabase\.auth\.verifyOtp\(\{phone:normalizedPhone,token:otp,type:'phone_change'\}\)/);
+  assert.match(auth, /supabase\.auth\.verifyOtp\(\{phone:requestedPhone,token:otp,type:'phone_change'\}\)/);
+  assert.match(auth, /normalizedPhone!==requestedPhone/);
+  assert.match(auth, /setRequestedPhone\(normalizedPhone\)/);
   assert.match(auth, /!s\.user\.email_confirmed_at/);
   assert.match(auth, /!s\.user\.phone_confirmed_at/);
   assert.match(auth, /needsPhoneVerification/);
