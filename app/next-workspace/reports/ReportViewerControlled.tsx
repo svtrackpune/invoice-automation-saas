@@ -43,7 +43,7 @@ export default function ReportViewerControlled(p:Props){
   const load=async()=>{
    setLoading(true);setError('');
    const c=await supabase.rpc('get_my_business_context');const business=c.data?.[0] as BusinessContext|undefined;
-   if(!business){p.onBack();return}if(!active)return;setCtx(business);setCurrencyCode(business.currency_code||'INR');
+   if(!business){p.onBack();return}if(!active)return;setCtx(business);if(!ctx)setCurrencyCode(business.currency_code||'INR');
    const periodResult=await supabase.from('accounting_periods').select('period_start,period_end,status').eq('business_id',business.business_id).order('period_end',{ascending:false}).limit(24);
    if(active)setPeriods((periodResult.data||[]) as Period[]);
    try{const data=await fetchRows(template,business.business_id,from,to,currencyCode);if(active)setRows(data)}
