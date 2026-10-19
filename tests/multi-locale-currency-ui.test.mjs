@@ -172,7 +172,7 @@ test('base-currency-only expense and POS screens format currency consistently an
   assert.match(expense, /currencyCode=\{baseCurrencyCode\} form=\{rf\}/);
 
   assert.match(cashPage, /businesses'\)\.select\('name,base_currency_code,currency_code'\)/);
-  assert.match(cashPage, /baseCurrencyCode=String\(businessResult\.data\?\.base_currency_code/);
+  assert.match(cashPage, /setBaseCurrencyCode\(String\(businessResult\.data\?\.base_currency_code/);
   assert.match(cashPage, /UPI \/ QR settlement is only supported for an INR base currency/);
   assert.match(cashPage, /baseCurrencyCode!=='INR'\|\|!upiId/);
   assert.match(cashPage, /currencyCode:baseCurrencyCode/);
