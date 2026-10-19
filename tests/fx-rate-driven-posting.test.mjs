@@ -236,16 +236,20 @@ test('expense posting and corrections use business base currency and post journa
   assert.match(updateExpense, /Expense correction refused: journal entry/);
 });
 
-test('base currency cannot be changed after a business has posted accounting entries', async () => {
-  const sql = await read(migrationPath);
-  const guardStart = sql.indexOf('CREATE OR REPLACE FUNCTION mm_private.guard_business_base_currency_change()');
-  const guardEnd = sql.indexOf('$function$', sql.indexOf('$function$', guardStart + 1) + 1);
+test('FX migration reuses the existing base-currency immutability guard without duplicating triggers', async () => {
+  const [sql, foundation] = await Promise.all([
+    read(migrationPath),
+    read('supabase/migrations/20261002130000_global_multi_currency_v1.sql'),
+  ]);
+  const guardStart = foundation.indexOf('CREATE OR REPLACE FUNCTION public.guard_business_base_currency_change()');
+  const guardEnd = foundation.indexOf('$function$', foundation.indexOf('$function$', guardStart + 1) + 1);
   assert.ok(guardStart >= 0 && guardEnd > guardStart);
-  const guard = sql.slice(guardStart, guardEnd + '$function$'.length);
-  assert.match(guard, /v_old_base IS DISTINCT FROM v_new_base/);
-  assert.match(guard, /SELECT 1 FROM public\.journal_entries je/);
-  assert.match(guard, /je\.business_id=OLD\.id AND je\.status='posted'/);
-  assert.match(guard, /Base\/accounting currency cannot be changed after journal entries are posted/);
-  assert.match(sql, /CREATE TRIGGER trg_business_base_currency_immutable\s+BEFORE UPDATE OF base_currency_code ON public\.businesses/);
-  assert.match(sql, /REVOKE ALL ON FUNCTION mm_private\.guard_business_base_currency_change\(\) FROM PUBLIC,anon,authenticated/);
+  const guard = foundation.slice(guardStart, guardEnd + '$function$'.length);
+  assert.match(guard, /NEW\.base_currency_code IS DISTINCT FROM OLD\.base_currency_code/);
+  assert.match(guard, /FROM public\.journal_entries/);
+  assert.match(guard, /Business base currency cannot be changed after journal activity exists/);
+  assert.match(foundation, /CREATE TRIGGER trg_business_base_currency_change[\\s\\S]*?BEFORE UPDATE OF base_currency_code ON public\.businesses/);
+  assert.doesNotMatch(sql, /CREATE OR REPLACE FUNCTION mm_private\.guard_business_base_currency_change/);
+  assert.doesNotMatch(sql, /CREATE TRIGGER trg_business_base_currency_immutable/);
 });
+
