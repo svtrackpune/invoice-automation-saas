@@ -12,6 +12,7 @@ test('Capacitor 8 and Gradle are configured for API 36',()=>{
  assert.match(rootBuild,/com\.android\.tools\.build:gradle:8\.13\.0/);assert.match(wrapper,/gradle-8\.14\.3-all\.zip/);
  assert.match(pkg,/@capacitor\/(?:core|android|cli)@8\.5\.3/);
  assert.match(appBuild,/compileSdk 36/);
+ assert.ok(appBuild.indexOf('android {') < appBuild.indexOf('gradle.taskGraph.whenReady'));
 });
 test('release has a production version, shrink settings and env signing',()=>{
  assert.match(appBuild,/applicationId "in\.nilanga\.moneymatters"/);assert.match(appBuild,/versionCode 10401/);assert.match(appBuild,/versionName "1\.4\.1"/);
