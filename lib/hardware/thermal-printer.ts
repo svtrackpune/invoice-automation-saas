@@ -248,12 +248,14 @@ export interface CashBillReceiptInput {
   amountReceived: number;
   change: number;
   upiLink?: string | null;
+  currencyCode?: string;
   rollWidth: RollWidth;
 }
 
 export function buildCashBillReceipt(input: CashBillReceiptInput): Uint8Array {
   const width = input.rollWidth === 58 ? 32 : 48;
-  const money = (value: number) => '₹' + Number(value || 0).toFixed(2);
+  const currencyCode = /^[A-Z]{3}$/.test(String(input.currencyCode || 'INR').toUpperCase()) ? String(input.currencyCode || 'INR').toUpperCase() : 'INR';
+  const money = (value: number) => (currencyCode === 'INR' ? '₹' : currencyCode + ' ') + Number(value || 0).toFixed(2);
   const itemNameWidth = width >= 48 ? 25 : 15;
   const qtyWidth = width >= 48 ? 7 : 5;
   const amountWidth = width - itemNameWidth - qtyWidth - 2;
