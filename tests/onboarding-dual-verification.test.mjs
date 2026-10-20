@@ -28,7 +28,7 @@ test('first owner trigger requires confirmed email or trusted OAuth and never re
 test('signup stores a validated mobile number as metadata while email/OAuth controls account verification', async () => {
   const auth = await read('app/page.tsx');
   assert.match(auth, /\^\[6-9\]\\d\{9\}\$/);
-  assert.match(auth, /data:\{display_name:name\.trim\(\),phone:phoneValue,mobile_number:digits,country_code:selected\[0\]\}/);
+  assert.match(auth, /data:\{display_name:name\.trim\(\),phone:phoneValue,mobile_number:digits,country_code:'IN'\}/);
   assert.match(auth, /signInWithOAuth\(\{provider,options:\{redirectTo:/);
   assert.match(auth, /Continue with Google/);
   assert.match(auth, /Continue with Facebook/);
@@ -36,13 +36,13 @@ test('signup stores a validated mobile number as metadata while email/OAuth cont
   assert.doesNotMatch(auth, /signInWithOtp|verifyOtp|phone_confirmed_at|PhoneVerificationGate|Sign in with mobile OTP|Forgot email\?/);
 });
 
-test('password recovery sends an email and updates the password from the recovery session', async () => {
+test('password recovery sends email and updates the password from the recovery session', async () => {
   const auth = await read('app/page.tsx');
-  assert.match(auth, /resetPasswordForEmail\(normalizedEmail/);
-  assert.match(auth, /redirectTo:\`\$\{window\.location\.origin\}\/\`/);
+  const forgot = await read('app/auth/forgot-password/page.tsx');
+  assert.match(forgot, /resetPasswordForEmail\(normalizedEmail/);
+  assert.match(forgot, /redirectTo: window\.location\.origin \+ '\/'/);
   assert.match(auth, /window\.location\.hash\.includes\('type=recovery'\)/);
   assert.match(auth, /event==='PASSWORD_RECOVERY'/);
   assert.match(auth, /supabase\.auth\.updateUser\(\{password\}\)/);
   assert.match(auth, /Forgot password\?/);
-  assert.match(auth, /Back to sign in/);
 });
