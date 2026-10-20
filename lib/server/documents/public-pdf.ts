@@ -15,7 +15,7 @@ const C = {
   green: [0.08, 0.40, 0.27] as RGB, amber: [0.918, 0.345, 0.047] as RGB,
   red: [0.68, 0.18, 0.20] as RGB,
 };
-const pdfText = (v: unknown) => safePdfText(v).replace(/[—–]/g, '-');
+const pdfText = (v: unknown) => safePdfText(v);
 const money = (v: number, currency = 'INR') => {
   const code = /^[A-Z]{3}$/.test(String(currency || '').toUpperCase()) ? String(currency).toUpperCase() : 'INR';
   return code + ' ' + Number(v || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });

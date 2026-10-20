@@ -11,10 +11,7 @@ const DEVANAGARI_FONT_PATH = path.join(
 export const safePdfText = (value: unknown): string =>
   String(value ?? '')
     .normalize('NFC')
-    .replace(/[\r\n]+/g, ' ')
-    .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, '')
-    .replace(/\s+/gu, ' ')
-    .trim();
+    .replace(/[\r\n]+/g, ' ');
 
 export function createUnicodePdfDocument(options: Record<string, unknown> = {}): any {
   const document = new (PDFDocument as any)({
