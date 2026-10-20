@@ -217,7 +217,8 @@ test('public invoice and expanded document types render vector PDFs with QR link
  const raw=pdf.toString('latin1');
  assert.match(raw,/\/MediaBox \[0 0 595\.28 841\.89\]/);
  assert.ok((raw.match(/\bTj\b|\bTJ\b/g)||[]).length>20,'generated PDF must contain many text operators');
- for(const label of ['TAX INVOICE','BILL TO','SHIP TO','ITEM / DESCRIPTION','Net Payable','Balance due','AMOUNT IN WORDS:','Authorized Signatory','SCAN & PAY VIA UPI','Pay Now via UPI','Scan to pay the invoice amount.','This is a computer-generated invoice and does not require signature.','Powered by Moneymatters FinOps | mm.nilanga.in']) assert.ok(rendererSource.includes(label),'vector renderer is missing '+label);
+ for(const label of ['TAX INVOICE','BILL TO','SHIP TO','ITEM / DESCRIPTION','Net Payable','Balance due','AMOUNT IN WORDS:','Authorized Signatory','SCAN & PAY VIA UPI','Pay Now via UPI','Scan to pay the invoice amount.','This is a computer-generated ','Powered by Moneymatters FinOps | mm.nilanga.in']) assert.ok(rendererSource.includes(label),'vector renderer is missing '+label);
+ assert.ok(rendererSource.includes("doc.type === 'cash_bill' ? 'cash bill' : 'invoice'"),'footer names the corresponding document type');
  assert.ok(rendererSource.includes("c.text(bx,52,doc.number"),'invoice number is wired into the renderer');
  assert.doesNotMatch(rendererSource,/Rs\./,'renderer must not use the legacy Rs. currency prefix');
  assert.ok(rendererSource.indexOf("'Pay Now via UPI'")<rendererSource.indexOf("drawInvoiceInfoSection('TERMS & CONDITIONS'"),'payment settlement is composed before invoice terms');
