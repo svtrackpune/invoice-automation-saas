@@ -48,8 +48,8 @@ test('official receipt PDF follows allocation source, keeps source invoice descr
   assert.ok(renderer.includes(".from('invoice_items').select('quantity,unit_price,line_total,description,product_service_id')"));
   assert.ok(renderer.includes("description: (() => {"));
   assert.ok(renderer.includes("const productDescription = plain(product?.description || '')"));
-  assert.ok(renderer.includes('const textLine = (target: string[], x: number, y: number, value: string, size = 10, bold = false, fill = palette.ink)'));
-  assert.ok(renderer.includes('target.push(`${fill} rg BT ${font} ${size} Tf'));
+  assert.ok(renderer.includes('const textLine = (target: ReceiptPage, x: number, y: number, value: string, size = 10, bold = false, fill = palette.ink)'));
+  assert.ok(renderer.includes('pdf.font(pdfFontName(text, bold)).fontSize(size).fillColor(pdfColor(fill))'));
   assert.ok(renderer.includes("name: plain(product?.name || item.description || 'Item')"));
   assert.ok(renderer.includes('const quantityLabel ='));
   assert.ok(renderer.includes('INVOICE ITEMS'));
@@ -66,7 +66,7 @@ test('internal and public receipt downloads share the same receipt PDF renderer'
   const publicRoute = await read('app/api/public-documents/pdf/route.ts');
   const resolver = await read('lib/server/documents/public-tokens.ts');
 
-  assert.ok(internalRoute.includes('const pdf = buildReceiptPdf(data)'));
+  assert.ok(internalRoute.includes('const pdf = await buildReceiptPdf(data)'));
   assert.ok(publicRoute.includes('renderDocumentToBuffer(type, document.id, document.businessId)'));
   assert.ok(resolver.includes('if (type === \'receipt\')'));
   assert.ok(resolver.includes('return buildReceiptPdf(data)'));
@@ -148,17 +148,18 @@ test('finalizing an invoice preflights stock and explains shortfall without bypa
   assert.match(migration,/quantity_on_hand/);
 });
 
-test('receipt PDF text sanitizer preserves r, n, spaces and punctuation in product labels', async () => {
+test('receipt PDF text sanitizer preserves Unicode, line content, spaces and punctuation in product labels', async () => {
   const renderer = await read('lib/server/receipt-pdf.ts');
   const publicTokens = await read('lib/server/documents/public-tokens.ts');
-  assert.ok(renderer.includes(String.raw`const plain = (value: unknown) => String(value ?? '').replace(/[\r\n]/g, ' ').trim();`));
-  assert.ok(renderer.includes(String.raw`}).replace(/[^\x20-\x7E]/g, '');`));
+  const pdfKit = await read('lib/server/documents/pdf-kit.ts');
+  assert.ok(renderer.includes('const plain = (value: unknown) => safePdfText(value);'));
+  assert.ok(renderer.includes("from './documents/pdf-kit.ts'"));
+  assert.ok(pdfKit.includes(".replace(/[\\r\\n]+/g, ' ')"));
+  assert.ok(!pdfKit.includes("replace(/[^\\x20-\\x7E]/g, '')"));
   assert.ok(renderer.includes(".select('id,name,description,sku,unit')"));
   assert.ok(renderer.includes("const productDescription = plain(product?.description || '')"));
   assert.ok(renderer.includes("return lineDescription && lineDescription !== itemName"));
   assert.ok(renderer.includes('          : productDescription && productDescription !== itemName'));
   assert.ok(publicTokens.includes("const productDescription = text(product?.description)"));
   assert.ok(publicTokens.includes('description: lineDescription && lineDescription !== name ? lineDescription : productDescription && productDescription !== name ? productDescription :'));
-  // The PDF's line-level description may equal the item name; in that case,
-  // prefer the catalog description while never substituting the name itself.
 });

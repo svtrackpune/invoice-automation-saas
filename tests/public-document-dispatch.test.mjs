@@ -211,6 +211,15 @@ test('public invoice renderer creates a vector-rendered A4 GST PDF with QR and b
  };
  const pdf=await buildPublicDocumentPdf(doc);
  assert.ok(Buffer.isBuffer(pdf));
+ const unicodePdf = await buildPublicDocumentPdf({
+   ...doc,
+   business: { ...doc.business, name: 'महाराष्ट्र उद्योग' },
+   customer: { ...doc.customer, name: 'ग्राहक सेवा' },
+   items: [{ ...doc.items[0], name: 'मराठी वस्तू', description: 'मराठी वस्तू' }],
+ });
+ const unicodeRaw = unicodePdf.toString('latin1');
+ assert.match(unicodeRaw, /\\/FontFile2/, 'Devanagari text should embed a Unicode TrueType font');
+ assert.match(unicodeRaw, /\\/ToUnicode/, 'Devanagari font must have Unicode character mappings');
  assert.equal(pdf.subarray(0,8).toString('ascii'),'%PDF-1.4');
  const raw=pdf.toString('latin1');
  assert.match(raw,/\/MediaBox \[0 0 595\.28 841\.89\]/);

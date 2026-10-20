@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { createCanonicalDocumentViewModel } from '@/lib/shared/document-view-model';
-import { createUnicodePdfDocument, pdfColor, pdfDocumentToBuffer, pdfFontName, pdfTextWidth, safePdfText } from '@/lib/server/documents/pdf-kit';
+import { createUnicodePdfDocument, pdfColor, pdfDocumentToBuffer, pdfFontName, pdfTextWidth, safePdfText } from './documents/pdf-kit.ts';
 
 type ReceiptRow = {
   id: string;

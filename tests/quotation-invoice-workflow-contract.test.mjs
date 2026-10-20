@@ -32,10 +32,10 @@ const publicTaxIdMigration = read('supabase/migrations/20261013235800_public_tax
 test('invoice and quotation web/PDF item grids use six separate columns', () => {
   assert.ok(pdf.includes("['#', 'ITEM / DESCRIPTION', 'QTY', 'UNIT', 'RATE', 'AMOUNT']"));
   assert.match(pdf,/\[25, 225, 50, 55, 70, 90\]/);
-  assert.match(pdf,/ascii\(it\.quantity\).*'center'/s);
-  assert.match(pdf,/ascii\(originalItem\?\.unit \|\| it\.unit \|\| 'pcs'\)\.toUpperCase\(\)/);
+  assert.match(pdf,/pdfText\(it\.quantity\).*'center'/s);
+  assert.match(pdf,/pdfText\(originalItem\?\.unit \|\| it\.unit \|\| 'pcs'\)\.toUpperCase\(\)/);
   assert.match(pdf,/detailLines\.forEach\(\(line, j\) => c\.text\(xs\[1\].*7\.5, false, palette\.muted/s);
-  assert.doesNotMatch(pdf,/ascii\(it\.quantity\) \+ \(originalItem\?\.unit/);
+  assert.doesNotMatch(pdf,/pdfText\(it\.quantity\) \+ \(originalItem\?\.unit/);
   for (const source of [invoice, quote]) {
     assert.match(source,/>UNIT<\/th>/);
     assert.match(source,/>RATE<\/th>/);

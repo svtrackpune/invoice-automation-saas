@@ -17,7 +17,12 @@ export const safePdfText = (value: unknown): string =>
     .trim();
 
 export function createUnicodePdfDocument(options: Record<string, unknown> = {}): any {
-  const document = new (PDFDocument as any)({ ...options, bufferPages: true });
+  const document = new (PDFDocument as any)({
+    pdfVersion: '1.4',
+    compress: false,
+    ...options,
+    bufferPages: true,
+  });
   document.registerFont('NotoSansDevanagari', DEVANAGARI_FONT_PATH);
   return document;
 }

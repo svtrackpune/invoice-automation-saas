@@ -1,7 +1,7 @@
 import type { PublicDocument } from './public-tokens';
 import { canonicalAddress, createCanonicalDocumentViewModel } from '../../shared/document-view-model.ts';
 import QRCode from 'qrcode';
-import { createUnicodePdfDocument, pdfColor, pdfDocumentToBuffer, pdfFontName, pdfTextWidth, safePdfText } from './pdf-kit';
+import { createUnicodePdfDocument, pdfColor, pdfDocumentToBuffer, pdfFontName, pdfTextWidth, safePdfText } from './pdf-kit.ts';
 
 const W = 595.28, H = 841.89, M = 40, CW = W - M * 2, FOOTER_TOP = H - 68;
 type RGB = readonly [number, number, number];
