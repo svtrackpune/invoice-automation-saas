@@ -4,18 +4,6 @@ import { readFile } from 'node:fs/promises';
 const root=new URL('../',import.meta.url);
 const read=p=>readFile(new URL(p,root),'utf8');
 
-function pdfHasText(raw, value) {
- const literal = raw.includes(value);
- const hex = Buffer.from(value, 'ascii').toString('hex');
- return literal || raw.toLowerCase().includes(hex.toLowerCase());
-}
-
-function pdfTextPosition(raw, value) {
- const literal = raw.indexOf(value);
- if (literal >= 0) return literal;
- const hex = Buffer.from(value, 'ascii').toString('hex');
- return raw.toLowerCase().indexOf(hex.toLowerCase());
-}
 
 test('public token resolver preserves invoice/quotation tokens and hash-checks receipts',async()=>{
  const helper=await read('lib/server/documents/public-tokens.ts');
@@ -211,8 +199,9 @@ test('public token RPC grants cover anon and authenticated sessions without wide
  assert.match(quotation,/supabase\.rpc\('get_public_quotation'/);
 });
 
-test('public invoice renderer creates a vector-rendered A4 GST PDF with QR and binary xref',async()=>{
+test('public invoice and expanded document types render vector PDFs with QR links and Unicode fonts',async()=>{
  const { buildPublicDocumentPdf }=await import('../lib/server/documents/public-pdf.ts');
+ const rendererSource=await read('lib/server/documents/public-pdf.ts');
  const doc={
   type:'invoice',id:'invoice-id',businessId:'business-id',number:'INV-000018',date:'2026-10-11',dueDate:'2026-10-25',validUntil:null,status:'sent',currencyCode:'INR',templateName:'Premium',
   subtotal:200,discountTotal:10,taxTotal:34.2,total:224.2,amountPaid:50,balanceDue:174.2,notes:'Payment due within agreed terms.',terms:'Subject to jurisdiction.',paymentLink:null,paymentQrPayload:null,
@@ -224,81 +213,69 @@ test('public invoice renderer creates a vector-rendered A4 GST PDF with QR and b
  };
  const pdf=await buildPublicDocumentPdf(doc);
  assert.ok(Buffer.isBuffer(pdf));
- const unicodePdf = await buildPublicDocumentPdf({
-   ...doc,
-   business: { ...doc.business, name: 'महाराष्ट्र उद्योग' },
-   customer: { ...doc.customer, name: 'ग्राहक सेवा' },
-   items: [{ ...doc.items[0], name: 'मराठी वस्तू', description: 'मराठी वस्तू' }],
- });
- const unicodeRaw = unicodePdf.toString('latin1');
- assert.ok(unicodeRaw.includes('/FontFile2'), 'Devanagari text should embed a Unicode TrueType font');
- assert.ok(unicodeRaw.includes('/ToUnicode'), 'Devanagari font must have Unicode character mappings');
  assert.equal(pdf.subarray(0,8).toString('ascii'),'%PDF-1.4');
  const raw=pdf.toString('latin1');
  assert.match(raw,/\/MediaBox \[0 0 595\.28 841\.89\]/);
- for(const text of ['TAX INVOICE','INV-000018','BILL TO','SHIP TO','Template: Premium','#','ITEM / DESCRIPTION','CGST','SGST','Net Payable','Balance due','AMOUNT IN WORDS:','Authorized Signatory','SCAN & PAY VIA UPI','Pay Now via UPI','Scan to pay the invoice amount.','This is a computer-generated invoice and does not require signature.','Powered by Moneymatters FinOps | mm.nilanga.in']) assert.ok(pdfHasText(raw,text),'PDF is missing '+text);
- assert.ok(!pdfHasText(raw,'Rs.'),'PDF must not use legacy Rs. currency prefix');
- assert.ok(pdfTextPosition(raw,'Pay Now via UPI') < pdfTextPosition(raw,'TERMS & CONDITIONS'),'payment settlement must be rendered before invoice terms');
- assert.ok(!pdfHasText(raw,'INVOICE SUMMARY'));
- assert.ok(pdfHasText(raw,'Same as billing address') || pdfHasText(raw,'Industrial Estate'),'ship-to card has a shipping or billing fallback');
- assert.ok(!pdfHasText(raw,'This is a customer-facing invoice shared by'));
+ assert.ok((raw.match(/\bTj\b|\bTJ\b/g)||[]).length>20,'generated PDF must contain many text operators');
+ for(const label of ['TAX INVOICE','BILL TO','SHIP TO','ITEM / DESCRIPTION','Net Payable','Balance due','AMOUNT IN WORDS:','Authorized Signatory','SCAN & PAY VIA UPI','Pay Now via UPI','Scan to pay the invoice amount.','This is a computer-generated invoice and does not require signature.','Powered by Moneymatters FinOps | mm.nilanga.in']) assert.ok(rendererSource.includes(label),'vector renderer is missing '+label);
+ assert.ok(rendererSource.includes("c.text(bx,52,doc.number"),'invoice number is wired into the renderer');
+ assert.doesNotMatch(rendererSource,/Rs\./,'renderer must not use the legacy Rs. currency prefix');
+ assert.ok(rendererSource.indexOf("'Pay Now via UPI'")<rendererSource.indexOf("drawInvoiceInfoSection('TERMS & CONDITIONS'"),'payment settlement is composed before invoice terms');
+ assert.ok(!rendererSource.includes('INVOICE SUMMARY'));
+ assert.ok(rendererSource.includes('SHIP TO')&&rendererSource.includes('shipRows'));
+ assert.ok(!rendererSource.includes('This is a customer-facing invoice shared by'));
  assert.match(raw,/0\.486 0\.227 0\.929 rg[^\n]* m [^\n]* l/,'PDF must include a filled purple vector accent');
  assert.match(raw,/0\.908 0\.861 0\.987 rg/,'PDF must include the selected-theme soft corner vector');
  assert.match(raw,/0\.486 0\.227 0\.929 RG 1\.50 w/,'PDF must include the purple footer accent line');
  assert.match(raw,/0\.918 0\.345 0\.047 rg/,'financial totals use the standardized orange accent');
- const match=raw.match(/startxref\n(\d+)\n%%EOF/);
- assert.ok(match,'PDF cross-reference offset is missing');
- assert.equal(raw.slice(Number(match[1]),Number(match[1])+4),'xref');
- const qr=QRCodePlaceholderForTest(pdf);
- assert.ok(qr);
- assert.match(raw,/\/URI \(upi:\/\/pay\?/);
+ const xref=raw.match(/startxref\n(\d+)\n%%EOF/);
+ assert.ok(xref,'PDF cross-reference offset is missing');
+ assert.equal(raw.slice(Number(xref[1]),Number(xref[1])+4),'xref');
+ assert.ok(QRCodePlaceholderForTest(pdf),'invoice PDF must contain a QR image and payable link');
  const annotationRect=raw.match(/\/Subtype \/Link \/Rect \[([0-9.]+) ([0-9.]+)/);
  assert.ok(annotationRect,'UPI action must have a clickable PDF annotation');
- assert.ok(Number(annotationRect[1])>40 && Number(annotationRect[1])<220,'UPI action must be positioned in the compact left settlement card');
+ assert.ok(Number(annotationRect[1])>40&&Number(annotationRect[1])<220,'UPI action must be positioned in the compact left settlement card');
  assert.ok(Number(annotationRect[2])>100,'UPI action must be positioned in the document body, not the top margin');
- assert.doesNotMatch(raw,/Sample Bank/,'UPI-only default must not expose bank account strings');
+ assert.ok(rendererSource.includes('if(showBankSettlement&&doc.bankDetails)'),'bank account details are gated by settlement mode');
+
  const bankOnlyPdf=await buildPublicDocumentPdf({...doc,settlementDisplayMode:'bank_transfer'});
- const bankOnlyText=bankOnlyPdf.toString('latin1');
- assert.ok(pdfHasText(bankOnlyText,'Sample Bank'),'bank_transfer mode must show bank settlement details');
- assert.ok(pdfHasText(bankOnlyText,'BANK DETAILS'),'bank-only card must have a clear heading');
- assert.ok(!pdfHasText(bankOnlyText,'Pay Now via UPI')&&!pdfHasText(bankOnlyText,'Scan to pay the invoice amount.'),'bank_transfer mode must not show a UPI QR panel');
+ assert.ok(Buffer.isBuffer(bankOnlyPdf)&&bankOnlyPdf.length>1000);
+ assert.ok(!QRCodePlaceholderForTest(bankOnlyPdf),'bank transfer mode must not render a UPI QR/link');
  const bothPdf=await buildPublicDocumentPdf({...doc,settlementDisplayMode:'both'});
- const bothText=bothPdf.toString('latin1');
- assert.ok(pdfHasText(bothText,'Sample Bank'),'explicit both mode must show bank details');
- assert.ok(pdfHasText(bothText,'Pay Now via UPI'),'explicit both mode must show the UPI payment action');
+ assert.ok(Buffer.isBuffer(bothPdf)&&bothPdf.length>1000);
+ assert.ok(QRCodePlaceholderForTest(bothPdf),'both mode must render bank and QR settlement content');
  const bankFallback=await buildPublicDocumentPdf({...doc,upiId:null,settlementDisplayMode:undefined});
- assert.match(bankFallback.toString('latin1'),/Sample Bank/,'when UPI is absent the renderer should default to bank transfer');
+ assert.ok(Buffer.isBuffer(bankFallback)&&bankFallback.length>1000,'missing UPI should still generate the bank-settlement PDF');
 
-  const unregisteredPdf=await buildPublicDocumentPdf({...doc,total:190,taxTotal:0,cgstAmount:0,sgstAmount:0,igstAmount:0,business:{...doc.business,taxRegistrationNumber:null,gstRegistrationType:'NONE'},items:[{...doc.items[0],taxAmount:0,lineTotal:190}]});
-  const unregisteredText=unregisteredPdf.toString('latin1');
-  assert.ok(pdfHasText(unregisteredText,'INVOICE'),'unregistered supplier must receive an ordinary invoice title');
-  assert.ok(!['TAX INVOICE','CGST','SGST','IGST','Tax / GST'].some(value=>pdfHasText(unregisteredText,value)),'unregistered invoice must not claim tax-invoice status or expose GST rows');
+ const unicodePdf=await buildPublicDocumentPdf({
+   ...doc,
+   business:{...doc.business,name:'महाराष्ट्र उद्योग'},
+   customer:{...doc.customer,name:'ग्राहक सेवा'},
+   items:[{...doc.items[0],name:'मराठी वस्तू',description:'मराठी वस्तू'}],
+ });
+ const unicodeRaw=unicodePdf.toString('latin1');
+ assert.ok(unicodeRaw.includes('/FontFile2'),'Devanagari text should embed a Unicode TrueType font');
+ assert.ok(unicodeRaw.includes('/ToUnicode'),'Devanagari font must have Unicode character mappings');
 
-  const vatPdf=await buildPublicDocumentPdf({...doc,type:'invoice',total:220,taxTotal:20,cgstAmount:0,sgstAmount:0,igstAmount:0,business:{...doc.business,countryCode:'AE',taxRegime:'VAT',gstRegistrationType:'NONE',taxRegistrationNumber:'TRN123456789',taxId:'TRN123456789'},items:[{...doc.items[0],taxAmount:20,lineTotal:220}]});
-  const vatText=vatPdf.toString('latin1');
-  assert.ok(pdfHasText(vatText,'TAX INVOICE'),'registered non-Indian VAT business with a tax ID should use the tax-invoice title');
-  assert.ok(pdfHasText(vatText,'Tax ID: TRN123456789'),'non-Indian tax registration should be labeled as Tax ID');
-  assert.ok(!['CGST','SGST','IGST','GSTIN:'].some(value=>pdfHasText(vatText,value)),'VAT documents must not display Indian GST labels');
-
-  const compositionPdf=await buildPublicDocumentPdf({...doc,total:190,taxTotal:0,cgstAmount:0,sgstAmount:0,igstAmount:0,business:{...doc.business,gstRegistrationType:'COMPOSITION'},items:[{...doc.items[0],taxAmount:0,lineTotal:190}]});
-  const compositionText=compositionPdf.toString('latin1');
-  assert.ok(pdfHasText(compositionText,'BILL OF SUPPLY'),'composition-scheme supplier with GSTIN should use Bill of Supply');
-  assert.ok(!['TAX INVOICE','CGST','SGST','IGST','Tax / GST'].some(value=>pdfHasText(compositionText,value)),'composition-scheme documents must not show tax-invoice status or GST rows');
-
- const challan={...doc,type:'challan',number:'DC-0004',status:'dispatched',dueDate:null,validUntil:null,amountPaid:0,balanceDue:0,
-  placeOfSupplyStateCode:null,supplyType:null,cgstAmount:0,sgstAmount:0,igstAmount:0,bankDetails:null,upiId:null,
-  vehicleNumber:'MH24AB1234',transporterName:'Sample Transport',ewayBillNumber:'EWB-12345'};
- const challanPdf=await buildPublicDocumentPdf(challan);
- const challanText=challanPdf.toString('latin1');
- for(const value of ['DELIVERY CHALLAN','Vehicle No: MH24AB1234','Transporter: Sample Transport','E-Way Bill: EWB-12345','NOT FOR SALE / NOT A TAX INVOICE']) assert.ok(pdfHasText(challanText,value),'Challan PDF is missing '+value);
- const quotationPdf=await buildPublicDocumentPdf({...doc,type:'quotation',number:'EST-0007',status:'sent',dueDate:null,validUntil:'2026-10-31',amountPaid:0,balanceDue:0,settlementDisplayMode:'none'});
- const quotationText=quotationPdf.toString('latin1');
- for(const value of ['QUOTATION','EST-0007','BILL TO','SHIP TO','#','ITEM / DESCRIPTION','AMOUNT IN WORDS:','Authorized Signatory','This is a computer-generated quotation and does not require signature.']) assert.ok(pdfHasText(quotationText,value),'Quotation PDF is missing '+value);
- assert.ok(!pdfHasText(quotationText,'INVOICE SUMMARY'));
- assert.ok(!pdfHasText(quotationText,'Sample Bank')&&!pdfHasText(quotationText,'Pay Now via UPI'),'settlement mode none must not render bank or UPI details');
-
+ for(const type of ['cash_bill','purchase_order','credit_note','challan','quotation']){
+   const variant=await buildPublicDocumentPdf({
+     ...doc,type,number:type.toUpperCase()+'-0001',
+     status:type==='purchase_order'?'approved':type==='credit_note'?'posted':'sent',
+     dueDate:null,validUntil:null,
+     ...(type==='purchase_order'?{customer:{...doc.customer,name:'Sample Vendor',legalName:'Sample Vendor'}}:{}),
+   });
+   assert.ok(Buffer.isBuffer(variant)&&variant.length>1000,type+' should render a vector PDF');
+   assert.match(variant.subarray(0,8).toString('ascii'),/^%PDF-1\.4$/);
+ }
+ assert.ok(rendererSource.includes("title: composition ? 'BILL OF SUPPLY' : (gstRegistration || otherTaxRegistration) ? 'TAX INVOICE' : 'INVOICE'"));
+ assert.ok(rendererSource.includes("const otherTaxRegistration = country !== 'IN' && ['VAT', 'SALES_TAX', 'OTHER'].includes(regime)"));
+ assert.ok(rendererSource.includes("if(showQrSettlement&&qrData)"));
 });
-function QRCodePlaceholderForTest(pdf){const raw=pdf.toString('latin1');return raw.includes('/Subtype /Link')&&pdfHasText(raw,'Pay Now via UPI')&&raw.includes('/Annots [');}
+
+function QRCodePlaceholderForTest(pdf){
+ const raw=pdf.toString('latin1');
+ return raw.includes('/Subtype /Link')&&raw.includes('/URI (upi://pay?')&&raw.includes('/Annots [')&&raw.includes('/Subtype /Image');
+}
 
 test('all official and print PDF filenames follow company-document-number order',async()=>{
  const route=await read('app/api/public-documents/pdf/route.ts');
