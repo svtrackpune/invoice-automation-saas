@@ -17,6 +17,8 @@ test('public token resolution and PDF route cover all seven supported document t
     assert.ok(route.includes("'" + type + "'"), 'PDF route missing ' + type);
   }
   assert.match(tokens, /public_share_token/);
+  assert.match(tokens, /const lookupColumns = type === 'invoice' \|\| type === 'cash_bill'/);
+  assert.match(tokens, /\? 'id,business_id,document_kind'\s*: 'id,business_id'/);
   assert.match(migration, /bills_public_share_token_uidx/);
   assert.match(migration, /credit_notes_public_share_token_uidx/);
   assert.match(migration, /CREATE OR REPLACE FUNCTION public\.get_public_document_link/);
