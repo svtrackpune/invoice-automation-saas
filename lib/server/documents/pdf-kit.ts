@@ -11,7 +11,10 @@ const DEVANAGARI_FONT_PATH = path.join(
 export const safePdfText = (value: unknown): string =>
   String(value ?? '')
     .normalize('NFC')
-    .replace(/[\r\n]+/g, ' ');
+    // Preserve Unicode letters and marks; normalize layout whitespace and drop only
+    // non-printing C0/DEL control characters unsupported by PDF text operators.
+    .replace(/[\r\n\t]+/g, ' ')
+    .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, '');
 
 export function createUnicodePdfDocument(options: Record<string, unknown> = {}): any {
   const document = new (PDFDocument as any)({
