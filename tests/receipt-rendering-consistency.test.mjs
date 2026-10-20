@@ -154,7 +154,7 @@ test('receipt PDF text sanitizer preserves Unicode, line content, spaces and pun
   const pdfKit = await read('lib/server/documents/pdf-kit.ts');
   assert.ok(renderer.includes('const plain = (value: unknown) => safePdfText(value);'));
   assert.ok(renderer.includes("from './documents/pdf-kit.ts'"));
-  assert.ok(pdfKit.includes(".replace(/[\\r\\n]+/g, ' ')"));
+  assert.ok(pdfKit.includes(".replace(/[\\r\\n\\t]+/g, ' ')"));
   assert.ok(!pdfKit.includes("replace(/[^\\x20-\\x7E]/g, '')"));
   assert.ok(renderer.includes(".select('id,name,description,sku,unit')"));
   assert.ok(renderer.includes("const productDescription = plain(product?.description || '')"));
