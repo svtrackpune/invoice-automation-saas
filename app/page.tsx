@@ -62,7 +62,7 @@ function Auth({onReady}:{onReady:()=>void}) {
       const normalizedEmail=email.trim().toLowerCase();
       if(!normalizedEmail) { setError('Enter your email address.'); return; }
       if(mode==='forgot') {
-        const result=await supabase.auth.resetPasswordForEmail(normalizedEmail,{redirectTo:`${window.location.origin}/?auth=reset`});
+        const result=await supabase.auth.resetPasswordForEmail(normalizedEmail,{redirectTo:`${window.location.origin}/`});
         if(result.error) { setError(result.error.message); return; }
         setNotice('If an account exists for that email address, a password reset link will be sent. Check your inbox and spam folder.');
         return;
