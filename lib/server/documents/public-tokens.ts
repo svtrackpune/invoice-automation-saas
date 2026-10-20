@@ -572,17 +572,12 @@ export async function resolvePublicDocumentByToken(type: PublicDocumentType, tok
       : type === 'challan' ? 'delivery_challans'
         : type === 'purchase_order' ? 'bills' : 'credit_notes';
   const tokenColumn = type === 'quotation' ? 'public_accept_token' : 'public_share_token';
-  // Only invoice rows have document_kind. Keep the common token lookup schema valid
-  // for quotations, challans, purchase orders, and credit notes.
-  const lookupColumns = type === 'invoice' || type === 'cash_bill'
-    ? 'id,business_id,document_kind'
-    : 'id,business_id';
-  let foundQuery = db.from(table).select(lookupColumns).eq(tokenColumn, token);
+  // These identifiers are present on all document tables; document_kind is invoice-only.
+  let foundQuery = db.from(table).select('id,business_id').eq(tokenColumn, token);
   if (type === 'cash_bill') foundQuery = foundQuery.eq('document_kind', 'cash_bill');
   if (type === 'purchase_order') foundQuery = foundQuery.eq('is_purchase_order', true);
   const found = await foundQuery.maybeSingle();
   if (found.error || !found.data) return null;
-  if (type === 'invoice' && text((found.data as Row).document_kind).toLowerCase() === 'cash_bill') return null;
   const document = await loadPublicDocumentById(type, text(found.data.id), text(found.data.business_id));
   if (!document) return null;
   // A token lookup and row read happen separately; re-check the token on the document row to prevent stale token use.
