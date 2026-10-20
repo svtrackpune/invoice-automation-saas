@@ -11,7 +11,7 @@ const COUNTRIES = [
   ['ZA', '+27', 'South Africa'], ['JP', '+81', 'Japan'], ['ES', '+34', 'Spain'], ['IT', '+39', 'Italy'], ['NL', '+31', 'Netherlands'],
 ] as const;
 
-type AuthMode = 'signin' | 'signup' | 'forgot';
+type AuthMode = 'signin' | 'signup';
 type OAuthProvider = 'google' | 'facebook';
 
 function Field({label,children}:{label:string;children:React.ReactNode}) {
@@ -52,7 +52,7 @@ function hasTrustedOAuthIdentity(user:User):boolean {
 function Auth({onReady}:{onReady:()=>void}) {
   const[mode,setMode]=useState<AuthMode>('signin');
   const[email,setEmail]=useState(''),[password,setPassword]=useState(''),[name,setName]=useState('');
-  const[country,setCountry]=useState('IN'),[phone,setPhone]=useState('');
+  const[phone,setPhone]=useState('');
   const[busy,setBusy]=useState(false),[error,setError]=useState('');
   const[emailConfirmationPending,setEmailConfirmationPending]=useState(false),[notice,setNotice]=useState('');
 
@@ -61,25 +61,18 @@ function Auth({onReady}:{onReady:()=>void}) {
     try {
       const normalizedEmail=email.trim().toLowerCase();
       if(!normalizedEmail) { setError('Enter your email address.'); return; }
-      if(mode==='forgot') {
-        const result=await supabase.auth.resetPasswordForEmail(normalizedEmail,{redirectTo:`${window.location.origin}/`});
-        if(result.error) { setError(result.error.message); return; }
-        setNotice('If an account exists for that email address, a password reset link will be sent. Check your inbox and spam folder.');
-        return;
-      }
       if(mode==='signup') {
-        const invalidPhone=phoneValidationError(country,phone);
+        const invalidPhone=phoneValidationError('IN',phone);
         if(!name.trim()||!password) { setError('Name and password are required.'); return; }
         if(invalidPhone) { setError(invalidPhone); return; }
-        const selected=COUNTRIES.find(x=>x[0]===country)||COUNTRIES[0];
         const digits=phone.replace(/\D/g,'');
-        const phoneValue=`${selected[1]}${digits}`;
+        const phoneValue=`+91${digits}`;
         const result=await supabase.auth.signUp({
           email:normalizedEmail,
           password,
           options:{
             emailRedirectTo:`${window.location.origin}/`,
-            data:{display_name:name.trim(),phone:phoneValue,mobile_number:digits,country_code:selected[0]},
+            data:{display_name:name.trim(),phone:phoneValue,mobile_number:digits,country_code:'IN'},
           },
         });
         if(result.error) { setError(result.error.message); return; }
@@ -108,10 +101,17 @@ function Auth({onReady}:{onReady:()=>void}) {
   async function beginOAuth(provider:OAuthProvider) {
     setBusy(true);setError('');setNotice('');
     try {
-      const result=await supabase.auth.signInWithOAuth({provider,options:{redirectTo:`${window.location.origin}/`}});
-      if(result.error) setError(result.error.message);
-      // Supabase redirects the browser when the provider is configured. A missing provider
-      // configuration is surfaced as an error instead of silently breaking the sign-in form.
+      const origin = typeof window !== 'undefined' ? window.location.origin : 'https://mm.nilanga.in';
+      const result=await supabase.auth.signInWithOAuth({
+        provider,
+        options:{
+          redirectTo:`${origin}/auth/callback?next=/next-workspace`,
+          ...(provider==='google' ? {queryParams:{access_type:'offline',prompt:'consent'}} : {}),
+        },
+      });
+      if(result.error) setError(`${provider==='google'?'Google':'Facebook'} Sign-In Error: ${result.error.message}`);
+      // The callback relays the authorization code back to this existing browser client,
+      // which owns the PKCE verifier and completes the code exchange safely.
     } catch(cause) {
       setError(cause instanceof Error ? cause.message : `${provider} sign-in could not be started.`);
     } finally {
@@ -133,8 +133,15 @@ function Auth({onReady}:{onReady:()=>void}) {
     }
   }
 
-  const title=mode==='signin'?'Sign in to your workspace':mode==='signup'?'Create your account':'Reset your password';
-  const subtitle=mode==='signin'?'Continue to your business dashboard.':mode==='signup'?'Create your account using email confirmation.':'Enter your account email and we will send a secure password reset link.';
+  useEffect(()=>{
+    const params=new URLSearchParams(window.location.search);
+    if(params.get('auth_error')==='oauth_exchange_failed'){
+      setError(params.get('auth_message') || 'Social sign-in could not be completed. Check that the provider is enabled in Supabase Auth and try again.');
+    }
+  },[]);
+
+  const title=mode==='signin'?'Sign in to your workspace':'Create your account';
+  const subtitle=mode==='signin'?'Continue to your business dashboard.':'Create your account using email confirmation.';
 
   return <main className="min-h-screen bg-[radial-gradient(circle_at_top_left,#ede9fe,transparent_34%),linear-gradient(135deg,#fafafa,#f5f3ff)] p-5">
     <div className="mx-auto flex min-h-[calc(100vh-40px)] max-w-6xl items-center justify-center">
@@ -161,32 +168,31 @@ function Auth({onReady}:{onReady:()=>void}) {
           {notice&&<div role="status" className="mt-4 rounded-xl border border-sky-100 bg-sky-50 p-3 text-sm text-sky-800">{notice}</div>}
 
           {(mode==='signin'||mode==='signup')&&<>
-            <div className="mt-6 grid gap-3 sm:grid-cols-2">
-              <button type="button" disabled={busy} onClick={()=>beginOAuth('google')} className="flex min-h-12 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50">
+            <div className="mt-6 grid gap-3">
+              <button type="button" disabled={busy} onClick={()=>beginOAuth('google')} className="flex min-h-12 w-full items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50">
                 <span aria-hidden="true" className="text-base font-black text-[#4285F4]">G</span>Continue with Google
               </button>
-              <button type="button" disabled={busy} onClick={()=>beginOAuth('facebook')} className="flex min-h-12 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50">
+              <button type="button" disabled={busy} onClick={()=>beginOAuth('facebook')} className="flex min-h-12 w-full items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50">
                 <span aria-hidden="true" className="grid h-5 w-5 place-items-center rounded-full bg-[#1877F2] text-sm font-black text-white">f</span>Continue with Facebook
               </button>
             </div>
-            <div className="my-5 flex items-center gap-3"><span className="h-px flex-1 bg-slate-200"/><span className="text-xs font-medium text-slate-400">or continue with email</span><span className="h-px flex-1 bg-slate-200"/></div>
+            <div className="my-5 flex items-center gap-3"><span className="h-px flex-1 bg-slate-200"/><span className="text-xs font-medium text-slate-400">── or continue with email ──</span><span className="h-px flex-1 bg-slate-200"/></div>
           </>}
 
           {mode==='signup'&&<>
             <div className="mt-4"><Field label="Your name *"><Input autoComplete="name" value={name} onChange={e=>setName(e.target.value)} placeholder="Your name"/></Field></div>
-            <div className="mt-4"><Field label="Mobile number *"><PhoneField country={country} setCountry={setCountry} phone={phone} setPhone={setPhone}/><span className="mt-1 block text-[11px] leading-4 text-slate-400">Saved to your profile for invoices and customer communication. No SMS OTP is used.</span></Field></div>
+            <div className="mt-4"><Field label="Mobile number *"><div className="flex gap-2"><span className="inline-flex items-center rounded-xl border border-slate-200 bg-slate-50 px-4 text-sm font-semibold text-slate-700">+91</span><Input type="tel" autoComplete="tel-national" inputMode="numeric" value={phone} onChange={e=>setPhone(e.target.value.replace(/\D/g,'').slice(0,10))} placeholder="10-digit mobile number"/></div><span className="mt-1 block text-[11px] leading-4 text-slate-400">Saved to your profile for invoices and customer communication. No SMS OTP is used.</span></Field></div>
           </>}
 
           <div className="mt-4"><Field label="Email *"><Input required type="email" autoComplete="email" value={email} onChange={e=>setEmail(e.target.value)} placeholder="you@company.com"/></Field></div>
           {(mode==='signin'||mode==='signup')&&<div className="mt-4"><Field label="Password *"><Input type="password" autoComplete={mode==='signup'?'new-password':'current-password'} value={password} onChange={e=>setPassword(e.target.value)} placeholder="••••••••"/></Field></div>}
 
           {error&&<div role="alert" className="mt-4 rounded-xl bg-rose-50 p-3 text-sm text-rose-700">{error}</div>}
-          <div className="mt-6"><Button disabled={busy} onClick={submit}>{busy?'Please wait…':mode==='signup'?'Create account':mode==='forgot'?'Send password reset link':'Sign in'}</Button></div>
+          <div className="mt-6"><Button disabled={busy} onClick={submit}>{busy?'Please wait…':mode==='signup'?'Create account':'Sign in'}</Button></div>
           {emailConfirmationPending&&mode==='signin'&&<button type="button" disabled={busy||!email.trim()} onClick={resendConfirmation} className="mt-4 text-sm font-semibold text-violet-700 underline disabled:opacity-50">Resend confirmation email</button>}
           <div className="mt-5 flex flex-wrap gap-x-5 gap-y-2 text-sm font-semibold text-slate-500">
-            {mode==='signin'&&<><button type="button" onClick={()=>{setMode('signup');setError('');setNotice('');setEmailConfirmationPending(false)}} className="hover:text-violet-700">Don’t have an account? Create one</button><button type="button" onClick={()=>{setMode('forgot');setError('');setNotice('')}} className="hover:text-violet-700">Forgot password?</button></>}
+            {mode==='signin'&&<><button type="button" onClick={()=>{setMode('signup');setError('');setNotice('');setEmailConfirmationPending(false)}} className="hover:text-violet-700">Don’t have an account? Create one</button><a href="/auth/forgot-password" className="hover:text-violet-700">Forgot password?</a></>}
             {mode==='signup'&&<button type="button" onClick={()=>{setMode('signin');setError('');setNotice('')}} className="hover:text-violet-700">Already have an account? Sign in</button>}
-            {mode==='forgot'&&<button type="button" onClick={()=>{setMode('signin');setError('');setNotice('')}} className="hover:text-violet-700">Back to sign in</button>}
           </div>
         </div></div>
       </div>
