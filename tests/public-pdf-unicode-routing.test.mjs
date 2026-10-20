@@ -9,6 +9,7 @@ const share = readFileSync('lib/client/share-document.ts', 'utf8');
 const publicPdf = readFileSync('lib/server/documents/public-pdf.ts', 'utf8');
 const receiptPdf = readFileSync('lib/server/receipt-pdf.ts', 'utf8');
 const pdfKit = readFileSync('lib/server/documents/pdf-kit.ts', 'utf8');
+const dockerfile = readFileSync('Dockerfile', 'utf8');
 const migration = readFileSync('supabase/migrations/20261020094234_expand_public_document_pdf_and_unicode.sql', 'utf8');
 
 test('public token resolution and PDF route cover all seven supported document types', () => {
@@ -38,6 +39,11 @@ test('vector PDF renderers embed a Unicode-capable font and do not strip non-ASC
   assert.equal(receiptPdf.includes('replace(/[^\\x20-\\x7E]/g'), false);
   assert.ok(existsSync('public/fonts/NotoSansDevanagari[wdth,wght].ttf'));
   assert.ok(existsSync('public/fonts/OFL-NotoSansDevanagari.txt'));
+  assert.match(
+    dockerfile,
+    /COPY --from=builder --chown=nextjs:nodejs \/app\/public\/fonts \.\/public\/fonts/,
+    'production runner must package the runtime font files',
+  );
 });
 
 
