@@ -39,7 +39,7 @@ test('signup stores a validated mobile number as metadata while email/OAuth cont
 test('password recovery sends an email and updates the password from the recovery session', async () => {
   const auth = await read('app/page.tsx');
   assert.match(auth, /resetPasswordForEmail\(normalizedEmail/);
-  assert.match(auth, /auth=reset/);
+  assert.match(auth, /redirectTo:\`\$\{window\.location\.origin\}\/\`/);\n  assert.match(auth, /window\.location\.hash\.includes\('type=recovery'\)/);
   assert.match(auth, /event==='PASSWORD_RECOVERY'/);
   assert.match(auth, /supabase\.auth\.updateUser\(\{password\}\)/);
   assert.match(auth, /Forgot password\?/);
