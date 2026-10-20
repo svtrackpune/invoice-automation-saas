@@ -234,7 +234,7 @@ test('public invoice and expanded document types render vector PDFs with QR link
  assert.ok(xref,'PDF cross-reference offset is missing');
  assert.equal(raw.slice(Number(xref[1]),Number(xref[1])+4),'xref');
  assert.ok(QRCodePlaceholderForTest(pdf),'invoice PDF must contain a QR payment link and annotation');
- const annotationRect=raw.match(/\/Subtype \/Link \/Rect \[([0-9.]+) ([0-9.]+)/);
+ const annotationRect=raw.match(/\/Subtype \/Link[\s\S]{0,240}?\/Rect \[([0-9.]+) ([0-9.]+)/);
  assert.ok(annotationRect,'UPI action must have a clickable PDF annotation');
  assert.ok(Number(annotationRect[1])>40&&Number(annotationRect[1])<220,'UPI action must be positioned in the compact left settlement card');
  assert.ok(Number(annotationRect[2])>100,'UPI action must be positioned in the document body, not the top margin');
