@@ -9,7 +9,7 @@ const share = readFileSync('lib/client/share-document.ts', 'utf8');
 const publicPdf = readFileSync('lib/server/documents/public-pdf.ts', 'utf8');
 const receiptPdf = readFileSync('lib/server/receipt-pdf.ts', 'utf8');
 const pdfKit = readFileSync('lib/server/documents/pdf-kit.ts', 'utf8');
-const migration = readFileSync('supabase/migrations/20261020120000_expand_public_document_pdf_and_unicode.sql', 'utf8');
+const migration = readFileSync('supabase/migrations/20261020094234_expand_public_document_pdf_and_unicode.sql', 'utf8');
 
 test('public token resolution and PDF route cover all seven supported document types', () => {
   for (const type of ['invoice', 'quotation', 'receipt', 'challan', 'purchase_order', 'credit_note', 'cash_bill']) {
