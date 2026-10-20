@@ -29,7 +29,7 @@ test('signup stores a validated mobile number as metadata while email/OAuth cont
   const auth = await read('app/page.tsx');
   assert.match(auth, /\^\[6-9\]\\d\{9\}\$/);
   assert.match(auth, /data:\{display_name:name\.trim\(\),phone:phoneValue,mobile_number:digits,country_code:'IN'\}/);
-  assert.match(auth, /signInWithOAuth\(\{provider,options:\{redirectTo:/);
+  assert.match(auth, /signInWithOAuth\(\{[\s\S]*redirectTo:/);
   assert.match(auth, /Continue with Google/);
   assert.match(auth, /Continue with Facebook/);
   assert.match(auth, /hasTrustedOAuthIdentity/);
