@@ -3,7 +3,7 @@
  * document surfaces. It is deliberately pure: callers remain responsible for
  * authorization, token validation, and fetching tenant-scoped source records.
  */
-export type CanonicalDocumentType = 'invoice' | 'quotation' | 'receipt' | 'challan';
+export type CanonicalDocumentType = 'invoice' | 'quotation' | 'receipt' | 'challan' | 'purchase_order' | 'credit_note' | 'cash_bill';
 export type SettlementDisplayMode = 'upi_qr' | 'bank_transfer' | 'both' | 'none';
 
 export interface CanonicalDocumentViewModel {
@@ -133,6 +133,9 @@ export function amountInWords(value: number, currency = 'INR'): string {
 
 function canonicalType(source: Source, explicitType?: string): CanonicalDocumentType {
   const t = str(first(explicitType, source.type, source.document_type, source.documentType, source.document_kind)).toLowerCase();
+  if (t.includes('purchase_order') || t.includes('purchase order')) return 'purchase_order';
+  if (t.includes('credit_note') || t.includes('credit note')) return 'credit_note';
+  if (t.includes('cash_bill') || t.includes('cash bill') || t.includes('pos receipt')) return 'cash_bill';
   if (t.includes('challan')) return 'challan';
   if (t.includes('receipt') || t.includes('voucher')) return 'receipt';
   if (t.includes('quotation') || t.includes('quote') || t.includes('estimate')) return 'quotation';

@@ -37,13 +37,13 @@ function wrap(v: unknown, max: number): string[] {
 }
 function addressParts(v: unknown): string[] {
   if (!v) return [];
-  if (typeof v === 'string') return v.split(/\n|,/).map(ascii).filter(Boolean);
+  if (typeof v === 'string') return v.split(/\n|,/).map(pdfText).filter(Boolean);
   if (typeof v !== 'object') return [pdfText(v)].filter(Boolean);
   const a = v as Record<string, unknown>;
   return [a.line1 || a.address_line1 || a.address_line_1 || a.street,
     a.line2 || a.address_line2 || a.address_line_2,
     [a.city || a.locality, a.state || a.country_subdivision_code, a.postal_code || a.pin || a.pincode].filter(Boolean).join(', '),
-    a.country || a.country_code].map(ascii).filter(Boolean);
+    a.country || a.country_code].map(pdfText).filter(Boolean);
 }
 function stateLabel(code: string | null): string {
   const states: Record<string,string> = {
@@ -249,7 +249,7 @@ export async function buildPublicDocumentPdf(doc: PublicDocument): Promise<Buffe
     c.rect(0, 0, W, H, palette.background);
     drawCornerVectors();
     if (doc.type === 'invoice' || doc.type === 'cash_bill') {
-      if (logo && logoId) {
+      if (logo) {
         const scale = Math.min(58 / logo.width, 45 / logo.height);
         c.imageLogo(M, 40, logo.width * scale, logo.height * scale);
       } else {
@@ -289,7 +289,7 @@ export async function buildPublicDocumentPdf(doc: PublicDocument): Promise<Buffe
     }
 
     c.rect(M,32,4,92,C.indigo);
-    if (logo && logoId) {
+    if (logo) {
       const scale = Math.min(66 / logo.width, 48 / logo.height);
       c.imageLogo(M+12,38,logo.width*scale,logo.height*scale);
     } else {

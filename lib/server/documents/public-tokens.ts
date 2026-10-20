@@ -581,7 +581,7 @@ export async function resolvePublicDocumentByToken(type: PublicDocumentType, tok
   const document = await loadPublicDocumentById(type, text(found.data.id), text(found.data.business_id));
   if (!document) return null;
   // A token lookup and row read happen separately; re-check the token on the document row to prevent stale token use.
-  let verifyQuery = db.from(table).select(tokenColumn + (type === 'invoice' || type === 'cash_bill' ? ',document_kind' : '')).eq('id', document.id).eq('business_id', document.businessId);
+  let verifyQuery = db.from(table).select('*').eq('id', document.id).eq('business_id', document.businessId);
   if (type === 'cash_bill') verifyQuery = verifyQuery.eq('document_kind', 'cash_bill');
   if (type === 'purchase_order') verifyQuery = verifyQuery.eq('is_purchase_order', true);
   const verify = await verifyQuery.maybeSingle();

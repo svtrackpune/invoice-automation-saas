@@ -71,7 +71,7 @@ export async function GET(request: NextRequest) {
     }
 
     const data = await loadReceiptPdfData(db, access.receipt_id);
-    const pdf = buildReceiptPdf(data);
+    const pdf = await buildReceiptPdf(data);
     const filename = buildDocumentDownloadFilename(
       data.business?.name || data.business?.legal_name || 'Business',
       'Receipt',
