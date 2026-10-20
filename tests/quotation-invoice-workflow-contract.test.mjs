@@ -56,7 +56,7 @@ test('public PDF download is an attachment with company-document-number filename
   assert.match(downloadRoute,/return buildDocumentDownloadFilename\(entityName, documentFilenameLabel\(type\), docNumber\)/);
   assert.match(downloadRoute,/buildDownloadFilename\(type, document\.business\.name/);
   assert.match(filenameHelper,/filenamePart\(companyName, 'Business'\)[\s\S]*?filenamePart\(documentName, 'Document'\)[\s\S]*?filenamePart\(documentNumber, 'Document'\)/);
-  assert.match(downloadRoute,/attachment; filename=/);
+  assert.match(downloadRoute,/inline; filename=/);
   assert.doesNotMatch(downloadRoute,/inline; filename=/);
 });
 
