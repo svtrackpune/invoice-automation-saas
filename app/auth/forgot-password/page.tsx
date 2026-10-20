@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useState } from 'react';
 import { supabase } from '@/lib/supabase';
 
@@ -59,7 +60,7 @@ export default function ForgotPasswordPage() {
         <button type="button" disabled={busy} onClick={submit} className="mt-6 w-full rounded-xl bg-violet-600 px-5 py-3 text-sm font-semibold text-white disabled:opacity-50">
           {busy ? 'Sending…' : 'Send password reset link'}
         </button>
-        <a href="/" className="mt-5 inline-block text-sm font-semibold text-violet-700 hover:text-violet-900">Back to sign in</a>
+        <Link href="/" className="mt-5 inline-block text-sm font-semibold text-violet-700 hover:text-violet-900">Back to sign in</Link>
       </section>
     </main>
   );
