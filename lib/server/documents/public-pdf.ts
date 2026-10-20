@@ -1,11 +1,11 @@
 import type { PublicDocument } from './public-tokens';
 import { canonicalAddress, createCanonicalDocumentViewModel } from '../../shared/document-view-model.ts';
 import QRCode from 'qrcode';
+import { createUnicodePdfDocument, pdfColor, pdfDocumentToBuffer, pdfFontName, pdfTextWidth, safePdfText } from './pdf-kit';
 
 const W = 595.28, H = 841.89, M = 40, CW = W - M * 2, FOOTER_TOP = H - 68;
 type RGB = readonly [number, number, number];
-type PdfLink = { x: number; top: number; width: number; height: number; uri: string };
-type Page = { commands: string[]; usesLogo: boolean; links: PdfLink[] };
+type Page = { usesLogo: boolean };
 const C = {
   purple: [0.486, 0.227, 0.929] as RGB, indigo: [0.486, 0.227, 0.929] as RGB,
   navy: [0.059, 0.090, 0.165] as RGB, ink: [0.059, 0.090, 0.165] as RGB,
@@ -15,22 +15,18 @@ const C = {
   green: [0.08, 0.40, 0.27] as RGB, amber: [0.918, 0.345, 0.047] as RGB,
   red: [0.68, 0.18, 0.20] as RGB,
 };
-const ascii = (v: unknown) => String(v ?? '').replace(/₹/g, 'INR ').replace(/[—–]/g, '-')
-  .replace(/[•·]/g, ' ').normalize('NFKD').replace(/[^\x20-\x7E]/g, '')
-  .replace(/[\r\n\u0000-\u001f]/g, ' ').replace(/\s+/g, ' ').trim();
-const esc = (v: unknown) => ascii(v).replace(/\\/g, '\\\\').replace(/\(/g, '\\(').replace(/\)/g, '\\)');
-const rgb = (c: RGB) => c.map(v => v.toFixed(3)).join(' ');
+const pdfText = (v: unknown) => safePdfText(v).replace(/[—–]/g, '-');
 const money = (v: number, currency = 'INR') => {
   const code = /^[A-Z]{3}$/.test(String(currency || '').toUpperCase()) ? String(currency).toUpperCase() : 'INR';
   return code + ' ' + Number(v || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 };
 const dateLabel = (v: unknown) => {
-  const s = ascii(v), m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  const s = pdfText(v), m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
   return m ? m[3] + '/' + m[2] + '/' + m[1] : s || '-';
 };
 function wrap(v: unknown, max: number): string[] {
   const out: string[] = []; let line = '';
-  for (const word of ascii(v).split(/\s+/).filter(Boolean)) {
+  for (const word of pdfText(v).split(/\s+/).filter(Boolean)) {
     const part = word.length > max ? word.slice(0, max) : word;
     if (!line) line = part;
     else if (line.length + part.length + 1 <= max) line += ' ' + part;
@@ -42,7 +38,7 @@ function wrap(v: unknown, max: number): string[] {
 function addressParts(v: unknown): string[] {
   if (!v) return [];
   if (typeof v === 'string') return v.split(/\n|,/).map(ascii).filter(Boolean);
-  if (typeof v !== 'object') return [ascii(v)].filter(Boolean);
+  if (typeof v !== 'object') return [pdfText(v)].filter(Boolean);
   const a = v as Record<string, unknown>;
   return [a.line1 || a.address_line1 || a.address_line_1 || a.street,
     a.line2 || a.address_line2 || a.address_line_2,
@@ -59,70 +55,73 @@ function stateLabel(code: string | null): string {
     '29':'Karnataka','30':'Goa','31':'Lakshadweep','32':'Kerala','33':'Tamil Nadu','34':'Puducherry',
     '35':'Andaman and Nicobar Islands','36':'Telangana','37':'Andhra Pradesh','38':'Ladakh'
   };
-  const c = ascii(code);
+  const c = pdfText(code);
   return c ? c + ' - ' + (states[c] || 'State / UT') : '';
 }
-function approxWidth(s: string, size: number, bold = false) { return ascii(s).length * size * (bold ? 0.56 : 0.51); }
+function approxWidth(s: string, size: number, bold = false) {
+  return Array.from(pdfText(s)).length * size * (bold ? 0.56 : 0.51);
+}
 class Canvas {
-  pages: Page[] = [{ commands: [], usesLogo: false, links: [] }];
+  doc: any;
+  pages: Page[] = [{ usesLogo: false }];
   index = 0;
+  logo: { bytes: Buffer; width: number; height: number } | null = null;
+
+  constructor() {
+    this.doc = createUnicodePdfDocument({ size: [W, H], margin: 0, bufferPages: true });
+  }
   get p() { return this.pages[this.index]; }
-  get cmd() { return this.p.commands; }
-  newPage() { this.pages.push({ commands: [], usesLogo: false, links: [] }); this.index++; }
+  setLogo(logo: { bytes: Buffer; width: number; height: number } | null) { this.logo = logo; }
+  activate() { this.doc.switchToPage(this.index); }
+  switchToPage(index: number) { this.index = index; this.doc.switchToPage(index); }
+  newPage() {
+    this.doc.addPage({ size: [W, H], margin: 0 });
+    this.index++;
+    this.pages.push({ usesLogo: false });
+  }
   text(x: number, top: number, value: unknown, size = 8.5, bold = false, color: RGB = C.ink, align: 'left'|'right'|'center' = 'left') {
-    const s = ascii(value); if (!s) return;
-    const width = approxWidth(s, size, bold);
+    const s = pdfText(value);
+    if (!s) return;
+    const width = pdfTextWidth(this.doc, s, size, bold);
     const xx = align === 'right' ? x - width : align === 'center' ? x - width / 2 : x;
-    this.cmd.push(rgb(color) + ' rg BT /' + (bold ? 'F2' : 'F1') + ' ' + size.toFixed(2) + ' Tf 1 0 0 1 ' +
-      xx.toFixed(2) + ' ' + (H - top - size).toFixed(2) + ' Tm (' + esc(s) + ') Tj ET');
+    this.activate();
+    this.doc.font(pdfFontName(s, bold)).fontSize(size).fillColor(pdfColor(color)).text(s, xx, top, { lineBreak: false });
   }
   line(x1: number, t1: number, x2: number, t2: number, color: RGB = C.border, width = 0.6) {
-    this.cmd.push(rgb(color) + ' RG ' + width.toFixed(2) + ' w ' + x1.toFixed(2) + ' ' + (H-t1).toFixed(2) +
-      ' m ' + x2.toFixed(2) + ' ' + (H-t2).toFixed(2) + ' l S');
+    this.activate();
+    this.doc.moveTo(x1, t1).lineTo(x2, t2).lineWidth(width).stroke(pdfColor(color));
   }
   rect(x: number, top: number, w: number, h: number, fill?: RGB, stroke?: RGB, lineWidth = 0.6) {
-    const ops = ['q'];
-    if (fill) ops.push(rgb(fill) + ' rg');
-    if (stroke) ops.push(rgb(stroke) + ' RG ' + lineWidth.toFixed(2) + ' w');
-    ops.push(x.toFixed(2) + ' ' + (H-top-h).toFixed(2) + ' ' + w.toFixed(2) + ' ' + h.toFixed(2) + ' re');
-    ops.push(fill && stroke ? 'B' : fill ? 'f' : 'S', 'Q');
-    this.cmd.push(ops.join(' '));
+    this.activate();
+    this.doc.rect(x, top, w, h);
+    if (fill && stroke) this.doc.lineWidth(lineWidth).fillAndStroke(pdfColor(fill), pdfColor(stroke));
+    else if (fill) this.doc.fill(pdfColor(fill));
+    else if (stroke) this.doc.lineWidth(lineWidth).stroke(pdfColor(stroke));
   }
   polygon(points: Array<[number, number]>, fill: RGB) {
     if (points.length < 3) return;
-    const first = points[0];
-    const ops = ['q', rgb(fill) + ' rg', first[0].toFixed(2) + ' ' + (H - first[1]).toFixed(2) + ' m'];
-    for (const [x, top] of points.slice(1)) ops.push(x.toFixed(2) + ' ' + (H - top).toFixed(2) + ' l');
-    ops.push('h f Q');
-    this.cmd.push(ops.join(' '));
+    this.activate();
+    this.doc.moveTo(points[0][0], points[0][1]);
+    for (const [x, y] of points.slice(1)) this.doc.lineTo(x, y);
+    this.doc.closePath().fill(pdfColor(fill));
   }
   roundRect(x: number, top: number, w: number, h: number, radius = 8, fill?: RGB, stroke?: RGB, lineWidth = 0.6) {
-    const r = Math.max(0, Math.min(radius, w / 2, h / 2));
-    const k = 0.5522847498 * r;
-    const y = H - top, b = H - top - h;
-    const ops = ['q'];
-    if (fill) ops.push(rgb(fill) + ' rg');
-    if (stroke) ops.push(rgb(stroke) + ' RG ' + lineWidth.toFixed(2) + ' w');
-    ops.push((x + r).toFixed(2) + ' ' + y.toFixed(2) + ' m');
-    ops.push((x + w - r).toFixed(2) + ' ' + y.toFixed(2) + ' l');
-    ops.push((x + w - r + k).toFixed(2) + ' ' + y.toFixed(2) + ' ' + (x + w).toFixed(2) + ' ' + (y - r + k).toFixed(2) + ' ' + (x + w).toFixed(2) + ' ' + (y - r).toFixed(2) + ' c');
-    ops.push((x + w).toFixed(2) + ' ' + (b + r).toFixed(2) + ' l');
-    ops.push((x + w).toFixed(2) + ' ' + (b + r - k).toFixed(2) + ' ' + (x + w - r + k).toFixed(2) + ' ' + b.toFixed(2) + ' ' + (x + w - r).toFixed(2) + ' ' + b.toFixed(2) + ' c');
-    ops.push((x + r).toFixed(2) + ' ' + b.toFixed(2) + ' l');
-    ops.push((x + r - k).toFixed(2) + ' ' + b.toFixed(2) + ' ' + x.toFixed(2) + ' ' + (b + r - k).toFixed(2) + ' ' + x.toFixed(2) + ' ' + (b + r).toFixed(2) + ' c');
-    ops.push(x.toFixed(2) + ' ' + (y - r).toFixed(2) + ' l');
-    ops.push(x.toFixed(2) + ' ' + (y - r + k).toFixed(2) + ' ' + (x + r - k).toFixed(2) + ' ' + y.toFixed(2) + ' ' + (x + r).toFixed(2) + ' ' + y.toFixed(2) + ' c');
-    ops.push(fill && stroke ? 'B' : fill ? 'f' : 'S', 'Q');
-    this.cmd.push(ops.join(' '));
+    this.activate();
+    this.doc.roundedRect(x, top, w, h, radius);
+    if (fill && stroke) this.doc.lineWidth(lineWidth).fillAndStroke(pdfColor(fill), pdfColor(stroke));
+    else if (fill) this.doc.fill(pdfColor(fill));
+    else if (stroke) this.doc.lineWidth(lineWidth).stroke(pdfColor(stroke));
   }
   addLink(x: number, top: number, width: number, height: number, uri: string) {
     if (!uri || !/^(https?:|upi:)/i.test(uri)) return;
-    this.p.links.push({ x, top, width, height, uri });
+    this.activate();
+    this.doc.link(x, top, width, height, uri);
   }
   imageLogo(x: number, top: number, w: number, h: number) {
+    if (!this.logo) return;
+    this.activate();
+    this.doc.image(this.logo.bytes, x, top, { width: w, height: h });
     this.p.usesLogo = true;
-    this.cmd.push('q ' + w.toFixed(2) + ' 0 0 ' + h.toFixed(2) + ' ' + x.toFixed(2) + ' ' +
-      (H-top-h).toFixed(2) + ' cm /Logo Do Q');
   }
 }
 async function fetchLogo(storagePath: string | null): Promise<{ bytes: Buffer; width: number; height: number } | null> {
@@ -173,9 +172,13 @@ const taxPresentation = (business?: PublicDocument['business']) => {
 };
 const docTitle = (type: string, business?: PublicDocument['business']) => {
   if (type === 'invoice') return taxPresentation(business).title;
+  if (type === 'cash_bill') return 'CASH BILL / POS RECEIPT';
   if (type === 'quotation') return 'QUOTATION';
   if (type === 'challan') return 'DELIVERY CHALLAN';
-  return 'PAYMENT RECEIPT';
+  if (type === 'purchase_order') return 'PURCHASE ORDER';
+  if (type === 'credit_note') return 'CREDIT NOTE';
+  if (type === 'receipt') return 'PAYMENT RECEIPT';
+  return 'DOCUMENT';
 };
 
 type PublicPdfPalette = { primary: RGB; accent: RGB; accentSoft: RGB; pale: RGB; background: RGB; border: RGB; rowBorder: RGB; muted: RGB; ink: RGB };
@@ -214,13 +217,8 @@ export async function buildPublicDocumentPdf(doc: PublicDocument): Promise<Buffe
   const palette = resolvePublicPdfPalette(doc.documentTheme);
   const canonical = createCanonicalDocumentViewModel(doc, { type: doc.type, upiId: doc.upiId, settlementDisplayMode: doc.settlementDisplayMode });
   const c = new Canvas(), right = W - M;
-  const objects: Array<Buffer|string> = [];
-  const add = (v: Buffer|string) => { objects.push(v); return objects.length; };
-  const catalogId = add(''), pagesId = add('');
-  const font1 = add('<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>');
-  const font2 = add('<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>');
   const logo = await fetchLogo(canonical.business.logoUrl || null);
-  const logoId = logo ? add('') : null;
+  c.setLogo(logo);
 
   const drawCornerVectors = () => {
     const key = String(doc.documentTheme?.templateKey || 'modern').toLowerCase();
@@ -250,7 +248,7 @@ export async function buildPublicDocumentPdf(doc: PublicDocument): Promise<Buffe
   const header = (continued: boolean) => {
     c.rect(0, 0, W, H, palette.background);
     drawCornerVectors();
-    if (doc.type === 'invoice') {
+    if (doc.type === 'invoice' || doc.type === 'cash_bill') {
       if (logo && logoId) {
         const scale = Math.min(58 / logo.width, 45 / logo.height);
         c.imageLogo(M, 40, logo.width * scale, logo.height * scale);
@@ -259,7 +257,7 @@ export async function buildPublicDocumentPdf(doc: PublicDocument): Promise<Buffe
         c.text(M + 27, 54, wrap(doc.business.name, 2)[0].slice(0, 2).toUpperCase(), 12, true, palette.accent, 'center');
       }
       const bx = M + 70;
-      const invoiceLabel = docTitle('invoice', doc.business);
+      const invoiceLabel = doc.type === 'cash_bill' ? 'CASH BILL / POS RECEIPT' : docTitle('invoice', doc.business);
       const invoiceBadgeWidth = Math.max(60, invoiceLabel.length * 4.7 + 12);
       c.roundRect(bx, 32, invoiceBadgeWidth, 16, 8, palette.accent);
       c.text(bx + invoiceBadgeWidth / 2, 35, invoiceLabel, 7.4, true, C.white, 'center');
@@ -333,7 +331,7 @@ export async function buildPublicDocumentPdf(doc: PublicDocument): Promise<Buffe
       canonical.customer.gstin?tax.taxLabel+': '+canonical.customer.gstin:''
     ].filter(Boolean);
     const shipRows=distinctShippingRows.length?distinctShippingRows:billingAddressRows.length?['Same as billing address']:['No shipping address provided'];
-    const standardizedParties=doc.type==='invoice'||doc.type==='quotation';
+    const standardizedParties=['invoice','quotation','cash_bill','credit_note'].includes(doc.type);
     const list=[
       {x:M,label:standardizedParties?'BILL TO':'BILLED TO',name:canonical.customer.name,rows:billRows},
       {x:M+colW+gap,label:standardizedParties?'SHIP TO':'SHIPPED TO',name:canonical.customer.name,rows:shipRows}
@@ -343,7 +341,7 @@ export async function buildPublicDocumentPdf(doc: PublicDocument): Promise<Buffe
       c.text(p.x+10,top+5,p.label,8,true,palette.accent); c.text(p.x+10,top+25,p.name,9.1,true,palette.primary);
       p.rows.slice(0,5).forEach((v,i)=>drawWrap(c,p.x+10,top+40+i*10,v,43,7.1,false,palette.muted,1));
     }
-    const detailsTitle=doc.type==='invoice'?'INVOICE DETAILS':doc.type==='quotation'?'QUOTATION DETAILS':'DOCUMENT DETAILS';
+    const detailsTitle=doc.type==='invoice'||doc.type==='cash_bill'?'INVOICE DETAILS':doc.type==='quotation'?'QUOTATION DETAILS':doc.type==='purchase_order'?'PURCHASE ORDER DETAILS':doc.type==='credit_note'?'CREDIT NOTE DETAILS':'DOCUMENT DETAILS';
     c.text(M,top+113,detailsTitle,8,true,palette.primary);
     if(doc.type==='invoice'&&doc.templateName)c.text(M+100,top+113,'Template: '+doc.templateName,7,false,palette.muted);
     const state=stateLabel(doc.placeOfSupplyStateCode);
@@ -396,8 +394,8 @@ export async function buildPublicDocumentPdf(doc: PublicDocument): Promise<Buffe
       nameLines.forEach((line, j) => c.text(xs[1] + 7, y + 7 + j * 10, line, 8.5, true, palette.primary));
       detailLines.forEach((line, j) => c.text(xs[1] + 7, y + 7 + nameLines.length * 10 + j * 9, line, 7.5, false, palette.muted));
       if (it.hsn) c.text(xs[1] + 7, y + 7 + nameLines.length * 10 + detailLines.length * 9, 'HSN / SAC: ' + it.hsn, 6.5, false, palette.muted);
-      c.text(xs[2] + widths[2] / 2, y + 9, ascii(it.quantity), 7.7, false, palette.ink, 'center');
-      c.text(xs[3] + widths[3] / 2, y + 9, ascii(originalItem?.unit || it.unit || 'pcs').toUpperCase(), 7.0, true, palette.muted, 'center');
+      c.text(xs[2] + widths[2] / 2, y + 9, pdfText(it.quantity), 7.7, false, palette.ink, 'center');
+      c.text(xs[3] + widths[3] / 2, y + 9, pdfText(originalItem?.unit || it.unit || 'pcs').toUpperCase(), 7.0, true, palette.muted, 'center');
       c.text(xs[4] + widths[4] - 6, y + 9, money(it.unitPrice, canonical.document.currency), 7.5, false, palette.ink, 'right');
       c.text(xs[5] + widths[5] - 6, y + 9, money(it.amount, canonical.document.currency), 7.8, true, palette.primary, 'right');
       y += rh;
@@ -410,7 +408,7 @@ export async function buildPublicDocumentPdf(doc: PublicDocument): Promise<Buffe
       c.text(xs[0]+5,y+8,i+1,7,false,palette.muted);
       desc.forEach((v,j)=>c.text(xs[1]+5,y+6+j*9,v,7.2,j===0,palette.ink));
       c.text(xs[2]+4,y+8,it.hsn||'-',6.6,false,palette.muted);
-      c.text(xs[3]+widths[3]-5,y+8,ascii(it.quantity)+(originalItem?.unit?' '+ascii(originalItem.unit).slice(0,4):''),6.9,false,palette.ink,'right');
+      c.text(xs[3]+widths[3]-5,y+8,pdfText(it.quantity)+(originalItem?.unit?' '+pdfText(originalItem.unit).slice(0,4):''),6.9,false,palette.ink,'right');
       c.text(xs[4]+widths[4]-5,y+8,money(it.unitPrice,canonical.document.currency),6.5,false,palette.ink,'right');
       c.text(xs[5]+widths[5]-5,y+8,it.discount?money(it.discount,canonical.document.currency):'-',6.5,false,palette.ink,'right');
       const taxable=Math.max(0,it.quantity*it.unitPrice-it.discount);
@@ -633,58 +631,19 @@ export async function buildPublicDocumentPdf(doc: PublicDocument): Promise<Buffe
       }
     }
   }
-  const pageCount=c.pages.length;
-  const footerText = doc.type === 'invoice'
-    ? 'This is a computer-generated invoice and does not require signature.'
+  const pageCount = c.pages.length;
+  const footerText = doc.type === 'invoice' || doc.type === 'cash_bill'
+    ? 'This is a computer-generated ' + (doc.type === 'cash_bill' ? 'cash bill' : 'invoice') + ' and does not require signature.'
     : doc.type === 'quotation'
       ? 'This is a computer-generated quotation and does not require signature.'
       : 'Generated via Moneymatters FinOps | Join Moneymatters for free at mm.nilanga.in';
   const poweredText = 'Powered by Moneymatters FinOps | mm.nilanga.in';
   for (let i = 0; i < pageCount; i++) {
-    const page = c.pages[i];
-    page.commands.push(rgb(palette.accent) + ' RG 1.50 w ' + M + ' ' + (H - 780).toFixed(2) + ' m ' + right + ' ' + (H - 780).toFixed(2) + ' l S');
-    page.commands.push(rgb(palette.border) + ' RG 0.50 w ' + M + ' ' + (H - 783).toFixed(2) + ' m ' + right + ' ' + (H - 783).toFixed(2) + ' l S');
-    const footerSize = 7.5;
-    const footerX = (W - approxWidth(footerText, footerSize, false)) / 2;
-    const footerBaseline = H - 792 - footerSize;
-    page.commands.push(rgb(palette.muted) + ' rg BT /F1 ' + footerSize.toFixed(2) + ' Tf 1 0 0 1 ' + footerX.toFixed(2) + ' ' + footerBaseline.toFixed(2) + ' Tm (' + esc(footerText) + ') Tj ET');
-    const poweredX = (W - approxWidth(poweredText, 7, false)) / 2;
-    const poweredBaseline = H - 803 - 7;
-    page.commands.push(rgb(palette.muted) + ' rg BT /F1 7.00 Tf 1 0 0 1 ' + poweredX.toFixed(2) + ' ' + poweredBaseline.toFixed(2) + ' Tm (' + esc(poweredText) + ') Tj ET');
+    c.switchToPage(i);
+    c.line(M, 780, right, 780, palette.accent, 1.5);
+    c.line(M, 783, right, 783, palette.border, 0.5);
+    c.text(W / 2, 792, footerText, 7.5, false, palette.muted, 'center');
+    c.text(W / 2, 803, poweredText, 7, false, palette.muted, 'center');
   }
-  if(logo&&logoId)objects[logoId-1]=Buffer.concat([
-    Buffer.from('<< /Type /XObject /Subtype /Image /Width '+logo.width+' /Height '+logo.height+' /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length '+logo.bytes.length+' >>\nstream\n','ascii'),
-    logo.bytes,Buffer.from('\nendstream','ascii')
-  ]);
-  const pageIds:number[]=[];
-  for(const p of c.pages){
-    const xObjects=logo&&logoId&&p.usesLogo?'/XObject << /Logo '+logoId+' 0 R >>':'';
-    const resources='<< /Font << /F1 '+font1+' 0 R /F2 '+font2+' 0 R >> '+xObjects+' >>';
-    const pid=add('');
-    pageIds.push(pid);
-    const annotationIds:number[]=[];
-    for (const link of p.links) {
-      const aid=add('');
-      const rect='['+link.x.toFixed(2)+' '+(H-link.top-link.height).toFixed(2)+' '+(link.x+link.width).toFixed(2)+' '+(H-link.top).toFixed(2)+']';
-      objects[aid-1]='<< /Type /Annot /Subtype /Link /Rect '+rect+' /Border [0 0 0] /A << /S /URI /URI ('+esc(link.uri)+') >> /P '+pid+' 0 R >>';
-      annotationIds.push(aid);
-    }
-    const stream=Buffer.from(p.commands.join('\n')+'\n','ascii');
-    const sid=add(Buffer.concat([Buffer.from('<< /Length '+stream.length+' >>\nstream\n','ascii'),stream,Buffer.from('endstream','ascii')]));
-    const annots=annotationIds.length?' /Annots ['+annotationIds.map(id=>id+' 0 R').join(' ')+']':'';
-    objects[pid-1]='<< /Type /Page /Parent '+pagesId+' 0 R /MediaBox [0 0 '+W+' '+H+'] /Resources '+resources+' /Contents '+sid+' 0 R'+annots+' >>';
-  }
-  objects[catalogId-1]='<< /Type /Catalog /Pages '+pagesId+' 0 R >>';
-  objects[pagesId-1]='<< /Type /Pages /Kids ['+pageIds.map(id=>id+' 0 R').join(' ')+'] /Count '+pageIds.length+' >>';
-  const chunks:Buffer[]=[Buffer.from('%PDF-1.4\n%Moneymatters FinOps\n','ascii')],offsets:number[]=[0];
-  for(let i=0;i<objects.length;i++){
-    offsets.push(chunks.reduce((sum,b)=>sum+b.length,0));
-    const body=typeof objects[i]==='string'?Buffer.from(objects[i] as string,'ascii'):objects[i] as Buffer;
-    chunks.push(Buffer.from((i+1)+' 0 obj\n','ascii'),body,Buffer.from('\nendobj\n','ascii'));
-  }
-  const xrefOffset=chunks.reduce((sum,b)=>sum+b.length,0),xref=['xref\n0 '+(objects.length+1)+'\n0000000000 65535 f \n'];
-  for(let i=1;i<offsets.length;i++)xref.push(String(offsets[i]).padStart(10,'0')+' 00000 n \n');
-  xref.push('trailer\n<< /Size '+(objects.length+1)+' /Root '+catalogId+' 0 R >>\nstartxref\n'+xrefOffset+'\n%%EOF\n');
-  chunks.push(Buffer.from(xref.join(''),'ascii'));
-  return Buffer.concat(chunks);
+  return await pdfDocumentToBuffer(c.doc);
 }

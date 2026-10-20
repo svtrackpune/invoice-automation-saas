@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { createCanonicalDocumentViewModel } from '@/lib/shared/document-view-model';
+import { createUnicodePdfDocument, pdfColor, pdfDocumentToBuffer, pdfFontName, pdfTextWidth, safePdfText } from '@/lib/server/documents/pdf-kit';
 
 type ReceiptRow = {
   id: string;
@@ -30,14 +31,7 @@ type PdfData = {
   customer_outstanding: number;
 };
 
-const cleanText = (value: unknown) => String(value ?? '').replace(/[\\()\r\n\u0000-\u001f]/g, (ch) => {
-  if (ch === '\\') return '\\\\';
-  if (ch === '(') return '\\(';
-  if (ch === ')') return '\\)';
-  return ' ';
-}).replace(/[^\x20-\x7E]/g, '');
-
-const plain = (value: unknown) => String(value ?? '').replace(/[\r\n]/g, ' ').trim();
+const plain = (value: unknown) => safePdfText(value);
 
 const money = (value: number, currency = 'INR') => {
   const amount = Number(value || 0);
@@ -60,26 +54,25 @@ const addressText = (value: any) => {
 };
 
 const wrap = (value: string, maxChars: number) => {
-  const words = value.split(/\s+/).filter(Boolean);
+  const words = safePdfText(value).split(/\\s+/u).filter(Boolean);
   const lines: string[] = [];
   let current = '';
   for (const word of words) {
+    const part = word.length > maxChars && /^[\\x00-\\x7F]+$/.test(word) ? word.slice(0, maxChars) : word;
     if (!current) {
-      current = word.slice(0, maxChars);
+      current = part;
       continue;
     }
-    if ((current.length + 1 + word.length) <= maxChars) {
-      current += ` ${word}`;
+    if ((current.length + 1 + part.length) <= maxChars) {
+      current += ` ${part}`;
     } else {
       lines.push(current);
-      current = word.slice(0, maxChars);
+      current = part;
     }
   }
   if (current) lines.push(current);
   return lines.length ? lines : [''];
 };
-
-const pdfEscape = (value: string) => cleanText(value);
 
 type PdfPalette = { key: string; primary: string; secondary: string; accent: string; ink: string; background: string; pale: string; accentPale: string };
 const pdfHex = (value: string | null | undefined, fallback = '#4338CA') => {
@@ -119,7 +112,7 @@ function resolveReceiptPalette(input?: ReceiptTheme | null): PdfPalette {
 }
 
 
-const buildReceiptPdf = (data: PdfData) => {
+const buildReceiptPdf = async (data: PdfData): Promise<Buffer> => {
   const canonical = createCanonicalDocumentViewModel({
     type: 'receipt',
     number: data.receipt.receipt_number,
@@ -151,39 +144,58 @@ const buildReceiptPdf = (data: PdfData) => {
   const top = 42;
   const bottom = 42;
   const usableWidth = pageWidth - left - right;
-  const pages: string[][] = [[]];
-  let page = pages[0];
+  type ReceiptPage = { index: number };
+  const pdf = createUnicodePdfDocument({ size: [pageWidth, pageHeight], margin: 0, bufferPages: true });
+  const pages: ReceiptPage[] = [{ index: 0 }];
+  let page: ReceiptPage = pages[0];
 
-  const textLine = (target: string[], x: number, y: number, value: string, size = 10, bold = false, fill = palette.ink) => {
-    const font = bold ? '/F2' : '/F1';
-    // PDF text inherits the non-stroking fill colour. Every text run sets its own
-    // readable foreground so pale customer/payment boxes cannot wash out later rows.
-    target.push(`${fill} rg BT ${font} ${size} Tf 1 0 0 1 ${x.toFixed(2)} ${y.toFixed(2)} Tm (${pdfEscape(value)}) Tj ET`);
+  const textLine = (target: ReceiptPage, x: number, y: number, value: string, size = 10, bold = false, fill = palette.ink) => {
+    const text = safePdfText(value);
+    if (!text) return;
+    pdf.switchToPage(target.index);
+    pdf.font(pdfFontName(text, bold)).fontSize(size).fillColor(pdfColor(fill))
+      .text(text, x, pageHeight - y - size, { lineBreak: false });
   };
-  const line = (target: string[], x1: number, y1: number, x2: number, y2: number) => {
-    target.push(`${palette.secondary} RG 0.7 w ${x1.toFixed(2)} ${y1.toFixed(2)} m ${x2.toFixed(2)} ${y2.toFixed(2)} l S`);
+  const line = (target: ReceiptPage, x1: number, y1: number, x2: number, y2: number, color = palette.secondary, width = 0.7) => {
+    pdf.switchToPage(target.index);
+    pdf.moveTo(x1, pageHeight - y1).lineTo(x2, pageHeight - y2).lineWidth(width).stroke(pdfColor(color));
   };
-  const rect = (target: string[], x: number, y: number, w: number, h: number, fill = palette.pale) => {
-    target.push(`${fill} rg ${x.toFixed(2)} ${y.toFixed(2)} ${w.toFixed(2)} ${h.toFixed(2)} re f`);
+  const rect = (target: ReceiptPage, x: number, y: number, w: number, h: number, fill = palette.pale) => {
+    pdf.switchToPage(target.index);
+    pdf.rect(x, pageHeight - y - h, w, h).fill(pdfColor(fill));
   };
-  const estimateTextWidth = (value: string, size: number, bold = false) => Array.from(value).reduce((width, ch) => {
-    const factor = /[ilI.,:;'|!]/.test(ch) ? 0.25 : /[MW@%]/.test(ch) ? 0.82 : /[A-Z0-9]/.test(ch) ? 0.58 : ch === ' ' ? 0.28 : 0.5;
-    return width + size * factor * (bold ? 1.04 : 1);
-  }, 0);
-  const drawVectorCorners = (target: string[]) => {
+  const polygon = (target: ReceiptPage, points: Array<[number, number]>, fill: string) => {
+    if (points.length < 3) return;
+    pdf.switchToPage(target.index);
+    pdf.moveTo(points[0][0], pageHeight - points[0][1]);
+    for (const [x, y] of points.slice(1)) pdf.lineTo(x, pageHeight - y);
+    pdf.closePath().fill(pdfColor(fill));
+  };
+  const estimateTextWidth = (value: string, size: number, bold = false) => pdfTextWidth(pdf, value, size, bold);
+  const drawVectorCorners = (target: ReceiptPage) => {
     rect(target, 0, 0, pageWidth, pageHeight, palette.background);
     if (palette.key === 'minimal') {
-      target.push(`${palette.primary} RG 1.2 w 455 842 m 595 842 l S`, `${palette.accent} RG 1.2 w 595 842 m 595 790 l S`, `${palette.accent} rg 575 822 4 4 re f`);
+      line(target, 455, 842, 595, 842, palette.primary, 1.2);
+      line(target, 595, 842, 595, 790, palette.accent, 1.2);
+      rect(target, 575, 822, 4, 4, palette.accent);
     } else if (palette.key === 'classic') {
-      target.push(`${mixPdfHex(data.documentTheme?.primaryColor, 0.88, '#7F1D1D')} rg 495 842 m 595 842 l 595 798 l h f`, `${palette.accent} rg 535 842 m 595 842 l 595 816 l h f`);
+      polygon(target, [[495,842],[595,842],[595,798]], mixPdfHex(data.documentTheme?.primaryColor, 0.88, '#7F1D1D'));
+      polygon(target, [[535,842],[595,842],[595,816]], palette.accent);
     } else if (palette.key === 'premium') {
-      target.push(`${mixPdfHex(data.documentTheme?.primaryColor, 0.86, '#4C1D95')} rg 468 842 m 595 842 l 595 790 l h f`, `${palette.accent} rg 525 842 m 595 842 l 595 812 l h f`, `${palette.primary} RG 1.3 w 555 842 m 595 802 l S`);
+      polygon(target, [[468,842],[595,842],[595,790]], mixPdfHex(data.documentTheme?.primaryColor, 0.86, '#4C1D95'));
+      polygon(target, [[525,842],[595,842],[595,812]], palette.accent);
+      line(target, 555, 842, 595, 802, palette.primary, 1.3);
     } else if (palette.key === 'professional') {
-      target.push(`${mixPdfHex(data.documentTheme?.primaryColor, 0.87, '#0F3B66')} rg 492 842 m 595 842 l 595 794 l h f`, `${palette.accent} rg 565 842 m 595 842 l 595 812 l h f`, `${palette.primary} RG 1.5 w 520 842 m 520 827 l 595 827 l S`);
+      polygon(target, [[492,842],[595,842],[595,794]], mixPdfHex(data.documentTheme?.primaryColor, 0.87, '#0F3B66'));
+      polygon(target, [[565,842],[595,842],[595,812]], palette.accent);
+      line(target, 520, 842, 520, 827, palette.primary, 1.5);
+      line(target, 520, 827, 595, 827, palette.primary, 1.5);
     } else {
-      target.push(`${mixPdfHex(data.documentTheme?.primaryColor, 0.88, '#4338CA')} rg 485 842 m 595 842 l 595 792 l h f`, `${palette.accent} rg 535 842 m 595 842 l 595 816 l h f`, `${palette.primary} RG 1.4 w 555 842 m 595 802 l S`);
+      polygon(target, [[485,842],[595,842],[595,792]], mixPdfHex(data.documentTheme?.primaryColor, 0.88, '#4338CA'));
+      polygon(target, [[535,842],[595,842],[595,816]], palette.accent);
+      line(target, 555, 842, 595, 802, palette.primary, 1.4);
     }
-    target.push(`${mixPdfHex(data.documentTheme?.accentColor, 0.90, '#7C3AED')} rg 0 0 m 34 0 l 0 34 l h f`);
+    polygon(target, [[0,0],[34,0],[0,34]], mixPdfHex(data.documentTheme?.accentColor, 0.90, '#7C3AED'));
   };
   drawVectorCorners(page);
   let y = pageHeight - top;
@@ -193,7 +205,8 @@ const buildReceiptPdf = (data: PdfData) => {
   const businessContact = [data.business?.phone, data.business?.email, data.business?.website].filter(Boolean).map(plain).join(' · ');
 
   const startContinuationPage = () => {
-    page = [];
+    pdf.addPage({ size: [pageWidth, pageHeight], margin: 0 });
+    page = { index: pages.length };
     pages.push(page);
     drawVectorCorners(page);
     y = pageHeight - top;
@@ -332,45 +345,7 @@ const buildReceiptPdf = (data: PdfData) => {
   const powered = 'Powered by Moneymatters FinOps | mm.nilanga.in';
   textLine(page, Math.max(left, (pageWidth - estimateTextWidth(powered, 7.2, true)) / 2), y, powered, 7.2, true, palette.accent);
 
-  return encodePdf(pages, pageWidth, pageHeight);
-};
-
-const encodePdf = (pages: string[][], pageWidth: number, pageHeight: number) => {
-  const objects: string[] = [];
-  const addObject = (value: string) => { objects.push(value); return objects.length; };
-  const catalogId = addObject('');
-  const pagesId = addObject('');
-  const fontNormalId = addObject('<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>');
-  const fontBoldId = addObject('<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>');
-  const pageIds: number[] = [];
-
-  for (const commands of pages) {
-    const stream = commands.join('\n') + '\n';
-    const contentId = addObject(`<< /Length ${Buffer.byteLength(stream, 'ascii')} >>\nstream\n${stream}endstream`);
-    const pageId = addObject(`<< /Type /Page /Parent ${pagesId} 0 R /MediaBox [0 0 ${pageWidth} ${pageHeight}] /Resources << /Font << /F1 ${fontNormalId} 0 R /F2 ${fontBoldId} 0 R >> >> /Contents ${contentId} 0 R >>`);
-    pageIds.push(pageId);
-  }
-
-  objects[pagesId - 1] = `<< /Type /Pages /Kids [${pageIds.map((id) => `${id} 0 R`).join(' ')}] /Count ${pageIds.length} >>`;
-  objects[catalogId - 1] = `<< /Type /Catalog /Pages ${pagesId} 0 R >>`;
-
-  const chunks: string[] = ['%PDF-1.4\n%Moneymatters\n'];
-  const offsets: number[] = [0];
-  let offset = Buffer.byteLength(chunks[0], 'ascii');
-
-  objects.forEach((obj, index) => {
-    offsets[index + 1] = offset;
-    const body = `${index + 1} 0 obj\n${obj}\nendobj\n`;
-    chunks.push(body);
-    offset += Buffer.byteLength(body, 'ascii');
-  });
-
-  const xrefOffset = offset;
-  chunks.push(`xref\n0 ${objects.length + 1}\n0000000000 65535 f \n`);
-  for (let i = 1; i <= objects.length; i += 1) chunks.push(`${String(offsets[i]).padStart(10, '0')} 00000 n \n`);
-  chunks.push(`trailer\n<< /Size ${objects.length + 1} /Root ${catalogId} 0 R >>\nstartxref\n${xrefOffset}\n%%EOF\n`);
-
-  return Buffer.from(chunks.join(''), 'ascii');
+  return await pdfDocumentToBuffer(pdf);
 };
 
 export const getServerSupabase = () => {

@@ -767,7 +767,11 @@ export default function DocumentViewer({ type, id }: { type: string; id: string 
       ? ['sent', 'partially_paid', 'paid'].includes(documentStatus)
       : type === 'delivery_challan'
         ? !['draft', 'void', 'cancelled', 'deleted'].includes(documentStatus)
-        : type === 'receipt';
+        : type === 'purchase_order'
+          ? !['draft', 'void', 'cancelled', 'deleted'].includes(String(model.po_status || documentStatus).toLowerCase())
+          : type === 'credit_note'
+            ? ['posted', 'issued', 'sent'].includes(documentStatus)
+            : type === 'receipt';
   const canShareDocument = canSharePublicDocument(type) && documentStatusShareable;
   const shareActionsVisible = canSharePublicDocument(type)
     && !['void','cancelled','deleted','missing','error','loading'].includes(documentStatus);
@@ -775,7 +779,11 @@ export default function DocumentViewer({ type, id }: { type: string; id: string 
     ? 'Mark this quotation as sent before sharing its customer link.'
     : ['invoice','tax_invoice','cash_bill'].includes(type) && documentStatus === 'draft'
       ? 'Finalize & Post this invoice before sharing it. Any stock shortage must be resolved first.'
-      : 'This document is not eligible for public sharing in its current status.';
+      : type === 'purchase_order' && String(model.po_status || documentStatus).toLowerCase() === 'draft'
+        ? 'Send or approve this purchase order before sharing its customer PDF.'
+        : type === 'credit_note' && documentStatus === 'draft'
+          ? 'Post this credit note before sharing its customer PDF.'
+          : 'This document is not eligible for public sharing in its current status.';
   const logoUrl = mergedBusiness?.logo_storage_path ? supabase.storage.from('business-branding-public').getPublicUrl(mergedBusiness.logo_storage_path).data.publicUrl : '';
   const back = () => { if (type === 'invoice' && model.status === 'draft') { location.href = `/next-workspace/invoices/new?edit=${id}`; return; } history.back(); };
   const shareMessage = (publicUrl: string) => buildPublicDocumentShareMessage({
