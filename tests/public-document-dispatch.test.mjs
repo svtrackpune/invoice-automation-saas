@@ -290,7 +290,7 @@ test('all official and print PDF filenames follow company-document-number order'
  assert.match(helper,/buildDocumentFilenameBase\(companyName, documentName, documentNumber\) \+ '\.pdf'/);
  assert.match(route,/return buildDocumentDownloadFilename\(entityName, documentFilenameLabel\(type\), docNumber\)/);
  assert.match(route,/buildDownloadFilename\(type, document\.business\.name \|\| document\.customer\.name/);
- assert.match(route,/Content-Disposition.*attachment; filename=/);
+ assert.match(route,/Content-Disposition.*inline; filename=/);
  assert.doesNotMatch(route,/inline; filename=/);
  assert.match(receiptRoute,/buildDocumentDownloadFilename\(/);
  assert.match(receiptRoute,/String\(data\.receipt\.receipt_number \|\| data\.receipt\.id\)/);
