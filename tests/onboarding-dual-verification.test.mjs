@@ -9,16 +9,16 @@ test('workspace creation retains the single permissioned onboarding RPC wrapper'
   assert.match(previousMigration, /RENAME TO create_business_for_current_user_core/);
   assert.match(previousMigration, /CREATE OR REPLACE FUNCTION public\.create_business_for_current_user\(/);
   assert.match(previousMigration, /v_business := public\.create_business_for_current_user_core\(/);
-  assert.match(previousMigration, /p_feature_flags jsonb DEFAULT '\\{\\}'::jsonb/);
+  assert.match(previousMigration, /p_feature_flags jsonb DEFAULT '\{\}'::jsonb/);
   assert.match(previousMigration, /REVOKE EXECUTE ON FUNCTION public\.create_business_for_current_user_core/);
-  assert.match(previousMigration, /GRANT EXECUTE ON FUNCTION public\.create_business_for_current_user\([\\s\\S]*TO authenticated, service_role/);
+  assert.match(previousMigration, /GRANT EXECUTE ON FUNCTION public\.create_business_for_current_user\([\s\S]*TO authenticated, service_role/);
 });
 
 test('first owner trigger requires confirmed email or trusted OAuth and never requires SMS verification', async () => {
   const migration = await read('supabase/migrations/20261021_realign_auth_email_primary.sql');
   assert.match(migration, /CREATE OR REPLACE FUNCTION public\.check_organization_owner_verification\(\)/);
   assert.match(migration, /u\.email_confirmed_at IS NOT NULL/);
-  assert.match(migration, /raw_app_meta_data->>'provider'.*google, 'facebook, 'github'/);
+  assert.match(migration, /raw_app_meta_data->>'provider'.*'google'.*'facebook'.*'github'/);
   assert.match(migration, /organization_owner_requires_dual_verification/);
   assert.match(migration, /organization_members/);
   assert.match(migration, /REVOKE EXECUTE ON FUNCTION public\.check_organization_owner_verification\(\)/);
