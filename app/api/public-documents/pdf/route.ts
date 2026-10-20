@@ -25,7 +25,7 @@ export async function GET(request: NextRequest) {
     const filename = buildDownloadFilename(type, document.business.name || document.customer.name || 'Business', document.number || document.id);
     return new NextResponse(new Uint8Array(pdf),{status:200,headers:{
       'Content-Type':'application/pdf',
-      'Content-Disposition':`attachment; filename="${filename}"`,
+      'Content-Disposition':`inline; filename="${filename}"`,
       'Cache-Control':'private, no-store, max-age=0',
       'X-Content-Type-Options':'nosniff',
       'X-Robots-Tag':'noindex, nofollow, noarchive'
