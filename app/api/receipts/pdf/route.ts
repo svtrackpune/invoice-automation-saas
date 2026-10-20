@@ -78,7 +78,7 @@ export async function GET(request: NextRequest) {
       String(data.receipt.receipt_number || data.receipt.id),
     );
 
-    return new Response(pdf, {
+    return new Response(new Uint8Array(pdf), {
       status: 200,
       headers: {
         'Content-Type': 'application/pdf',
