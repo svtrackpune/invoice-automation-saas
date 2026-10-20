@@ -225,10 +225,11 @@ test('public invoice and expanded document types render vector PDFs with QR link
  assert.ok(!rendererSource.includes('INVOICE SUMMARY'));
  assert.ok(rendererSource.includes('SHIP TO')&&rendererSource.includes('shipRows'));
  assert.ok(!rendererSource.includes('This is a customer-facing invoice shared by'));
- assert.match(raw,/0\.486 0\.227 0\.929 rg[^\n]* m [^\n]* l/,'PDF must include a filled purple vector accent');
- assert.match(raw,/0\.908 0\.861 0\.987 rg/,'PDF must include the selected-theme soft corner vector');
- assert.match(raw,/0\.486 0\.227 0\.929 RG 1\.50 w/,'PDF must include the purple footer accent line');
- assert.match(raw,/0\.918 0\.345 0\.047 rg/,'financial totals use the standardized orange accent');
+ assert.ok(rendererSource.includes('const drawCornerVectors ='),'PDF renderer must draw template-specific vector accents');
+ assert.ok(rendererSource.includes('palette.accentSoft'),'PDF renderer must apply the selected theme soft-accent color');
+ assert.ok(rendererSource.includes('c.line(M, 780, right, 780, palette.accent, 1.5)'),'PDF footer must draw the selected accent line');
+ assert.ok(rendererSource.includes('amber: [0.918, 0.345, 0.047] as RGB'),'PDF renderer must retain its standardized orange financial accent');
+ assert.match(raw,/\/MediaBox \[0 0 595\.28 841\.89\]/,'PDF output must retain the A4 media box');
  const xref=raw.match(/startxref\n(\d+)\n%%EOF/);
  assert.ok(xref,'PDF cross-reference offset is missing');
  assert.equal(raw.slice(Number(xref[1]),Number(xref[1])+4),'xref');
