@@ -13,8 +13,8 @@ test('new invoices receive editable, professional notes and payment terms', asyn
   assert.ok(source.includes("Please notify us of any discrepancy within 7 days of the invoice date."));
   assert.ok(source.includes("d.invoice_notes?.trim()||(cashBillDocument?'':DEFAULT_INVOICE_NOTES)"));
   assert.ok(source.includes("d.default_payment_terms?.trim()||(cashBillDocument?'':DEFAULT_INVOICE_TERMS)"));
-  assert.ok(source.includes('<Field label="Notes" wide><textarea rows={3} value={notes} onChange={e=>setNotes(e.target.value)}'));
-  assert.ok(source.includes('<Field label="Payment terms" wide><textarea rows={4} value={terms} onChange={e=>setTerms(e.target.value)}'));
+  assert.ok(source.includes('<Field label="Notes" wide><MMFormTextareaControl rows={3} value={notes} onChange={e=>setNotes(e.target.value)}'));
+  assert.ok(source.includes('<Field label="Payment terms" wide><MMFormTextareaControl rows={4} value={terms} onChange={e=>setTerms(e.target.value)}'));
   assert.ok(source.includes('notes:notes||null,terms:terms||null'));
   assert.ok(source.includes('p_notes:notes||null,p_terms:terms||null'));
 });

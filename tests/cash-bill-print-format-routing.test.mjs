@@ -13,7 +13,7 @@ test('Cash Bill View/Print uses the stored POS receipt format even when the rend
   assert.match(viewer, /String\(model\.document_kind \|\| ''\)\.toLowerCase\(\) === 'cash_bill'/);
   assert.match(viewer, /const savedFormat = window\.localStorage\.getItem\('moneymatters\.cashBillReceiptFormat'\)/);
   assert.match(viewer, /savedFormat === 'thermal80' \|\| savedFormat === 'thermal58' \|\| savedFormat === 'a4' \|\| savedFormat === 'a5'[\s\S]*?savedFormat : 'thermal80'/);
-  assert.match(viewer, /\{isCashBillDocument&&<select aria-label="Cash Bill print format"/);
+  assert.match(viewer, /\{isCashBillDocument&&<MMFormSelectControl aria-label="Cash Bill print format"/);
   assert.match(viewer, /documentFilenameLabel\(isCashBillDocument \? 'cash_bill' : type\)/);
 });
 
