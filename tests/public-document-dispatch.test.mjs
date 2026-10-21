@@ -59,7 +59,7 @@ test('multi-channel worker sends real PDFs for SMTP/WAPI/Telegram and keeps test
  assert.match(worker,/Wapi document delivery requires the configured instance ID/);
  assert.match(worker,/bytesToBase64\(pdfBytes!\)/);
  assert.match(worker,/multipart\.set\("document", new Blob/);
- assert.match(worker,/Join Money Matters/);
+ assert.match(worker,/Money Matters FinOps/);
  assert.match(worker,/job\.notification_type === "manual_test"/);
 });
 
