@@ -20,8 +20,9 @@ function useFormControlIdentity(kind: 'input' | 'select' | 'textarea', props: Fo
     ? props.autoComplete
     : props.type && ['email', 'password', 'tel', 'search', 'url'].includes(props.type)
       ? props.type
-      : fieldNameSlug(props['aria-label'] || props.placeholder || '');
-  const name = props.name?.trim() || semanticName || `${kind}-${suffix}`;
+      : fieldNameSlug(props['aria-label'] || props.placeholder || kind);
+  const fallbackName = fieldNameSlug(semanticName || props['aria-label'] || props.placeholder || kind) || kind;
+  const name = props.name?.trim() || `${fallbackName}-${suffix}`;
   return { id, name };
 }
 
