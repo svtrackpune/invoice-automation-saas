@@ -45,3 +45,15 @@ key.properties
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Generated canonical Money Matters branding assets (created by scripts/prepare-brand-assets.js).
+/app/icon.png
+/app/apple-icon.png
+/app/favicon.ico
+/public/moneymatters-192.png
+/public/moneymatters-512.png
+/public/moneymatters-pdf.png
+/public/icons/moneymatters.svg
+/android/app/src/main/res/mipmap-*/ic_launcher.png
+/android/app/src/main/res/mipmap-*/ic_launcher_round.png
+/android/app/src/main/res/mipmap-*/ic_launcher_foreground.png

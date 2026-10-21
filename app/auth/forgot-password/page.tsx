@@ -2,6 +2,7 @@
 
 import { FormInput as MMFormInputControl } from '@/components/moneymatters/ui';
 import Link from 'next/link';
+import Image from 'next/image';
 import { useState } from 'react';
 import { supabase } from '@/lib/supabase';
 
@@ -41,7 +42,7 @@ export default function ForgotPasswordPage() {
   return (
     <main className="grid min-h-screen place-items-center bg-[radial-gradient(circle_at_top_left,#ede9fe,transparent_34%),linear-gradient(135deg,#fafafa,#f5f3ff)] p-5">
       <section className="w-full max-w-lg rounded-3xl border border-white bg-white p-8 shadow-2xl">
-        <p className="text-sm font-bold tracking-widest text-violet-600">MONEYMATTERS</p>
+        <div className="flex items-center gap-3"><Image src="/moneymatters-192.png" alt="" width={36} height={36} unoptimized className="rounded-lg object-contain" /><span className="text-sm font-bold tracking-wide text-violet-600">Money Matters FinOps</span></div>
         <h1 className="mt-3 text-2xl font-semibold">Forgot password?</h1>
         <p className="mt-3 text-sm leading-6 text-slate-600">Enter your account email. We will send a secure password-reset link to your inbox.</p>
         <label className="mt-6 block">

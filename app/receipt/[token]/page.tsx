@@ -1,4 +1,5 @@
 import { notFound } from 'next/navigation';
+import Image from 'next/image';
 import { resolvePublicDocumentByToken } from '@/lib/server/documents/public-tokens';
 import { createCanonicalDocumentViewModel } from '@/lib/shared/document-view-model';
 import { buildDocumentDownloadFilename, documentFilenameLabel } from '@/lib/shared/document-filename';
@@ -110,9 +111,9 @@ export default async function PublicReceipt({params}:{params:Promise<{token:stri
    <footer className="border-t border-slate-200 bg-slate-50 px-6 py-5 text-center text-xs text-slate-500">
     <p className="font-medium text-slate-600">This is a computer-generated payment receipt and does not require signature.</p>
     <div className="mt-3 flex flex-wrap items-center justify-center gap-x-2 gap-y-1 border-t border-slate-200 pt-3">
-     <span className="inline-grid h-4 w-4 shrink-0 place-items-center rounded bg-violet-600 text-[9px] font-black text-white">M</span>
+     <Image src="/moneymatters-pdf.png" alt="" aria-hidden width={16} height={16} unoptimized className="shrink-0 object-contain" />
      <span className="inline-flex min-w-0 max-w-[calc(100%-1.5rem)] flex-col items-center leading-tight">
-      <strong className="max-w-full whitespace-nowrap break-normal text-center text-violet-600">Powered by Moneymatters FinOps</strong>
+      <strong className="max-w-full whitespace-nowrap break-normal text-center text-violet-600">Powered by Money Matters FinOps</strong>
       <span className="text-[10px] text-slate-500">mm.nilanga.in</span>
      </span>
     </div>

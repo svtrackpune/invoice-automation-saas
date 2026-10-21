@@ -67,7 +67,7 @@ test('quotation actions are visible before acceptance and footer is standardized
   assert.match(quote,/CopyButton getValue=\{\(\) => publicDocumentUrlFromToken\('quotation',token\)\} label="Copy customer link"/);
   assert.match(quote,/Accept Quotation & Request Invoice/);
   assert.match(quote,/This is a computer-generated quotation and does not require signature\./);
-  assert.match(quote,/Powered by Moneymatters FinOps \| mm\.nilanga\.in/);
+  assert.match(quote,/Powered by Money Matters FinOps \| mm\.nilanga\.in/);
   assert.doesNotMatch(quote,/Customer ledger balance|merchant outstanding balance/i);
   assert.match(quote,/money\(item\.unitPrice\)/);
   assert.doesNotMatch(quote,/money\(item\.unit_price\)/);

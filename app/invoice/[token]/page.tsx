@@ -202,8 +202,8 @@ export default function PublicInvoice({params}:{params:Promise<{token:string}>})
       <footer className="border-t border-slate-200 bg-slate-50 px-6 py-5 text-center text-xs text-slate-500">
         <p className="font-medium text-slate-600">This is a computer-generated invoice and does not require signature.</p>
         <div className="mt-3 flex items-center justify-center gap-2 border-t border-slate-200 pt-3 text-slate-500">
-          <span className="inline-grid h-4 w-4 place-items-center rounded bg-violet-600 text-[9px] font-black text-white">M</span>
-          <span><strong className="text-violet-600">⚡ Powered by Moneymatters FinOps</strong> | mm.nilanga.in</span>
+          <Image src="/moneymatters-pdf.png" alt="" aria-hidden width={16} height={16} unoptimized className="shrink-0 object-contain" />
+          <span><strong className="text-violet-600">Powered by Money Matters FinOps</strong> | mm.nilanga.in</span>
         </div>
       </footer>
     </article>

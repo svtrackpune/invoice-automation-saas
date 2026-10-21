@@ -83,7 +83,7 @@ test('public receipt presents customer phone beside the name when space permits 
   assert.ok(page.includes('Customer Ledger Balance'));
   assert.ok(page.includes('Download Official PDF'));
   assert.ok(page.includes('flex-wrap items-center justify-center gap-x-2 gap-y-1'));
-  assert.ok(page.includes('Powered by Moneymatters FinOps'));
+  assert.ok(page.includes('Powered by Money Matters FinOps'));
   assert.ok(page.includes('whitespace-nowrap break-normal text-center text-violet-600'));
   assert.ok(page.includes('mm.nilanga.in'));
 });
@@ -124,7 +124,7 @@ test('invoice and quotation print footers center disclaimers and print names use
 test('workspace receipt branding cannot split the Moneymatters name across lines', async () => {
   const viewer = await read('app/next-workspace/documents/DocumentViewer.tsx');
 
-  assert.ok(viewer.includes("<div className='platform receipt-platform'><span className='platform-mark' aria-hidden='true'>M</span><span className='receipt-brand-label'>Powered by <strong className='receipt-brand-name'>Moneymatters</strong></span></div>"));
+  assert.ok(viewer.includes("<div className='platform receipt-platform'><Image src='/moneymatters-pdf.png' alt='' aria-hidden width={16} height={16} unoptimized className='platform-logo' /><span className='receipt-brand-label'>Powered by <strong className='receipt-brand-name'>Money Matters FinOps</strong></span></div>"));
   assert.ok(viewer.includes('flex-flow:row nowrap!important'));
   assert.ok(viewer.includes('white-space:nowrap!important;word-break:keep-all!important;overflow-wrap:normal!important'));
   assert.ok(viewer.includes('.receipt-footer .receipt-brand-name{color:var(--accent);font-size:9px}'));

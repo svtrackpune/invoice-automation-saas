@@ -14,13 +14,14 @@ const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"]
 
 export const dynamic = "force-dynamic";
 
-export const viewport: Viewport = { width: "device-width", initialScale: 1, viewportFit: "cover", themeColor: "#4f46e5" };
+export const viewport: Viewport = { width: "device-width", initialScale: 1, viewportFit: "cover", themeColor: "#091534" };
 
 export const metadata: Metadata = {
-  title: "Moneymatters — Business finance, simplified",
+  title: "Money Matters FinOps — Business finance, simplified",
   description: "Accounting, invoicing, banking, payroll and automation in one simple workspace.",
   manifest: "/manifest.json",
-  appleWebApp: { capable: true, statusBarStyle: "default", title: "Moneymatters" },
+  icons: { icon: [{ url: "/icon.png", sizes: "512x512", type: "image/png" }], apple: [{ url: "/apple-icon.png", sizes: "180x180", type: "image/png" }] },
+  appleWebApp: { capable: true, statusBarStyle: "default", title: "Money Matters" },
 };
 
 export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {

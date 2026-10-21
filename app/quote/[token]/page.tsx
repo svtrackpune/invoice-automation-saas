@@ -2,6 +2,7 @@
 
 import { use, useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Image from 'next/image';
 import QRCode from 'qrcode';
 import CopyButton from '@/components/ui/copy-button';
 import { supabase } from '@/lib/supabase';
@@ -271,7 +272,7 @@ export default function PublicQuotation({params}:{params:Promise<{token:string}>
 
       <footer className="mt-12 border-t border-slate-200 pt-4 text-center text-xs text-slate-500 space-y-1">
         <p>This is a computer-generated quotation and does not require signature.</p>
-        <p className="text-[11px] text-slate-400">Powered by Moneymatters FinOps | mm.nilanga.in</p>
+        <p className="flex items-center justify-center gap-2 text-[11px] text-slate-400"><Image src="/moneymatters-pdf.png" alt="" aria-hidden width={16} height={16} unoptimized className="shrink-0 object-contain" /><span>Powered by Money Matters FinOps | mm.nilanga.in</span></p>
       </footer>
     </article>
   </main>;

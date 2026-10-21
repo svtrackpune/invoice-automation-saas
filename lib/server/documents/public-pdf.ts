@@ -1,4 +1,6 @@
 import type { PublicDocument } from './public-tokens';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { canonicalAddress, createCanonicalDocumentViewModel } from '../../shared/document-view-model.ts';
 import QRCode from 'qrcode';
 import { createUnicodePdfDocument, pdfColor, pdfDocumentToBuffer, pdfFontName, pdfTextWidth, safePdfText } from './pdf-kit.ts';
@@ -16,6 +18,10 @@ const C = {
   red: [0.68, 0.18, 0.20] as RGB,
 };
 const pdfText = (v: unknown) => safePdfText(v);
+function loadMoneyMattersPdfMark(): Buffer | null {
+  try { return readFileSync(join(process.cwd(), 'public', 'moneymatters-pdf.png')); }
+  catch { return null; }
+}
 const money = (v: number, currency = 'INR') => {
   const code = /^[A-Z]{3}$/.test(String(currency || '').toUpperCase()) ? String(currency).toUpperCase() : 'INR';
   return code + ' ' + Number(v || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -116,6 +122,10 @@ class Canvas {
     if (!uri || !/^(https?:|upi:)/i.test(uri)) return;
     this.activate();
     this.doc.link(x, top, width, height, uri);
+  }
+  imageBytes(bytes: Buffer, x: number, top: number, w: number, h: number) {
+    this.activate();
+    this.doc.image(bytes, x, top, { width: w, height: h });
   }
   imageLogo(x: number, top: number, w: number, h: number) {
     if (!this.logo) return;
@@ -636,14 +646,23 @@ export async function buildPublicDocumentPdf(doc: PublicDocument): Promise<Buffe
     ? 'This is a computer-generated ' + (doc.type === 'cash_bill' ? 'cash bill' : 'invoice') + ' and does not require signature.'
     : doc.type === 'quotation'
       ? 'This is a computer-generated quotation and does not require signature.'
-      : 'Generated via Moneymatters FinOps | Join Moneymatters for free at mm.nilanga.in';
-  const poweredText = 'Powered by Moneymatters FinOps | mm.nilanga.in';
+      : 'Generated via Money Matters FinOps | Join Money Matters at mm.nilanga.in';
+  const poweredText = 'Powered by Money Matters FinOps | mm.nilanga.in';
+  const platformMark = loadMoneyMattersPdfMark();
+  const poweredWidth = pdfTextWidth(c.doc, poweredText, 7, false);
+  const platformMarkSize = 9;
+  const platformGap = 3;
+  const platformGroupWidth = platformMarkSize + platformGap + poweredWidth;
+  const platformStartX = (W - platformGroupWidth) / 2;
   for (let i = 0; i < pageCount; i++) {
     c.switchToPage(i);
     c.line(M, 780, right, 780, palette.accent, 1.5);
     c.line(M, 783, right, 783, palette.border, 0.5);
     c.text(W / 2, 792, footerText, 7.5, false, palette.muted, 'center');
-    c.text(W / 2, 803, poweredText, 7, false, palette.muted, 'center');
+    if (platformMark) {
+      c.imageBytes(platformMark, platformStartX, 802, platformMarkSize, platformMarkSize);
+      c.text(platformStartX + platformMarkSize + platformGap, 803, poweredText, 7, false, palette.muted, 'left');
+    } else c.text(W / 2, 803, poweredText, 7, false, palette.muted, 'center');
   }
   return await pdfDocumentToBuffer(c.doc);
 }

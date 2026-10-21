@@ -2,6 +2,7 @@
 
 import { FormInput as MMFormInputControl, FormSelect as MMFormSelectControl, FormTextarea as MMFormTextareaControl } from '@/components/moneymatters/ui';
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import Image from 'next/image';
 import { supabase } from '@/lib/supabase';
 
 type Category = { id: string; name: string; sort_order: number };
@@ -185,7 +186,7 @@ export default function OnboardingPage() {
   return <main className="min-h-screen bg-slate-50 p-4 sm:p-8">
     <div className="mx-auto max-w-5xl">
       <header className="mb-6 flex items-center justify-between gap-4">
-        <div><span className="text-[10px] font-black uppercase tracking-[.2em] text-indigo-600">Moneymatters</span><h1 className="mt-1 text-2xl font-semibold tracking-tight text-slate-950 sm:text-3xl">Set up your workspace</h1></div>
+        <div className="flex items-center gap-3"><Image src="/moneymatters-192.png" alt="" width={36} height={36} priority unoptimized className="shrink-0 rounded-lg object-contain" /><div><span className="text-[10px] font-black uppercase tracking-[.14em] text-indigo-600">Money Matters FinOps</span><h1 className="mt-1 text-2xl font-semibold tracking-tight text-slate-950 sm:text-3xl">Set up your workspace</h1></div></div>
         <span className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-500">Step {step} of 4</span>
       </header>
 

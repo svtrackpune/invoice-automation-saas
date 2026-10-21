@@ -3,6 +3,7 @@
 import { FormInput as MMFormInputControl, FormSelect as MMFormSelectControl } from '@/components/moneymatters/ui';
 import type { Session, User } from '@supabase/supabase-js';
 import { useEffect, useState } from 'react';
+import Image from 'next/image';
 import { supabase } from '@/lib/supabase';
 
 const COUNTRIES = [
@@ -150,7 +151,7 @@ function Auth({onReady}:{onReady:()=>void}) {
         <div className="hidden bg-violet-950 p-12 text-white md:block">
           <div className="flex h-full flex-col justify-between">
             <div>
-              <div className="mb-12 flex items-center gap-3"><div className="grid h-10 w-10 place-items-center rounded-xl bg-white font-black text-violet-950">M</div><span className="text-lg font-bold">Moneymatters</span></div>
+              <div className="mb-12 flex items-center gap-3"><Image src="/moneymatters-192.png" alt="" width={40} height={40} priority unoptimized className="shrink-0 rounded-xl object-contain" /><span className="text-lg font-bold">Money Matters FinOps</span></div>
               <p className="max-w-md text-4xl font-semibold leading-tight">Your business. Your numbers. One intelligent workspace.</p>
               <p className="mt-5 max-w-md text-sm leading-6 text-violet-200">Invoices, customers, expenses, inventory, payments and accounting connected to the same source of truth.</p>
             </div>

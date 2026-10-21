@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { usePathname } from 'next/navigation';
+import Image from 'next/image';
 import type { Dispatch, ReactNode, SetStateAction } from 'react';
 import { supabase, type BusinessContext } from '@/lib/supabase';
 import { resolveSupportedLocale, type SupportedLocale } from '@/lib/i18n';
@@ -295,8 +296,8 @@ function WorkspaceChrome({ children, businesses, activeBusinessId, setActiveBusi
         <button type="button" onClick={() => setMobile(true)} aria-label={translate(locale, 'Open navigation menu')} aria-expanded={mobile} className="grid h-9 w-9 place-items-center rounded-lg border border-slate-200 bg-white text-slate-600 lg:hidden"><span className="text-lg">☰</span></button>
 
         <button type="button" onClick={() => go('/next-workspace')} className="flex w-64 shrink-0 items-center gap-2.5 text-left">
-          <span className="grid h-8 w-8 place-items-center rounded-lg bg-slate-900 text-sm font-black text-white">M</span>
-          <span><span className="block text-sm font-bold tracking-tight text-slate-950">Moneymatters</span><span className="mt-0.5 block text-[10px] text-slate-400">{translate(locale, 'FinOps workspace')}</span></span>
+          <Image src="/moneymatters-192.png" alt="" width={32} height={32} unoptimized className="shrink-0 rounded-lg object-contain" />
+          <span><span className="block text-sm font-bold tracking-tight text-slate-950">Money Matters FinOps</span><span className="mt-0.5 block text-[10px] text-slate-400">{translate(locale, 'FinOps workspace')}</span></span>
         </button>
 
         <div className="hidden min-w-0 flex-1 md:block"><div className="mx-auto w-full max-w-lg"><GlobalSearch /></div></div>
@@ -349,11 +350,11 @@ function WorkspaceChrome({ children, businesses, activeBusinessId, setActiveBusi
         <Nav pathname={pathname} go={go} openSections={openSections} setOpenSections={setOpenSections} cashBillEnabled={cashBillEnabled} collapsed={collapsed} business={active || null} locale={locale}/>
       </aside>
 
-      {mobile ? <><button type="button" aria-label={translate(locale, 'Close navigation menu')} onClick={() => setMobile(false)} className="fixed inset-0 z-[60] bg-slate-950/20 lg:hidden"/><aside className="fixed inset-y-0 left-0 z-[70] w-72 overflow-y-auto border-r border-slate-200 bg-white px-4 py-4 shadow-2xl lg:hidden"><div className="mb-5 flex items-center justify-between"><div><b className="text-sm">Moneymatters</b><span className="block text-[10px] text-slate-400">{translate(locale, 'FinOps workspace')}</span></div><button type="button" aria-label={translate(locale, 'Close navigation menu')} onClick={() => setMobile(false)} className="grid h-8 w-8 place-items-center rounded-lg border border-slate-200">×</button></div><Nav pathname={pathname} go={go} openSections={openSections} setOpenSections={setOpenSections} cashBillEnabled={cashBillEnabled} collapsed={false} business={active || null} locale={locale}/></aside></> : null}
+      {mobile ? <><button type="button" aria-label={translate(locale, 'Close navigation menu')} onClick={() => setMobile(false)} className="fixed inset-0 z-[60] bg-slate-950/20 lg:hidden"/><aside className="fixed inset-y-0 left-0 z-[70] w-72 overflow-y-auto border-r border-slate-200 bg-white px-4 py-4 shadow-2xl lg:hidden"><div className="mb-5 flex items-center justify-between"><div className="flex min-w-0 items-center gap-2.5"><Image src="/moneymatters-192.png" alt="" width={28} height={28} unoptimized className="shrink-0 rounded-lg object-contain" /><div className="min-w-0"><b className="text-sm">Money Matters FinOps</b><span className="block text-[10px] text-slate-400">{translate(locale, 'FinOps workspace')}</span></div></div><button type="button" aria-label={translate(locale, 'Close navigation menu')} onClick={() => setMobile(false)} className="grid h-8 w-8 place-items-center rounded-lg border border-slate-200">×</button></div><Nav pathname={pathname} go={go} openSections={openSections} setOpenSections={setOpenSections} cashBillEnabled={cashBillEnabled} collapsed={false} business={active || null} locale={locale}/></aside></> : null}
 
       <main id="main-content" tabIndex={-1} className="min-w-0 flex-1 outline-none">
         <div className="border-b border-slate-200/80 bg-white px-4 py-2.5 sm:px-6">
-          <div className="mx-auto flex max-w-[1480px] items-center gap-2"><span className="text-[11px] text-slate-400">Moneymatters</span><span className="text-slate-300">/</span><span className="text-xs font-semibold text-slate-700">{translate(locale, titles[pathname] || 'Workspace')}</span></div>
+          <div className="mx-auto flex max-w-[1480px] items-center gap-2"><span className="text-[11px] text-slate-400">Money Matters FinOps</span><span className="text-slate-300">/</span><span className="text-xs font-semibold text-slate-700">{translate(locale, titles[pathname] || 'Workspace')}</span></div>
         </div>
         {configLoading ? <div className="px-6 py-2 text-center text-[11px] text-slate-400">Loading business configuration…</div> : null}
         {children}

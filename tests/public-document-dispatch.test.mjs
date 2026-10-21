@@ -59,7 +59,7 @@ test('multi-channel worker sends real PDFs for SMTP/WAPI/Telegram and keeps test
  assert.match(worker,/Wapi document delivery requires the configured instance ID/);
  assert.match(worker,/bytesToBase64\(pdfBytes!\)/);
  assert.match(worker,/multipart\.set\("document", new Blob/);
- assert.match(worker,/Join Moneymatters for free/);
+ assert.match(worker,/Join Money Matters/);
  assert.match(worker,/job\.notification_type === "manual_test"/);
 });
 
@@ -217,7 +217,7 @@ test('public invoice and expanded document types render vector PDFs with QR link
  const raw=pdf.toString('latin1');
  assert.match(raw,/\/MediaBox \[0 0 595\.28 841\.89\]/);
  assert.ok((raw.match(/\bTj\b|\bTJ\b/g)||[]).length>20,'generated PDF must contain many text operators');
- for(const label of ['TAX INVOICE','BILL TO','SHIP TO','ITEM / DESCRIPTION','Net Payable','Balance due','AMOUNT IN WORDS:','Authorized Signatory','SCAN & PAY VIA UPI','Pay Now via UPI','Scan to pay the invoice amount.','This is a computer-generated ','Powered by Moneymatters FinOps | mm.nilanga.in']) assert.ok(rendererSource.includes(label),'vector renderer is missing '+label);
+ for(const label of ['TAX INVOICE','BILL TO','SHIP TO','ITEM / DESCRIPTION','Net Payable','Balance due','AMOUNT IN WORDS:','Authorized Signatory','SCAN & PAY VIA UPI','Pay Now via UPI','Scan to pay the invoice amount.','This is a computer-generated ','Powered by Money Matters FinOps | mm.nilanga.in']) assert.ok(rendererSource.includes(label),'vector renderer is missing '+label);
  assert.ok(rendererSource.includes("doc.type === 'cash_bill' ? 'cash bill' : 'invoice'"),'footer names the corresponding document type');
  assert.match(rendererSource,/c\.text\(bx,\s*52,\s*doc\.number/,'invoice number is wired into the renderer');
  assert.doesNotMatch(rendererSource,/Rs\./,'renderer must not use the legacy Rs. currency prefix');

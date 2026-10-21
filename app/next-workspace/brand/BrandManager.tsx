@@ -124,7 +124,7 @@ export default function BrandManager() {
 
   return <main className="min-h-screen bg-[#f6f7fb] p-4 text-slate-950 sm:p-7">
     <div className="mx-auto max-w-7xl">
-      <header className="mb-6 flex items-end justify-between gap-4"><div><p className="text-[11px] font-bold uppercase tracking-[.18em] text-violet-600">Business control centre</p><h1 className="mt-1 text-3xl font-semibold">Branding & document templates</h1><p className="mt-1 text-sm text-slate-500">Choose the exact invoice, estimate and receipt design used by this business.</p></div><Button secondary onClick={() => location.href = '/next-workspace'}>Back</Button></header>
+      <header className="mb-6 flex items-end justify-between gap-4"><div className="flex items-start gap-3"><Image src="/moneymatters-192.png" alt="" width={40} height={40} unoptimized className="mt-1 shrink-0 rounded-xl object-contain" /><div><p className="text-[11px] font-bold uppercase tracking-[.18em] text-violet-600">Money Matters FinOps · Business control centre</p><h1 className="mt-1 text-3xl font-semibold">Branding & document templates</h1><p className="mt-1 text-sm text-slate-500">Choose the exact invoice, estimate and receipt design used by this business.</p></div></div><Button secondary onClick={() => location.href = '/next-workspace'}>Back</Button></header>
       {(error || message) && <div className={`mb-5 rounded-xl border px-4 py-3 text-sm font-semibold ${error ? 'border-red-200 bg-red-50 text-red-700' : 'border-emerald-200 bg-emerald-50 text-emerald-700'}`}>{error || message}</div>}
       <div className="grid gap-5 xl:grid-cols-[.72fr_1.28fr]">
         <Card className="p-6">

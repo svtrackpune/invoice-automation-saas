@@ -1,4 +1,6 @@
 import { createHash } from 'node:crypto';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { createCanonicalDocumentViewModel } from '@/lib/shared/document-view-model';
 import { createUnicodePdfDocument, pdfColor, pdfDocumentToBuffer, pdfFontName, pdfTextWidth, safePdfText } from './documents/pdf-kit.ts';
@@ -32,6 +34,10 @@ type PdfData = {
 };
 
 const plain = (value: unknown) => safePdfText(value);
+const loadMoneyMattersPdfMark = (): Buffer | null => {
+  try { return readFileSync(join(process.cwd(), 'public', 'moneymatters-pdf.png')); }
+  catch { return null; }
+};
 
 const money = (value: number, currency = 'INR') => {
   const amount = Number(value || 0);
@@ -342,8 +348,18 @@ const buildReceiptPdf = async (data: PdfData): Promise<Buffer> => {
   const disclaimer = 'This is a computer-generated payment receipt and does not require signature.';
   textLine(page, Math.max(left, (pageWidth - estimateTextWidth(disclaimer, 7.8)) / 2), y, disclaimer, 7.8);
   y -= 12;
-  const powered = 'Powered by Moneymatters FinOps | mm.nilanga.in';
-  textLine(page, Math.max(left, (pageWidth - estimateTextWidth(powered, 7.2, true)) / 2), y, powered, 7.2, true, palette.accent);
+  const powered = 'Powered by Money Matters FinOps | mm.nilanga.in';
+  const poweredWidth = estimateTextWidth(powered, 7.2, true);
+  const platformMark = loadMoneyMattersPdfMark();
+  if (platformMark) {
+    const markSize = 9;
+    const gap = 3;
+    const startX = (pageWidth - markSize - gap - poweredWidth) / 2;
+    pdf.image(platformMark, startX, y - 1, { width: markSize, height: markSize });
+    textLine(page, startX + markSize + gap, y, powered, 7.2, true, palette.accent);
+  } else {
+    textLine(page, Math.max(left, (pageWidth - poweredWidth) / 2), y, powered, 7.2, true, palette.accent);
+  }
 
   return await pdfDocumentToBuffer(pdf);
 };

@@ -2,6 +2,7 @@
 
 import { FormInput as MMFormInputControl, FormSelect as MMFormSelectControl } from '@/components/moneymatters/ui';
 import { useEffect, useMemo, useState } from 'react';
+import Image from 'next/image';
 import QRCode from 'qrcode';
 import { supabase, type BusinessContext } from '@/lib/supabase';
 import { PageHeader } from '@/components/ui/finops/PageHeader';
@@ -163,7 +164,7 @@ function PreviewCanvas({ type, templateKey, brand, pref, customer, balance, upiQ
         </div>
         <footer className="relative z-10 border-t px-4 py-3 text-center" style={{ borderColor: secondary + '55' }}>
           <div className="text-[8px]" style={{ color: secondary }}>This is a computer-generated payment receipt.</div>
-          <div className="mt-1 text-[8px] font-semibold" style={{ color: accent }}>Powered by Moneymatters</div>
+          <div className="mt-1 flex items-center justify-center gap-1.5 text-[8px] font-semibold" style={{ color: accent }}><Image src="/moneymatters-pdf.png" alt="" width={12} height={12} unoptimized />Powered by Money Matters FinOps</div>
         </footer>
       </article>
     </div>;
