@@ -1,5 +1,6 @@
 'use client';
 
+import { FormInput as MMFormInputControl, FormSelect as MMFormSelectControl } from '@/components/moneymatters/ui';
 type Product = {
   name: string;
   track_batches?: boolean;
@@ -50,7 +51,7 @@ export default function InventoryTrackingModal({ open, product, line, options, b
               <div>
                 <label className="block text-xs font-semibold text-slate-700">
                   Batch number *
-                  <input
+                  <MMFormInputControl
                     className="mt-1.5 w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-100"
                     value={line.batch_number}
                     onChange={(e) => onChange('batch_number', e.target.value)}
@@ -58,14 +59,14 @@ export default function InventoryTrackingModal({ open, product, line, options, b
                   />
                 </label>
                 {options.batch.length > 0 && (
-                  <select
+                  <MMFormSelectControl
                     defaultValue=""
                     onChange={(e) => { if (e.target.value) onChange('batch_number', e.target.value); }}
                     className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-100"
                   >
                     <option value="">Choose a previously used batch…</option>
                     {options.batch.map((value) => <option key={value} value={value}>{value}</option>)}
-                  </select>
+                  </MMFormSelectControl>
                 )}
               </div>
             )}
@@ -74,7 +75,7 @@ export default function InventoryTrackingModal({ open, product, line, options, b
               <div>
                 <label className="block text-xs font-semibold text-slate-700">
                   Serial number *
-                  <input
+                  <MMFormInputControl
                     className="mt-1.5 w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-100"
                     value={line.serial_number}
                     onChange={(e) => onChange('serial_number', e.target.value)}
@@ -82,14 +83,14 @@ export default function InventoryTrackingModal({ open, product, line, options, b
                   />
                 </label>
                 {options.serial.length > 0 && (
-                  <select
+                  <MMFormSelectControl
                     defaultValue=""
                     onChange={(e) => { if (e.target.value) onChange('serial_number', e.target.value); }}
                     className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-100"
                   >
                     <option value="">Choose a previously used serial…</option>
                     {options.serial.map((value) => <option key={value} value={value}>{value}</option>)}
-                  </select>
+                  </MMFormSelectControl>
                 )}
                 <p className="mt-2 text-[11px] text-slate-400">Serial-tracked products must be invoiced one unit per line.</p>
               </div>

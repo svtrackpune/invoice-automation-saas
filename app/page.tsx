@@ -1,5 +1,6 @@
 'use client';
 
+import { FormInput as MMFormInputControl, FormSelect as MMFormSelectControl } from '@/components/moneymatters/ui';
 import type { Session, User } from '@supabase/supabase-js';
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
@@ -18,7 +19,7 @@ function Field({label,children}:{label:string;children:React.ReactNode}) {
   return <label className="block"><span className="mb-1.5 block text-xs font-semibold text-slate-600">{label}</span>{children}</label>;
 }
 function Input(props:React.InputHTMLAttributes<HTMLInputElement>) {
-  return <input {...props} className={`w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-100 ${props.className||''}`}/>;
+  return <MMFormInputControl {...props} className={`w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-100 ${props.className||''}`}/>;
 }
 function Button({children,onClick,disabled=false}:{children:React.ReactNode;onClick?:()=>void;disabled?:boolean}) {
   return <button type="button" disabled={disabled} onClick={onClick} className="w-full rounded-xl bg-violet-600 px-5 py-3 text-sm font-semibold text-white hover:bg-violet-700 disabled:cursor-not-allowed disabled:opacity-50">{children}</button>;
@@ -26,9 +27,9 @@ function Button({children,onClick,disabled=false}:{children:React.ReactNode;onCl
 function PhoneField({country,setCountry,phone,setPhone}:{country:string;setCountry:(v:string)=>void;phone:string;setPhone:(v:string)=>void}) {
   const selected=COUNTRIES.find(x=>x[0]===country)||COUNTRIES[0];
   return <div className="grid grid-cols-[145px_1fr] gap-2">
-    <select value={country} onChange={e=>setCountry(e.target.value)} aria-label="Country" className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-100">
+    <MMFormSelectControl value={country} onChange={e=>setCountry(e.target.value)} aria-label="Country" className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-100">
       {COUNTRIES.map(([code,dial,name])=><option key={code+name} value={code}>{name} ({dial})</option>)}
-    </select>
+    </MMFormSelectControl>
     <Input type="tel" autoComplete="tel" inputMode="tel" value={phone} onChange={e=>setPhone(e.target.value.replace(/[^0-9\s()-]/g,''))} placeholder={`Mobile number ${selected[1]}`}/>
   </div>;
 }

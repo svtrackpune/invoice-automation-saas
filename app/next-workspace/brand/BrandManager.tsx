@@ -1,5 +1,6 @@
 'use client';
 
+import { FormInput as MMFormInputControl } from '@/components/moneymatters/ui';
 import { useEffect, useMemo, useState } from 'react';
 import Image from 'next/image';
 import { supabase, type BusinessContext } from '@/lib/supabase';
@@ -17,7 +18,7 @@ function Card({ children, className = '' }: { children: React.ReactNode; classNa
   return <section className={`rounded-3xl border border-slate-200 bg-white shadow-[0_12px_40px_rgba(15,23,42,.05)] ${className}`}>{children}</section>;
 }
 function Input(props: React.InputHTMLAttributes<HTMLInputElement>) {
-  return <input {...props} className={`w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-100 ${props.className || ''}`} />;
+  return <MMFormInputControl {...props} className={`w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-100 ${props.className || ''}`} />;
 }
 function Button({ children, onClick, secondary = false, disabled = false }: { children: React.ReactNode; onClick?: () => void; secondary?: boolean; disabled?: boolean }) {
   return <button type="button" disabled={disabled} onClick={onClick} className={`rounded-xl px-4 py-2.5 text-sm font-semibold disabled:opacity-50 ${secondary ? 'border border-slate-200 bg-white text-slate-700 hover:bg-slate-50' : 'bg-violet-600 text-white hover:bg-violet-700'}`}>{children}</button>;
@@ -135,7 +136,7 @@ export default function BrandManager() {
             <div className="grid grid-cols-3 gap-3"><Input type="color" value={brand.brand_primary_color} onChange={e => setBrand({ ...brand, brand_primary_color: e.target.value })} className="h-11 p-1" /><Input type="color" value={brand.brand_secondary_color} onChange={e => setBrand({ ...brand, brand_secondary_color: e.target.value })} className="h-11 p-1" /><Input type="color" value={brand.brand_accent_color} onChange={e => setBrand({ ...brand, brand_accent_color: e.target.value })} className="h-11 p-1" /></div>
             <Button disabled={busy} onClick={saveBranding}>Save branding</Button>
           </div>
-          <div className="mt-7 border-t border-slate-100 pt-6"><b className="text-sm">Business logo</b><p className="mt-1 text-xs text-slate-400">Used automatically on document previews and generated documents.</p><div className="mt-4 flex items-center gap-4"><div className="grid h-24 w-32 place-items-center rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-3">{logoUrl ? <Image src={logoUrl} alt="Business logo" width={128} height={96} unoptimized className="max-h-full max-w-full object-contain" /> : <span className="text-xs text-slate-400">No logo</span>}</div><label className="cursor-pointer rounded-xl bg-slate-950 px-4 py-2.5 text-sm font-semibold text-white"><input type="file" accept="image/png,image/jpeg,image/webp" className="hidden" onChange={e => { const file = e.target.files?.[0]; if (file) uploadLogo(file); }} />{logoUrl ? 'Replace logo' : 'Upload logo'}</label></div></div>
+          <div className="mt-7 border-t border-slate-100 pt-6"><b className="text-sm">Business logo</b><p className="mt-1 text-xs text-slate-400">Used automatically on document previews and generated documents.</p><div className="mt-4 flex items-center gap-4"><div className="grid h-24 w-32 place-items-center rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-3">{logoUrl ? <Image src={logoUrl} alt="Business logo" width={128} height={96} unoptimized className="max-h-full max-w-full object-contain" /> : <span className="text-xs text-slate-400">No logo</span>}</div><label className="cursor-pointer rounded-xl bg-slate-950 px-4 py-2.5 text-sm font-semibold text-white"><MMFormInputControl type="file" accept="image/png,image/jpeg,image/webp" className="hidden" onChange={e => { const file = e.target.files?.[0]; if (file) uploadLogo(file); }} />{logoUrl ? 'Replace logo' : 'Upload logo'}</label></div></div>
         </Card>
         <Card className="p-6">
           <div className="flex flex-wrap items-center justify-between gap-3"><div><h2 className="text-lg font-semibold">Document templates</h2><p className="mt-1 text-xs text-slate-400">Five production templates are available for each document type.</p></div><div className="flex rounded-xl bg-slate-100 p-1">{(['invoice','quotation','receipt'] as DocType[]).map(x => <button type="button" key={x} onClick={() => setType(x)} className={`rounded-lg px-3 py-2 text-xs font-semibold capitalize ${type === x ? 'bg-white shadow-sm text-slate-900' : 'text-slate-500'}`}>{x === 'quotation' ? 'Estimate' : x}</button>)}</div></div>

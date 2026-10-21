@@ -1,5 +1,6 @@
 'use client';
 
+import { FormInput as MMFormInputControl, FormTextarea as MMFormTextareaControl } from '@/components/moneymatters/ui';
 import { useEffect, useMemo, useState } from 'react';
 import { supabase, type BusinessContext } from '@/lib/supabase';
 import { PageHeader } from '@/components/ui/finops/PageHeader';
@@ -191,7 +192,7 @@ export default function DailyCashBookPage() {
           title="Daily Cash Book"
           subtitle="Reconcile the physical cash drawer against posted Cash Bills, cash collections, cash expenses and bank deposits."
           badge={{ label: closed ? 'Shift Closed & Locked' : 'Open', variant: closed ? 'statutory' : 'treasury' }}
-          actions={<label className="text-[9px] font-bold uppercase tracking-wider text-finops-neutral-muted">Date<input type="date" value={date} onChange={event => setDate(event.target.value)} className="mt-1 block h-10 rounded-lg border border-finops-neutral-border bg-white px-3 text-xs font-semibold text-finops-neutral-text" /></label>}
+          actions={<label className="text-[9px] font-bold uppercase tracking-wider text-finops-neutral-muted">Date<MMFormInputControl type="date" value={date} onChange={event => setDate(event.target.value)} className="mt-1 block h-10 rounded-lg border border-finops-neutral-border bg-white px-3 text-xs font-semibold text-finops-neutral-text" /></label>}
         />
 
         {error ? <div className="mt-4 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-xs font-semibold text-rose-800">{error}</div> : null}
@@ -200,7 +201,7 @@ export default function DailyCashBookPage() {
         <section className="mt-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           <article className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-[0_1px_2px_rgba(15,23,42,.03)]">
             <p className="text-[9px] font-bold uppercase tracking-[.14em] text-slate-400">Opening Float</p>
-            <input type="number" min="0" step="0.01" value={openingFloat} readOnly={closed} onChange={event => setOpeningFloat(event.target.value)} onBlur={() => void refresh()} className="mt-3 h-11 w-full rounded-lg border border-slate-200 bg-white px-3 text-right font-mono text-lg font-bold tabular-nums outline-none focus:border-indigo-400 read-only:bg-slate-50" />
+            <MMFormInputControl type="number" min="0" step="0.01" value={openingFloat} readOnly={closed} onChange={event => setOpeningFloat(event.target.value)} onBlur={() => void refresh()} className="mt-3 h-11 w-full rounded-lg border border-slate-200 bg-white px-3 text-right font-mono text-lg font-bold tabular-nums outline-none focus:border-indigo-400 read-only:bg-slate-50" />
           </article>
           <StatCard title="Total Inflow" value={money(num(summary?.cash_sales) + num(summary?.cash_inflow), currency)} tone="inflow" className="min-h-[124px] p-4"><div className="mt-2 space-y-1 text-[10px] text-finops-neutral-muted"><div className="flex justify-between"><span>Cash Bills</span><b>{money(num(summary?.cash_sales), currency)}</b></div><div className="flex justify-between"><span>Invoice collections</span><b>{money(num(summary?.cash_inflow), currency)}</b></div></div></StatCard>
           <StatCard title="Total Outflow" value={money(num(summary?.cash_expenses) + num(summary?.bank_deposits), currency)} tone="outflow" className="min-h-[124px] p-4"><div className="mt-2 space-y-1 text-[10px] text-finops-neutral-muted"><div className="flex justify-between"><span>Cash expenses</span><b>{money(num(summary?.cash_expenses), currency)}</b></div><div className="flex justify-between"><span>Bank deposits</span><b>{money(num(summary?.bank_deposits), currency)}</b></div></div></StatCard>
@@ -230,11 +231,11 @@ export default function DailyCashBookPage() {
           <div className="mt-6 grid gap-4 lg:grid-cols-[minmax(0,340px)_1fr]">
             <label className="text-[9px] font-bold uppercase tracking-[.14em] text-slate-400">
               Actual Drawer Cash (Physical Count)
-              <input type="number" min="0" step="0.01" value={actualClosing} readOnly={closed} onChange={event => setActualClosing(event.target.value)} placeholder="0.00" className="mt-2 h-12 w-full rounded-xl border border-slate-300 bg-white px-4 text-right font-mono text-xl font-bold tabular-nums outline-none focus:border-indigo-500 read-only:bg-slate-50" />
+              <MMFormInputControl type="number" min="0" step="0.01" value={actualClosing} readOnly={closed} onChange={event => setActualClosing(event.target.value)} placeholder="0.00" className="mt-2 h-12 w-full rounded-xl border border-slate-300 bg-white px-4 text-right font-mono text-xl font-bold tabular-nums outline-none focus:border-indigo-500 read-only:bg-slate-50" />
             </label>
             <label className="text-[9px] font-bold uppercase tracking-[.14em] text-slate-400">
               Notes
-              <textarea rows={4} value={notes} readOnly={closed} onChange={event => setNotes(event.target.value)} placeholder="Optional shift handover notes..." className="mt-2 w-full rounded-xl border border-slate-200 bg-white p-3 text-sm outline-none focus:border-indigo-400 read-only:bg-slate-50" />
+              <MMFormTextareaControl rows={4} value={notes} readOnly={closed} onChange={event => setNotes(event.target.value)} placeholder="Optional shift handover notes..." className="mt-2 w-full rounded-xl border border-slate-200 bg-white p-3 text-sm outline-none focus:border-indigo-400 read-only:bg-slate-50" />
             </label>
           </div>
 

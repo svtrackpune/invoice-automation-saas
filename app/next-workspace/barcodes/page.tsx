@@ -1,5 +1,6 @@
 'use client';
 
+import { FormInput as MMFormInputControl, FormSelect as MMFormSelectControl } from '@/components/moneymatters/ui';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import JsBarcode from 'jsbarcode';
 import { supabase, type BusinessContext } from '@/lib/supabase';
@@ -337,7 +338,7 @@ export default function Barcodes() {
               <div className="flex items-center gap-3 text-xs">
                 <label>
                   Copies
-                  <input
+                  <MMFormInputControl
                     className="ml-2 w-20 rounded border p-2"
                     type="number"
                     min="1"
@@ -348,7 +349,7 @@ export default function Barcodes() {
                 </label>
                 <label>
                   Preset
-                  <select
+                  <MMFormSelectControl
                     className="ml-2 rounded border p-2"
                     value={presetKey}
                     onChange={(e) => setPresetKey(e.target.value as PresetKey)}
@@ -358,7 +359,7 @@ export default function Barcodes() {
                         {x.name}
                       </option>
                     ))}
-                  </select>
+                  </MMFormSelectControl>
                 </label>
               </div>
             </div>
@@ -371,7 +372,7 @@ export default function Barcodes() {
             <div className="mt-3 divide-y">
               {items.map((x) => (
                 <label key={x.id} className="flex items-center gap-3 py-3 text-sm">
-                  <input
+                  <MMFormInputControl
                     type="checkbox"
                     checked={selected.includes(x.id)}
                     onChange={(e) =>

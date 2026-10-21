@@ -1,5 +1,6 @@
 'use client';
 
+import { FormInput as MMFormInputControl } from '@/components/moneymatters/ui';
 import { useEffect, useState } from 'react';
 import { supabase, type BusinessContext } from '@/lib/supabase';
 import { PageHeader } from '@/components/ui/finops/PageHeader';
@@ -172,7 +173,7 @@ export default function StatutoryHubPage() {
             <div className="mt-5 grid gap-3 sm:grid-cols-2">
               <label className="text-[9px] font-bold uppercase tracking-wider text-slate-400">
                 Return month
-                <input type="month" value={period} onChange={event => setPeriod(event.target.value)} className="mt-1 h-10 w-full rounded-lg border border-slate-200 px-3 text-xs font-semibold" />
+                <MMFormInputControl type="month" value={period} onChange={event => setPeriod(event.target.value)} className="mt-1 h-10 w-full rounded-lg border border-slate-200 px-3 text-xs font-semibold" />
               </label>
               <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5">
                 <p className="text-[9px] font-bold uppercase tracking-wider text-slate-400">Filing period</p>
@@ -203,8 +204,8 @@ export default function StatutoryHubPage() {
             </div>
 
             <div className="mt-5 grid gap-3 sm:grid-cols-2">
-              <label className="text-[9px] font-bold uppercase tracking-wider text-slate-400">From<input type="date" value={from} onChange={event => setFrom(event.target.value)} className="mt-1 h-10 w-full rounded-lg border border-slate-200 px-3 text-xs font-semibold" /></label>
-              <label className="text-[9px] font-bold uppercase tracking-wider text-slate-400">To<input type="date" value={to} onChange={event => setTo(event.target.value)} className="mt-1 h-10 w-full rounded-lg border border-slate-200 px-3 text-xs font-semibold" /></label>
+              <label className="text-[9px] font-bold uppercase tracking-wider text-slate-400">From<MMFormInputControl type="date" value={from} onChange={event => setFrom(event.target.value)} className="mt-1 h-10 w-full rounded-lg border border-slate-200 px-3 text-xs font-semibold" /></label>
+              <label className="text-[9px] font-bold uppercase tracking-wider text-slate-400">To<MMFormInputControl type="date" value={to} onChange={event => setTo(event.target.value)} className="mt-1 h-10 w-full rounded-lg border border-slate-200 px-3 text-xs font-semibold" /></label>
             </div>
 
             <div className="mt-4 grid gap-2 sm:grid-cols-2">
@@ -217,7 +218,7 @@ export default function StatutoryHubPage() {
               ].map(([label, value, setter]) => (
                 <label key={label as string} className="text-[9px] font-bold uppercase tracking-wider text-slate-400">
                   {label as string}
-                  <input value={value as string} onChange={event => (setter as (value: string) => void)(event.target.value)} className="mt-1 h-9 w-full rounded-lg border border-slate-200 px-3 text-xs" />
+                  <MMFormInputControl value={value as string} onChange={event => (setter as (value: string) => void)(event.target.value)} className="mt-1 h-9 w-full rounded-lg border border-slate-200 px-3 text-xs" />
                 </label>
               ))}
             </div>

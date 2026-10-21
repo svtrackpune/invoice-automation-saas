@@ -1,5 +1,6 @@
 'use client';
 
+import { FormInput as MMFormInputControl } from '@/components/moneymatters/ui';
 import { useEffect, useState, type ReactNode } from 'react';
 import { supabase } from '@/lib/supabase';
 import BusinessCapabilitiesChecklist from './BusinessCapabilitiesChecklist';
@@ -166,14 +167,14 @@ export default function BusinessDetailsModal({ businessId, onSaved, onSkip }: Pr
                 <h3 className="text-sm font-bold text-slate-900">Business contact</h3>
                 <p className="mt-1 text-xs text-slate-500">Use the main contact customers should see first, then add a fallback contact when needed.</p>
                 <div className="mt-4 grid gap-4 sm:grid-cols-2">
-                  <Field label="Business phone"><input className={input} type="tel" value={business.phone || ''} onChange={(e) => patch('phone', e.target.value)} placeholder="+91 98765 43210" autoComplete="tel" /></Field>
-                  <Field label="Alternative phone"><input className={input} type="tel" value={business.alternate_phone || ''} onChange={(e) => patch('alternate_phone', e.target.value)} placeholder="+91 98765 43211" autoComplete="tel" /></Field>
-                  <Field label="Contact person"><input className={input} value={business.contact_person_name || ''} onChange={(e) => patch('contact_person_name', e.target.value)} placeholder="Full name" autoComplete="name" /></Field>
-                  <Field label="Designation"><input className={input} value={business.contact_person_designation || ''} onChange={(e) => patch('contact_person_designation', e.target.value)} placeholder="Owner / Manager / Director" /></Field>
-                  <Field label="Email address"><input className={input} type="email" value={business.email || ''} onChange={(e) => patch('email', e.target.value)} placeholder="contact@business.com" autoComplete="email" /></Field>
-                  <Field label="Alternative email"><input className={input} type="email" value={business.alternate_email || ''} onChange={(e) => patch('alternate_email', e.target.value)} placeholder="backup@business.com" autoComplete="email" /></Field>
-                  <Field label="Website"><input className={input} type="url" value={business.website || ''} onChange={(e) => patch('website', e.target.value)} placeholder="https://example.com" /></Field>
-                  <Field label="Google location link" help="Paste the Google Maps share link for your shop or office."><input className={input} type="url" value={business.google_location_link || ''} onChange={(e) => patch('google_location_link', e.target.value)} placeholder="https://maps.google.com/…" /></Field>
+                  <Field label="Business phone"><MMFormInputControl className={input} type="tel" value={business.phone || ''} onChange={(e) => patch('phone', e.target.value)} placeholder="+91 98765 43210" autoComplete="tel" /></Field>
+                  <Field label="Alternative phone"><MMFormInputControl className={input} type="tel" value={business.alternate_phone || ''} onChange={(e) => patch('alternate_phone', e.target.value)} placeholder="+91 98765 43211" autoComplete="tel" /></Field>
+                  <Field label="Contact person"><MMFormInputControl className={input} value={business.contact_person_name || ''} onChange={(e) => patch('contact_person_name', e.target.value)} placeholder="Full name" autoComplete="name" /></Field>
+                  <Field label="Designation"><MMFormInputControl className={input} value={business.contact_person_designation || ''} onChange={(e) => patch('contact_person_designation', e.target.value)} placeholder="Owner / Manager / Director" /></Field>
+                  <Field label="Email address"><MMFormInputControl className={input} type="email" value={business.email || ''} onChange={(e) => patch('email', e.target.value)} placeholder="contact@business.com" autoComplete="email" /></Field>
+                  <Field label="Alternative email"><MMFormInputControl className={input} type="email" value={business.alternate_email || ''} onChange={(e) => patch('alternate_email', e.target.value)} placeholder="backup@business.com" autoComplete="email" /></Field>
+                  <Field label="Website"><MMFormInputControl className={input} type="url" value={business.website || ''} onChange={(e) => patch('website', e.target.value)} placeholder="https://example.com" /></Field>
+                  <Field label="Google location link" help="Paste the Google Maps share link for your shop or office."><MMFormInputControl className={input} type="url" value={business.google_location_link || ''} onChange={(e) => patch('google_location_link', e.target.value)} placeholder="https://maps.google.com/…" /></Field>
                 </div>
               </section>
 
@@ -182,12 +183,12 @@ export default function BusinessDetailsModal({ businessId, onSaved, onSkip }: Pr
                   <div><h3 className="text-sm font-bold text-slate-900">Complete business address</h3><p className="mt-1 text-xs text-slate-500">Use the address exactly as you want it displayed on customer-facing documents.</p></div>
                 </div>
                 <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                  <div className="sm:col-span-2 lg:col-span-3"><Field label="Address line 1" required><input className={input} value={business.address?.line1 || ''} onChange={(e) => patchAddress('line1', e.target.value)} placeholder="Shop / office / building / street" autoComplete="street-address" /></Field></div>
-                  <div className="sm:col-span-2 lg:col-span-3"><Field label="Address line 2"><input className={input} value={business.address?.line2 || ''} onChange={(e) => patchAddress('line2', e.target.value)} placeholder="Area / landmark / locality" /></Field></div>
-                  <Field label="City" required><input className={input} value={business.address?.city || ''} onChange={(e) => patchAddress('city', e.target.value)} placeholder="City" autoComplete="address-level2" /></Field>
-                  <Field label="State" required><input className={input} value={business.address?.state || ''} onChange={(e) => patchAddress('state', e.target.value)} placeholder="State" autoComplete="address-level1" /></Field>
-                  <Field label="PIN / Postal code" required><input className={input} inputMode="numeric" value={business.address?.postal_code || ''} onChange={(e) => patchAddress('postal_code', e.target.value)} placeholder="413521" autoComplete="postal-code" /></Field>
-                  <Field label="Country" required><input className={input} value={business.address?.country || ''} onChange={(e) => patchAddress('country', e.target.value)} placeholder="India" autoComplete="country-name" /></Field>
+                  <div className="sm:col-span-2 lg:col-span-3"><Field label="Address line 1" required><MMFormInputControl className={input} value={business.address?.line1 || ''} onChange={(e) => patchAddress('line1', e.target.value)} placeholder="Shop / office / building / street" autoComplete="street-address" /></Field></div>
+                  <div className="sm:col-span-2 lg:col-span-3"><Field label="Address line 2"><MMFormInputControl className={input} value={business.address?.line2 || ''} onChange={(e) => patchAddress('line2', e.target.value)} placeholder="Area / landmark / locality" /></Field></div>
+                  <Field label="City" required><MMFormInputControl className={input} value={business.address?.city || ''} onChange={(e) => patchAddress('city', e.target.value)} placeholder="City" autoComplete="address-level2" /></Field>
+                  <Field label="State" required><MMFormInputControl className={input} value={business.address?.state || ''} onChange={(e) => patchAddress('state', e.target.value)} placeholder="State" autoComplete="address-level1" /></Field>
+                  <Field label="PIN / Postal code" required><MMFormInputControl className={input} inputMode="numeric" value={business.address?.postal_code || ''} onChange={(e) => patchAddress('postal_code', e.target.value)} placeholder="413521" autoComplete="postal-code" /></Field>
+                  <Field label="Country" required><MMFormInputControl className={input} value={business.address?.country || ''} onChange={(e) => patchAddress('country', e.target.value)} placeholder="India" autoComplete="country-name" /></Field>
                 </div>
               </section>
             </>

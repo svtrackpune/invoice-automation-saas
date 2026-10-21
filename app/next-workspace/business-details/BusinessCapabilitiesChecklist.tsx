@@ -1,5 +1,6 @@
 'use client';
 
+import { FormInput as MMFormInputControl } from '@/components/moneymatters/ui';
 import { useMemo } from 'react';
 import {
   applyIndustryPreset,
@@ -84,7 +85,7 @@ export default function BusinessCapabilitiesChecklist({
                   key={feature.key}
                   className={`flex gap-3 rounded-2xl border p-4 transition ${enabled ? 'border-violet-300 bg-violet-50/60' : 'border-slate-200 bg-white'} ${dependency && !dependencyEnabled ? 'opacity-70' : ''}`}
                 >
-                  <input
+                  <MMFormInputControl
                     type="checkbox"
                     checked={enabled}
 disabled={false}

@@ -1,5 +1,6 @@
 'use client';
 
+import { FormInput as MMFormInputControl, FormSelect as MMFormSelectControl } from '@/components/moneymatters/ui';
 import { useEffect, useState } from 'react';
 import {
   type PrinterConfig,
@@ -84,17 +85,17 @@ export default function PrinterSetupModal({ open, service, status, onClose, onSt
           <div className="grid gap-3 sm:grid-cols-2">
             <label className="text-xs font-semibold text-slate-700">
               Roll width
-              <select
+              <MMFormSelectControl
                 value={config.rollWidth}
                 onChange={(event) => update({ rollWidth: Number(event.target.value) as RollWidth })}
                 className="mt-1.5 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm"
               >
                 <option value={58}>58mm (2-inch)</option>
                 <option value={80}>80mm (3-inch)</option>
-              </select>
+              </MMFormSelectControl>
             </label>
             <label className="flex items-center gap-3 rounded-xl border border-slate-200 px-3 py-3 text-xs font-semibold text-slate-700">
-              <input
+              <MMFormInputControl
                 type="checkbox"
                 checked={config.autoKickCashDrawer}
                 onChange={(event) => update({ autoKickCashDrawer: event.target.checked })}

@@ -1,14 +1,52 @@
 'use client';
 import React,{forwardRef,useId} from 'react';
+
+type FormControlIdentityProps = {
+  id?: string;
+  name?: string;
+  autoComplete?: string;
+  placeholder?: string;
+  type?: string;
+  'aria-label'?: string;
+};
+function fieldNameSlug(value: string): string {
+  return value.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 48);
+}
+function useFormControlIdentity(kind: 'input' | 'select' | 'textarea', props: FormControlIdentityProps) {
+  const reactId = useId();
+  const suffix = reactId.replace(/[^a-zA-Z0-9_-]/g, '') || 'field';
+  const id = props.id?.trim() || `mm-${kind}-${suffix}`;
+  const semanticName = props.autoComplete && props.autoComplete !== 'off'
+    ? props.autoComplete
+    : props.type && ['email', 'password', 'tel', 'search', 'url'].includes(props.type)
+      ? props.type
+      : fieldNameSlug(props['aria-label'] || props.placeholder || '');
+  const name = props.name?.trim() || semanticName || `${kind}-${suffix}`;
+  return { id, name };
+}
+
 export type ButtonProps=React.ButtonHTMLAttributes<HTMLButtonElement>&{variant?:'primary'|'secondary'|'ghost'|'danger';size?:'sm'|'md'|'lg'};
 const buttonBase='inline-flex items-center justify-center gap-2 rounded-lg font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-300 focus-visible:ring-offset-1 disabled:pointer-events-none disabled:opacity-50';
 const buttonVariants={primary:'bg-indigo-600 text-white shadow-sm hover:bg-indigo-700',secondary:'border border-slate-200 bg-white text-slate-700 shadow-sm hover:bg-slate-50',ghost:'text-slate-600 hover:bg-slate-100 hover:text-slate-900',danger:'border border-rose-200 bg-white text-rose-600 hover:bg-rose-50'};
 const buttonSizes={sm:'px-2.5 py-1.5 text-xs',md:'px-3 py-2 text-sm',lg:'px-4 py-2.5 text-sm'};
 export const Button=forwardRef<HTMLButtonElement,ButtonProps>(function Button({variant='primary',size='md',className='',type='button',...props},ref){return <button ref={ref} type={type} className={`${buttonBase} ${buttonVariants[variant]} ${buttonSizes[size]} ${className}`} {...props}/>});
 export type InputProps=React.InputHTMLAttributes<HTMLInputElement>&{invalid?:boolean};
-export const Input=forwardRef<HTMLInputElement,InputProps>(function Input({invalid=false,className='',...props},ref){return <input ref={ref} className={`w-full rounded-lg border bg-white px-3 py-2 text-sm text-slate-900 outline-none placeholder:text-slate-400 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 disabled:bg-slate-50 disabled:text-slate-400 ${invalid?'border-rose-300 focus:border-rose-400 focus:ring-rose-100':'border-slate-200'} ${className}`} {...props}/>});
-export const Select=forwardRef<HTMLSelectElement,React.SelectHTMLAttributes<HTMLSelectElement>>(function Select({className='',...props},ref){return <select ref={ref} className={`w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 disabled:bg-slate-50 ${className}`} {...props}/>});
-export const Textarea=forwardRef<HTMLTextAreaElement,React.TextareaHTMLAttributes<HTMLTextAreaElement>>(function Textarea({className='',...props},ref){return <textarea ref={ref} className={`w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none placeholder:text-slate-400 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 disabled:bg-slate-50 ${className}`} {...props}/>});
+export const Input=forwardRef<HTMLInputElement,InputProps>(function Input({invalid=false,className='',...props},ref){const identity=useFormControlIdentity('input',props);return <input ref={ref} {...props} id={identity.id} name={identity.name} className={`w-full rounded-lg border bg-white px-3 py-2 text-sm text-slate-900 outline-none placeholder:text-slate-400 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 disabled:bg-slate-50 disabled:text-slate-400 ${invalid?'border-rose-300 focus:border-rose-400 focus:ring-rose-100':'border-slate-200'} ${className}`}/>});
+export const Select=forwardRef<HTMLSelectElement,React.SelectHTMLAttributes<HTMLSelectElement>>(function Select({className='',...props},ref){const identity=useFormControlIdentity('select',props);return <select ref={ref} {...props} id={identity.id} name={identity.name} className={`w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 disabled:bg-slate-50 ${className}`}/>});
+export const Textarea=forwardRef<HTMLTextAreaElement,React.TextareaHTMLAttributes<HTMLTextAreaElement>>(function Textarea({className='',...props},ref){const identity=useFormControlIdentity('textarea',props);return <textarea ref={ref} {...props} id={identity.id} name={identity.name} className={`w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none placeholder:text-slate-400 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 disabled:bg-slate-50 ${className}`}/>});
+/** Native form controls that preserve caller styling while enforcing unique IDs and names. */
+export const FormInput = forwardRef<HTMLInputElement, React.InputHTMLAttributes<HTMLInputElement>>(function FormInput(props, ref) {
+  const identity = useFormControlIdentity('input', props);
+  return <input ref={ref} {...props} id={identity.id} name={identity.name} />;
+});
+export const FormSelect = forwardRef<HTMLSelectElement, React.SelectHTMLAttributes<HTMLSelectElement>>(function FormSelect(props, ref) {
+  const identity = useFormControlIdentity('select', props);
+  return <select ref={ref} {...props} id={identity.id} name={identity.name} />;
+});
+export const FormTextarea = forwardRef<HTMLTextAreaElement, React.TextareaHTMLAttributes<HTMLTextAreaElement>>(function FormTextarea(props, ref) {
+  const identity = useFormControlIdentity('textarea', props);
+  return <textarea ref={ref} {...props} id={identity.id} name={identity.name} />;
+});
 export function Field({label,children,htmlFor,required=false,help,error,className=''}:{label:string;children:React.ReactNode;htmlFor?:string;required?:boolean;help?:string;error?:string;className?:string}){return <div className={className}><label htmlFor={htmlFor} className="block text-xs font-semibold text-slate-600">{label}{required&&<span className="ml-0.5 text-rose-500">*</span>}</label><div className="mt-1">{children}</div>{error?<p role="alert" className="mt-1 text-xs font-medium text-rose-600">{error}</p>:help?<p className="mt-1 text-[11px] text-slate-400">{help}</p>:null}</div>}
 export function FormSection({title,description,children,actions,className=''}:{title:string;description?:string;children:React.ReactNode;actions?:React.ReactNode;className?:string}){return <section className={`rounded-xl border border-slate-200 bg-white p-3.5 shadow-sm sm:p-4 ${className}`}><div className="mb-3 flex items-start justify-between gap-3"><div><h2 className="text-sm font-bold text-slate-900">{title}</h2>{description&&<p className="mt-0.5 text-xs leading-5 text-slate-500">{description}</p>}</div>{actions&&<div className="shrink-0">{actions}</div>}</div>{children}</section>}
 export function Card({children,className=''}:{children:React.ReactNode;className?:string}){return <section className={`rounded-xl border border-slate-200 bg-white shadow-[0_1px_2px_rgba(15,23,42,.03)] ${className}`}>{children}</section>}

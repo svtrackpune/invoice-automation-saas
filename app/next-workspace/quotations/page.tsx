@@ -1,5 +1,6 @@
 'use client';
 
+import { FormInput as MMFormInputControl, FormSelect as MMFormSelectControl } from '@/components/moneymatters/ui';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { supabase, type BusinessContext } from '@/lib/supabase';
 import { formatMoney } from '@/lib/i18n';
@@ -264,19 +265,19 @@ export default function QuotationsListPage() {
 
         <Card className="overflow-hidden p-0">
           <div className="flex flex-col gap-3 border-b border-slate-200 p-4 xl:flex-row xl:items-center">
-            <input value={search} onChange={event => setSearch(event.target.value)} placeholder="Search quotation no. or customer" aria-label="Search quotations" className="min-w-0 flex-1 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-100" />
+            <MMFormInputControl value={search} onChange={event => setSearch(event.target.value)} placeholder="Search quotation no. or customer" aria-label="Search quotations" className="min-w-0 flex-1 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-100" />
             <div className="flex flex-wrap items-center gap-2">
               <label className="flex items-center gap-2 text-xs font-semibold text-slate-500">
                 Status
-                <select value={statusFilter} onChange={event => setStatusFilter(event.target.value)} aria-label="Filter by quotation status" className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-800">
+                <MMFormSelectControl value={statusFilter} onChange={event => setStatusFilter(event.target.value)} aria-label="Filter by quotation status" className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-800">
                   <option value="all">All statuses</option><option value="draft">Draft</option><option value="sent">Sent</option><option value="accepted">Accepted</option><option value="converted">Converted</option><option value="rejected">Rejected</option><option value="cancelled">Cancelled</option>
-                </select>
+                </MMFormSelectControl>
               </label>
               <label className="flex items-center gap-2 text-xs font-semibold text-slate-500">
                 Show
-                <select value={pageSize} onChange={event => setPageSize(event.target.value)} aria-label="Rows per page" className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-800">
+                <MMFormSelectControl value={pageSize} onChange={event => setPageSize(event.target.value)} aria-label="Rows per page" className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-800">
                   <option value="20">20</option><option value="50">50</option><option value="100">100</option><option value="all">All</option>
-                </select>
+                </MMFormSelectControl>
               </label>
               <Button variant="secondary" onClick={() => void refresh(businessId)} disabled={loading}>Refresh</Button>
             </div>

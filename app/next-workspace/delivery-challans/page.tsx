@@ -1,5 +1,6 @@
 'use client';
 
+import { FormInput as MMFormInputControl, FormSelect as MMFormSelectControl } from '@/components/moneymatters/ui';
 import { useEffect, useMemo, useState } from 'react';
 import { supabase, type BusinessContext } from '@/lib/supabase';
 import { PageHeader } from '@/components/ui/finops/PageHeader';
@@ -282,7 +283,7 @@ export default function DeliveryChallans() {
           <section className="rounded-2xl border bg-white p-5">
             <h2 className="font-semibold">New delivery challan</h2>
             <div className="mt-4 grid gap-3 sm:grid-cols-2">
-              <select
+              <MMFormSelectControl
                 className="rounded-xl border p-3 text-sm"
                 value={customer}
                 onChange={(e) => setCustomer(e.target.value)}
@@ -293,15 +294,15 @@ export default function DeliveryChallans() {
                     {c.display_name}
                   </option>
                 ))}
-              </select>
-              <input
+              </MMFormSelectControl>
+              <MMFormInputControl
                 type="date"
                 className="rounded-xl border p-3 text-sm"
                 value={date}
                 onChange={(e) => setDate(e.target.value)}
               />
               <div className="flex min-w-0 gap-2">
-                <select
+                <MMFormSelectControl
                   className="min-w-0 flex-1 rounded-xl border p-3 text-sm"
                   value={locationId}
                   onChange={(e) => setLocationId(e.target.value)}
@@ -312,7 +313,7 @@ export default function DeliveryChallans() {
                       {l.name}
                     </option>
                   ))}
-                </select>
+                </MMFormSelectControl>
                 <button
                   type="button"
                   className="shrink-0 rounded-xl border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50"
@@ -323,19 +324,19 @@ export default function DeliveryChallans() {
                   {locationBusy ? 'Saving…' : '+ Location'}
                 </button>
               </div>
-              <input
+              <MMFormInputControl
                 className="rounded-xl border p-3 text-sm"
                 placeholder="Transporter"
                 value={transporter}
                 onChange={(e) => setTransporter(e.target.value)}
               />
-              <input
+              <MMFormInputControl
                 className="rounded-xl border p-3 text-sm"
                 placeholder="Vehicle number"
                 value={vehicle}
                 onChange={(e) => setVehicle(e.target.value)}
               />
-              <input
+              <MMFormInputControl
                 className="rounded-xl border p-3 text-sm"
                 placeholder="E-way bill number"
                 value={eway}
@@ -349,7 +350,7 @@ export default function DeliveryChallans() {
                   key={i}
                   className="grid gap-2 rounded-xl border p-3 md:grid-cols-[1.7fr_.6fr_.8fr_.8fr_32px]"
                 >
-                  <select
+                  <MMFormSelectControl
                     className="rounded-lg border p-2 text-sm"
                     value={line.product_service_id}
                     onChange={(e) => choose(i, e.target.value)}
@@ -361,8 +362,8 @@ export default function DeliveryChallans() {
                         {p.sku ? ' · ' + p.sku : ''}
                       </option>
                     ))}
-                  </select>
-                  <input
+                  </MMFormSelectControl>
+                  <MMFormInputControl
                     className="rounded-lg border p-2 text-sm"
                     placeholder="Qty"
                     type="number"
@@ -374,7 +375,7 @@ export default function DeliveryChallans() {
                       )
                     }
                   />
-                  <input
+                  <MMFormInputControl
                     className="rounded-lg border p-2 text-sm"
                     placeholder="Rate"
                     type="number"
@@ -386,7 +387,7 @@ export default function DeliveryChallans() {
                       )
                     }
                   />
-                  <input
+                  <MMFormInputControl
                     className="rounded-lg border p-2 text-sm"
                     placeholder="Batch / serial"
                     value={line.batch_number || line.serial_number}

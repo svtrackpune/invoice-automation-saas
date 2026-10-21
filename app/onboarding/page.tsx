@@ -1,5 +1,6 @@
 'use client';
 
+import { FormInput as MMFormInputControl, FormSelect as MMFormSelectControl, FormTextarea as MMFormTextareaControl } from '@/components/moneymatters/ui';
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { supabase } from '@/lib/supabase';
 
@@ -210,7 +211,7 @@ export default function OnboardingPage() {
             </div>
 
             <div className="mt-7">
-              <Field label="Business name" required><input autoFocus className={input} value={businessName} onChange={(e) => setBusinessName(e.target.value)} placeholder="e.g. ABC Traders" /></Field>
+              <Field label="Business name" required><MMFormInputControl autoFocus className={input} value={businessName} onChange={(e) => setBusinessName(e.target.value)} placeholder="e.g. ABC Traders" /></Field>
             </div>
           </section>}
 
@@ -219,8 +220,8 @@ export default function OnboardingPage() {
             <h2 className="mt-2 text-2xl font-semibold tracking-tight text-slate-950">Classify your industry</h2>
             <p className="mt-1 max-w-2xl text-sm leading-6 text-slate-500">Your category and sub-category drive the business capability presets used across the workspace.</p>
             <div className="mt-7 grid gap-5 sm:grid-cols-2">
-              <Field label="Industry" required><select className={input} value={categoryId} onChange={(e) => { setCategoryId(e.target.value); setSubcategoryId(''); }}><option value="">Select industry</option>{categories.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></Field>
-              <Field label="Business sub-category" required><select className={input} disabled={!categoryId} value={subcategoryId} onChange={(e) => setSubcategoryId(e.target.value)}><option value="">{categoryId ? 'Select sub-category' : 'Select industry first'}</option>{visibleSubcategories.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></Field>
+              <Field label="Industry" required><MMFormSelectControl className={input} value={categoryId} onChange={(e) => { setCategoryId(e.target.value); setSubcategoryId(''); }}><option value="">Select industry</option>{categories.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</MMFormSelectControl></Field>
+              <Field label="Business sub-category" required><MMFormSelectControl className={input} disabled={!categoryId} value={subcategoryId} onChange={(e) => setSubcategoryId(e.target.value)}><option value="">{categoryId ? 'Select sub-category' : 'Select industry first'}</option>{visibleSubcategories.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</MMFormSelectControl></Field>
             </div>
             <div className="mt-7 rounded-2xl border border-indigo-100 bg-indigo-50/50 p-5">
               <p className="text-xs font-bold text-indigo-800">What this changes</p>
@@ -239,16 +240,16 @@ export default function OnboardingPage() {
             </div>
 
             {gstRegistered && <div className="mt-5 grid gap-4 sm:grid-cols-2">
-              <Field label="Tax state" required><select className={input} value={taxState} onChange={(e) => setTaxState(e.target.value)}>{states.map((state) => <option key={state}>{state}</option>)}</select></Field>
-              <Field label="GSTIN" help="Optional during onboarding; it can be added or verified later."><input className={input} value={gstin} onChange={(e) => setGstin(e.target.value.toUpperCase())} maxLength={15} placeholder="27AAAAA0000A1Z5" /></Field>
+              <Field label="Tax state" required><MMFormSelectControl className={input} value={taxState} onChange={(e) => setTaxState(e.target.value)}>{states.map((state) => <option key={state}>{state}</option>)}</MMFormSelectControl></Field>
+              <Field label="GSTIN" help="Optional during onboarding; it can be added or verified later."><MMFormInputControl className={input} value={gstin} onChange={(e) => setGstin(e.target.value.toUpperCase())} maxLength={15} placeholder="27AAAAA0000A1Z5" /></Field>
             </div>}
 
             <div className="mt-7 grid gap-5 lg:grid-cols-[1.3fr_.7fr]">
-              <Field label="Default terms & conditions"><div className="space-y-2">{termsPresets.map(([label, presetText]) => <button key={label} type="button" aria-pressed={termsMode === label.toLowerCase()} onClick={() => { setTermsMode(label.toLowerCase()); setTerms(presetText); }} className={'w-full rounded-xl border p-3 text-left ' + (termsMode === label.toLowerCase() ? 'border-indigo-400 bg-indigo-50' : 'border-slate-200')}><b className="block text-xs text-slate-900">{label}</b><span className="mt-1 block text-[11px] leading-5 text-slate-500">{presetText}</span></button>)}<button type="button" aria-pressed={termsMode === 'custom'} onClick={() => setTermsMode('custom')} className={'w-full rounded-xl border p-3 text-left ' + (termsMode === 'custom' ? 'border-indigo-400 bg-indigo-50' : 'border-slate-200')}><b className="block text-xs text-slate-900">Custom</b><span className="mt-1 block text-[11px] text-slate-500">Write your own default terms.</span></button>{termsMode === 'custom' ? <textarea className={input + ' min-h-32'} value={terms} onChange={(e) => setTerms(e.target.value)} maxLength={4000} /> : null}</div></Field>
+              <Field label="Default terms & conditions"><div className="space-y-2">{termsPresets.map(([label, presetText]) => <button key={label} type="button" aria-pressed={termsMode === label.toLowerCase()} onClick={() => { setTermsMode(label.toLowerCase()); setTerms(presetText); }} className={'w-full rounded-xl border p-3 text-left ' + (termsMode === label.toLowerCase() ? 'border-indigo-400 bg-indigo-50' : 'border-slate-200')}><b className="block text-xs text-slate-900">{label}</b><span className="mt-1 block text-[11px] leading-5 text-slate-500">{presetText}</span></button>)}<button type="button" aria-pressed={termsMode === 'custom'} onClick={() => setTermsMode('custom')} className={'w-full rounded-xl border p-3 text-left ' + (termsMode === 'custom' ? 'border-indigo-400 bg-indigo-50' : 'border-slate-200')}><b className="block text-xs text-slate-900">Custom</b><span className="mt-1 block text-[11px] text-slate-500">Write your own default terms.</span></button>{termsMode === 'custom' ? <MMFormTextareaControl className={input + ' min-h-32'} value={terms} onChange={(e) => setTerms(e.target.value)} maxLength={4000} /> : null}</div></Field>
 
               <div className="space-y-5">
-                <Field label="Invoice prefix"><input className={input} value={invoicePrefix} onChange={(e) => setInvoicePrefix(e.target.value)} maxLength={20} placeholder="INV-" /></Field>
-                <Field label="Primary brand color" help="Used for the initial invoice, quotation and receipt document preferences."><div className="flex gap-3"><input type="color" value={/^#[0-9A-Fa-f]{6}$/.test(brandColor) ? brandColor : '#4f46e5'} onChange={(e) => setBrandColor(e.target.value)} className="h-11 w-14 rounded-xl border border-slate-200 bg-white p-1" /><input className={input} value={brandColor} onChange={(e) => setBrandColor(e.target.value)} maxLength={7} placeholder="#4f46e5" /></div></Field>
+                <Field label="Invoice prefix"><MMFormInputControl className={input} value={invoicePrefix} onChange={(e) => setInvoicePrefix(e.target.value)} maxLength={20} placeholder="INV-" /></Field>
+                <Field label="Primary brand color" help="Used for the initial invoice, quotation and receipt document preferences."><div className="flex gap-3"><MMFormInputControl type="color" value={/^#[0-9A-Fa-f]{6}$/.test(brandColor) ? brandColor : '#4f46e5'} onChange={(e) => setBrandColor(e.target.value)} className="h-11 w-14 rounded-xl border border-slate-200 bg-white p-1" /><MMFormInputControl className={input} value={brandColor} onChange={(e) => setBrandColor(e.target.value)} maxLength={7} placeholder="#4f46e5" /></div></Field>
               </div>
             </div>
           </section>}

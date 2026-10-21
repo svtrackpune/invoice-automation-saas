@@ -1,5 +1,6 @@
 'use client';
 
+import { FormInput as MMFormInputControl, FormSelect as MMFormSelectControl } from '@/components/moneymatters/ui';
 import { useEffect, useState } from 'react';
 import { supabase, type BusinessContext } from '@/lib/supabase';
 import CameraBarcodeScanner from '@/components/barcode/CameraBarcodeScanner';
@@ -196,10 +197,10 @@ export default function StockAudit() {
           subtitle="Compare recorded stock with the physical count and settle variance through inventory accounting."
           actions={<div className="flex flex-wrap items-center gap-2">
             <CameraBarcodeScanner onDetected={scanItem} compact label="Camera Scan" />
-            <select value={location} onChange={event => setLocation(event.target.value)} className="rounded-xl border border-slate-200 bg-white p-3 text-sm">
+            <MMFormSelectControl value={location} onChange={event => setLocation(event.target.value)} className="rounded-xl border border-slate-200 bg-white p-3 text-sm">
               <option value="">Select location…</option>
               {locations.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}
-            </select>
+            </MMFormSelectControl>
             <button disabled={busy || !location || !items.length} onClick={() => void commit()} className="rounded-xl bg-indigo-600 px-5 py-3 text-sm font-semibold text-white disabled:opacity-50">
               {busy ? 'Posting…' : 'Commit audit'}
             </button>
@@ -234,7 +235,7 @@ export default function StockAudit() {
                       </td>
                       <td className="p-3">{system} {item.unit || ''}</td>
                       <td className="p-3">
-                        <input
+                        <MMFormInputControl
                           className="w-28 rounded-lg border border-slate-200 p-2 font-mono"
                           type="number"
                           min="0"

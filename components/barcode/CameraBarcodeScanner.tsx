@@ -1,5 +1,6 @@
 'use client';
 
+import { FormInput as MMFormInputControl } from '@/components/moneymatters/ui';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 type DetectedCode = { rawValue?: string };
@@ -196,7 +197,7 @@ export default function CameraBarcodeScanner({ onDetected, label = 'Scan Barcode
               <div className="mt-4 border-t border-slate-100 pt-4">
                 <label className="text-[9px] font-bold uppercase tracking-[.14em] text-slate-400">Manual barcode</label>
                 <div className="mt-1 flex gap-2">
-                  <input
+                  <MMFormInputControl
                     value={manual}
                     onChange={event => setManual(event.target.value)}
                     onKeyDown={event => { if (event.key === 'Enter') { event.preventDefault(); submitManual(); } }}

@@ -1,5 +1,6 @@
 'use client';
 
+import { FormSelect as MMFormSelectControl } from '@/components/moneymatters/ui';
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { supabase, type BusinessContext } from '@/lib/supabase';
 import { useLocale } from '@/lib/locale-context';
@@ -193,7 +194,7 @@ export default function NextWorkspace() {
           title={ctx.business_name}
           subtitle={t('Executive command center for cash movement, receivables, bank control and compliant document operations.')}
           badge={{label:t('Period') + ': ' + periodLabel + ' • ' + t('Open'),variant:'neutral'}}
-          actions={<><div>{contexts.length > 1 ? <select aria-label="Active business" value={ctx.business_id} onChange={event => { const next = contexts.find(item => item.business_id === event.target.value); if (next) { setCtx(next); localStorage.setItem('moneymatters.activeBusinessId', next.business_id); } }} className="rounded-md border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-700">{contexts.map(item => <option key={item.business_id} value={item.business_id}>{item.business_name}</option>)}</select> : null}</div><FinOpsSecondaryButton onClick={() => go('/next-workspace/cash-bill')} disabled={!cashBillEnabled}><FinOpsIcon name="cash"/>+ {t('Cash Bill')}</FinOpsSecondaryButton><FinOpsSecondaryButton onClick={() => go('/next-workspace/invoices/new')}><FinOpsIcon name="invoice"/>+ {t('New Invoice')}</FinOpsSecondaryButton><FinOpsSecondaryButton onClick={() => go('/next-workspace/banking')}><FinOpsIcon name="import"/>{t('Import Statement')}</FinOpsSecondaryButton><FinOpsSecondaryButton onClick={() => setRefresh(v => v + 1)}><FinOpsIcon name="refresh"/>{t('Refresh')}</FinOpsSecondaryButton></>}
+          actions={<><div>{contexts.length > 1 ? <MMFormSelectControl aria-label="Active business" value={ctx.business_id} onChange={event => { const next = contexts.find(item => item.business_id === event.target.value); if (next) { setCtx(next); localStorage.setItem('moneymatters.activeBusinessId', next.business_id); } }} className="rounded-md border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-700">{contexts.map(item => <option key={item.business_id} value={item.business_id}>{item.business_name}</option>)}</MMFormSelectControl> : null}</div><FinOpsSecondaryButton onClick={() => go('/next-workspace/cash-bill')} disabled={!cashBillEnabled}><FinOpsIcon name="cash"/>+ {t('Cash Bill')}</FinOpsSecondaryButton><FinOpsSecondaryButton onClick={() => go('/next-workspace/invoices/new')}><FinOpsIcon name="invoice"/>+ {t('New Invoice')}</FinOpsSecondaryButton><FinOpsSecondaryButton onClick={() => go('/next-workspace/banking')}><FinOpsIcon name="import"/>{t('Import Statement')}</FinOpsSecondaryButton><FinOpsSecondaryButton onClick={() => setRefresh(v => v + 1)}><FinOpsIcon name="refresh"/>{t('Refresh')}</FinOpsSecondaryButton></>}
         />
 
         {error ? <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-2.5 text-xs text-amber-800">{error}</div> : null}

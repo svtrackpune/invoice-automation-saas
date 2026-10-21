@@ -1,5 +1,6 @@
 'use client';
 
+import { FormInput as MMFormInputControl } from '@/components/moneymatters/ui';
 import Link from 'next/link';
 import { useState } from 'react';
 import { supabase } from '@/lib/supabase';
@@ -45,7 +46,7 @@ export default function ForgotPasswordPage() {
         <p className="mt-3 text-sm leading-6 text-slate-600">Enter your account email. We will send a secure password-reset link to your inbox.</p>
         <label className="mt-6 block">
           <span className="mb-1.5 block text-xs font-semibold text-slate-600">Email address</span>
-          <input
+          <MMFormInputControl
             required
             type="email"
             autoComplete="email"
