@@ -10,6 +10,7 @@ test('canonical branding assets are generated before web and Android preparation
   const pkg = JSON.parse(read('package.json'));
   assert.equal(pkg.scripts.prebuild, 'node scripts/prepare-brand-assets.js');
   assert.equal(pkg.scripts.predev, 'node scripts/prepare-brand-assets.js');
+  assert.equal(pkg.scripts['branding:assets'], 'node scripts/prepare-brand-assets.js');
   assert.equal(pkg.scripts['precap:prepare'], 'node scripts/prepare-brand-assets.js');
   const script = read('scripts/prepare-brand-assets.js');
   for (const required of [

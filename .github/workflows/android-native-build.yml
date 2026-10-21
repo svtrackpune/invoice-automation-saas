@@ -43,6 +43,9 @@ jobs:
       - name: Sync Android project
         run: npx cap sync android
 
+      - name: Generate Money Matters branding assets after Capacitor sync
+        run: npm run branding:assets
+
       # Capacitor sync can rewrite generated Android Gradle files. Restore the
       # reviewed API 36 declarations from this verified commit before building.
       - name: Preserve checked-in Android SDK configuration

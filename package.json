@@ -31,7 +31,8 @@
     "android:aab:release": "npm run cap:build:android:release",
     "deploy:windows": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/deploy-windows.ps1",
     "prebuild": "node scripts/prepare-brand-assets.js",
-    "precap:prepare": "node scripts/prepare-brand-assets.js"
+    "precap:prepare": "node scripts/prepare-brand-assets.js",
+    "branding:assets": "node scripts/prepare-brand-assets.js"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.117.2",
