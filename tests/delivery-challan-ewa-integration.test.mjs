@@ -18,7 +18,7 @@ test('physical document render check admits types handled by the renderer', () =
 
 test('delivery challan e-way bill controls require a valid registered GST profile', () => {
   const page = read('app/next-workspace/delivery-challans/page.tsx');
-  assert.ok(page.includes("from('business_tax_profiles')"));
+  assert.ok(page.includes("rpc('get_delivery_challan_eway_tax_profile'"), 'GST profile reads must use the permission-checked RPC');
   assert.ok(page.includes("tax_regime"));
   assert.ok(page.includes("gst_registration_type"));
   assert.ok(page.includes("^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][0-9A-Z]Z[0-9A-Z]$"), 'GSTIN must be validated before showing GST e-way tools');
