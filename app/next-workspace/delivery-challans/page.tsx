@@ -339,7 +339,7 @@ export default function DeliveryChallans() {
         </section>
         <div className="space-y-5">
           {showChallanModal && (
-            <div className="fixed inset-0 z-40 flex items-center justify-center bg-slate-950/55 p-3 sm:p-6" role="dialog" aria-modal="true" aria-labelledby="new-challan-modal-title" onMouseDown={(event) => { if (event.target === event.currentTarget && !busy) setShowChallanModal(false); }}>
+            <div className="fixed inset-0 z-40 flex items-center justify-center bg-slate-950/55 p-3 sm:p-6" role="dialog" aria-modal="true" aria-labelledby="new-challan-modal-title" tabIndex={-1} onKeyDown={(event) => { if (event.key === 'Escape' && !busy) setShowChallanModal(false); }} onMouseDown={(event) => { if (event.target === event.currentTarget && !busy) setShowChallanModal(false); }}>
               <section className="max-h-[92vh] w-full max-w-4xl overflow-y-auto rounded-2xl border border-slate-200 bg-white p-4 shadow-2xl sm:p-6">
                 <div className="sticky top-0 z-10 -mx-4 -mt-4 mb-4 flex items-start justify-between gap-4 border-b border-slate-200 bg-white/95 px-4 py-4 backdrop-blur sm:-mx-6 sm:-mt-6 sm:px-6">
                   <div>
@@ -349,6 +349,7 @@ export default function DeliveryChallans() {
                   </div>
                   <button type="button" aria-label="Close new delivery challan" className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-white text-xl text-slate-500 hover:bg-slate-50 disabled:opacity-50" onClick={() => setShowChallanModal(false)} disabled={busy}>×</button>
                 </div>
+                {error && <div role="alert" className="mb-4 rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">{error}</div>}
             <div className="mt-4 grid gap-3 sm:grid-cols-2">
               <MMFormSelectControl
                 className="rounded-xl border p-3 text-sm"
