@@ -69,6 +69,7 @@ export default function DeliveryChallans() {
   const [customer, setCustomer] = useState('');
   const [locationId, setLocationId] = useState('');
   const [showItemModal, setShowItemModal] = useState(false);
+  const [showChallanModal, setShowChallanModal] = useState(false);
   const [locationBusy, setLocationBusy] = useState(false);
   const [date, setDate] = useState(today());
   const [transporter, setTransporter] = useState('');
@@ -231,6 +232,10 @@ export default function DeliveryChallans() {
       setNotice({ text: 'Delivery challan created and stock dispatched. Use the E-way Bill action in Recent Challans to record a bill after generating it for this challan number, if required.' });
       setLines([blank()]);
       setCustomer('');
+      setTransporter('');
+      setVehicle('');
+      setDate(today());
+      setShowChallanModal(false);
       await load();
     }
     setBusy(false);
@@ -310,7 +315,7 @@ export default function DeliveryChallans() {
   return (
     <main className="min-h-screen bg-slate-50 p-4 sm:p-7">
       <div className="mx-auto max-w-7xl">
-        <PageHeader breadcrumbs={[{label:'Workspace',href:'/next-workspace'},{label:'Sales & billing'},{label:'Delivery Challans'}]} title="Delivery Challans" subtitle="Rule 55 goods transport, approval dispatch, and delivery tracking" badge={{label:'LOGISTICS & DISPATCH',variant:'inflow'}} actions={<button type="button" className="rounded-xl border border-finops-neutral-border bg-white px-4 py-2 text-sm" onClick={() => { window.location.href = '/next-workspace'; }}>Back</button>}/>
+        <PageHeader breadcrumbs={[{label:'Workspace',href:'/next-workspace'},{label:'Sales & billing'},{label:'Delivery Challans'}]} title="Delivery Challans" subtitle="Rule 55 goods transport, approval dispatch, and delivery tracking" badge={{label:'LOGISTICS & DISPATCH',variant:'inflow'}} actions={<div className="flex flex-wrap items-center gap-2"><button type="button" className="inline-flex min-h-10 items-center gap-2 rounded-xl bg-violet-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-violet-700" onClick={() => { setError(''); setShowChallanModal(true); }}><span aria-hidden="true">＋</span> New Challan</button><button type="button" className="rounded-xl border border-finops-neutral-border bg-white px-4 py-2 text-sm" onClick={() => { window.location.href = '/next-workspace'; }}>Back</button></div>}/>
 
         {error && <div className="mb-4 rounded-xl bg-rose-50 p-3 text-sm text-rose-700">{error}</div>}
         {notice.text && (
@@ -332,9 +337,18 @@ export default function DeliveryChallans() {
           <StatCard title="Awaiting Invoicing" value={String(rows.filter((row) => ['dispatched', 'delivered'].includes(String(row.status).toLowerCase()) && !row.converted_invoice_id).length)} tone="pending" className="min-h-[104px] p-4" />
           <StatCard title="Returned" value={String(rows.filter((row) => String(row.status).toLowerCase() === 'returned').length)} tone="neutral" className="min-h-[104px] p-4" />
         </section>
-        <div className="grid gap-5 xl:grid-cols-[1.4fr_1fr]">
-          <section className="rounded-2xl border bg-white p-5">
-            <h2 className="font-semibold">New delivery challan</h2>
+        <div className="space-y-5">
+          {showChallanModal && (
+            <div className="fixed inset-0 z-40 flex items-center justify-center bg-slate-950/55 p-3 sm:p-6" role="dialog" aria-modal="true" aria-labelledby="new-challan-modal-title" onMouseDown={(event) => { if (event.target === event.currentTarget && !busy) setShowChallanModal(false); }}>
+              <section className="max-h-[92vh] w-full max-w-4xl overflow-y-auto rounded-2xl border border-slate-200 bg-white p-4 shadow-2xl sm:p-6">
+                <div className="sticky top-0 z-10 -mx-4 -mt-4 mb-4 flex items-start justify-between gap-4 border-b border-slate-200 bg-white/95 px-4 py-4 backdrop-blur sm:-mx-6 sm:-mt-6 sm:px-6">
+                  <div>
+                    <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-violet-700">Logistics & dispatch</p>
+                    <h2 id="new-challan-modal-title" className="mt-1 text-lg font-semibold text-slate-950 sm:text-xl">New delivery challan</h2>
+                    <p className="mt-1 text-xs text-slate-500">Enter dispatch details and items, then create the challan.</p>
+                  </div>
+                  <button type="button" aria-label="Close new delivery challan" className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-white text-xl text-slate-500 hover:bg-slate-50 disabled:opacity-50" onClick={() => setShowChallanModal(false)} disabled={busy}>×</button>
+                </div>
             <div className="mt-4 grid gap-3 sm:grid-cols-2">
               <MMFormSelectControl
                 className="rounded-xl border p-3 text-sm"
@@ -501,25 +515,41 @@ export default function DeliveryChallans() {
               </button>
             </div>
           </section>
+            </div>
+          )}
 
-          <section className="rounded-2xl border bg-white p-5">
-            <h2 className="font-semibold">Recent challans</h2>
-            <div className="mt-3 space-y-2">
+          <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+            <div className="flex flex-wrap items-start justify-between gap-3 border-b border-slate-100 pb-4">
+              <div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <h2 className="text-base font-semibold text-slate-950">Recent Challans</h2>
+                  <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600">{rows.length} total</span>
+                </div>
+                <p className="mt-1 text-xs text-slate-500">Dispatch history, e-Way Bill references, and invoice conversion</p>
+              </div>
+              <button type="button" className="inline-flex min-h-9 items-center gap-2 rounded-lg border border-violet-200 bg-violet-50 px-3 py-2 text-xs font-semibold text-violet-700 hover:bg-violet-100" onClick={() => { setError(''); setShowChallanModal(true); }}>
+                <span aria-hidden="true">＋</span> New Challan
+              </button>
+            </div>
+            <div className="mt-1 divide-y divide-slate-100">
               {rows.map((row) => {
                 const eligible = ['dispatched', 'delivered'].includes(row.status) && !row.converted_invoice_id;
                 return (
-                  <div key={row.id} className="flex flex-wrap items-center justify-between gap-2 rounded-xl border p-3 text-sm">
-                    <div>
-                      <b>{row.challan_number}</b>
-                      <span className="ml-2 text-xs text-slate-500">
-                        {row.customers?.display_name || 'Customer'} · {row.challan_date}
-                      </span>
-                      {row.eway_bill_number && <span className="mt-1 block text-[11px] text-violet-700">E-way Bill: {row.eway_bill_number}</span>}
+                  <div key={row.id} className="grid min-w-0 gap-3 py-4 first:pt-3 last:pb-1 md:grid-cols-[minmax(0,1.4fr)_minmax(120px,.55fr)_minmax(260px,1.25fr)] md:items-center">
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <b className="break-words text-sm text-slate-900">{row.challan_number}</b>
+                        <span className="rounded-full bg-slate-100 px-2 py-1 text-[10px] font-bold uppercase text-slate-600">{row.status}</span>
+                      </div>
+                      <p className="mt-1 break-words text-xs text-slate-500">{row.customers?.display_name || 'Customer'} · {row.challan_date}</p>
+                      {row.eway_bill_number && <p className="mt-1 break-words text-xs font-medium text-violet-700">E-way Bill: {row.eway_bill_number}</p>}
                     </div>
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="rounded-full bg-slate-100 px-2 py-1 text-[10px] font-bold uppercase">
-                        {row.status}
-                      </span>
+                    <div className="min-w-0">
+                      <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Declared value</p>
+                      <p className="mt-1 text-sm font-bold tabular-nums text-slate-900">{formatMoney(Number(row.total || 0), ctx?.currency_code || 'INR')}</p>
+                      {row.converted_invoice_id && <p className="mt-1 text-[11px] text-emerald-700">Converted to invoice</p>}
+                    </div>
+                    <div className="flex min-w-0 flex-wrap items-center gap-2 md:justify-end">
                       {isGstRegistered && row.status !== 'cancelled' && (
                         <button
                           type="button"
@@ -553,7 +583,11 @@ export default function DeliveryChallans() {
                   </div>
                 );
               })}
-              {!rows.length && <p className="py-8 text-center text-sm text-slate-400">No delivery challans yet.</p>}
+              {!rows.length && <div className="py-12 text-center">
+                <p className="text-sm font-semibold text-slate-700">No delivery challans yet</p>
+                <p className="mt-1 text-xs text-slate-500">Create a challan to track dispatches and convert eligible deliveries to invoices.</p>
+                <button type="button" className="mt-4 rounded-xl bg-violet-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-violet-700" onClick={() => { setError(''); setShowChallanModal(true); }}>Create first challan</button>
+              </div>}
             </div>
           </section>
         </div>
