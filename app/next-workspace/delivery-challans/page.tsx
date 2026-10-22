@@ -571,6 +571,7 @@ export default function DeliveryChallans() {
             </div>
             <p className="mt-3 text-xs leading-5 text-slate-600">Generate or retrieve the bill for this exact challan on the official GST portal, then enter its 12-digit number. Saving updates the challan and writes an audit event; it does not itself submit a generation request to the government.</p>
             <a href="https://ewaybillgst.gov.in/" target="_blank" rel="noopener noreferrer" className="mt-3 inline-flex rounded-lg border border-violet-200 bg-violet-50 px-3 py-2 text-xs font-semibold text-violet-800 hover:bg-violet-100">Open official e-Way Bill portal ↗</a>
+            {error && <p role="alert" className="mt-3 rounded-lg border border-rose-200 bg-rose-50 p-3 text-xs leading-5 text-rose-800">{error}</p>}
             <label className="mt-4 block text-xs font-semibold text-slate-700" htmlFor="delivery-challan-eway-number">E-way Bill Number</label>
             <MMFormInputControl
               id="delivery-challan-eway-number"
