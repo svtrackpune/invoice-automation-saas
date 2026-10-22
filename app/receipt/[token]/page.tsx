@@ -76,7 +76,7 @@ export default async function PublicReceipt({params}:{params:Promise<{token:stri
      <h2 className="text-xs font-extrabold uppercase tracking-[0.16em] text-violet-700">{allocations.length===1?'Invoice Items':'Allocated Invoice Items'}</h2>
      <span className="text-[10px] font-medium text-slate-400">Reference only — amount received is shown separately</span>
     </div>
-    <div className="hidden overflow-x-auto rounded-lg border border-slate-200 sm:block">
+    <div className="hidden overflow-x-auto rounded-lg border border-slate-200 md:block">
      <table className="w-full min-w-[360px] border-collapse text-sm">
       <thead className="bg-[#7c3aed] text-xs uppercase tracking-wider text-white"><tr><th className="p-3 text-left">Item / Description</th><th className="p-3 text-center">Qty</th><th className="p-3 text-right">Amount</th></tr></thead>
       <tbody>{doc.items.map((item,index)=><tr key={(item.name||item.description)+'-'+index} className="border-b border-slate-100">
@@ -86,7 +86,7 @@ export default async function PublicReceipt({params}:{params:Promise<{token:stri
       </tr>)}</tbody>
      </table>
     </div>
-    <div className="mt-3 space-y-2 sm:hidden">
+    <div className="mt-3 space-y-2 md:hidden">
      {doc.items.map((item,index)=><article key={(item.name||item.description)+'-mobile-'+index} className="min-w-0 rounded-lg border border-slate-200 bg-white p-3">
       <div className="break-words text-sm font-semibold text-slate-900 [overflow-wrap:anywhere]">{item.name||item.description||'Item'}</div>
       {item.description&&item.description!==item.name&&<p className="mt-1 whitespace-pre-line break-words text-xs leading-5 text-slate-500">{item.description}</p>}
@@ -108,7 +108,7 @@ export default async function PublicReceipt({params}:{params:Promise<{token:stri
       <tbody>{allocations.length?allocations.map((row,i)=><tr key={row.invoiceNumber+'-'+i} className="border-b border-slate-100"><td className="p-3 font-medium text-slate-900">{row.invoiceNumber}</td><td className="p-3 text-slate-600">{dateLabel(row.invoiceDate)}</td><td className="p-3 text-right tabular-nums">{money(row.totalDue,canonical.document.currency)}</td><td className="p-3 text-right font-semibold tabular-nums">{money(row.amountApplied,canonical.document.currency)}</td></tr>):<tr><td colSpan={4} className="p-4 text-center text-sm text-slate-500">No invoice allocations are linked to this receipt.</td></tr>}</tbody>
      </table>
     </div>
-    <div className="mt-3 space-y-2 sm:hidden">
+    <div className="mt-3 space-y-2 md:hidden">
      {allocations.length?allocations.map((row,i)=><article key={row.invoiceNumber+'-mobile-'+i} className="min-w-0 rounded-lg border border-slate-200 bg-white p-3">
       <h3 className="break-words text-sm font-semibold text-slate-900 [overflow-wrap:anywhere]">{row.invoiceNumber}</h3>
       <p className="mt-1 text-xs text-slate-500">Invoice Date: {dateLabel(row.invoiceDate)}</p>
