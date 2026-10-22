@@ -148,22 +148,22 @@ export default function PublicQuotation({params}:{params:Promise<{token:string}>
   const statusStyle=expired?'border-amber-200 bg-amber-50 text-amber-800':(['accepted','converted'].includes(quote.status)?'border-emerald-200 bg-emerald-50 text-emerald-800':quote.status==='sent'?'border-blue-200 bg-blue-50 text-blue-800':'border-slate-200 bg-slate-100 text-slate-700');
   const billingAddress=addressLines(quote.customer.billing_address);
   const shippingAddress=addressLines(quote.customer.shipping_address);
-  return <main className="min-h-screen bg-slate-100 p-4 sm:p-8 print:bg-white print:p-0">
+  return <main className="min-h-screen min-w-0 overflow-x-hidden bg-slate-100 p-2 sm:p-8 print:bg-white print:p-0">
     {redirectToast&&<div role="status" aria-live="polite" className={'fixed bottom-5 right-5 z-[200] rounded-xl border bg-white px-4 py-3 text-sm font-semibold shadow-lg '+(redirectToast.startsWith('Failed')?'border-rose-200 text-rose-700':'border-emerald-200 text-emerald-800')}>{redirectToast}</div>}
-    <article className="mx-auto max-w-4xl overflow-hidden rounded-2xl bg-white shadow-sm print:max-w-none print:rounded-none print:shadow-none">
-      <header className="border-b border-slate-200 p-6 sm:p-8">
+    <article className="mx-auto w-full max-w-4xl min-w-0 overflow-hidden rounded-xl bg-white shadow-sm sm:rounded-2xl print:max-w-none print:rounded-none print:shadow-none">
+      <header className="min-w-0 border-b border-slate-200 p-4 sm:p-8">
         <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
-          <div className="flex items-start gap-4">
-            {logoUrl&&<img src={logoUrl} alt="Business logo" className="h-16 w-20 rounded-lg border border-slate-100 object-contain"/>}
-            <div>
-              <p className="text-xs font-extrabold uppercase tracking-[0.18em] text-violet-700">QUOTATION</p>
-              <h1 className="mt-1 text-2xl font-bold text-slate-900">{canonical?.document.number||quote.quotation_number}</h1>
-              <p className="mt-1 text-sm font-semibold text-slate-700">{quote.business.name}</p>
-              {quote.business.legal_name&&quote.business.legal_name!==quote.business.name&&<p className="text-xs text-slate-500">{quote.business.legal_name}</p>}
+          <div className="flex min-w-0 items-start gap-3 sm:gap-4">
+            {logoUrl&&<img src={logoUrl} alt="Business logo" className="h-12 w-16 shrink-0 rounded-lg border border-slate-100 object-contain sm:h-16 sm:w-20"/>}
+            <div className="min-w-0 flex-1 [overflow-wrap:anywhere]">
+              <p className="text-xs font-extrabold uppercase tracking-[0.12em] text-violet-700 sm:tracking-[0.18em]">QUOTATION</p>
+              <h1 className="mt-1 break-words text-lg font-bold text-slate-900 sm:text-2xl">{canonical?.document.number||quote.quotation_number}</h1>
+              <p className="mt-1 break-words text-sm font-semibold text-slate-700">{quote.business.name}</p>
+              {quote.business.legal_name&&quote.business.legal_name!==quote.business.name&&<p className="break-words text-xs text-slate-500">{quote.business.legal_name}</p>}
               <div className="mt-2 grid gap-1 text-xs text-slate-500">{addressLines(quote.business.address).map((x,i)=><span key={i}>{x}</span>)}{quote.business.phone&&<span>{quote.business.phone}</span>}{quote.business.email&&<span>{quote.business.email}</span>}{quote.business.website&&<span>{quote.business.website}</span>}{quote.business.tax_registration_number&&<span>{quotationTaxRegime==='GST'?'GSTIN':'Tax ID'}: {quote.business.tax_registration_number}</span>}</div>
             </div>
           </div>
-          <div className="text-sm text-slate-500 sm:text-right">
+          <div className="min-w-0 break-words text-xs text-slate-500 sm:text-sm sm:text-right">
             <span className={"inline-flex rounded-full border px-3 py-1 text-xs font-extrabold uppercase tracking-wider "+statusStyle}>{publicStatus}</span>
             <div className="mt-3">Quotation date: {canonical?.document.date||quote.quotation_date}</div>
             <div>Valid until: {quote.valid_until||'—'}</div>
@@ -171,7 +171,7 @@ export default function PublicQuotation({params}:{params:Promise<{token:string}>
         </div>
       </header>
 
-      <section className="border-b border-slate-200 px-6 py-4 sm:px-8 print:hidden">
+      <section className="border-b border-slate-200 px-4 py-4 sm:px-8 print:hidden">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
           <a href={'/api/public-documents/pdf?type=quotation&token='+encodeURIComponent(token)} download={buildDocumentDownloadFilename(quote.business.name || quote.business.legal_name || 'Business', documentFilenameLabel('quotation'), quote.quotation_number || 'Document')} className="inline-flex min-h-11 items-center justify-center rounded-xl border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50">Download Official PDF</a>
           <CopyButton getValue={() => publicDocumentUrlFromToken('quotation',token)} label="Copy customer link" successMessage="Quotation customer link copied to clipboard!" className="inline-flex min-h-11 items-center justify-center rounded-xl border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50" />
@@ -184,7 +184,7 @@ export default function PublicQuotation({params}:{params:Promise<{token:string}>
         {acceptanceMessage&&<p role="status" className="mt-3 rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-center text-sm text-emerald-800">{acceptanceMessage}</p>}
       </section>
 
-      <section className="grid gap-4 border-b border-slate-200 p-6 sm:grid-cols-2 sm:p-8">
+      <section className="grid min-w-0 gap-3 border-b border-slate-200 p-4 sm:grid-cols-2 sm:gap-4 sm:p-8">
         <div className="min-w-0 rounded-xl border border-slate-200 bg-white p-4">
           <p className="text-xs font-extrabold uppercase tracking-[0.16em] text-violet-700">BILL TO</p>
           <h2 className="mt-2 font-semibold text-slate-900">{quote.customer.legal_name||quote.customer.display_name}</h2>
@@ -199,7 +199,7 @@ export default function PublicQuotation({params}:{params:Promise<{token:string}>
         </div>
       </section>
 
-      <section className="overflow-x-auto px-6 pt-6 sm:px-8">
+      <section className="hidden overflow-x-auto px-6 pt-6 sm:block sm:px-8">
         <table className="w-full min-w-[760px] border-collapse text-sm">
           <thead className="bg-[#7c3aed] text-xs uppercase tracking-wider text-white"><tr>
             <th className="w-10 p-3 text-center font-extrabold">#</th>
@@ -223,7 +223,27 @@ export default function PublicQuotation({params}:{params:Promise<{token:string}>
         </table>
       </section>
 
-      <section className="grid gap-6 p-6 sm:grid-cols-[minmax(0,1fr)_280px] sm:p-8">
+      <section className="space-y-3 px-4 py-5 sm:hidden" aria-label="Quotation items">
+        {(canonical?.items||[]).map((item,i)=><article key={i} className="min-w-0 rounded-xl border border-slate-200 bg-white p-3">
+          <div className="flex min-w-0 items-start gap-2">
+            <span className="grid h-6 w-6 shrink-0 place-items-center rounded-md bg-violet-50 text-[11px] font-bold text-violet-700">{i+1}</span>
+            <div className="min-w-0 flex-1 [overflow-wrap:anywhere]">
+              <h2 className="break-words text-sm font-semibold text-slate-900">{item.name||item.description||'Item'}</h2>
+              {item.description&&item.name&&item.description!==item.name&&<p className="mt-1 whitespace-pre-line break-words text-xs leading-5 text-slate-500">{item.description}</p>}
+            </div>
+          </div>
+          <div className="mt-3 grid grid-cols-2 gap-3 border-t border-slate-100 pt-3 text-xs">
+            <div className="min-w-0"><p className="text-slate-500">Quantity</p><p className="mt-1 break-words font-semibold text-slate-800">{item.quantity} {item.unit||'pcs'}</p></div>
+            <div className="min-w-0"><p className="text-slate-500">Rate</p><p className="mt-1 break-words font-semibold tabular-nums text-slate-800">{money(item.unitPrice)}</p></div>
+            <div className="col-span-2 flex min-w-0 items-start justify-between gap-3 rounded-lg bg-violet-50 px-3 py-2">
+              <span className="shrink-0 text-xs font-semibold text-violet-900">Amount</span>
+              <span className="min-w-0 break-words text-right text-sm font-extrabold tabular-nums text-slate-900 [overflow-wrap:anywhere]">{money(item.amount)}</span>
+            </div>
+          </div>
+        </article>)}
+      </section>
+
+      <section className="grid min-w-0 gap-4 p-4 sm:grid-cols-[minmax(0,1fr)_280px] sm:gap-6 sm:p-8">
         <div className="min-w-0 space-y-4">
           <section className="rounded-xl border border-amber-200 bg-amber-50/70 p-4">
             <h3 className="text-xs font-extrabold uppercase tracking-[0.16em] text-violet-700">TERMS &amp; CONDITIONS</h3>
@@ -252,7 +272,7 @@ export default function PublicQuotation({params}:{params:Promise<{token:string}>
         </div>
       </section>
 
-      {(canonical?.business.bankDetails||quote.bank||qrDataUrl)&&<section className="border-t border-slate-200 p-6 sm:p-8">
+      {(canonical?.business.bankDetails||quote.bank||qrDataUrl)&&<section className="border-t border-slate-200 p-4 sm:p-8">
         <h2 className="text-xs font-extrabold uppercase tracking-[0.16em] text-violet-700">Payment details</h2>
         <div className="mt-3 grid gap-4 sm:grid-cols-2">
           {canonical?.business.bankDetails&&<div className="rounded-lg border border-slate-200 bg-white p-3 text-sm text-slate-700">
@@ -270,7 +290,7 @@ export default function PublicQuotation({params}:{params:Promise<{token:string}>
         </div>
       </section>}
 
-      <footer className="mt-12 border-t border-slate-200 pt-4 text-center text-xs text-slate-500 space-y-1">
+      <footer className="mt-8 break-words border-t border-slate-200 px-4 pt-4 text-center text-xs text-slate-500 space-y-1 sm:mt-12 sm:px-0">
         <p>This is a computer-generated quotation and does not require signature.</p>
         <p className="flex items-center justify-center gap-2 text-[11px] text-slate-400"><Image src="/moneymatters-pdf.png" alt="" aria-hidden width={16} height={16} unoptimized className="shrink-0 object-contain" /><span>Powered by Money Matters FinOps | mm.nilanga.in</span></p>
       </footer>
