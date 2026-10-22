@@ -116,11 +116,7 @@ export default function DeliveryChallans() {
         .eq('business_id', b.business_id)
         .order('challan_date', { ascending: false })
         .limit(50),
-      supabase
-        .from('business_tax_profiles')
-        .select('gstin,tax_regime,gst_registration_type')
-        .eq('business_id', b.business_id)
-        .maybeSingle()
+      supabase.rpc('get_delivery_challan_eway_tax_profile', { p_business_id: b.business_id })
     ]);
 
     if (cu.error) setError(cu.error.message);
