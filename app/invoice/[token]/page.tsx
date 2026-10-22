@@ -109,7 +109,7 @@ export default function PublicInvoice({params}:{params:Promise<{token:string}>})
         </div>
       </section>
 
-      <section className="hidden overflow-x-auto px-6 sm:block sm:px-8">
+      <section className="hidden overflow-x-auto px-6 lg:block lg:px-8">
         <table className="w-full min-w-[760px] border-collapse text-sm">
           <thead className="bg-[#7c3aed] text-xs uppercase tracking-wider text-white">
             <tr>
@@ -138,7 +138,7 @@ export default function PublicInvoice({params}:{params:Promise<{token:string}>})
         </table>
       </section>
 
-      <section className="space-y-3 px-4 py-5 sm:hidden" aria-label="Invoice items">
+      <section className="space-y-3 px-4 py-5 lg:hidden" aria-label="Invoice items">
         {invoice.items.map((item,i)=><article key={i} className="min-w-0 rounded-xl border border-slate-200 bg-white p-3">
           <div className="flex min-w-0 items-start gap-2">
             <span className="grid h-6 w-6 shrink-0 place-items-center rounded-md bg-violet-50 text-[11px] font-bold text-violet-700">{i+1}</span>
