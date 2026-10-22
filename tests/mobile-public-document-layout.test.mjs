@@ -26,6 +26,7 @@ test('public invoice and quotation use readable card layouts on narrow screens a
   assert.match(invoice, /Copy Invoice Link/);
   assert.match(quote, /Copy customer link/);
   assert.match(quote, /Accept Quotation & Request Invoice/);
+  assert.match(quote, /flex flex-col gap-3 lg:flex-row lg:items-center/, 'quotation action buttons must stack until desktop width');
 });
 
 test('public receipt items and invoice allocations are readable without horizontal table scrolling on phones', () => {
