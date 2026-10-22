@@ -33,10 +33,10 @@ export default async function PublicReceipt({params}:{params:Promise<{token:stri
     <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
      <div>
       <p className="text-xs font-extrabold uppercase tracking-[0.18em] text-violet-700">Payment Receipt / Voucher</p>
-      <h1 className="mt-1 text-2xl font-bold text-slate-900">{canonical.document.number}</h1>
+      <h1 className="mt-1 break-words text-lg font-bold text-slate-900 sm:text-2xl [overflow-wrap:anywhere]">{canonical.document.number}</h1>
       <p className="mt-1 text-sm font-semibold text-slate-700">{doc.business.name}</p>
       {doc.business.legalName&&doc.business.legalName!==doc.business.name&&<p className="text-xs text-slate-500">{doc.business.legalName}</p>}
-      <div className="mt-2 grid gap-1 text-xs text-slate-500">{addressLines(doc.business.address).map((line,i)=><span key={i}>{line}</span>)}{doc.business.phone&&<span>{doc.business.phone}</span>}{doc.business.email&&<span>{doc.business.email}</span>}{doc.business.taxRegistrationNumber&&<span>GSTIN / Tax ID: {doc.business.taxRegistrationNumber}</span>}</div>
+      <div className="mt-2 grid min-w-0 gap-1 break-words text-xs text-slate-500 [overflow-wrap:anywhere]">{addressLines(doc.business.address).map((line,i)=><span key={i}>{line}</span>)}{doc.business.phone&&<span>{doc.business.phone}</span>}{doc.business.email&&<span>{doc.business.email}</span>}{doc.business.taxRegistrationNumber&&<span>GSTIN / Tax ID: {doc.business.taxRegistrationNumber}</span>}</div>
      </div>
      <div className="text-left sm:text-right">
       <span className="inline-flex rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-extrabold uppercase tracking-wider text-emerald-800">Paid / Received</span>
@@ -49,7 +49,7 @@ export default async function PublicReceipt({params}:{params:Promise<{token:stri
    <section className="grid min-w-0 gap-3 border-b border-slate-200 p-4 sm:grid-cols-2 sm:gap-4 sm:p-8">
     <div className="rounded-xl border border-slate-200 p-4">
      <p className="text-xs font-extrabold uppercase tracking-[0.16em] text-violet-700">Received from</p>
-     <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+     <div className="flex min-w-0 flex-wrap items-baseline gap-x-3 gap-y-1 [overflow-wrap:anywhere]">
       <h2 className="min-w-0 max-w-full font-semibold text-slate-900 [overflow-wrap:anywhere]">{doc.customer.legalName||doc.customer.name}</h2>
       {doc.customer.phone&&<span className="whitespace-nowrap text-sm text-slate-600">{doc.customer.phone}</span>}
      </div>
@@ -59,7 +59,7 @@ export default async function PublicReceipt({params}:{params:Promise<{token:stri
     <div className="rounded-xl border border-emerald-200 bg-emerald-50/60 p-4">
      <p className="text-xs font-extrabold uppercase tracking-[0.16em] text-emerald-900">Amount received</p>
      <p className="mt-2 text-2xl font-extrabold text-slate-900">{money(received,canonical.document.currency)}</p>
-     <p className="mt-3 border-t border-emerald-200 pt-3 text-sm font-semibold text-slate-800">Amount in words: {canonical.financials.amountInWords||'—'}</p>
+     <p className="mt-3 break-words border-t border-emerald-200 pt-3 text-sm font-semibold text-slate-800 [overflow-wrap:anywhere]">Amount in words: {canonical.financials.amountInWords||'—'}</p>
     </div>
    </section>
 
@@ -71,7 +71,7 @@ export default async function PublicReceipt({params}:{params:Promise<{token:stri
     </div>
    </section>
 
-   {doc.items.length>0&&<section className="px-6 pb-6 sm:px-8">
+   {doc.items.length>0&&<section className="min-w-0 px-4 pb-5 sm:px-8 sm:pb-6">
     <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
      <h2 className="text-xs font-extrabold uppercase tracking-[0.16em] text-violet-700">{allocations.length===1?'Invoice Items':'Allocated Invoice Items'}</h2>
      <span className="text-[10px] font-medium text-slate-400">Reference only — amount received is shown separately</span>
@@ -100,7 +100,7 @@ export default async function PublicReceipt({params}:{params:Promise<{token:stri
      </article>)}
     </div>
    </section>}
-   <section className="px-6 pb-6 sm:px-8">
+   <section className="min-w-0 px-4 pb-5 sm:px-8 sm:pb-6">
     <h2 className="text-xs font-extrabold uppercase tracking-[0.16em] text-violet-700">Invoice Allocation</h2>
     <div className="mt-3 hidden overflow-x-auto rounded-lg border border-slate-200 sm:block">
      <table className="w-full min-w-[560px] border-collapse text-sm">
@@ -120,7 +120,7 @@ export default async function PublicReceipt({params}:{params:Promise<{token:stri
     </div>
    </section>
 
-   <section className="px-6 pb-6 sm:px-8">
+   <section className="min-w-0 px-4 pb-5 sm:px-8 sm:pb-6">
     <div className="flex flex-col gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
      <div><p className="text-xs font-extrabold uppercase tracking-[0.14em] text-amber-900">Customer Ledger Balance</p><p className="mt-1 text-xs text-amber-800">Current customer outstanding balance after this receipt</p></div>
      <p className="text-xl font-extrabold tabular-nums text-amber-900">{money(outstanding,ledgerCurrency)}</p>
