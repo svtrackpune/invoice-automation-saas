@@ -339,8 +339,8 @@ export default function DeliveryChallans() {
         </section>
         <div className="space-y-5">
           {showChallanModal && (
-            <div className="fixed inset-0 z-40 flex items-center justify-center bg-slate-950/55 p-3 sm:p-6" role="dialog" aria-modal="true" aria-labelledby="new-challan-modal-title" tabIndex={-1} onKeyDown={(event) => { if (event.key === 'Escape' && !busy) setShowChallanModal(false); }} onMouseDown={(event) => { if (event.target === event.currentTarget && !busy) setShowChallanModal(false); }}>
-              <section className="max-h-[92vh] w-full max-w-4xl overflow-y-auto rounded-2xl border border-slate-200 bg-white p-4 shadow-2xl sm:p-6">
+            <div className="fixed inset-0 z-[60] flex items-center justify-center overflow-x-hidden overflow-y-auto bg-slate-950/55 p-3 sm:p-6" role="dialog" aria-modal="true" aria-labelledby="new-challan-modal-title" tabIndex={-1} onKeyDown={(event) => { if (event.key === 'Escape' && !busy) setShowChallanModal(false); }} onMouseDown={(event) => { if (event.target === event.currentTarget && !busy) setShowChallanModal(false); }}>
+              <section className="max-h-[calc(100dvh-2rem)] w-[calc(100vw-1.5rem)] max-w-5xl min-w-0 overflow-x-hidden overflow-y-auto rounded-2xl border border-slate-200 bg-white p-4 shadow-2xl sm:p-6">
                 <div className="sticky top-0 z-10 -mx-4 -mt-4 mb-4 flex items-start justify-between gap-4 border-b border-slate-200 bg-white/95 px-4 py-4 backdrop-blur sm:-mx-6 sm:-mt-6 sm:px-6">
                   <div>
                     <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-violet-700">Logistics & dispatch</p>
@@ -427,10 +427,10 @@ export default function DeliveryChallans() {
               {lines.map((line, i) => (
                 <div
                   key={i}
-                  className="grid gap-2 rounded-xl border p-3 md:grid-cols-[1.7fr_.6fr_.8fr_.8fr_32px]"
+                  className="grid min-w-0 grid-cols-1 gap-3 rounded-xl border border-slate-200 p-3 sm:grid-cols-2 lg:grid-cols-[minmax(0,1.7fr)_minmax(75px,.6fr)_minmax(90px,.8fr)_minmax(120px,.9fr)_36px]"
                 >
                   <MMFormSelectControl
-                    className="rounded-lg border p-2 text-sm"
+                    className="w-full min-w-0 rounded-lg border border-slate-200 p-2.5 text-sm"
                     value={line.product_service_id}
                     onChange={(e) => choose(i, e.target.value)}
                   >
@@ -443,7 +443,7 @@ export default function DeliveryChallans() {
                     ))}
                   </MMFormSelectControl>
                   <MMFormInputControl
-                    className="rounded-lg border p-2 text-sm"
+                    className="w-full min-w-0 rounded-lg border border-slate-200 p-2.5 text-sm"
                     placeholder="Qty"
                     type="number"
                     min="0.01"
@@ -455,7 +455,7 @@ export default function DeliveryChallans() {
                     }
                   />
                   <MMFormInputControl
-                    className="rounded-lg border p-2 text-sm"
+                    className="w-full min-w-0 rounded-lg border border-slate-200 p-2.5 text-sm"
                     placeholder="Rate"
                     type="number"
                     min="0"
@@ -467,7 +467,7 @@ export default function DeliveryChallans() {
                     }
                   />
                   <MMFormInputControl
-                    className="rounded-lg border p-2 text-sm"
+                    className="w-full min-w-0 rounded-lg border border-slate-200 p-2.5 text-sm"
                     placeholder="Batch / serial"
                     value={line.batch_number || line.serial_number}
                     onChange={(e) =>
@@ -478,7 +478,7 @@ export default function DeliveryChallans() {
                   />
                   <button
                     type="button"
-                    className="rounded-lg border text-slate-500"
+                    className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50"
                     onClick={() => setLines((current) => current.filter((_, n) => n !== i))}
                   >
                     ×
@@ -504,7 +504,7 @@ export default function DeliveryChallans() {
               </div>
             </div>
 
-            <div className="mt-5 flex items-center justify-between border-t pt-4">
+            <div className="sticky bottom-0 z-10 mt-5 flex flex-col gap-3 border-t border-slate-200 bg-white/95 pt-4 pb-1 backdrop-blur sm:flex-row sm:items-center sm:justify-between">
               <b>Total value {formatMoney(total, ctx?.currency_code || 'INR')}</b>
               <button
                 type="button"
@@ -626,6 +626,7 @@ export default function DeliveryChallans() {
 
       {ctx && (
         <ItemServiceModal
+          modalLayerClassName="z-[80]"
           open={showItemModal}
           businessId={ctx.business_id}
           currencyCode={ctx.currency_code}
