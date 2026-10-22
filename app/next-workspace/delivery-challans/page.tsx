@@ -423,86 +423,142 @@ export default function DeliveryChallans() {
               )}
             </div>
 
-            <div className="mt-5 space-y-2">
-              {lines.map((line, i) => (
-                <div
-                  key={i}
-                  className="grid min-w-0 grid-cols-1 gap-3 rounded-xl border border-slate-200 p-3 sm:grid-cols-2 lg:grid-cols-[minmax(0,1.7fr)_minmax(75px,.6fr)_minmax(90px,.8fr)_minmax(120px,.9fr)_36px]"
-                >
-                  <MMFormSelectControl
-                    className="w-full min-w-0 rounded-lg border border-slate-200 p-2.5 text-sm"
-                    value={line.product_service_id}
-                    onChange={(e) => choose(i, e.target.value)}
-                  >
-                    <option value="">Select product…</option>
-                    {products.map((p) => (
-                      <option key={p.id} value={p.id}>
-                        {p.name}
-                        {p.sku ? ' · ' + p.sku : ''}
-                      </option>
-                    ))}
-                  </MMFormSelectControl>
-                  <MMFormInputControl
-                    className="w-full min-w-0 rounded-lg border border-slate-200 p-2.5 text-sm"
-                    placeholder="Qty"
-                    type="number"
-                    min="0.01"
-                    value={line.quantity}
-                    onChange={(e) =>
-                      setLines((current) =>
-                        current.map((x, n) => (n === i ? { ...x, quantity: e.target.value } : x))
-                      )
-                    }
-                  />
-                  <MMFormInputControl
-                    className="w-full min-w-0 rounded-lg border border-slate-200 p-2.5 text-sm"
-                    placeholder="Rate"
-                    type="number"
-                    min="0"
-                    value={line.unit_price}
-                    onChange={(e) =>
-                      setLines((current) =>
-                        current.map((x, n) => (n === i ? { ...x, unit_price: e.target.value } : x))
-                      )
-                    }
-                  />
-                  <MMFormInputControl
-                    className="w-full min-w-0 rounded-lg border border-slate-200 p-2.5 text-sm"
-                    placeholder="Batch / serial"
-                    value={line.batch_number || line.serial_number}
-                    onChange={(e) =>
-                      setLines((current) =>
-                        current.map((x, n) => (n === i ? { ...x, batch_number: e.target.value } : x))
-                      )
-                    }
-                  />
-                  <button
-                    type="button"
-                    className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50"
-                    onClick={() => setLines((current) => current.filter((_, n) => n !== i))}
-                  >
-                    ×
-                  </button>
+            <section className="mt-6 min-w-0" aria-labelledby="challan-items-heading">
+              <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                <div>
+                  <h3 id="challan-items-heading" className="text-sm font-bold text-slate-900">Items & quantities</h3>
+                  <p className="mt-0.5 text-xs text-slate-500">Select a product, set its quantity and rate, then add batch details if needed.</p>
                 </div>
-              ))}
-              <div className="flex flex-wrap gap-2">
+                <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] font-semibold text-slate-600">{lines.length} {lines.length === 1 ? 'item' : 'items'}</span>
+              </div>
+
+              <div className="space-y-3">
+                {lines.map((line, i) => (
+                  <section
+                    key={i}
+                    className="group min-w-0 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition-colors hover:border-slate-300 focus-within:border-violet-300 focus-within:ring-2 focus-within:ring-violet-100"
+                    aria-label={`Challan item ${i + 1}`}
+                  >
+                    <div className="flex min-w-0 items-center justify-between gap-3 border-b border-slate-100 bg-slate-50/80 px-3 py-2.5 sm:px-4">
+                      <div className="flex min-w-0 items-center gap-2.5">
+                        <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-violet-100 text-xs font-bold text-violet-700">{String(i + 1).padStart(2, '0')}</span>
+                        <div className="min-w-0">
+                          <p className="text-xs font-bold text-slate-800">Item {i + 1}</p>
+                          <p className="truncate text-[11px] text-slate-500">{line.description.trim() || 'Choose a product below'}</p>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        aria-label={`Remove item ${i + 1}`}
+                        title={`Remove item ${i + 1}`}
+                        className="inline-flex h-8 shrink-0 items-center justify-center gap-1.5 rounded-lg border border-transparent px-2.5 text-xs font-semibold text-slate-500 transition hover:border-rose-200 hover:bg-rose-50 hover:text-rose-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-300 disabled:cursor-not-allowed disabled:opacity-40"
+                        onClick={() => setLines((current) => current.filter((_, n) => n !== i))}
+                        disabled={lines.length === 1}
+                      >
+                        <span aria-hidden="true" className="text-base leading-none">×</span>
+                        <span>Remove</span>
+                      </button>
+                    </div>
+
+                    <div className="grid min-w-0 grid-cols-1 gap-3 p-3 sm:grid-cols-2 sm:p-4 lg:grid-cols-[minmax(0,1.8fr)_minmax(100px,.65fr)_minmax(125px,.8fr)_minmax(150px,1fr)]">
+                      <label className="block min-w-0">
+                        <span className="mb-1.5 flex items-center gap-1 text-[11px] font-semibold text-slate-600">Product <span className="text-rose-500">*</span></span>
+                        <MMFormSelectControl
+                          aria-label={`Product for item ${i + 1}`}
+                          className="w-full min-w-0 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-800 shadow-sm outline-none transition focus:border-violet-400 focus:ring-2 focus:ring-violet-100"
+                          value={line.product_service_id}
+                          onChange={(e) => choose(i, e.target.value)}
+                        >
+                          <option value="">Select product…</option>
+                          {products.map((p) => (
+                            <option key={p.id} value={p.id}>
+                              {p.name}
+                              {p.sku ? ' · ' + p.sku : ''}
+                            </option>
+                          ))}
+                        </MMFormSelectControl>
+                      </label>
+
+                      <label className="block min-w-0">
+                        <span className="mb-1.5 block text-[11px] font-semibold text-slate-600">Quantity <span className="text-rose-500">*</span></span>
+                        <MMFormInputControl
+                          aria-label={`Quantity for item ${i + 1}`}
+                          className="w-full min-w-0 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm tabular-nums text-slate-800 shadow-sm outline-none transition focus:border-violet-400 focus:ring-2 focus:ring-violet-100"
+                          placeholder="e.g. 1"
+                          type="number"
+                          inputMode="decimal"
+                          min="0.01"
+                          step="any"
+                          value={line.quantity}
+                          onChange={(e) =>
+                            setLines((current) =>
+                              current.map((x, n) => (n === i ? { ...x, quantity: e.target.value } : x))
+                            )
+                          }
+                        />
+                      </label>
+
+                      <label className="block min-w-0">
+                        <span className="mb-1.5 block text-[11px] font-semibold text-slate-600">Rate per unit</span>
+                        <MMFormInputControl
+                          aria-label={`Rate per unit for item ${i + 1}`}
+                          className="w-full min-w-0 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm tabular-nums text-slate-800 shadow-sm outline-none transition focus:border-violet-400 focus:ring-2 focus:ring-violet-100"
+                          placeholder="0.00"
+                          type="number"
+                          inputMode="decimal"
+                          min="0"
+                          step="any"
+                          value={line.unit_price}
+                          onChange={(e) =>
+                            setLines((current) =>
+                              current.map((x, n) => (n === i ? { ...x, unit_price: e.target.value } : x))
+                            )
+                          }
+                        />
+                      </label>
+
+                      <label className="block min-w-0 sm:col-span-2 lg:col-span-1">
+                        <span className="mb-1.5 block text-[11px] font-semibold text-slate-600">Batch / serial <span className="font-normal text-slate-400">(optional)</span></span>
+                        <MMFormInputControl
+                          aria-label={`Batch or serial number for item ${i + 1}`}
+                          className="w-full min-w-0 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-800 shadow-sm outline-none transition focus:border-violet-400 focus:ring-2 focus:ring-violet-100"
+                          placeholder="Enter batch or serial"
+                          value={line.batch_number || line.serial_number}
+                          onChange={(e) =>
+                            setLines((current) =>
+                              current.map((x, n) => (n === i ? { ...x, batch_number: e.target.value } : x))
+                            )
+                          }
+                        />
+                      </label>
+                    </div>
+
+                    <div className="flex min-w-0 flex-wrap items-center justify-between gap-2 border-t border-slate-100 bg-slate-50/60 px-3 py-2.5 sm:px-4">
+                      <span className="text-[11px] text-slate-500">Line amount <span className="mx-1 text-slate-300">·</span> {line.quantity || '0'} × {formatMoney(Number(line.unit_price || 0), ctx?.currency_code || 'INR')}</span>
+                      <span className="text-sm font-bold tabular-nums text-slate-900">{formatMoney(Number(line.quantity || 0) * Number(line.unit_price || 0), ctx?.currency_code || 'INR')}</span>
+                    </div>
+                  </section>
+                ))}
+              </div>
+
+              <div className="mt-3 flex flex-wrap gap-2">
                 <button
                   type="button"
-                  className="rounded-lg border border-violet-200 bg-violet-50 px-3 py-2 text-xs font-semibold text-violet-700 hover:bg-violet-100"
+                  className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-violet-200 bg-violet-50 px-3.5 py-2 text-xs font-semibold text-violet-700 transition hover:border-violet-300 hover:bg-violet-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-300"
                   onClick={() => setShowItemModal(true)}
                   disabled={!ctx}
                 >
-                  + Create product
+                  <span aria-hidden="true" className="text-base leading-none">＋</span> Create product
                 </button>
                 <button
                   type="button"
-                  className="rounded-lg border px-3 py-2 text-xs font-semibold"
+                  className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-semibold text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-300"
                   onClick={() => setLines((current) => [...current, blank()])}
                 >
-                  + Add item
+                  <span aria-hidden="true" className="text-base leading-none">＋</span> Add another item
                 </button>
               </div>
-            </div>
+            </section>
 
             <div className="sticky bottom-0 z-10 mt-5 flex flex-col gap-3 border-t border-slate-200 bg-white/95 pt-4 pb-1 backdrop-blur sm:flex-row sm:items-center sm:justify-between">
               <b>Total value {formatMoney(total, ctx?.currency_code || 'INR')}</b>
