@@ -76,20 +76,20 @@ export default function PublicInvoice({params}:{params:Promise<{token:string}>})
   const showGstBreakdown=gstRegistered&&!compositionSupply;
   const showOtherTaxBreakdown=otherTaxRegistered;
 
-  return <main className="min-h-screen bg-slate-100 p-4 sm:p-8 print:bg-white print:p-0">
-    <article className="mx-auto max-w-4xl overflow-hidden rounded-2xl bg-white shadow-sm print:max-w-none print:rounded-none print:shadow-none">
-      <header className="border-b border-slate-200 p-6 sm:p-8">
+  return <main className="min-h-screen min-w-0 overflow-x-hidden bg-slate-100 p-2 sm:p-8 print:bg-white print:p-0">
+    <article className="mx-auto w-full max-w-4xl min-w-0 overflow-hidden rounded-xl bg-white shadow-sm sm:rounded-2xl print:max-w-none print:rounded-none print:shadow-none">
+      <header className="min-w-0 border-b border-slate-200 p-4 sm:p-8">
         <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
-          <div className="flex items-start gap-4">
-            {logoUrl&&<Image src={logoUrl} alt="Business logo" width={96} height={64} unoptimized className="h-16 w-24 rounded-lg object-contain"/>}
-            <div><p className="text-xs font-bold uppercase tracking-[0.18em] text-violet-600">{invoiceHeading}</p><h1 className="mt-1 text-2xl font-bold text-slate-900">{canonical?.document.number||invoice.invoice_number}</h1><p className="mt-1 text-sm font-medium text-slate-600">{invoice.business.name}</p>{invoice.business.legal_name&&invoice.business.legal_name!==invoice.business.name&&<p className="text-xs text-slate-500">{invoice.business.legal_name}</p>}</div>
+          <div className="flex min-w-0 items-start gap-3 sm:gap-4">
+            {logoUrl&&<Image src={logoUrl} alt="Business logo" width={96} height={64} unoptimized className="h-12 w-16 shrink-0 rounded-lg object-contain sm:h-16 sm:w-24"/>}
+            <div className="min-w-0 flex-1 [overflow-wrap:anywhere]"><p className="text-xs font-bold uppercase tracking-[0.12em] text-violet-600 sm:tracking-[0.18em]">{invoiceHeading}</p><h1 className="mt-1 break-words text-lg font-bold text-slate-900 sm:text-2xl">{canonical?.document.number||invoice.invoice_number}</h1><p className="mt-1 break-words text-sm font-medium text-slate-600">{invoice.business.name}</p>{invoice.business.legal_name&&invoice.business.legal_name!==invoice.business.name&&<p className="break-words text-xs text-slate-500">{invoice.business.legal_name}</p>}</div>
           </div>
-          <div className="text-sm text-slate-500 sm:text-right"><div>Invoice date: {date(canonical?.document.date||invoice.invoice_date)}</div><div>Due date: {date(invoice.due_date)}</div><div className="mt-2 inline-flex rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-slate-700">{invoice.status.replace('_',' ')}</div></div>
+          <div className="min-w-0 break-words text-xs text-slate-500 sm:text-sm sm:text-right"><div>Invoice date: {date(canonical?.document.date||invoice.invoice_date)}</div><div>Due date: {date(invoice.due_date)}</div><div className="mt-2 inline-flex rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-slate-700">{invoice.status.replace('_',' ')}</div></div>
         </div>
         <div className="mt-4 grid gap-1 text-xs text-slate-500">{address(invoice.business.address).map((x,i)=><span key={i}>{x}</span>)}{invoice.business.phone&&<span>{invoice.business.phone}</span>}{invoice.business.email&&<span>{invoice.business.email}</span>}{invoice.business.website&&<span>{invoice.business.website}</span>}{invoice.business.tax_registration_number&&<span>{taxRegime==='GST'?'GSTIN':'Tax ID'}: {invoice.business.tax_registration_number}</span>}</div>
       </header>
 
-      <section className="grid gap-4 border-b border-slate-200 p-6 sm:grid-cols-2 sm:p-8">
+      <section className="grid min-w-0 gap-3 border-b border-slate-200 p-4 sm:grid-cols-2 sm:gap-4 sm:p-8">
         <div className="min-w-0 rounded-xl border border-slate-200 bg-white p-4">
           <p className="text-xs font-extrabold uppercase tracking-[0.16em] text-violet-700">BILL TO</p>
           <h2 className="mt-2 font-semibold text-slate-900">{invoice.customer.legal_name||invoice.customer.display_name}</h2>
@@ -109,7 +109,7 @@ export default function PublicInvoice({params}:{params:Promise<{token:string}>})
         </div>
       </section>
 
-      <section className="overflow-x-auto px-6 sm:px-8">
+      <section className="hidden overflow-x-auto px-6 sm:block sm:px-8">
         <table className="w-full min-w-[760px] border-collapse text-sm">
           <thead className="bg-[#7c3aed] text-xs uppercase tracking-wider text-white">
             <tr>
@@ -138,7 +138,28 @@ export default function PublicInvoice({params}:{params:Promise<{token:string}>})
         </table>
       </section>
 
-      <section className="grid gap-6 p-6 sm:grid-cols-[minmax(0,1fr)_280px] sm:p-8">
+      <section className="space-y-3 px-4 py-5 sm:hidden" aria-label="Invoice items">
+        {invoice.items.map((item,i)=><article key={i} className="min-w-0 rounded-xl border border-slate-200 bg-white p-3">
+          <div className="flex min-w-0 items-start gap-2">
+            <span className="grid h-6 w-6 shrink-0 place-items-center rounded-md bg-violet-50 text-[11px] font-bold text-violet-700">{i+1}</span>
+            <div className="min-w-0 flex-1 [overflow-wrap:anywhere]">
+              <h2 className="break-words text-sm font-semibold text-slate-900">{item.item_name||item.description||'Item'}</h2>
+              {item.description&&item.item_name&&item.item_name!==item.description&&<p className="mt-1 whitespace-pre-line break-words text-xs leading-5 text-slate-500">{item.description}</p>}
+              {item.hsn_sac&&<p className="mt-1 break-words text-[11px] text-slate-500">HSN / SAC: {item.hsn_sac}</p>}
+            </div>
+          </div>
+          <div className="mt-3 grid grid-cols-2 gap-3 border-t border-slate-100 pt-3 text-xs">
+            <div className="min-w-0"><p className="text-slate-500">Quantity</p><p className="mt-1 break-words font-semibold text-slate-800">{item.quantity} {item.unit||'pcs'}</p></div>
+            <div className="min-w-0"><p className="text-slate-500">Rate</p><p className="mt-1 break-words font-semibold tabular-nums text-slate-800">{money(item.unit_price,invoice.currency_code)}</p></div>
+            <div className="col-span-2 flex min-w-0 items-start justify-between gap-3 rounded-lg bg-violet-50 px-3 py-2">
+              <span className="shrink-0 text-xs font-semibold text-violet-900">Amount</span>
+              <span className="min-w-0 break-words text-right text-sm font-extrabold tabular-nums text-slate-900 [overflow-wrap:anywhere]">{money(item.line_total,invoice.currency_code)}</span>
+            </div>
+          </div>
+        </article>)}
+      </section>
+
+      <section className="grid min-w-0 gap-4 p-4 sm:grid-cols-[minmax(0,1fr)_280px] sm:gap-6 sm:p-8">
         <div className="min-w-0 space-y-4">
           {paymentBox&&<section className="rounded-xl border border-emerald-200 bg-emerald-50/60 p-4">
             <h3 className="text-xs font-extrabold uppercase tracking-[0.16em] text-emerald-900">{showUpiSettlement&&!showBankSettlement?'SCAN & PAY VIA UPI':showBankSettlement&&!showUpiSettlement?'BANK DETAILS':'PAYMENT SETTLEMENT'}</h3>
@@ -191,7 +212,7 @@ export default function PublicInvoice({params}:{params:Promise<{token:string}>})
         </div>
       </section>
 
-      <section className="flex flex-col gap-3 border-t border-slate-200 p-6 sm:flex-row sm:items-center sm:justify-between sm:p-8 print:hidden">
+      <section className="flex min-w-0 flex-col gap-3 border-t border-slate-200 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-8 print:hidden">
         <div><p className="font-semibold text-slate-900">Need a copy for your records?</p><p className="mt-1 text-xs text-slate-500">Download a PDF copy of this invoice.</p></div>
         <div className="flex flex-wrap items-center gap-3">
           <a href={'/api/public-documents/pdf?type=invoice&token=' + encodeURIComponent(token)} download={buildDocumentDownloadFilename(invoice.business.name || invoice.business.legal_name || 'Business', documentFilenameLabel('invoice'), invoice.invoice_number || 'Document')} className="inline-flex min-h-12 items-center justify-center rounded-xl bg-violet-600 px-6 py-3 text-sm font-semibold text-white hover:bg-violet-700">Download Official PDF</a>
@@ -199,7 +220,7 @@ export default function PublicInvoice({params}:{params:Promise<{token:string}>})
         </div>
       </section>
 
-      <footer className="border-t border-slate-200 bg-slate-50 px-6 py-5 text-center text-xs text-slate-500">
+      <footer className="break-words border-t border-slate-200 bg-slate-50 px-4 py-5 text-center text-xs text-slate-500 sm:px-6">
         <p className="font-medium text-slate-600">This is a computer-generated invoice and does not require signature.</p>
         <div className="mt-3 flex items-center justify-center gap-2 border-t border-slate-200 pt-3 text-slate-500">
           <Image src="/moneymatters-pdf.png" alt="" aria-hidden width={16} height={16} unoptimized className="shrink-0 object-contain" />
