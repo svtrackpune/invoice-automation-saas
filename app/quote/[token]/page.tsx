@@ -160,7 +160,7 @@ export default function PublicQuotation({params}:{params:Promise<{token:string}>
               <h1 className="mt-1 break-words text-lg font-bold text-slate-900 sm:text-2xl">{canonical?.document.number||quote.quotation_number}</h1>
               <p className="mt-1 break-words text-sm font-semibold text-slate-700">{quote.business.name}</p>
               {quote.business.legal_name&&quote.business.legal_name!==quote.business.name&&<p className="break-words text-xs text-slate-500">{quote.business.legal_name}</p>}
-              <div className="mt-2 grid gap-1 text-xs text-slate-500">{addressLines(quote.business.address).map((x,i)=><span key={i}>{x}</span>)}{quote.business.phone&&<span>{quote.business.phone}</span>}{quote.business.email&&<span>{quote.business.email}</span>}{quote.business.website&&<span>{quote.business.website}</span>}{quote.business.tax_registration_number&&<span>{quotationTaxRegime==='GST'?'GSTIN':'Tax ID'}: {quote.business.tax_registration_number}</span>}</div>
+              <div className="mt-2 grid min-w-0 gap-1 break-words text-xs text-slate-500 [overflow-wrap:anywhere]">{addressLines(quote.business.address).map((x,i)=><span key={i}>{x}</span>)}{quote.business.phone&&<span>{quote.business.phone}</span>}{quote.business.email&&<span>{quote.business.email}</span>}{quote.business.website&&<span>{quote.business.website}</span>}{quote.business.tax_registration_number&&<span>{quotationTaxRegime==='GST'?'GSTIN':'Tax ID'}: {quote.business.tax_registration_number}</span>}</div>
             </div>
           </div>
           <div className="min-w-0 break-words text-xs text-slate-500 sm:text-sm sm:text-right">
@@ -185,7 +185,7 @@ export default function PublicQuotation({params}:{params:Promise<{token:string}>
       </section>
 
       <section className="grid min-w-0 gap-3 border-b border-slate-200 p-4 sm:grid-cols-2 sm:gap-4 sm:p-8">
-        <div className="min-w-0 rounded-xl border border-slate-200 bg-white p-4">
+        <div className="min-w-0 break-words rounded-xl border border-slate-200 bg-white p-4 [overflow-wrap:anywhere]">
           <p className="text-xs font-extrabold uppercase tracking-[0.16em] text-violet-700">BILL TO</p>
           <h2 className="mt-2 font-semibold text-slate-900">{quote.customer.legal_name||quote.customer.display_name}</h2>
           {billingAddress.map((x,i)=><p key={i} className="text-sm leading-5 text-slate-600">{x}</p>)}
@@ -247,10 +247,10 @@ export default function PublicQuotation({params}:{params:Promise<{token:string}>
         <div className="min-w-0 space-y-4">
           <section className="rounded-xl border border-amber-200 bg-amber-50/70 p-4">
             <h3 className="text-xs font-extrabold uppercase tracking-[0.16em] text-violet-700">TERMS &amp; CONDITIONS</h3>
-            <p className="mt-2 whitespace-pre-line text-sm leading-5 text-slate-700">{quote.terms||'—'}</p>
+            <p className="mt-2 break-words whitespace-pre-line text-sm leading-5 text-slate-700 [overflow-wrap:anywhere]">{quote.terms||'—'}</p>
             <div className="mt-4 border-t border-amber-200 pt-3">
               <h3 className="text-xs font-extrabold uppercase tracking-[0.16em] text-violet-700">NOTES</h3>
-              <p className="mt-2 whitespace-pre-line text-sm leading-5 text-slate-700">{quote.notes||'—'}</p>
+              <p className="mt-2 break-words whitespace-pre-line text-sm leading-5 text-slate-700 [overflow-wrap:anywhere]">{quote.notes||'—'}</p>
             </div>
             <p className="mt-3 border-t border-amber-200 pt-3 text-xs text-slate-600">Validity: quotation prices and scope apply until {quote.valid_until||'the date agreed with the business'}.</p>
           </section>
