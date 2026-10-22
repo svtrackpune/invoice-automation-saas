@@ -49,7 +49,7 @@ export default async function PublicReceipt({params}:{params:Promise<{token:stri
    <section className="grid min-w-0 gap-3 border-b border-slate-200 p-4 sm:grid-cols-2 sm:gap-4 sm:p-8">
     <div className="rounded-xl border border-slate-200 p-4">
      <p className="text-xs font-extrabold uppercase tracking-[0.16em] text-violet-700">Received from</p>
-     <div className="flex min-w-0 flex-wrap items-baseline gap-x-3 gap-y-1 [overflow-wrap:anywhere]">
+     <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1 min-w-0 [overflow-wrap:anywhere]">
       <h2 className="min-w-0 max-w-full font-semibold text-slate-900 [overflow-wrap:anywhere]">{doc.customer.legalName||doc.customer.name}</h2>
       {doc.customer.phone&&<span className="whitespace-nowrap text-sm text-slate-600">{doc.customer.phone}</span>}
      </div>
@@ -102,7 +102,7 @@ export default async function PublicReceipt({params}:{params:Promise<{token:stri
    </section>}
    <section className="min-w-0 px-4 pb-5 sm:px-8 sm:pb-6">
     <h2 className="text-xs font-extrabold uppercase tracking-[0.16em] text-violet-700">Invoice Allocation</h2>
-    <div className="mt-3 hidden overflow-x-auto rounded-lg border border-slate-200 sm:block">
+    <div className="mt-3 hidden overflow-x-auto rounded-lg border border-slate-200 md:block print:block print:overflow-visible">
      <table className="w-full min-w-[560px] border-collapse text-sm">
       <thead className="bg-[#7c3aed] text-xs uppercase tracking-wider text-white"><tr><th className="p-3 text-left">Invoice No.</th><th className="p-3 text-left">Invoice Date</th><th className="p-3 text-right">Original Amount</th><th className="p-3 text-right">Amount Applied</th></tr></thead>
       <tbody>{allocations.length?allocations.map((row,i)=><tr key={row.invoiceNumber+'-'+i} className="border-b border-slate-100"><td className="p-3 font-medium text-slate-900">{row.invoiceNumber}</td><td className="p-3 text-slate-600">{dateLabel(row.invoiceDate)}</td><td className="p-3 text-right tabular-nums">{money(row.totalDue,canonical.document.currency)}</td><td className="p-3 text-right font-semibold tabular-nums">{money(row.amountApplied,canonical.document.currency)}</td></tr>):<tr><td colSpan={4} className="p-4 text-center text-sm text-slate-500">No invoice allocations are linked to this receipt.</td></tr>}</tbody>
