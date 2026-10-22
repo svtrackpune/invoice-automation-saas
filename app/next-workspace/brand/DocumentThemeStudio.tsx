@@ -373,6 +373,7 @@ export default function DocumentThemeStudio() {
       className="border-white/10 bg-slate-950/95 px-4 py-3 backdrop-blur sm:px-6 [&_h1]:!text-white [&_nav]:!text-slate-400 [&_p]:!text-slate-400"
       breadcrumbs={[{label:'Workspace',href:'/next-workspace'},{label:'Documents'},{label:'Document Theme Studio'}]}
       title="Document Theme Studio"
+      leading={<Image src="/moneymatters-192.png" alt="" width={32} height={32} unoptimized className="rounded-lg object-contain" />}
       subtitle="Independent visual identity, spacing and payment presentation for each document type."
       badge={{label:'Documents · WYSIWYG',variant:'statutory'}}
       actions={<div className="flex items-center gap-2"><span className={dirty ? 'rounded-full bg-amber-400/10 px-3 py-1.5 text-[10px] font-bold text-amber-300 ring-1 ring-amber-400/20' : 'rounded-full bg-emerald-400/10 px-3 py-1.5 text-[10px] font-bold text-emerald-300 ring-1 ring-emerald-400/20'}>{dirty ? 'Unsaved changes' : status || 'Saved'}</span><button type="button" onClick={() => window.print()} className="rounded-lg border border-white/10 px-3 py-2 text-xs font-semibold text-slate-200 hover:bg-white/5">Print canvas</button><button type="button" disabled={!dirty || saving} onClick={() => void save()} className="rounded-lg bg-indigo-500 px-4 py-2 text-xs font-bold text-white hover:bg-indigo-400 disabled:opacity-40">{saving ? 'Saving…' : 'Save all documents'}</button></div>}

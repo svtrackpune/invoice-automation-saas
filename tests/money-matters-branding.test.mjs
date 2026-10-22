@@ -35,6 +35,12 @@ test('Money Matters branding uses the canonical mark in application and public d
   const manifest = JSON.parse(read('public/manifest.json'));
   assert.ok(manifest.icons.some((icon) => icon.src === '/moneymatters-192.png'));
   assert.ok(manifest.icons.some((icon) => icon.src === '/moneymatters-512.png'));
+
+  const pageHeader = read('components/ui/finops/PageHeader.tsx');
+  const themeStudio = read('app/next-workspace/brand/DocumentThemeStudio.tsx');
+  assert.ok(pageHeader.includes('leading?: ReactNode;'), 'shared page header supports an optional leading brand mark');
+  assert.ok(pageHeader.includes('{leading ? <span className="shrink-0" aria-hidden="true">{leading}</span> : null}'));
+  assert.ok(themeStudio.includes('leading={<Image src="/moneymatters-192.png"'), 'Document Theme Studio header shows the canonical Money Matters mark');
 });
 
 test('generated PDFs include the official brand mark while retaining a text-only fallback', () => {

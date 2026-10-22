@@ -8,11 +8,13 @@ export interface PageHeaderProps {
   badge?: { label: string; variant: FinOpsSemanticTone };
   actions?: ReactNode;
   breadcrumbs?: { label: string; href?: string }[];
+  /** Optional leading visual for branded feature headers. */
+  leading?: ReactNode;
   className?: string;
   compact?: boolean;
 }
 
-export function PageHeader({ title, subtitle, badge, actions, breadcrumbs, className = '', compact = false }: PageHeaderProps) {
+export function PageHeader({ title, subtitle, badge, actions, breadcrumbs, leading, className = '', compact = false }: PageHeaderProps) {
   const badgeTone = badge ? finOpsToneClasses[badge.variant] : null;
 
   return (
@@ -43,6 +45,7 @@ export function PageHeader({ title, subtitle, badge, actions, breadcrumbs, class
         ) : null}
 
         <div className="flex flex-wrap items-center gap-2">
+          {leading ? <span className="shrink-0" aria-hidden="true">{leading}</span> : null}
           <h1 className={`${compact ? 'text-lg font-bold' : 'text-2xl font-bold'} tracking-tight text-finops-neutral-text`}>{title}</h1>
           {badge && badgeTone ? (
             <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[10px] font-bold ${badgeTone.border} ${badgeTone.tint} ${badgeTone.primary}`}>
