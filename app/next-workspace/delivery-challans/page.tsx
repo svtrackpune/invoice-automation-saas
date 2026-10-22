@@ -88,7 +88,7 @@ export default function DeliveryChallans() {
     if (!b) return;
     setCtx(b);
 
-    const [cu, pr, lo, dc] = await Promise.all([
+    const [cu, pr, lo, dc, tax] = await Promise.all([
       supabase
         .from('customers')
         .select('id,display_name')
