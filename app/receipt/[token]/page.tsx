@@ -28,7 +28,7 @@ export default async function PublicReceipt({params}:{params:Promise<{token:stri
  const outstanding=receipt?.customerOutstanding??canonical.financials.balanceDue;
  const ledgerCurrency=receipt?.customerOutstandingCurrencyCode||canonical.document.currency;
  return <main className="min-h-screen min-w-0 overflow-x-hidden bg-slate-100 p-2 sm:p-8 print:bg-white print:p-0">
-  <article className="mx-auto w-full max-w-3xl min-w-0 overflow-hidden rounded-xl bg-white shadow-sm sm:rounded-2xl print:max-w-none print:rounded-none print:shadow-none">
+  <article className="mx-auto w-full max-w-3xl min-w-0 rounded-xl overflow-hidden bg-white shadow-sm sm:rounded-2xl print:max-w-none print:rounded-none print:shadow-none">
    <header className="min-w-0 border-b border-slate-200 p-4 sm:p-8">
     <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
      <div>
