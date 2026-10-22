@@ -34,7 +34,7 @@ test('public invoice and quotation use readable card layouts on narrow screens a
 test('public receipt items and invoice allocations are readable without horizontal table scrolling on phones', () => {
   const receipt = read('app/receipt/[token]/page.tsx');
   assert.match(receipt, /overflow-x-hidden/);
-  assert.match(receipt, /max-w-3xl min-w-0 overflow-hidden rounded-xl/);
+  assert.match(receipt, /max-w-3xl min-w-0 rounded-xl overflow-hidden/);
   assert.equal((receipt.match(/hidden overflow-x-auto[^\n]*md:block/g) || []).length, 2, 'both receipt tables should remain hidden below tablet width');
   assert.equal((receipt.match(/md:hidden/g) || []).length >= 2, true, 'receipt item and allocation cards should be present on phones');
   assert.equal((receipt.match(/print:block print:overflow-visible/g) || []).length, 2, 'receipt tables must remain printable');
