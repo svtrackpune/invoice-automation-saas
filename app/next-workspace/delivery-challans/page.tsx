@@ -37,6 +37,7 @@ type ChallanRow = {
   total: number;
   customer_id: string;
   converted_invoice_id: string | null;
+  eway_bill_number: string | null;
   customers: { display_name: string } | null;
 };
 type ConversionResult = {
@@ -72,11 +73,13 @@ export default function DeliveryChallans() {
   const [date, setDate] = useState(today());
   const [transporter, setTransporter] = useState('');
   const [vehicle, setVehicle] = useState('');
-  const [eway, setEway] = useState('');
   const [lines, setLines] = useState<Line[]>([blank()]);
   const [busy, setBusy] = useState(false);
   const [convertingId, setConvertingId] = useState<string | null>(null);
   const [confirmRow, setConfirmRow] = useState<ChallanRow | null>(null);
+  const [ewayTarget, setEwayTarget] = useState<ChallanRow | null>(null);
+  const [ewayValue, setEwayValue] = useState('');
+  const [ewaySaving, setEwaySaving] = useState(false);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState<{ text: string; invoiceId?: string; invoiceNumber?: string }>({
     text: ''
@@ -111,7 +114,7 @@ export default function DeliveryChallans() {
       supabase
         .from('delivery_challans')
         .select(
-          'id,challan_number,challan_date,status,total,customer_id,converted_invoice_id,customers!delivery_challans_customer_id_fkey(display_name)'
+          'id,challan_number,challan_date,status,total,customer_id,converted_invoice_id,eway_bill_number,customers!delivery_challans_customer_id_fkey(display_name)'
         )
         .eq('business_id', b.business_id)
         .order('challan_date', { ascending: false })
@@ -205,10 +208,6 @@ export default function DeliveryChallans() {
       return;
     }
 
-    if (eway && !/^[0-9]{12}$/.test(eway)) {
-      setError('An E-way Bill Number must contain exactly 12 digits. Leave it blank until a bill has been generated.');
-      return;
-    }
     setBusy(true);
     setError('');
     const r = await supabase.rpc('create_delivery_challan', {
@@ -223,18 +222,58 @@ export default function DeliveryChallans() {
       })),
       p_transporter_name: transporter || null,
       p_vehicle_number: vehicle || null,
-      p_eway_bill_number: eway || null
+      p_eway_bill_number: null
     });
 
     if (r.error) {
       setError(r.error.message);
     } else {
-      setNotice({ text: 'Delivery challan created and stock dispatched.' });
+      setNotice({ text: 'Delivery challan created and stock dispatched. Use the E-way Bill action in Recent Challans to record a bill after generating it for this challan number, if required.' });
       setLines([blank()]);
       setCustomer('');
       await load();
     }
     setBusy(false);
+  }
+
+  function editEwayBill(row: ChallanRow) {
+    setError('');
+    setEwayTarget(row);
+    setEwayValue(String(row.eway_bill_number || '').trim());
+  }
+
+  async function saveEwayBill() {
+    if (!ctx || !ewayTarget || ewaySaving) return;
+    const billNumber = ewayValue.trim();
+    if (!/^[0-9]{12}$/.test(billNumber)) {
+      setError('E-way Bill Number must contain exactly 12 digits.');
+      return;
+    }
+    setEwaySaving(true);
+    setError('');
+    try {
+      const { data, error: rpcError } = await supabase.rpc('record_delivery_challan_eway_bill', {
+        p_business_id: ctx.business_id,
+        p_challan_id: ewayTarget.id,
+        p_eway_bill_number: billNumber
+      });
+      if (rpcError) {
+        setError(rpcError.message);
+        return;
+      }
+      const result = data as { success?: boolean; changed?: boolean; challan_number?: string; eway_bill_number?: string };
+      setNotice({
+        text: result.changed === false
+          ? 'E-way Bill ' + billNumber + ' is already recorded for ' + ewayTarget.challan_number + '.'
+          : 'E-way Bill ' + billNumber + ' recorded for ' + (result.challan_number || ewayTarget.challan_number) + '.'
+      });
+      setEwayTarget(null);
+      await load();
+    } catch (saveError) {
+      setError(saveError instanceof Error ? saveError.message : 'Could not record the E-way Bill.');
+    } finally {
+      setEwaySaving(false);
+    }
   }
 
   function askConvert(row: ChallanRow) {
@@ -353,26 +392,18 @@ export default function DeliveryChallans() {
               {isGstRegistered ? (
                 <div className="sm:col-span-2 rounded-xl border border-violet-200 bg-violet-50 p-3">
                   <div className="flex flex-wrap items-center justify-between gap-2">
-                    <div>
+                    <div className="min-w-0">
                       <p className="text-xs font-bold text-violet-900">GST e-Way Bill</p>
-                      <p className="mt-1 text-xs leading-5 text-violet-800">GSTIN verified from this business tax profile. Generate the bill on the official portal (when legally required), then record the returned 12-digit number here.</p>
+                      <p className="mt-1 text-xs leading-5 text-violet-800">GSTIN verified from this business tax profile. Create the challan first so the generated challan number is available, then record the official 12-digit e-way bill from Recent Challans when legally required.</p>
                     </div>
-                    <a href="https://ewaybillgst.gov.in/" target="_blank" rel="noopener noreferrer" className="rounded-lg border border-violet-300 bg-white px-3 py-2 text-xs font-semibold text-violet-800 hover:bg-violet-100">Open official portal ↗</a>
+                    <a href="https://ewaybillgst.gov.in/" target="_blank" rel="noopener noreferrer" className="shrink-0 rounded-lg border border-violet-300 bg-white px-3 py-2 text-xs font-semibold text-violet-800 hover:bg-violet-100">Open official portal ↗</a>
                   </div>
-                  <MMFormInputControl
-                    className="mt-3 w-full rounded-xl border border-violet-200 bg-white p-3 text-sm"
-                    placeholder="12-digit E-way bill number (optional)"
-                    value={eway}
-                    inputMode="numeric"
-                    maxLength={12}
-                    onChange={(e) => setEway(e.target.value.replace(/[^0-9]/g, '').slice(0, 12))}
-                  />
-                  <p className="mt-2 text-[11px] leading-4 text-violet-700">Automatic generation is enabled only after an authorized GSP/API provider has been approved and configured. This field records an existing bill; it does not claim to generate one.</p>
+                  <p className="mt-2 text-[11px] leading-4 text-violet-700">The application records and audits a bill generated on the official portal. Direct government generation/update/cancellation requires a configured authorized GSP/API provider and is not represented as active yet.</p>
                 </div>
               ) : (
                 <div className="sm:col-span-2 rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs leading-5 text-slate-600">
                   <b>e-Way Bill availability</b>
-                  <p className="mt-1">Configure a valid GST registration in Business Settings to show GST e-Way Bill tools. Whether a bill is required depends on the movement, value, and applicable exemptions—not GST registration alone.</p>
+                  <p className="mt-1">Configure a valid GST registration in Business Settings to enable the e-way bill action. Whether a bill is required depends on the movement, value, and applicable exemptions—not GST registration alone.</p>
                 </div>
               )}
             </div>
@@ -483,11 +514,21 @@ export default function DeliveryChallans() {
                       <span className="ml-2 text-xs text-slate-500">
                         {row.customers?.display_name || 'Customer'} · {row.challan_date}
                       </span>
+                      {row.eway_bill_number && <span className="mt-1 block text-[11px] text-violet-700">E-way Bill: {row.eway_bill_number}</span>}
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
                       <span className="rounded-full bg-slate-100 px-2 py-1 text-[10px] font-bold uppercase">
                         {row.status}
                       </span>
+                      {isGstRegistered && row.status !== 'cancelled' && (
+                        <button
+                          type="button"
+                          className="rounded-lg border border-violet-200 bg-violet-50 px-2.5 py-1.5 text-[10px] font-semibold text-violet-700 hover:bg-violet-100"
+                          onClick={() => editEwayBill(row)}
+                        >
+                          {row.eway_bill_number ? 'Update E-way Bill' : 'Record E-way Bill'}
+                        </button>
+                      )}
                       <button
                         type="button"
                         className="rounded-lg border border-violet-200 bg-violet-50 px-2.5 py-1.5 text-[10px] font-semibold text-violet-700 hover:bg-violet-100"
@@ -517,6 +558,37 @@ export default function DeliveryChallans() {
           </section>
         </div>
       </div>
+
+      {ewayTarget && (
+        <div className="fixed inset-0 z-[70] grid place-items-center bg-slate-950/50 p-4" role="dialog" aria-modal="true" aria-labelledby="eway-modal-title">
+          <div className="w-full max-w-lg rounded-2xl border border-slate-200 bg-white p-5 shadow-2xl">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <h2 id="eway-modal-title" className="text-lg font-semibold text-slate-950">{ewayTarget.eway_bill_number ? 'Update E-way Bill' : 'Record E-way Bill'}</h2>
+                <p className="mt-1 text-sm text-slate-600">Delivery Challan <b>{ewayTarget.challan_number}</b> · {ewayTarget.challan_date}</p>
+              </div>
+              <button type="button" className="rounded-lg border px-2 py-1 text-slate-500" onClick={() => setEwayTarget(null)} disabled={ewaySaving} aria-label="Close E-way Bill dialog">×</button>
+            </div>
+            <p className="mt-3 text-xs leading-5 text-slate-600">Generate or retrieve the bill for this exact challan on the official GST portal, then enter its 12-digit number. Saving updates the challan and writes an audit event; it does not itself submit a generation request to the government.</p>
+            <a href="https://ewaybillgst.gov.in/" target="_blank" rel="noopener noreferrer" className="mt-3 inline-flex rounded-lg border border-violet-200 bg-violet-50 px-3 py-2 text-xs font-semibold text-violet-800 hover:bg-violet-100">Open official e-Way Bill portal ↗</a>
+            <label className="mt-4 block text-xs font-semibold text-slate-700" htmlFor="delivery-challan-eway-number">E-way Bill Number</label>
+            <MMFormInputControl
+              id="delivery-challan-eway-number"
+              className="mt-1 w-full rounded-xl border border-slate-200 p-3 text-sm"
+              placeholder="Enter 12-digit bill number"
+              value={ewayValue}
+              inputMode="numeric"
+              maxLength={12}
+              onChange={(e) => setEwayValue(e.target.value.replace(/[^0-9]/g, '').slice(0, 12))}
+              disabled={ewaySaving}
+            />
+            <div className="mt-5 flex justify-end gap-2">
+              <button type="button" className="rounded-xl border px-4 py-2 text-sm" onClick={() => setEwayTarget(null)} disabled={ewaySaving}>Cancel</button>
+              <button type="button" className="rounded-xl bg-violet-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50" onClick={() => void saveEwayBill()} disabled={ewaySaving || !/^[0-9]{12}$/.test(ewayValue.trim())}>{ewaySaving ? 'Saving…' : 'Save E-way Bill'}</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {ctx && (
         <ItemServiceModal
