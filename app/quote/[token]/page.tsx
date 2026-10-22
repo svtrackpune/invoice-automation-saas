@@ -172,7 +172,7 @@ export default function PublicQuotation({params}:{params:Promise<{token:string}>
       </header>
 
       <section className="border-b border-slate-200 px-4 py-4 sm:px-8 print:hidden">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
           <a href={'/api/public-documents/pdf?type=quotation&token='+encodeURIComponent(token)} download={buildDocumentDownloadFilename(quote.business.name || quote.business.legal_name || 'Business', documentFilenameLabel('quotation'), quote.quotation_number || 'Document')} className="inline-flex min-h-11 items-center justify-center rounded-xl border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50">Download Official PDF</a>
           <CopyButton getValue={() => publicDocumentUrlFromToken('quotation',token)} label="Copy customer link" successMessage="Quotation customer link copied to clipboard!" className="inline-flex min-h-11 items-center justify-center rounded-xl border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50" />
           <button type="button" onClick={shareQuotation} className="inline-flex min-h-11 items-center justify-center rounded-xl border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50">Share quotation</button>
