@@ -9,6 +9,7 @@ import { formatMoney } from '@/lib/i18n';
 import ItemServiceModal from '../invoices/new/ItemServiceModal';
 
 type Customer = { id: string; display_name: string };
+type BusinessTaxProfile = { gstin: string | null; tax_regime: string | null; gst_registration_type: string | null };
 type Product = {
   id: string;
   name: string;
@@ -60,6 +61,7 @@ const today = () => new Date().toISOString().slice(0, 10);
 export default function DeliveryChallans() {
   const [ctx, setCtx] = useState<BusinessContext | null>(null);
   const [customers, setCustomers] = useState<Customer[]>([]);
+  const [taxProfile, setTaxProfile] = useState<BusinessTaxProfile | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
   const [locations, setLocations] = useState<Array<{ id: string; name: string; is_default: boolean }>>([]);
   const [rows, setRows] = useState<ChallanRow[]>([]);
@@ -113,7 +115,12 @@ export default function DeliveryChallans() {
         )
         .eq('business_id', b.business_id)
         .order('challan_date', { ascending: false })
-        .limit(50)
+        .limit(50),
+      supabase
+        .from('business_tax_profiles')
+        .select('gstin,tax_regime,gst_registration_type')
+        .eq('business_id', b.business_id)
+        .maybeSingle()
     ]);
 
     if (cu.error) setError(cu.error.message);
@@ -125,6 +132,8 @@ export default function DeliveryChallans() {
     setProducts(pr.data || []);
     setLocations(lo.data || []);
     setRows((dc.data || []) as unknown as ChallanRow[]);
+    setTaxProfile((tax.data || null) as BusinessTaxProfile | null);
+    if (tax.error) setError('Could not verify the business GST profile: ' + tax.error.message);
 
     if (!locationId && lo.data?.length) {
       setLocationId((lo.data.find((x) => x.is_default) || lo.data[0]).id);
@@ -165,6 +174,11 @@ export default function DeliveryChallans() {
     () => lines.reduce((sum, line) => sum + Number(line.quantity || 0) * Number(line.unit_price || 0), 0),
     [lines]
   );
+  const gstin = String(taxProfile?.gstin || '').trim().toUpperCase();
+  const registrationType = String(taxProfile?.gst_registration_type || '').trim().toUpperCase();
+  const isGstRegistered = String(taxProfile?.tax_regime || '').trim().toUpperCase() === 'GST'
+    && ['REGULAR', 'CASUAL', 'NON_RESIDENT', 'SEZ', 'COMPOSITION'].includes(registrationType)
+    && /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][0-9A-Z]Z[0-9A-Z]$/.test(gstin);
 
   function choose(i: number, id: string) {
     const p = products.find((x) => x.id === id);
@@ -195,6 +209,10 @@ export default function DeliveryChallans() {
       return;
     }
 
+    if (eway && !/^[0-9]{12}$/.test(eway)) {
+      setError('An E-way Bill Number must contain exactly 12 digits. Leave it blank until a bill has been generated.');
+      return;
+    }
     setBusy(true);
     setError('');
     const r = await supabase.rpc('create_delivery_challan', {
@@ -336,12 +354,31 @@ export default function DeliveryChallans() {
                 value={vehicle}
                 onChange={(e) => setVehicle(e.target.value)}
               />
-              <MMFormInputControl
-                className="rounded-xl border p-3 text-sm"
-                placeholder="E-way bill number"
-                value={eway}
-                onChange={(e) => setEway(e.target.value)}
-              />
+              {isGstRegistered ? (
+                <div className="sm:col-span-2 rounded-xl border border-violet-200 bg-violet-50 p-3">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div>
+                      <p className="text-xs font-bold text-violet-900">GST e-Way Bill</p>
+                      <p className="mt-1 text-xs leading-5 text-violet-800">GSTIN verified from this business tax profile. Generate the bill on the official portal (when legally required), then record the returned 12-digit number here.</p>
+                    </div>
+                    <a href="https://ewaybillgst.gov.in/" target="_blank" rel="noopener noreferrer" className="rounded-lg border border-violet-300 bg-white px-3 py-2 text-xs font-semibold text-violet-800 hover:bg-violet-100">Open official portal ↗</a>
+                  </div>
+                  <MMFormInputControl
+                    className="mt-3 w-full rounded-xl border border-violet-200 bg-white p-3 text-sm"
+                    placeholder="12-digit E-way bill number (optional)"
+                    value={eway}
+                    inputMode="numeric"
+                    maxLength={12}
+                    onChange={(e) => setEway(e.target.value.replace(/[^0-9]/g, '').slice(0, 12))}
+                  />
+                  <p className="mt-2 text-[11px] leading-4 text-violet-700">Automatic generation is enabled only after an authorized GSP/API provider has been approved and configured. This field records an existing bill; it does not claim to generate one.</p>
+                </div>
+              ) : (
+                <div className="sm:col-span-2 rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs leading-5 text-slate-600">
+                  <b>e-Way Bill availability</b>
+                  <p className="mt-1">Configure a valid GST registration in Business Settings to show GST e-Way Bill tools. Whether a bill is required depends on the movement, value, and applicable exemptions—not GST registration alone.</p>
+                </div>
+              )}
             </div>
 
             <div className="mt-5 space-y-2">
