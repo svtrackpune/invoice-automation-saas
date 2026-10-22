@@ -528,9 +528,6 @@ export default function DeliveryChallans() {
                 </div>
                 <p className="mt-1 text-xs text-slate-500">Dispatch history, e-Way Bill references, and invoice conversion</p>
               </div>
-              <button type="button" className="inline-flex min-h-9 items-center gap-2 rounded-lg border border-violet-200 bg-violet-50 px-3 py-2 text-xs font-semibold text-violet-700 hover:bg-violet-100" onClick={() => { setError(''); setShowChallanModal(true); }}>
-                <span aria-hidden="true">＋</span> New Challan
-              </button>
             </div>
             <div className="mt-1 divide-y divide-slate-100">
               {rows.map((row) => {
@@ -554,7 +551,7 @@ export default function DeliveryChallans() {
                       {isGstRegistered && row.status !== 'cancelled' && (
                         <button
                           type="button"
-                          className="rounded-lg border border-violet-200 bg-violet-50 px-2.5 py-1.5 text-[10px] font-semibold text-violet-700 hover:bg-violet-100"
+                          className="rounded-lg border border-violet-200 bg-violet-50 px-3 py-2 text-xs font-semibold text-violet-700 hover:bg-violet-100"
                           onClick={() => editEwayBill(row)}
                         >
                           {row.eway_bill_number ? 'Update E-way Bill' : 'Record E-way Bill'}
@@ -562,7 +559,7 @@ export default function DeliveryChallans() {
                       )}
                       <button
                         type="button"
-                        className="rounded-lg border border-violet-200 bg-violet-50 px-2.5 py-1.5 text-[10px] font-semibold text-violet-700 hover:bg-violet-100"
+                        className="rounded-lg border border-violet-200 bg-violet-50 px-3 py-2 text-xs font-semibold text-violet-700 hover:bg-violet-100"
                         onClick={() =>
                           (window.location.href =
                             '/next-workspace/documents?type=delivery_challan&id=' + row.id)
@@ -574,7 +571,7 @@ export default function DeliveryChallans() {
                         <button
                           type="button"
                           disabled={convertingId === row.id}
-                          className="rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-1.5 text-[10px] font-semibold text-emerald-700 hover:bg-emerald-100 disabled:opacity-50"
+                          className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-700 hover:bg-emerald-100 disabled:opacity-50"
                           onClick={() => askConvert(row)}
                         >
                           {convertingId === row.id ? 'Converting…' : 'Convert to Tax Invoice'}
