@@ -31,6 +31,21 @@ test('challan popup fits the viewport and item-entry controls cannot force horiz
   assert.match(itemModal, /fixed inset-0 \$\{modalLayerClassName\}/);
 });
 
+test('challan item fields have clear labels, compact responsive cards, and per-line amounts', () => {
+  const page = read('app/next-workspace/delivery-challans/page.tsx');
+  for (const label of ['Items & quantities', 'Product', 'Quantity', 'Rate per unit', 'Batch / serial', 'Line amount', 'Add another item']) {
+    assert.ok(page.includes(label), 'missing polished item field UI: ' + label);
+  }
+  assert.ok(page.includes('aria-label={`Product for item ${i + 1}`}'));
+  assert.ok(page.includes('aria-label={`Quantity for item ${i + 1}`}'));
+  assert.ok(page.includes('aria-label={`Rate per unit for item ${i + 1}`}'));
+  assert.ok(page.includes('aria-label={`Remove item ${i + 1}`}'));
+  assert.ok(page.includes('disabled={lines.length === 1}'), 'last row cannot be removed leaving the form empty');
+  assert.ok(page.includes('lg:grid-cols-[minmax(0,1.8fr)_minmax(100px,.65fr)_minmax(125px,.8fr)_minmax(150px,1fr)]'));
+  assert.ok(page.includes('formatMoney(Number(line.quantity || 0) * Number(line.unit_price || 0)'));
+  assert.ok(!page.includes('md:grid-cols-[1.7fr_.6fr_.8fr_.8fr_32px]'), 'old fixed-width item grid must not return');
+});
+
 test('creating a challan closes the modal and preserves the stock dispatch workflow', () => {
   const page = read('app/next-workspace/delivery-challans/page.tsx');
   const create = page.slice(page.indexOf('async function create()'), page.indexOf('function editEwayBill'));
