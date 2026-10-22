@@ -17,7 +17,7 @@ test('public invoice and quotation use readable card layouts on narrow screens a
     assert.match(source, /mx-auto w-full max-w-4xl min-w-0/, name + ' document shell must shrink to the viewport');
     assert.match(source, /hidden overflow-x-auto[^\n]*sm:block/, name + ' retains the full-width desktop table above the mobile breakpoint');
     assert.match(source, new RegExp('aria-label="' + section + '"'), name + ' must expose a dedicated mobile item list');
-    assert.match(source, /sm:hidden/, name + ' mobile cards must not duplicate the desktop table at larger breakpoints');
+    assert.match(source, /(?:sm|md|lg):hidden/, name + ' mobile cards must not duplicate the desktop table at larger breakpoints');
     for (const label of ['Quantity', 'Rate', 'Amount']) {
       assert.ok(source.includes('>' + label + '</'), name + ' mobile card missing label: ' + label);
     }
@@ -33,7 +33,7 @@ test('public receipt items and invoice allocations are readable without horizont
   assert.match(receipt, /overflow-x-hidden/);
   assert.match(receipt, /min-w-0 rounded-xl/);
   assert.equal((receipt.match(/hidden overflow-x-auto[^\n]*sm:block/g) || []).length, 2, 'both receipt tables should remain desktop-only');
-  assert.equal((receipt.match(/sm:hidden/g) || []).length >= 2, true, 'receipt item and allocation cards should be present for phones');
+  assert.equal((receipt.match(/(?:sm|md|lg):hidden/g) || []).length >= 2, true, 'receipt item and allocation cards should be present for phones');
   for (const label of ['Quantity', 'Amount', 'Invoice Date:', 'Original Amount', 'Amount Applied']) {
     assert.ok(receipt.includes(label), 'receipt mobile content missing: ' + label);
   }
@@ -47,7 +47,7 @@ test('both public delivery-challan URLs render responsive item cards while retai
     assert.match(source, /overflow-x-hidden/);
     assert.match(source, /hidden overflow-x-auto[^\n]*sm:block/);
     assert.match(source, /aria-label="Delivery challan items"/);
-    assert.match(source, /sm:hidden/);
+    assert.match(source, /(?:sm|md|lg):hidden/);
     for (const label of ['Quantity', 'Rate', 'Amount']) {
       assert.ok(source.includes('>' + label + '</'), name + ' mobile card missing label: ' + label);
     }
