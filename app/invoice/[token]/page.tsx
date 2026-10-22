@@ -86,11 +86,11 @@ export default function PublicInvoice({params}:{params:Promise<{token:string}>})
           </div>
           <div className="min-w-0 break-words text-xs text-slate-500 sm:text-sm sm:text-right"><div>Invoice date: {date(canonical?.document.date||invoice.invoice_date)}</div><div>Due date: {date(invoice.due_date)}</div><div className="mt-2 inline-flex rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-slate-700">{invoice.status.replace('_',' ')}</div></div>
         </div>
-        <div className="mt-4 grid gap-1 text-xs text-slate-500">{address(invoice.business.address).map((x,i)=><span key={i}>{x}</span>)}{invoice.business.phone&&<span>{invoice.business.phone}</span>}{invoice.business.email&&<span>{invoice.business.email}</span>}{invoice.business.website&&<span>{invoice.business.website}</span>}{invoice.business.tax_registration_number&&<span>{taxRegime==='GST'?'GSTIN':'Tax ID'}: {invoice.business.tax_registration_number}</span>}</div>
+        <div className="mt-4 grid min-w-0 gap-1 break-words text-xs text-slate-500 [overflow-wrap:anywhere]">{address(invoice.business.address).map((x,i)=><span key={i}>{x}</span>)}{invoice.business.phone&&<span>{invoice.business.phone}</span>}{invoice.business.email&&<span>{invoice.business.email}</span>}{invoice.business.website&&<span>{invoice.business.website}</span>}{invoice.business.tax_registration_number&&<span>{taxRegime==='GST'?'GSTIN':'Tax ID'}: {invoice.business.tax_registration_number}</span>}</div>
       </header>
 
       <section className="grid min-w-0 gap-3 border-b border-slate-200 p-4 sm:grid-cols-2 sm:gap-4 sm:p-8">
-        <div className="min-w-0 rounded-xl border border-slate-200 bg-white p-4">
+        <div className="min-w-0 break-words rounded-xl border border-slate-200 bg-white p-4 [overflow-wrap:anywhere]">
           <p className="text-xs font-extrabold uppercase tracking-[0.16em] text-violet-700">BILL TO</p>
           <h2 className="mt-2 font-semibold text-slate-900">{invoice.customer.legal_name||invoice.customer.display_name}</h2>
           {address(invoice.customer.billing_address).map((x,i)=><p key={i} className="text-sm leading-5 text-slate-600">{x}</p>)}
@@ -160,7 +160,7 @@ export default function PublicInvoice({params}:{params:Promise<{token:string}>})
       </section>
 
       <section className="grid min-w-0 gap-4 p-4 sm:grid-cols-[minmax(0,1fr)_280px] sm:gap-6 sm:p-8">
-        <div className="min-w-0 space-y-4">
+        <div className="min-w-0 space-y-4 [overflow-wrap:anywhere]">
           {paymentBox&&<section className="rounded-xl border border-emerald-200 bg-emerald-50/60 p-4">
             <h3 className="text-xs font-extrabold uppercase tracking-[0.16em] text-emerald-900">{showUpiSettlement&&!showBankSettlement?'SCAN & PAY VIA UPI':showBankSettlement&&!showUpiSettlement?'BANK DETAILS':'PAYMENT SETTLEMENT'}</h3>
             <div className={showBankSettlement&&showUpiSettlement?'mt-3 grid gap-4 sm:grid-cols-2':'mt-3'}>
@@ -185,11 +185,11 @@ export default function PublicInvoice({params}:{params:Promise<{token:string}>})
           <section className="rounded-xl border border-amber-200 bg-amber-50/70 p-4">
             <div>
               <h3 className="text-xs font-extrabold uppercase tracking-[0.16em] text-violet-700">TERMS &amp; CONDITIONS</h3>
-              <p className="mt-2 whitespace-pre-line text-sm leading-5 text-slate-700">{invoice.terms||'—'}</p>
+              <p className="mt-2 break-words whitespace-pre-line text-sm leading-5 text-slate-700 [overflow-wrap:anywhere]">{invoice.terms||'—'}</p>
             </div>
             <div className="mt-4 border-t border-amber-200 pt-3">
               <h3 className="text-xs font-extrabold uppercase tracking-[0.16em] text-violet-700">NOTES</h3>
-              <p className="mt-2 whitespace-pre-line text-sm leading-5 text-slate-700">{invoice.notes||'—'}</p>
+              <p className="mt-2 break-words whitespace-pre-line text-sm leading-5 text-slate-700 [overflow-wrap:anywhere]">{invoice.notes||'—'}</p>
             </div>
           </section>
         </div>
