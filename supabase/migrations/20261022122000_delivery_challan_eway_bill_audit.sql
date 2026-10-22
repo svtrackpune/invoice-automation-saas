@@ -9,12 +9,16 @@ CREATE TABLE IF NOT EXISTS public.delivery_challan_eway_bill_events (
   event_type text NOT NULL CHECK (event_type IN ('manual_recorded', 'manual_updated')),
   previous_eway_bill_number text,
   eway_bill_number text NOT NULL CHECK (eway_bill_number ~ '^[0-9]{12}$'),
-  actor_id uuid NOT NULL REFERENCES auth.users(id),
+  actor_id uuid REFERENCES auth.users(id) ON DELETE SET NULL,
   created_at timestamptz NOT NULL DEFAULT now()
 );
 
 CREATE INDEX IF NOT EXISTS delivery_challan_eway_events_challan_created_idx
   ON public.delivery_challan_eway_bill_events (business_id, challan_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS delivery_challan_eway_events_challan_fk_idx
+  ON public.delivery_challan_eway_bill_events (challan_id);
+CREATE INDEX IF NOT EXISTS delivery_challan_eway_events_actor_fk_idx
+  ON public.delivery_challan_eway_bill_events (actor_id);
 
 ALTER TABLE public.delivery_challan_eway_bill_events ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS delivery_challan_eway_events_view ON public.delivery_challan_eway_bill_events;
@@ -22,9 +26,9 @@ CREATE POLICY delivery_challan_eway_events_view
   ON public.delivery_challan_eway_bill_events
   FOR SELECT TO authenticated
   USING (
-    mm_private.has_business_permission(business_id, 'inventory.view', auth.uid())
-    OR mm_private.has_business_permission(business_id, 'inventory.manage', auth.uid())
-    OR mm_private.has_business_permission(business_id, 'settings.manage', auth.uid())
+    mm_private.has_business_permission(business_id, 'inventory.view', (select auth.uid()))
+    OR mm_private.has_business_permission(business_id, 'inventory.manage', (select auth.uid()))
+    OR mm_private.has_business_permission(business_id, 'settings.manage', (select auth.uid()))
   );
 
 REVOKE ALL ON public.delivery_challan_eway_bill_events FROM PUBLIC, anon, authenticated;
@@ -41,7 +45,7 @@ ALTER TABLE public.delivery_challans
     OR btrim(eway_bill_number) ~ '^[0-9]{12}$'
   );
 
-CREATE OR REPLACE FUNCTION public.record_delivery_challan_eway_bill(
+CREATE OR REPLACE FUNCTION mm_private.record_delivery_challan_eway_bill_internal(
   p_business_id uuid,
   p_challan_id uuid,
   p_eway_bill_number text
@@ -137,6 +141,26 @@ BEGIN
     'eway_bill_number', v_new_number
   );
 END;
+$function$;
+
+REVOKE ALL ON FUNCTION mm_private.record_delivery_challan_eway_bill_internal(uuid, uuid, text) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION mm_private.record_delivery_challan_eway_bill_internal(uuid, uuid, text) TO authenticated;
+
+-- Public PostgREST endpoint runs as invoker; the permission-checked privileged
+-- operation lives in mm_private, which is not the exposed Data API schema.
+CREATE OR REPLACE FUNCTION public.record_delivery_challan_eway_bill(
+  p_business_id uuid,
+  p_challan_id uuid,
+  p_eway_bill_number text
+)
+RETURNS jsonb
+LANGUAGE sql
+SECURITY INVOKER
+SET search_path TO 'public', 'mm_private', 'pg_temp'
+AS $function$
+  SELECT mm_private.record_delivery_challan_eway_bill_internal(
+    p_business_id, p_challan_id, p_eway_bill_number
+  );
 $function$;
 
 REVOKE ALL ON FUNCTION public.record_delivery_challan_eway_bill(uuid, uuid, text) FROM PUBLIC, anon, authenticated;
