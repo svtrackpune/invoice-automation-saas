@@ -43,8 +43,15 @@ test('delivery challan renderer and public PDF paths preserve e-way bill fields'
 
 test('e-way bill recording is permission-checked, tenant-scoped, idempotent, and audited', () => {
   const migration = read('supabase/migrations/20261022122000_delivery_challan_eway_bill_audit.sql');
+  const taxRpcMigration = read('supabase/migrations/20261022120000_delivery_challan_eway_tax_profile_rpc.sql');
   for (const required of [
     'CREATE TABLE IF NOT EXISTS public.delivery_challan_eway_bill_events',
+    'CREATE OR REPLACE FUNCTION mm_private.record_delivery_challan_eway_bill_internal',
+    'CREATE OR REPLACE FUNCTION public.record_delivery_challan_eway_bill',
+    'SECURITY INVOKER',
+    'delivery_challan_eway_events_challan_fk_idx',
+    'delivery_challan_eway_events_actor_fk_idx',
+    '(select auth.uid())',
     'ENABLE ROW LEVEL SECURITY',
     "'inventory.manage'",
     'WHERE dc.id = p_challan_id',
@@ -58,4 +65,7 @@ test('e-way bill recording is permission-checked, tenant-scoped, idempotent, and
     'GRANT EXECUTE ON FUNCTION public.record_delivery_challan_eway_bill(uuid, uuid, text) TO authenticated',
   ]) assert.ok(migration.includes(required), 'missing e-way bill guard: ' + required);
   assert.ok(migration.includes("IF v_challan.eway_bill_number = v_new_number THEN"), 'same-number retries must not create duplicate audit events');
+  assert.ok(migration.includes('FOREIGN KEY (actor_id) REFERENCES auth.users(id) ON DELETE SET NULL'));
+  assert.ok(taxRpcMigration.includes('mm_private.get_delivery_challan_eway_tax_profile_internal'));
+  assert.ok(taxRpcMigration.includes('SECURITY INVOKER'));
 });
