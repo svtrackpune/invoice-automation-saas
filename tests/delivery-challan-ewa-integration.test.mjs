@@ -24,7 +24,12 @@ test('delivery challan e-way bill controls require a valid registered GST profil
   assert.ok(page.includes("^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][0-9A-Z]Z[0-9A-Z]$"), 'GSTIN must be validated before showing GST e-way tools');
   assert.ok(page.includes("https://ewaybillgst.gov.in/"), 'users need the official GST e-way bill portal');
   assert.ok(page.includes('An E-way Bill Number must contain exactly 12 digits.'));
-  assert.ok(page.includes('This field records an existing bill; it does not claim to generate one.'));
+  assert.ok(page.includes('then record the official 12-digit e-way bill from Recent Challans'));
+  assert.ok(page.includes("rpc('record_delivery_challan_eway_bill'"));
+  assert.ok(page.includes('Direct government generation/update/cancellation requires a configured authorized GSP/API provider'));
+  assert.ok(page.includes('Update E-way Bill'));
+  assert.ok(page.includes('E-way Bill: {row.eway_bill_number}'));
+
 });
 
 test('delivery challan renderer and public PDF paths preserve e-way bill fields', () => {
@@ -34,4 +39,23 @@ test('delivery challan renderer and public PDF paths preserve e-way bill fields'
   assert.ok(renderer.includes("'eway_bill_number',dc.eway_bill_number"));
   assert.ok(publicPage.includes('doc.ewayBillNumber'));
   assert.ok(publicTokens.includes('eway_bill_number'));
+});
+
+test('e-way bill recording is permission-checked, tenant-scoped, idempotent, and audited', () => {
+  const migration = read('supabase/migrations/20261022122000_delivery_challan_eway_bill_audit.sql');
+  for (const required of [
+    'CREATE TABLE IF NOT EXISTS public.delivery_challan_eway_bill_events',
+    'ENABLE ROW LEVEL SECURITY',
+    "'inventory.manage'",
+    'WHERE dc.id = p_challan_id',
+    'AND dc.business_id = p_business_id',
+    "'^[0-9]{12}$'",
+    'FOR UPDATE',
+    "'manual_recorded'",
+    "'manual_updated'",
+    'previous_eway_bill_number',
+    'REVOKE ALL ON FUNCTION public.record_delivery_challan_eway_bill',
+    'GRANT EXECUTE ON FUNCTION public.record_delivery_challan_eway_bill(uuid, uuid, text) TO authenticated',
+  ]) assert.ok(migration.includes(required), 'missing e-way bill guard: ' + required);
+  assert.ok(migration.includes("IF v_challan.eway_bill_number = v_new_number THEN"), 'same-number retries must not create duplicate audit events');
 });
