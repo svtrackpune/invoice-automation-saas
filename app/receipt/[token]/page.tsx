@@ -27,9 +27,9 @@ export default async function PublicReceipt({params}:{params:Promise<{token:stri
  const received=canonical.financials.grandTotal;
  const outstanding=receipt?.customerOutstanding??canonical.financials.balanceDue;
  const ledgerCurrency=receipt?.customerOutstandingCurrencyCode||canonical.document.currency;
- return <main className="min-h-screen bg-slate-100 p-4 sm:p-8 print:bg-white print:p-0">
-  <article className="mx-auto max-w-3xl overflow-hidden rounded-2xl bg-white shadow-sm print:max-w-none print:rounded-none print:shadow-none">
-   <header className="border-b border-slate-200 p-6 sm:p-8">
+ return <main className="min-h-screen min-w-0 overflow-x-hidden bg-slate-100 p-2 sm:p-8 print:bg-white print:p-0">
+  <article className="mx-auto w-full max-w-3xl min-w-0 overflow-hidden rounded-xl bg-white shadow-sm sm:rounded-2xl print:max-w-none print:rounded-none print:shadow-none">
+   <header className="min-w-0 border-b border-slate-200 p-4 sm:p-8">
     <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
      <div>
       <p className="text-xs font-extrabold uppercase tracking-[0.18em] text-violet-700">Payment Receipt / Voucher</p>
@@ -46,7 +46,7 @@ export default async function PublicReceipt({params}:{params:Promise<{token:stri
     </div>
    </header>
 
-   <section className="grid gap-4 border-b border-slate-200 p-6 sm:grid-cols-2 sm:p-8">
+   <section className="grid min-w-0 gap-3 border-b border-slate-200 p-4 sm:grid-cols-2 sm:gap-4 sm:p-8">
     <div className="rounded-xl border border-slate-200 p-4">
      <p className="text-xs font-extrabold uppercase tracking-[0.16em] text-violet-700">Received from</p>
      <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
@@ -63,7 +63,7 @@ export default async function PublicReceipt({params}:{params:Promise<{token:stri
     </div>
    </section>
 
-   <section className="px-6 pb-6 sm:px-8">
+   <section className="min-w-0 px-4 pb-5 sm:px-8 sm:pb-6">
     <h2 className="text-xs font-extrabold uppercase tracking-[0.16em] text-violet-700">Payment acknowledgement</h2>
     <div className="mt-3 grid gap-3 sm:grid-cols-2">
      <div className="rounded-lg border border-slate-200 bg-white p-3"><p className="text-xs text-slate-500">Payment Mode</p><p className="mt-1 font-semibold text-slate-900">{receipt?.paymentMethod||'—'}</p></div>
@@ -76,7 +76,7 @@ export default async function PublicReceipt({params}:{params:Promise<{token:stri
      <h2 className="text-xs font-extrabold uppercase tracking-[0.16em] text-violet-700">{allocations.length===1?'Invoice Items':'Allocated Invoice Items'}</h2>
      <span className="text-[10px] font-medium text-slate-400">Reference only — amount received is shown separately</span>
     </div>
-    <div className="overflow-x-auto rounded-lg border border-slate-200">
+    <div className="hidden overflow-x-auto rounded-lg border border-slate-200 sm:block">
      <table className="w-full min-w-[360px] border-collapse text-sm">
       <thead className="bg-[#7c3aed] text-xs uppercase tracking-wider text-white"><tr><th className="p-3 text-left">Item / Description</th><th className="p-3 text-center">Qty</th><th className="p-3 text-right">Amount</th></tr></thead>
       <tbody>{doc.items.map((item,index)=><tr key={(item.name||item.description)+'-'+index} className="border-b border-slate-100">
@@ -86,14 +86,37 @@ export default async function PublicReceipt({params}:{params:Promise<{token:stri
       </tr>)}</tbody>
      </table>
     </div>
+    <div className="mt-3 space-y-2 sm:hidden">
+     {doc.items.map((item,index)=><article key={(item.name||item.description)+'-mobile-'+index} className="min-w-0 rounded-lg border border-slate-200 bg-white p-3">
+      <div className="break-words text-sm font-semibold text-slate-900 [overflow-wrap:anywhere]">{item.name||item.description||'Item'}</div>
+      {item.description&&item.description!==item.name&&<p className="mt-1 whitespace-pre-line break-words text-xs leading-5 text-slate-500">{item.description}</p>}
+      <div className="mt-3 grid grid-cols-2 gap-3 border-t border-slate-100 pt-3 text-xs">
+       <div className="min-w-0"><p className="text-slate-500">Quantity</p><p className="mt-1 break-words font-semibold text-slate-800">{item.quantity}{item.unit?' '+item.unit:''}</p></div>
+       <div className="col-span-2 flex min-w-0 items-start justify-between gap-3 rounded-lg bg-violet-50 px-3 py-2">
+        <span className="shrink-0 font-semibold text-violet-900">Amount</span>
+        <span className="min-w-0 break-words text-right font-extrabold tabular-nums text-slate-900 [overflow-wrap:anywhere]">{money(item.lineTotal,canonical.document.currency)}</span>
+       </div>
+      </div>
+     </article>)}
+    </div>
    </section>}
    <section className="px-6 pb-6 sm:px-8">
     <h2 className="text-xs font-extrabold uppercase tracking-[0.16em] text-violet-700">Invoice Allocation</h2>
-    <div className="mt-3 overflow-x-auto rounded-lg border border-slate-200">
+    <div className="mt-3 hidden overflow-x-auto rounded-lg border border-slate-200 sm:block">
      <table className="w-full min-w-[560px] border-collapse text-sm">
       <thead className="bg-[#7c3aed] text-xs uppercase tracking-wider text-white"><tr><th className="p-3 text-left">Invoice No.</th><th className="p-3 text-left">Invoice Date</th><th className="p-3 text-right">Original Amount</th><th className="p-3 text-right">Amount Applied</th></tr></thead>
       <tbody>{allocations.length?allocations.map((row,i)=><tr key={row.invoiceNumber+'-'+i} className="border-b border-slate-100"><td className="p-3 font-medium text-slate-900">{row.invoiceNumber}</td><td className="p-3 text-slate-600">{dateLabel(row.invoiceDate)}</td><td className="p-3 text-right tabular-nums">{money(row.totalDue,canonical.document.currency)}</td><td className="p-3 text-right font-semibold tabular-nums">{money(row.amountApplied,canonical.document.currency)}</td></tr>):<tr><td colSpan={4} className="p-4 text-center text-sm text-slate-500">No invoice allocations are linked to this receipt.</td></tr>}</tbody>
      </table>
+    </div>
+    <div className="mt-3 space-y-2 sm:hidden">
+     {allocations.length?allocations.map((row,i)=><article key={row.invoiceNumber+'-mobile-'+i} className="min-w-0 rounded-lg border border-slate-200 bg-white p-3">
+      <h3 className="break-words text-sm font-semibold text-slate-900 [overflow-wrap:anywhere]">{row.invoiceNumber}</h3>
+      <p className="mt-1 text-xs text-slate-500">Invoice Date: {dateLabel(row.invoiceDate)}</p>
+      <div className="mt-3 grid grid-cols-2 gap-3 border-t border-slate-100 pt-3 text-xs">
+       <div className="min-w-0"><p className="text-slate-500">Original Amount</p><p className="mt-1 break-words font-semibold tabular-nums">{money(row.totalDue,canonical.document.currency)}</p></div>
+       <div className="min-w-0"><p className="text-slate-500">Amount Applied</p><p className="mt-1 break-words font-extrabold tabular-nums text-emerald-700">{money(row.amountApplied,canonical.document.currency)}</p></div>
+      </div>
+     </article>):<p className="rounded-lg border border-slate-200 p-3 text-sm text-slate-500">No invoice allocations are linked to this receipt.</p>}
     </div>
    </section>
 
@@ -104,11 +127,11 @@ export default async function PublicReceipt({params}:{params:Promise<{token:stri
     </div>
    </section>
 
-   <section className="px-6 pb-6 sm:px-8 print:hidden">
+   <section className="min-w-0 px-4 pb-5 sm:px-8 sm:pb-6 print:hidden">
     <a href={pdf} download={buildDocumentDownloadFilename(doc.business.name || doc.business.legalName || 'Business', documentFilenameLabel('receipt'), canonical.document.number || doc.number || 'Document')} className="inline-flex w-full items-center justify-center rounded-xl bg-violet-600 px-5 py-4 font-semibold text-white hover:bg-violet-700 sm:w-auto">Download Official PDF</a>
     <p className="mt-3 text-xs text-slate-500">This receipt link is time-limited and can be revoked by the business.</p>
    </section>
-   <footer className="border-t border-slate-200 bg-slate-50 px-6 py-5 text-center text-xs text-slate-500">
+   <footer className="break-words border-t border-slate-200 bg-slate-50 px-4 py-5 text-center text-xs text-slate-500 sm:px-6">
     <p className="font-medium text-slate-600">This is a computer-generated payment receipt and does not require signature.</p>
     <div className="mt-3 flex flex-wrap items-center justify-center gap-x-2 gap-y-1 border-t border-slate-200 pt-3">
      <Image src="/moneymatters-pdf.png" alt="" aria-hidden width={16} height={16} unoptimized className="shrink-0 object-contain" />
