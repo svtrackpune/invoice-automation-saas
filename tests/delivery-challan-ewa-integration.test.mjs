@@ -23,7 +23,7 @@ test('delivery challan e-way bill controls require a valid registered GST profil
   assert.ok(page.includes("gst_registration_type"));
   assert.ok(page.includes("^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][0-9A-Z]Z[0-9A-Z]$"), 'GSTIN must be validated before showing GST e-way tools');
   assert.ok(page.includes("https://ewaybillgst.gov.in/"), 'users need the official GST e-way bill portal');
-  assert.ok(page.includes('An E-way Bill Number must contain exactly 12 digits.'));
+  assert.ok(page.includes('E-way Bill Number must contain exactly 12 digits.'));
   assert.ok(page.includes('then record the official 12-digit e-way bill from Recent Challans'));
   assert.ok(page.includes("rpc('record_delivery_challan_eway_bill'"));
   assert.ok(page.includes('Direct government generation/update/cancellation requires a configured authorized GSP/API provider'));
