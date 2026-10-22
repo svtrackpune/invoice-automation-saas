@@ -394,7 +394,7 @@ export default function DeliveryChallans() {
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <div className="min-w-0">
                       <p className="text-xs font-bold text-violet-900">GST e-Way Bill</p>
-                      <p className="mt-1 text-xs leading-5 text-violet-800">GSTIN verified from this business tax profile. Create the challan first so the generated challan number is available, then record the official 12-digit e-way bill from Recent Challans when legally required.</p>
+                      <p className="mt-1 text-xs leading-5 text-violet-800">GST registration and GSTIN format are present in this business tax profile. Create the challan first so the generated challan number is available, then record the official 12-digit e-way bill from Recent Challans when legally required.</p>
                     </div>
                     <a href="https://ewaybillgst.gov.in/" target="_blank" rel="noopener noreferrer" className="shrink-0 rounded-lg border border-violet-300 bg-white px-3 py-2 text-xs font-semibold text-violet-800 hover:bg-violet-100">Open official portal ↗</a>
                   </div>
@@ -569,7 +569,8 @@ export default function DeliveryChallans() {
               </div>
               <button type="button" className="rounded-lg border px-2 py-1 text-slate-500" onClick={() => setEwayTarget(null)} disabled={ewaySaving} aria-label="Close E-way Bill dialog">×</button>
             </div>
-            <p className="mt-3 text-xs leading-5 text-slate-600">Generate or retrieve the bill for this exact challan on the official GST portal, then enter its 12-digit number. Saving updates the challan and writes an audit event; it does not itself submit a generation request to the government.</p>
+            <p className="mt-3 text-xs leading-5 text-slate-600">Generate or retrieve the bill for this exact challan on the official GST portal, then enter its 12-digit number. Saving updates the number stored in Money Matters and writes an audit event; it does not submit a generation request.</p>
+            {ewayTarget.eway_bill_number && <p className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs leading-5 text-amber-900">Changing this number does not update or cancel the previous bill on the government portal. Complete any required official update or cancellation first.</p>}
             <a href="https://ewaybillgst.gov.in/" target="_blank" rel="noopener noreferrer" className="mt-3 inline-flex rounded-lg border border-violet-200 bg-violet-50 px-3 py-2 text-xs font-semibold text-violet-800 hover:bg-violet-100">Open official e-Way Bill portal ↗</a>
             {error && <p role="alert" className="mt-3 rounded-lg border border-rose-200 bg-rose-50 p-3 text-xs leading-5 text-rose-800">{error}</p>}
             <label className="mt-4 block text-xs font-semibold text-slate-700" htmlFor="delivery-challan-eway-number">E-way Bill Number</label>
