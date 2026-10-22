@@ -13,6 +13,15 @@ CREATE TABLE IF NOT EXISTS public.delivery_challan_eway_bill_events (
   created_at timestamptz NOT NULL DEFAULT now()
 );
 
+-- Make account deletion non-blocking while retaining the immutable dispatch event.
+ALTER TABLE public.delivery_challan_eway_bill_events
+  ALTER COLUMN actor_id DROP NOT NULL;
+ALTER TABLE public.delivery_challan_eway_bill_events
+  DROP CONSTRAINT IF EXISTS delivery_challan_eway_bill_events_actor_id_fkey;
+ALTER TABLE public.delivery_challan_eway_bill_events
+  ADD CONSTRAINT delivery_challan_eway_bill_events_actor_id_fkey
+  FOREIGN KEY (actor_id) REFERENCES auth.users(id) ON DELETE SET NULL;
+
 CREATE INDEX IF NOT EXISTS delivery_challan_eway_events_challan_created_idx
   ON public.delivery_challan_eway_bill_events (business_id, challan_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS delivery_challan_eway_events_challan_fk_idx
