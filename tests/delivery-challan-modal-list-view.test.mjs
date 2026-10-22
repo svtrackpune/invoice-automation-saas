@@ -18,6 +18,19 @@ test('delivery challan creation is opened in a modal while recent challans occup
   assert.match(page, /Record E-way Bill/);
 });
 
+test('challan popup fits the viewport and item-entry controls cannot force horizontal overflow', () => {
+  const page = read('app/next-workspace/delivery-challans/page.tsx');
+  const itemModal = read('app/next-workspace/invoices/new/ItemServiceModal.tsx');
+  assert.match(page, /fixed inset-0 z-\[60\][^"]*overflow-x-hidden overflow-y-auto/);
+  assert.match(page, /max-h-\[calc\(100dvh-2rem\)\] w-\[calc\(100vw-1\.5rem\)\] max-w-5xl min-w-0 overflow-x-hidden overflow-y-auto/);
+  assert.match(page, /sm:grid-cols-2 lg:grid-cols-\[minmax\(0,1\.7fr\)_minmax\(75px,\.6fr\)_minmax\(90px,\.8fr\)_minmax\(120px,\.9fr\)_36px\]/);
+  assert.doesNotMatch(page, /md:grid-cols-\[1\.7fr_\.6fr_\.8fr_\.8fr_32px\]/);
+  assert.match(page, /sticky bottom-0 z-10[^"]*sm:flex-row/);
+  assert.match(page, /modalLayerClassName="z-\[80\]"/);
+  assert.match(itemModal, /modalLayerClassName='z-50'/);
+  assert.match(itemModal, /fixed inset-0 \$\{modalLayerClassName\}/);
+});
+
 test('creating a challan closes the modal and preserves the stock dispatch workflow', () => {
   const page = read('app/next-workspace/delivery-challans/page.tsx');
   const create = page.slice(page.indexOf('async function create()'), page.indexOf('function editEwayBill'));
