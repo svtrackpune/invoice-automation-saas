@@ -10,7 +10,7 @@ test('Google and Facebook OAuth use the callback route and email is the only req
   assert.match(auth, /Continue with Google/);
   assert.match(auth, /Continue with Facebook/);
   assert.match(auth, /signInWithOAuth/);
-  assert.match(auth, /\/auth\/callback\?next=\/next-workspace/);
+  assert.match(auth, /auth\/callback\?next=' \+ encodeURIComponent\(requestedLandingPath\(\)\)/);
   assert.match(auth, /access_type:'offline',prompt:'consent'/);
   assert.match(callback, /searchParams\.get\('code'\)/);
   assert.match(callback, /target\.searchParams\.set\('code', code\)/);
@@ -25,9 +25,9 @@ test('signup validates Indian mobile numbers as metadata and password recovery u
   assert.match(auth, /phoneValidationError\('IN',phone\)/);
   assert.match(auth, /\^\[6-9\]\\d\{9\}\$/);
   assert.match(auth, /phoneValue=.*91/);
-  assert.match(auth, /href="\/auth\/forgot-password"/);
+  assert.match(auth, /auth\/forgot-password/);
   assert.match(forgot, /resetPasswordForEmail/);
-  assert.match(forgot, /redirectTo: window\.location\.origin \+ '\/'/);
+  assert.match(forgot, /redirectTo: window\.location\.origin \+ '\/\?next=' \+ encodeURIComponent\(nextPath\)/);
   assert.match(auth, /PASSWORD_RECOVERY/);
   assert.match(auth, /supabase\.auth\.updateUser\(\{password\}\)/);
 });
