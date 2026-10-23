@@ -23,7 +23,7 @@ test('challan popup fits the viewport and item-entry controls cannot force horiz
   const itemModal = read('app/next-workspace/invoices/new/ItemServiceModal.tsx');
   assert.match(page, /fixed inset-0 z-\[60\][^"]*overflow-x-hidden overflow-y-auto/);
   assert.match(page, /max-h-\[calc\(100dvh-2rem\)\] w-\[calc\(100vw-1\.5rem\)\] max-w-5xl min-w-0 overflow-x-hidden overflow-y-auto/);
-  assert.match(page, /sm:grid-cols-2 lg:grid-cols-\[minmax\(0,1\.7fr\)_minmax\(75px,\.6fr\)_minmax\(90px,\.8fr\)_minmax\(120px,\.9fr\)_36px\]/);
+  assert.match(page, /sm:grid-cols-2 sm:p-4 lg:grid-cols-\[minmax\(0,1\.8fr\)_minmax\(100px,\.65fr\)_minmax\(125px,\.8fr\)_minmax\(150px,1fr\)\]/);
   assert.doesNotMatch(page, /md:grid-cols-\[1\.7fr_\.6fr_\.8fr_\.8fr_32px\]/);
   assert.match(page, /sticky bottom-0 z-10[^"]*sm:flex-row/);
   assert.match(page, /modalLayerClassName="z-\[80\]"/);
@@ -47,7 +47,7 @@ test('dispatch fields have a balanced labeled layout without changing their bind
   assert.ok(start >= 0 && end > start, 'dispatch field section must be identifiable');
   const fields = page.slice(start, end);
   for (const label of ['Customer', 'Challan date', 'Stock location', 'Transporter', 'Vehicle number']) {
-    assert.ok(fields.includes('>' + label + ' ' ) || fields.includes('>' + label + '<'), 'missing visible dispatch label: ' + label);
+    assert.ok(fields.includes(label + ' <span'), 'missing visible dispatch label: ' + label);
   }
   assert.ok(fields.includes('md:grid-cols-2'), 'customer/date and location/transporter should align as paired columns');
   assert.ok(fields.includes('md:col-span-2'), 'vehicle field and e-way bill guidance must use the full grid row');

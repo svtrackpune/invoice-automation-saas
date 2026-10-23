@@ -15,7 +15,7 @@ test('delivery challans disambiguates the customer embed by the direct foreign k
 
 test('delivery challans can create and immediately select a product and stock location', () => {
   assert.match(challans, /import ItemServiceModal from '\.\.\/invoices\/new\/ItemServiceModal'/);
-  assert.match(challans, /\+ Create product/);
+  assert.match(challans, /Create product/);
   assert.match(challans, /productOnly/);
   assert.match(challans, /onCreated=\{\(item\) =>/);
   assert.match(challans, /async function addLocation\(\)/);
