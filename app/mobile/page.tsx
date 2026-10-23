@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import Image from 'next/image';
+import Link from 'next/link';
 import { supabase, type BusinessContext } from '@/lib/supabase';
 import { FinOpsIcon, type FinOpsIconName } from '@/components/ui/finops/FinOpsPrimitives';
 import { MobileBottomNav, type MobileTab } from '@/components/mobile/MobileBottomNav';
@@ -383,11 +384,11 @@ export default function MobileHomePage() {
           <div className="mt-3 overflow-hidden rounded-2xl border border-slate-200 bg-white">
             {dataLoading ? <div className="space-y-3 p-4">{[1,2,3].map((n) => <div key={n} className="h-10 animate-pulse rounded-lg bg-slate-100" />)}</div>
               : filteredCustomers.length ? <div className="divide-y divide-slate-100">
-                {filteredCustomers.slice(0, 35).map((customer) => <a key={customer.id} href={'/next-workspace/customers/' + encodeURIComponent(customer.id)} className="flex min-h-14 items-center gap-3 px-3 py-3">
+                {filteredCustomers.slice(0, 35).map((customer) => <Link key={customer.id} href={'/next-workspace/customers/' + encodeURIComponent(customer.id)} className="flex min-h-14 items-center gap-3 px-3 py-3">
                   <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-violet-50 text-xs font-bold text-violet-700">{customer.display_name.slice(0, 1).toUpperCase() || 'C'}</span>
                   <span className="min-w-0 flex-1 truncate text-sm font-semibold text-slate-800">{customer.display_name}</span>
                   <FinOpsIcon name="chevron" className="h-4 w-4 shrink-0 text-slate-300" />
-                </a>)}
+                </Link>)}
               </div>
               : <p className="p-5 text-center text-sm text-slate-500">{customerSearch.trim() ? 'No matching customers.' : 'No customers yet. Add your first customer to get started.'}</p>}
           </div>
