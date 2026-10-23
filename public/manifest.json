@@ -2,7 +2,7 @@
   "name": "Money Matters FinOps — Business finance, simplified",
   "short_name": "Money Matters",
   "description": "Invoices, customers, expenses, inventory, payments and accounting in one intelligent workspace.",
-  "start_url": "/",
+  "start_url": "/mobile?app=android",
   "scope": "/",
   "display": "standalone",
   "background_color": "#f8fafc",
@@ -24,9 +24,9 @@
   ],
   "shortcuts": [
     {
-      "name": "Cash Bill",
-      "short_name": "Cash Bill",
-      "url": "/next-workspace/cash-bill",
+      "name": "Sales & Billing",
+      "short_name": "Sales",
+      "url": "/mobile?tab=sales",
       "icons": [
         {
           "src": "/moneymatters-192.png",
