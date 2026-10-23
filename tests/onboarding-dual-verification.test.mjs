@@ -40,7 +40,7 @@ test('password recovery sends email and updates the password from the recovery s
   const auth = await read('app/page.tsx');
   const forgot = await read('app/auth/forgot-password/page.tsx');
   assert.match(forgot, /resetPasswordForEmail\(normalizedEmail/);
-  assert.match(forgot, /redirectTo: window\.location\.origin \+ '\/'/);
+  assert.match(forgot, /redirectTo: window\.location\.origin \+ '\/\?next=' \+ encodeURIComponent\(nextPath\)/);
   assert.match(auth, /window\.location\.hash\.includes\('type=recovery'\)/);
   assert.match(auth, /event==='PASSWORD_RECOVERY'/);
   assert.match(auth, /supabase\.auth\.updateUser\(\{password\}\)/);
