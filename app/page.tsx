@@ -16,6 +16,20 @@ const COUNTRIES = [
 type AuthMode = 'signin' | 'signup';
 type OAuthProvider = 'google' | 'facebook';
 
+function requestedLandingPath(): '/mobile' | '/next-workspace' {
+  if (typeof window === 'undefined') return '/next-workspace';
+  const params = new URLSearchParams(window.location.search);
+  return params.get('oauth_next') === '/mobile' || params.get('next') === '/mobile' ? '/mobile' : '/next-workspace';
+}
+
+function onboardingLandingPath(): string {
+  return requestedLandingPath() === '/mobile' ? '/onboarding?next=%2Fmobile' : '/onboarding';
+}
+
+function emailConfirmationRedirect(origin: string): string {
+  return origin + '/?next=' + encodeURIComponent(requestedLandingPath());
+}
+
 function Field({label,children}:{label:string;children:React.ReactNode}) {
   return <label className="block"><span className="mb-1.5 block text-xs font-semibold text-slate-600">{label}</span>{children}</label>;
 }
@@ -73,7 +87,7 @@ function Auth({onReady}:{onReady:()=>void}) {
           email:normalizedEmail,
           password,
           options:{
-            emailRedirectTo:`${window.location.origin}/`,
+            emailRedirectTo:emailConfirmationRedirect(window.location.origin),
             data:{display_name:name.trim(),phone:phoneValue,mobile_number:digits,country_code:'IN'},
           },
         });
@@ -107,7 +121,7 @@ function Auth({onReady}:{onReady:()=>void}) {
       const result=await supabase.auth.signInWithOAuth({
         provider,
         options:{
-          redirectTo:`${origin}/auth/callback?next=/next-workspace`,
+          redirectTo:origin + '/auth/callback?next=' + encodeURIComponent(requestedLandingPath()),
           ...(provider==='google' ? {queryParams:{access_type:'offline',prompt:'consent'}} : {}),
         },
       });
@@ -125,7 +139,7 @@ function Auth({onReady}:{onReady:()=>void}) {
     if(!email.trim()) { setError('Enter your email address first.'); return; }
     setBusy(true);setError('');setNotice('');
     try {
-      const result=await supabase.auth.resend({type:'signup',email:email.trim().toLowerCase(),options:{emailRedirectTo:`${window.location.origin}/`}});
+      const result=await supabase.auth.resend({type:'signup',email:email.trim().toLowerCase(),options:{emailRedirectTo:emailConfirmationRedirect(window.location.origin)}});
       if(result.error) { setError(result.error.message); return; }
       setNotice('Confirmation email sent. Check your inbox and spam folder.');
     } catch(cause) {
@@ -193,7 +207,7 @@ function Auth({onReady}:{onReady:()=>void}) {
           <div className="mt-6"><Button disabled={busy} onClick={submit}>{busy?'Please wait…':mode==='signup'?'Create account':'Sign in'}</Button></div>
           {emailConfirmationPending&&mode==='signin'&&<button type="button" disabled={busy||!email.trim()} onClick={resendConfirmation} className="mt-4 text-sm font-semibold text-violet-700 underline disabled:opacity-50">Resend confirmation email</button>}
           <div className="mt-5 flex flex-wrap gap-x-5 gap-y-2 text-sm font-semibold text-slate-500">
-            {mode==='signin'&&<><button type="button" onClick={()=>{setMode('signup');setError('');setNotice('');setEmailConfirmationPending(false)}} className="hover:text-violet-700">Don’t have an account? Create one</button><a href="/auth/forgot-password" className="hover:text-violet-700">Forgot password?</a></>}
+            {mode==='signin'&&<><button type="button" onClick={()=>{setMode('signup');setError('');setNotice('');setEmailConfirmationPending(false)}} className="hover:text-violet-700">Don’t have an account? Create one</button><a href={requestedLandingPath() === '/mobile' ? '/auth/forgot-password?next=%2Fmobile' : '/auth/forgot-password'} className="hover:text-violet-700">Forgot password?</a></>}
             {mode==='signup'&&<button type="button" onClick={()=>{setMode('signin');setError('');setNotice('')}} className="hover:text-violet-700">Already have an account? Sign in</button>}
           </div>
         </div></div>
@@ -208,7 +222,7 @@ function EmailVerificationGate({user,onSignOut}:{user:User;onSignOut:()=>void|Pr
     if(!user.email) { setError('This account has no email address. Sign out and use an email-based account.'); return; }
     setBusy(true);setError('');setNotice('');
     try {
-      const result=await supabase.auth.resend({type:'signup',email:user.email,options:{emailRedirectTo:window.location.origin+'/'}});
+      const result=await supabase.auth.resend({type:'signup',email:user.email,options:{emailRedirectTo:emailConfirmationRedirect(window.location.origin)}});
       if(result.error) { setError(result.error.message); return; }
       setNotice('Confirmation email sent. Open the link in that message, then return here.');
     } catch(cause) {
@@ -348,12 +362,12 @@ export default function Page() {
 
   useEffect(()=>{
     if(!isPasswordRecovery&&!loading&&session&&hasBusiness!==null&&!pageError&&!needsPhoneCapture&&!needsEmailVerification) {
-      window.location.replace(hasBusiness?'/next-workspace':'/onboarding');
+      window.location.replace(hasBusiness ? requestedLandingPath() : onboardingLandingPath());
     }
   },[isPasswordRecovery,loading,session,hasBusiness,pageError,needsPhoneCapture,needsEmailVerification]);
 
   const returnToSignIn=()=>{
-    window.history.replaceState({},document.title,window.location.pathname);
+    window.history.replaceState({},document.title,window.location.pathname + (requestedLandingPath() === '/mobile' ? '?next=%2Fmobile' : ''));
     setIsPasswordRecovery(false);
     setPageError('');
   };
@@ -361,7 +375,7 @@ export default function Page() {
   if(loading)return <div className="grid min-h-screen place-items-center bg-[#fbfaff] text-sm text-slate-500">Loading Moneymatters…</div>;
   if(isPasswordRecovery)return <PasswordRecoveryGate onBack={returnToSignIn}/>;
   if(session&&verificationUser&&needsEmailVerification)return <EmailVerificationGate user={verificationUser} onSignOut={async()=>{await supabase.auth.signOut();await check(null)}}/>;
-  if(session&&needsPhoneCapture)return <PhoneProfileCapture user={session.user} onContinue={async()=>{setNeedsPhoneCapture(false);window.location.replace('/onboarding')}}/>;
+  if(session&&needsPhoneCapture)return <PhoneProfileCapture user={session.user} onContinue={async()=>{setNeedsPhoneCapture(false);window.location.replace(onboardingLandingPath())}}/>;
   if(pageError&&session)return <main className="grid min-h-screen place-items-center bg-[#fbfaff] p-5"><section className="max-w-lg rounded-2xl border border-rose-100 bg-white p-6"><h1 className="text-lg font-semibold">Unable to open your workspace</h1><p role="alert" className="mt-2 text-sm text-rose-700">{pageError}</p><button type="button" onClick={()=>supabase.auth.getSession().then(({data})=>check(data.session))} className="mt-4 rounded-xl bg-violet-600 px-4 py-2 text-sm font-semibold text-white">Retry</button></section></main>;
   if(!session)return <Auth onReady={()=>supabase.auth.getSession().then(({data})=>check(data.session))}/>;
   return <div className="grid min-h-screen place-items-center bg-[#fbfaff] text-sm text-slate-500">{hasBusiness?'Opening your workspace…':'Preparing your business setup…'}</div>;
