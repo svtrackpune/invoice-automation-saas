@@ -14,6 +14,7 @@ import { buildAdaptiveCreateRoutes } from '@/lib/adaptive-navigation';
 import { canAccessRoute, canShowCreateMenu } from '@/lib/rbac';
 import { FinOpsIcon, FinOpsPrimaryButton, FinOpsSecondaryButton } from '@/components/ui/finops/FinOpsPrimitives';
 import HeaderNotifications from '@/components/layout/HeaderNotifications';
+import { MobileBottomNav, type MobileTab } from '@/components/mobile/MobileBottomNav';
 
 type NavItem = { label: string; href: string; icon: Parameters<typeof FinOpsIcon>[0]['name']; always?: boolean };
 type NavGroup = { id: string; name: string; items: NavItem[] };
@@ -363,14 +364,62 @@ function WorkspaceChrome({ children, businesses, activeBusinessId, setActiveBusi
   </div>;
 }
 
+function MobileWorkspaceChrome({ children, businesses, activeBusinessId, setActiveBusinessId, userName }: {
+  children: ReactNode;
+  businesses: BusinessContext[];
+  activeBusinessId: string;
+  setActiveBusinessId: (id: string) => void;
+  userName: string;
+}) {
+  const pathname = usePathname();
+  let activeTab: MobileTab = 'more';
+  if (pathname === '/mobile' || pathname === '/next-workspace') activeTab = 'home';
+  else if (pathname.startsWith('/next-workspace/customers')) activeTab = 'customers';
+  else if (/\/(cash-bill|invoices|quotations|quotation|receipts|payments|delivery-challans|documents)(\/|$)/.test(pathname)) activeTab = 'sales';
+  const activeBusiness = businesses.find((business) => business.business_id === activeBusinessId);
+
+  return (
+    <div className="min-h-screen bg-[#F7F7FC] text-slate-900" style={{ paddingBottom: 'calc(84px + env(safe-area-inset-bottom))' }}>
+      <header className="sticky top-0 z-40 border-b border-slate-200 bg-white/95 px-3 py-2.5 backdrop-blur">
+        <div className="mx-auto flex max-w-xl items-center gap-2.5">
+          <a href="/mobile" aria-label="Money Matters home" className="flex min-w-0 flex-1 items-center gap-2.5">
+            <Image src="/moneymatters-192.png" alt="" width={34} height={34} unoptimized className="shrink-0 rounded-xl object-contain" />
+            <span className="min-w-0">
+              <span className="block truncate text-sm font-bold text-slate-950">Money Matters</span>
+              <span className="block truncate text-[10px] text-slate-500">{activeBusiness?.business_name || 'Your business'}</span>
+            </span>
+          </a>
+          {businesses.length > 1 ? (
+            <select aria-label="Active business" value={activeBusinessId} onChange={(event) => {
+              const id = event.target.value;
+              localStorage.setItem('moneymatters.activeBusinessId', id);
+              setActiveBusinessId(id);
+              window.location.reload();
+            }} className="max-w-[120px] rounded-lg border border-slate-200 bg-white px-2 py-2 text-[11px] font-semibold text-slate-700">
+              {businesses.map((business) => <option key={business.business_id} value={business.business_id}>{business.business_name}</option>)}
+            </select>
+          ) : null}
+          <a href="/mobile?tab=more" aria-label="Profile and more options" className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-violet-50 text-[11px] font-bold text-violet-700">
+            {(userName || 'A').slice(0, 2).toUpperCase()}
+          </a>
+        </div>
+      </header>
+      <main className="min-w-0">{children}</main>
+      <MobileBottomNav activeTab={activeTab} />
+    </div>
+  );
+}
+
 export default function WorkspaceLayout({ children }: { children: ReactNode }) {
   const [userName, setUserName] = useState('Account');
   const [businesses, setBusinesses] = useState<BusinessContext[]>([]);
   const [activeBusinessId, setActiveBusinessId] = useState('');
   const [cashBillEnabled, setCashBillEnabled] = useState(false);
   const [locale, setLocale] = useState<SupportedLocale>('en-IN');
+  const [simpleMobileAppMode, setSimpleMobileAppMode] = useState(false);
 
   useEffect(() => {
+    setSimpleMobileAppMode(localStorage.getItem('moneymatters.simpleMobileAppMode') === '1');
     (async () => {
       const [{ data: user }, context] = await Promise.all([supabase.auth.getUser(), supabase.rpc('get_my_business_context')]);
       setUserName(user.user?.user_metadata?.display_name || user.user?.email?.split('@')[0] || 'Account');
@@ -392,5 +441,5 @@ export default function WorkspaceLayout({ children }: { children: ReactNode }) {
   }, []);
 
   if (!activeBusinessId) return <div className="grid min-h-screen place-items-center bg-slate-50 text-sm text-slate-500">Loading workspace…</div>;
-  return <LocaleProvider initialLocale={locale}><BusinessConfigProvider businessId={activeBusinessId}><WorkspaceChrome businesses={businesses} activeBusinessId={activeBusinessId} setActiveBusinessId={setActiveBusinessId} userName={userName} cashBillEnabled={cashBillEnabled}>{children}</WorkspaceChrome></BusinessConfigProvider></LocaleProvider>;
+  return <LocaleProvider initialLocale={locale}><BusinessConfigProvider businessId={activeBusinessId}>{simpleMobileAppMode ? <MobileWorkspaceChrome businesses={businesses} activeBusinessId={activeBusinessId} setActiveBusinessId={setActiveBusinessId} userName={userName}>{children}</MobileWorkspaceChrome> : <WorkspaceChrome businesses={businesses} activeBusinessId={activeBusinessId} setActiveBusinessId={setActiveBusinessId} userName={userName} cashBillEnabled={cashBillEnabled}>{children}</WorkspaceChrome>}</BusinessConfigProvider></LocaleProvider>;
 }
