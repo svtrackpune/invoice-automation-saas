@@ -375,7 +375,7 @@ export default function MobileHomePage() {
               <p className="text-[11px] font-bold uppercase tracking-[.14em] text-violet-700">Customers</p>
               <h1 className="mt-1 text-2xl font-bold text-slate-950">Your customers</h1>
             </div>
-            <a href="/next-workspace/customers" className="inline-flex min-h-10 items-center gap-1 rounded-xl bg-violet-600 px-3 py-2 text-xs font-bold text-white"><FinOpsIcon name="plus" className="h-4 w-4" />Add</a>
+            <Link href="/next-workspace/customers" className="inline-flex min-h-10 items-center gap-1 rounded-xl bg-violet-600 px-3 py-2 text-xs font-bold text-white"><FinOpsIcon name="plus" className="h-4 w-4" />Add</Link>
           </div>
           <label className="mt-4 flex min-h-12 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 shadow-sm focus-within:border-violet-400 focus-within:ring-2 focus-within:ring-violet-100">
             <FinOpsIcon name="search" className="h-4 w-4 shrink-0 text-slate-400" />
