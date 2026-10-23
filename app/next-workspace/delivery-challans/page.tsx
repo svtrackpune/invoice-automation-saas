@@ -350,62 +350,91 @@ export default function DeliveryChallans() {
                   <button type="button" aria-label="Close new delivery challan" className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-white text-xl text-slate-500 hover:bg-slate-50 disabled:opacity-50" onClick={() => setShowChallanModal(false)} disabled={busy}>×</button>
                 </div>
                 {error && <div role="alert" className="mb-4 rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">{error}</div>}
-            <div className="mt-4 grid gap-3 sm:grid-cols-2">
-              <MMFormSelectControl
-                className="rounded-xl border p-3 text-sm"
-                value={customer}
-                onChange={(e) => setCustomer(e.target.value)}
-              >
-                <option value="">Select customer…</option>
-                {customers.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.display_name}
-                  </option>
-                ))}
-              </MMFormSelectControl>
-              <MMFormInputControl
-                type="date"
-                className="rounded-xl border p-3 text-sm"
-                value={date}
-                onChange={(e) => setDate(e.target.value)}
-              />
-              <div className="flex min-w-0 gap-2">
+            <div className="mt-4 grid min-w-0 grid-cols-1 gap-x-4 gap-y-4 md:grid-cols-2">
+              <label className="block min-w-0">
+                <span className="mb-1.5 block text-xs font-semibold text-slate-700">Customer <span className="text-rose-500">*</span></span>
                 <MMFormSelectControl
-                  className="min-w-0 flex-1 rounded-xl border p-3 text-sm"
-                  value={locationId}
-                  onChange={(e) => setLocationId(e.target.value)}
+                  aria-label="Customer"
+                  className="mt-1 w-full min-w-0 rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm text-slate-800 shadow-sm outline-none transition focus:border-violet-400 focus:ring-2 focus:ring-violet-100"
+                  value={customer}
+                  onChange={(e) => setCustomer(e.target.value)}
                 >
-                  <option value="">Stock location…</option>
-                  {locations.map((l) => (
-                    <option key={l.id} value={l.id}>
-                      {l.name}
+                  <option value="">Select customer…</option>
+                  {customers.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.display_name}
                     </option>
                   ))}
                 </MMFormSelectControl>
-                <button
-                  type="button"
-                  className="shrink-0 rounded-xl border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50"
-                  onClick={() => void addLocation()}
-                  disabled={locationBusy || !ctx}
-                  title="Create a stock location"
-                >
-                  {locationBusy ? 'Saving…' : '+ Location'}
-                </button>
+              </label>
+
+              <label className="block min-w-0">
+                <span className="mb-1.5 block text-xs font-semibold text-slate-700">Challan date <span className="text-rose-500">*</span></span>
+                <MMFormInputControl
+                  aria-label="Challan date"
+                  type="date"
+                  className="mt-1 w-full min-w-0 rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm text-slate-800 shadow-sm outline-none transition focus:border-violet-400 focus:ring-2 focus:ring-violet-100"
+                  value={date}
+                  onChange={(e) => setDate(e.target.value)}
+                />
+              </label>
+
+              <div className="min-w-0">
+                <label htmlFor="delivery-challan-stock-location" className="mb-1.5 block text-xs font-semibold text-slate-700">
+                  Stock location <span className="text-rose-500">*</span>
+                </label>
+                <div className="flex min-w-0 items-stretch gap-2">
+                  <MMFormSelectControl
+                    id="delivery-challan-stock-location"
+                    aria-label="Stock location"
+                    className="mt-1 w-full min-w-0 flex-1 rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm text-slate-800 shadow-sm outline-none transition focus:border-violet-400 focus:ring-2 focus:ring-violet-100"
+                    value={locationId}
+                    onChange={(e) => setLocationId(e.target.value)}
+                  >
+                    <option value="">Select stock location…</option>
+                    {locations.map((l) => (
+                      <option key={l.id} value={l.id}>
+                        {l.name}
+                      </option>
+                    ))}
+                  </MMFormSelectControl>
+                  <button
+                    type="button"
+                    className="mt-1 inline-flex min-h-[46px] shrink-0 items-center justify-center gap-1 rounded-xl border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700 shadow-sm transition hover:border-violet-200 hover:bg-violet-50 hover:text-violet-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-300 disabled:opacity-50"
+                    onClick={() => void addLocation()}
+                    disabled={locationBusy || !ctx}
+                    title="Create a stock location"
+                  >
+                    <span aria-hidden="true" className="text-base leading-none">＋</span>
+                    {locationBusy ? 'Saving…' : 'Location'}
+                  </button>
+                </div>
               </div>
-              <MMFormInputControl
-                className="rounded-xl border p-3 text-sm"
-                placeholder="Transporter"
-                value={transporter}
-                onChange={(e) => setTransporter(e.target.value)}
-              />
-              <MMFormInputControl
-                className="rounded-xl border p-3 text-sm"
-                placeholder="Vehicle number"
-                value={vehicle}
-                onChange={(e) => setVehicle(e.target.value)}
-              />
+
+              <label className="block min-w-0">
+                <span className="mb-1.5 block text-xs font-semibold text-slate-700">Transporter <span className="font-normal text-slate-400">(optional)</span></span>
+                <MMFormInputControl
+                  aria-label="Transporter"
+                  className="mt-1 w-full min-w-0 rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm text-slate-800 shadow-sm outline-none transition placeholder:text-slate-400 focus:border-violet-400 focus:ring-2 focus:ring-violet-100"
+                  placeholder="Transporter name"
+                  value={transporter}
+                  onChange={(e) => setTransporter(e.target.value)}
+                />
+              </label>
+
+              <label className="block min-w-0 md:col-span-2">
+                <span className="mb-1.5 block text-xs font-semibold text-slate-700">Vehicle number <span className="font-normal text-slate-400">(optional)</span></span>
+                <MMFormInputControl
+                  aria-label="Vehicle number"
+                  className="mt-1 w-full min-w-0 rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm text-slate-800 shadow-sm outline-none transition placeholder:text-slate-400 focus:border-violet-400 focus:ring-2 focus:ring-violet-100"
+                  placeholder="Vehicle registration number"
+                  value={vehicle}
+                  onChange={(e) => setVehicle(e.target.value)}
+                />
+              </label>
+
               {isGstRegistered ? (
-                <div className="sm:col-span-2 rounded-xl border border-violet-200 bg-violet-50 p-3">
+                <div className="md:col-span-2 rounded-xl border border-violet-200 bg-violet-50 p-3">
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <div className="min-w-0">
                       <p className="text-xs font-bold text-violet-900">GST e-Way Bill</p>
@@ -416,7 +445,7 @@ export default function DeliveryChallans() {
                   <p className="mt-2 text-[11px] leading-4 text-violet-700">The application records and audits a bill generated on the official portal. Direct government generation/update/cancellation requires a configured authorized GSP/API provider and is not represented as active yet.</p>
                 </div>
               ) : (
-                <div className="sm:col-span-2 rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs leading-5 text-slate-600">
+                <div className="md:col-span-2 rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs leading-5 text-slate-600">
                   <b>e-Way Bill availability</b>
                   <p className="mt-1">Configure a valid GST registration in Business Settings to enable the e-way bill action. Whether a bill is required depends on the movement, value, and applicable exemptions—not GST registration alone.</p>
                 </div>
