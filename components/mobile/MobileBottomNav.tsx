@@ -33,7 +33,7 @@ export function MobileBottomNav({ activeTab, onSelect }: {
           return (
             <Link
               key={tab.id}
-              href={mobileTabHref(tab)}
+              href={mobileTabHref(tab.id)}
               aria-current={active ? 'page' : undefined}
               onClick={(event) => {
                 if (!onSelect) return;
