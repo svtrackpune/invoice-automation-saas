@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { FinOpsIcon } from '@/components/ui/finops/FinOpsPrimitives';
 
 export type MobileTab = 'home' | 'sales' | 'customers' | 'more';
@@ -20,12 +21,8 @@ export function MobileBottomNav({ activeTab, onSelect }: {
   onSelect?: (tab: MobileTab) => void;
 }) {
   const choose = (tab: MobileTab) => {
-    if (onSelect) {
-      onSelect(tab);
-      window.history.replaceState({}, '', mobileTabHref(tab));
-      return;
-    }
-    window.location.assign(mobileTabHref(tab));
+    onSelect?.(tab);
+    window.history.replaceState({}, '', mobileTabHref(tab));
   };
 
   return (
@@ -34,16 +31,20 @@ export function MobileBottomNav({ activeTab, onSelect }: {
         {tabs.map((tab) => {
           const active = activeTab === tab.id;
           return (
-            <button
+            <Link
               key={tab.id}
-              type="button"
+              href={mobileTabHref(tab)}
               aria-current={active ? 'page' : undefined}
-              onClick={() => choose(tab.id)}
+              onClick={(event) => {
+                if (!onSelect) return;
+                event.preventDefault();
+                choose(tab.id);
+              }}
               className={'flex min-h-14 flex-col items-center justify-center gap-1 rounded-xl px-2 py-1.5 text-[11px] font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-300 ' + (active ? 'bg-violet-50 text-violet-700' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-800')}
             >
               <FinOpsIcon name={tab.icon} className={'h-5 w-5 ' + (active ? 'text-violet-700' : 'text-slate-400')} />
               <span>{tab.label}</span>
-            </button>
+            </Link>
           );
         })}
       </div>
