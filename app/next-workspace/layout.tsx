@@ -14,6 +14,7 @@ import { buildAdaptiveCreateRoutes } from '@/lib/adaptive-navigation';
 import { canAccessRoute, canShowCreateMenu } from '@/lib/rbac';
 import { FinOpsIcon, FinOpsPrimaryButton, FinOpsSecondaryButton } from '@/components/ui/finops/FinOpsPrimitives';
 import HeaderNotifications from '@/components/layout/HeaderNotifications';
+import { FormSelect as MMFormSelectControl } from '@/components/moneymatters/ui';
 import { MobileBottomNav, type MobileTab } from '@/components/mobile/MobileBottomNav';
 
 type NavItem = { label: string; href: string; icon: Parameters<typeof FinOpsIcon>[0]['name']; always?: boolean };
@@ -390,14 +391,14 @@ function MobileWorkspaceChrome({ children, businesses, activeBusinessId, setActi
             </span>
           </a>
           {businesses.length > 1 ? (
-            <select aria-label="Active business" value={activeBusinessId} onChange={(event) => {
+            <MMFormSelectControl aria-label="Active business" value={activeBusinessId} onChange={(event) => {
               const id = event.target.value;
               localStorage.setItem('moneymatters.activeBusinessId', id);
               setActiveBusinessId(id);
               window.location.reload();
             }} className="max-w-[120px] rounded-lg border border-slate-200 bg-white px-2 py-2 text-[11px] font-semibold text-slate-700">
               {businesses.map((business) => <option key={business.business_id} value={business.business_id}>{business.business_name}</option>)}
-            </select>
+            </MMFormSelectControl>
           ) : null}
           <a href="/mobile?tab=more" aria-label="Profile and more options" className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-violet-50 text-[11px] font-bold text-violet-700">
             {(userName || 'A').slice(0, 2).toUpperCase()}
