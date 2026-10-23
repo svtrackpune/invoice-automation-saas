@@ -69,7 +69,7 @@ function statusClasses(value: string): string {
 
 function ActionCard({ action }: { action: MobileAction }) {
   return (
-    <a
+    <Link
       href={action.href}
       className={'flex min-h-[108px] min-w-0 flex-col justify-between rounded-2xl border p-4 transition active:scale-[.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-300 ' + (action.featured ? 'border-violet-600 bg-violet-600 text-white shadow-lg shadow-violet-200' : 'border-slate-200 bg-white text-slate-900 shadow-sm hover:border-violet-200 hover:bg-violet-50/40')}
     >
@@ -80,13 +80,13 @@ function ActionCard({ action }: { action: MobileAction }) {
         <span className="block break-words text-sm font-bold">{action.label}</span>
         <span className={'mt-1 block text-xs leading-4 ' + (action.featured ? 'text-violet-100' : 'text-slate-500')}>{action.description}</span>
       </span>
-    </a>
+    </Link>
   );
 }
 
 function SmallAction({ action }: { action: MobileAction }) {
   return (
-    <a href={action.href} className="flex min-h-[68px] min-w-0 items-center gap-3 rounded-xl border border-slate-200 bg-white p-3 shadow-sm transition hover:border-violet-200 hover:bg-violet-50/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-300">
+    <Link href={action.href} className="flex min-h-[68px] min-w-0 items-center gap-3 rounded-xl border border-slate-200 bg-white p-3 shadow-sm transition hover:border-violet-200 hover:bg-violet-50/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-300">
       <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-violet-50 text-violet-700">
         <FinOpsIcon name={action.icon} className="h-5 w-5" />
       </span>
@@ -95,7 +95,7 @@ function SmallAction({ action }: { action: MobileAction }) {
         <span className="mt-0.5 block break-words text-[11px] leading-4 text-slate-500">{action.description}</span>
       </span>
       <FinOpsIcon name="chevron" className="h-4 w-4 shrink-0 text-slate-300" />
-    </a>
+    </Link>
   );
 }
 
@@ -329,7 +329,7 @@ export default function MobileHomePage() {
                 <h2 className="text-sm font-bold text-slate-900">Recent sales</h2>
                 <p className="mt-1 text-xs text-slate-500">Your latest invoices and cash bills</p>
               </div>
-              <a href="/next-workspace/invoices" className="shrink-0 text-xs font-semibold text-violet-700">View all</a>
+              <Link href="/next-workspace/invoices" className="shrink-0 text-xs font-semibold text-violet-700">View all</Link>
             </div>
             {dataError && <div role="status" className="mt-3 rounded-xl bg-amber-50 p-3 text-xs leading-5 text-amber-800">{dataError} <button type="button" onClick={() => setRefreshKey((value) => value + 1)} className="font-bold underline">Retry</button></div>}
             {dataLoading ? <div className="mt-4 space-y-3">{[1,2,3].map((n) => <div key={n} className="h-14 animate-pulse rounded-xl bg-slate-100" />)}</div>
@@ -337,7 +337,7 @@ export default function MobileHomePage() {
                 {invoices.slice(0, 5).map((invoice) => {
                   const isCashBill = invoice.document_kind === 'cash_bill';
                   const due = Number(invoice.balance_due || 0);
-                  return <a key={invoice.id} href={'/next-workspace/documents?type=invoice&id=' + encodeURIComponent(invoice.id)} className="flex min-w-0 items-center gap-3 py-3 first:pt-2 last:pb-1">
+                  return <Link key={invoice.id} href={'/next-workspace/documents?type=invoice&id=' + encodeURIComponent(invoice.id)} className="flex min-w-0 items-center gap-3 py-3 first:pt-2 last:pb-1">
                     <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-slate-50 text-slate-500"><FinOpsIcon name={isCashBill ? 'cash' : 'invoice'} className="h-5 w-5" /></span>
                     <span className="min-w-0 flex-1">
                       <span className="block truncate text-sm font-bold text-slate-800">{invoice.invoice_number || (isCashBill ? 'Cash Bill' : 'Invoice')}</span>
@@ -348,14 +348,14 @@ export default function MobileHomePage() {
                       <span className={'mt-1 inline-flex rounded-full border px-2 py-0.5 text-[10px] font-semibold ' + statusClasses(invoice.status)}>{friendlyStatus(invoice.status)}</span>
                       {due > 0.01 && <span className="mt-1 block text-[10px] text-slate-500">Due {money(due, selectedBusiness.currency_code)}</span>}
                     </span>
-                  </a>;
+                  </Link>;
                 })}
               </div>
               : <div className="py-7 text-center">
                 <span className="mx-auto grid h-12 w-12 place-items-center rounded-2xl bg-violet-50 text-violet-700"><FinOpsIcon name="invoice" className="h-6 w-6" /></span>
                 <h3 className="mt-3 text-sm font-bold text-slate-800">Your first sale starts here</h3>
                 <p className="mt-1 text-xs leading-5 text-slate-500">Create an invoice or cash bill and it will show up here.</p>
-                <a href="/next-workspace/invoices/new" className="mt-4 inline-flex min-h-10 items-center rounded-xl bg-violet-600 px-4 py-2.5 text-xs font-bold text-white">Create invoice</a>
+                <Link href="/next-workspace/invoices/new" className="mt-4 inline-flex min-h-10 items-center rounded-xl bg-violet-600 px-4 py-2.5 text-xs font-bold text-white">Create invoice</Link>
               </div>}
           </section>
         </>}
@@ -404,9 +404,9 @@ export default function MobileHomePage() {
           <div className="mt-4 space-y-3">
             {moreActions.map((action) => <SmallAction key={action.label} action={action} />)}
           </div>
-          <button type="button" onClick={() => window.location.assign('/next-workspace/profile')} className="mt-5 flex min-h-12 w-full items-center justify-between rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700">
+          <Link href="/next-workspace/profile" className="mt-5 flex min-h-12 w-full items-center justify-between rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700">
             <span>Profile & account</span><FinOpsIcon name="chevron" className="h-4 w-4 text-slate-400" />
-          </button>
+          </Link>
           <button type="button" onClick={async () => { await supabase.auth.signOut(); window.location.replace('/?next=%2Fmobile'); }} className="mt-3 flex min-h-12 w-full items-center justify-center gap-2 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-700">
             Sign out
           </button>
