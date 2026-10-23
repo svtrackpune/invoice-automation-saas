@@ -28,7 +28,7 @@ export function MobileBottomNav({ activeTab, onSelect }: {
 
   return (
     <nav aria-label="Mobile app navigation" className="fixed inset-x-0 bottom-0 z-50 border-t border-slate-200 bg-white/95 px-2 pt-2 shadow-[0_-6px_24px_rgba(15,23,42,.06)] backdrop-blur" style={{ paddingBottom: 'max(env(safe-area-inset-bottom), 8px)' }}>
-      <div className="mx-auto grid max-w-xl grid-cols-4 gap-1">
+      <div className="mx-auto grid max-w-xl grid-cols-5 gap-1">
         {tabs.map((tab) => {
           const active = activeTab === tab.id;
           return (

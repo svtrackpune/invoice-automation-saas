@@ -14,7 +14,8 @@ test('purchase reference attachments stay private and permission scoped', async 
   assert.match(form, /capture="environment"/);
   assert.match(form, /accept="\.pdf,image\/jpeg,image\/png,image\/webp,image\/heic,image\/heif"/);
   assert.match(form, /file\.size>20\*1024\*1024/);
-  assert.match(form, /supabase\.storage\.from\('vendor-purchase-attachments'\)\.upload/);
+  assert.match(form, /supabase\.storage\.from\('vendor-purchase-attachments'\)/);
+  assert.match(form, /storage\.upload\(storagePath,attachment\.file/);
   assert.match(form, /document_type:'vendor_purchase_reference'/);
   assert.match(form, /linked_entity_type:'bill',linked_entity_id:billId/);
   assert.doesNotMatch(form, /storage\.from\('business-branding-public'\)\.upload/);
