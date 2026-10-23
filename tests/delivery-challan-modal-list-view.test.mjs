@@ -31,6 +31,25 @@ test('challan popup fits the viewport and item-entry controls cannot force horiz
   assert.match(itemModal, /fixed inset-0 \$\{modalLayerClassName\}/);
 });
 
+test('dispatch fields have a balanced labeled layout without changing their bindings', () => {
+  const page = read('app/next-workspace/delivery-challans/page.tsx');
+  const start = page.indexOf('            <div className="mt-4 grid min-w-0 grid-cols-1 gap-x-4 gap-y-4 md:grid-cols-2">');
+  const end = page.indexOf('            <section className="mt-6 min-w-0"', start);
+  assert.ok(start >= 0 && end > start, 'dispatch field section must be identifiable');
+  const fields = page.slice(start, end);
+  for (const label of ['Customer', 'Challan date', 'Stock location', 'Transporter', 'Vehicle number']) {
+    assert.ok(fields.includes('>' + label + ' ' ) || fields.includes('>' + label + '<'), 'missing visible dispatch label: ' + label);
+  }
+  assert.ok(fields.includes('md:grid-cols-2'), 'customer/date and location/transporter should align as paired columns');
+  assert.ok(fields.includes('md:col-span-2'), 'vehicle field and e-way bill guidance must use the full grid row');
+  assert.ok(fields.includes('value={customer}') && fields.includes('onChange={(e) => setCustomer(e.target.value)}'));
+  assert.ok(fields.includes('value={date}') && fields.includes('onChange={(e) => setDate(e.target.value)}'));
+  assert.ok(fields.includes('value={locationId}') && fields.includes('onChange={(e) => setLocationId(e.target.value)}'));
+  assert.ok(fields.includes('value={transporter}') && fields.includes('onChange={(e) => setTransporter(e.target.value)}'));
+  assert.ok(fields.includes('value={vehicle}') && fields.includes('onChange={(e) => setVehicle(e.target.value)}'));
+  assert.ok(fields.includes('onClick={() => void addLocation()}'), 'location creation action must remain intact');
+});
+
 test('challan item fields have clear labels, compact responsive cards, and per-line amounts', () => {
   const page = read('app/next-workspace/delivery-challans/page.tsx');
   for (const label of ['Items & quantities', 'Product', 'Quantity', 'Rate per unit', 'Batch / serial', 'Line amount', 'Add another item']) {
