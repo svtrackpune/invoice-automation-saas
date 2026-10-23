@@ -60,3 +60,19 @@ jobs:
         run: |
           chmod +x gradlew
           ./gradlew assembleDebug assembleRelease
+
+      - name: Upload installable debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: moneymatters-debug-apk
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload unsigned release APK for signing validation
+        uses: actions/upload-artifact@v4
+        with:
+          name: moneymatters-release-apk-unsigned
+          path: android/app/build/outputs/apk/release/app-release-unsigned.apk
+          if-no-files-found: error
+          retention-days: 14
