@@ -9,6 +9,15 @@ type Category = { id: string; name: string; sort_order: number };
 type Subcategory = { id: string; category_id: string; name: string; sort_order: number };
 type Step = 1 | 2 | 3 | 4;
 
+function onboardingDestination(): '/mobile' | '/next-workspace' {
+  if (typeof window === 'undefined') return '/next-workspace';
+  return new URLSearchParams(window.location.search).get('next') === '/mobile' ? '/mobile' : '/next-workspace';
+}
+
+function onboardingSignInPath(): string {
+  return onboardingDestination() === '/mobile' ? '/?next=%2Fmobile' : '/';
+}
+
 const input = 'w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm outline-none transition focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100';
 const button = 'rounded-xl bg-indigo-600 px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-50';
 const secondary = 'rounded-xl border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50';
@@ -79,7 +88,7 @@ export default function OnboardingPage() {
     (async () => {
       const session = await supabase.auth.getSession();
       if (!session.data.session) {
-        window.location.replace('/');
+        window.location.replace(onboardingSignInPath());
         return;
       }
 
@@ -90,7 +99,7 @@ export default function OnboardingPage() {
         return;
       }
       if (Array.isArray(context.data) && context.data.length) {
-        window.location.replace('/next-workspace');
+        window.location.replace(onboardingDestination());
         return;
       }
 
@@ -174,7 +183,7 @@ export default function OnboardingPage() {
       return;
     }
     localStorage.setItem('moneymatters.activeBusinessId', payload.business_id);
-    window.location.replace('/next-workspace');
+    window.location.replace(onboardingDestination());
   };
 
   const inventoryAuto = models.some((x) => x === 'retailer' || x === 'wholesaler' || x === 'manufacturer');
