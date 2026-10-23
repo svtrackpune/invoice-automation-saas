@@ -31,6 +31,15 @@ test('challan popup fits the viewport and item-entry controls cannot force horiz
   assert.match(itemModal, /fixed inset-0 \$\{modalLayerClassName\}/);
 });
 
+test('challan modal header cannot overlap the first dispatch field labels', () => {
+  const page = read('app/next-workspace/delivery-challans/page.tsx');
+  assert.ok(page.includes('className="-mx-4 -mt-4 mb-5 flex items-start justify-between gap-4 border-b border-slate-200 bg-white px-4 py-4 sm:-mx-6 sm:-mt-6 sm:px-6"'));
+  assert.ok(!page.includes('sticky top-0 z-10 -mx-4 -mt-4'), 'the negatively offset sticky header overlaps the first row labels');
+  const headerStart = page.indexOf('id="new-challan-modal-title"');
+  const customerLabel = page.indexOf('>Customer <', headerStart);
+  assert.ok(headerStart >= 0 && customerLabel > headerStart, 'dispatch labels must render in normal flow after the modal heading');
+});
+
 test('dispatch fields have a balanced labeled layout without changing their bindings', () => {
   const page = read('app/next-workspace/delivery-challans/page.tsx');
   const start = page.indexOf('            <div className="mt-4 grid min-w-0 grid-cols-1 gap-x-4 gap-y-4 md:grid-cols-2">');
