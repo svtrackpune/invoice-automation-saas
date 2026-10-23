@@ -26,11 +26,6 @@ type MobileAction = {
   featured?: boolean;
 };
 
-const todayKey = () => {
-  const now = new Date();
-  return [now.getFullYear(), String(now.getMonth() + 1).padStart(2, '0'), String(now.getDate()).padStart(2, '0')].join('-');
-};
-
 function money(value: number, currency: string): string {
   try {
     return new Intl.NumberFormat('en-IN', {
@@ -207,7 +202,6 @@ export default function MobileHomePage() {
     return () => { alive = false; };
   }, [ctx, refreshKey]);
 
-  const customerNames = useMemo(() => new Map(customers.map((customer) => [customer.id, customer.display_name])), [customers]);
   const filteredCustomers = useMemo(() => {
     const term = customerSearch.trim().toLowerCase();
     return customers.filter((customer) => !term || customer.display_name.toLowerCase().includes(term));
