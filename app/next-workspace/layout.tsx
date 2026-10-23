@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { usePathname } from 'next/navigation';
 import Image from 'next/image';
+import Link from 'next/link';
 import type { Dispatch, ReactNode, SetStateAction } from 'react';
 import { supabase, type BusinessContext } from '@/lib/supabase';
 import { resolveSupportedLocale, type SupportedLocale } from '@/lib/i18n';
@@ -383,13 +384,13 @@ function MobileWorkspaceChrome({ children, businesses, activeBusinessId, setActi
     <div className="min-h-screen bg-[#F7F7FC] text-slate-900" style={{ paddingBottom: 'calc(84px + env(safe-area-inset-bottom))' }}>
       <header className="sticky top-0 z-40 border-b border-slate-200 bg-white/95 px-3 py-2.5 backdrop-blur">
         <div className="mx-auto flex max-w-xl items-center gap-2.5">
-          <a href="/mobile" aria-label="Money Matters home" className="flex min-w-0 flex-1 items-center gap-2.5">
+          <Link href="/mobile" aria-label="Money Matters home" className="flex min-w-0 flex-1 items-center gap-2.5">
             <Image src="/moneymatters-192.png" alt="" width={34} height={34} unoptimized className="shrink-0 rounded-xl object-contain" />
             <span className="min-w-0">
               <span className="block truncate text-sm font-bold text-slate-950">Money Matters</span>
               <span className="block truncate text-[10px] text-slate-500">{activeBusiness?.business_name || 'Your business'}</span>
             </span>
-          </a>
+          </Link>
           {businesses.length > 1 ? (
             <MMFormSelectControl aria-label="Active business" value={activeBusinessId} onChange={(event) => {
               const id = event.target.value;
@@ -400,9 +401,9 @@ function MobileWorkspaceChrome({ children, businesses, activeBusinessId, setActi
               {businesses.map((business) => <option key={business.business_id} value={business.business_id}>{business.business_name}</option>)}
             </MMFormSelectControl>
           ) : null}
-          <a href="/mobile?tab=more" aria-label="Profile and more options" className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-violet-50 text-[11px] font-bold text-violet-700">
+          <Link href="/mobile?tab=more" aria-label="Profile and more options" className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-violet-50 text-[11px] font-bold text-violet-700">
             {(userName || 'A').slice(0, 2).toUpperCase()}
-          </a>
+          </Link>
         </div>
       </header>
       <main className="min-w-0">{children}</main>
