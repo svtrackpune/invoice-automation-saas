@@ -341,7 +341,7 @@ export default function DeliveryChallans() {
           {showChallanModal && (
             <div className="fixed inset-0 z-[60] flex items-center justify-center overflow-x-hidden overflow-y-auto bg-slate-950/55 p-3 sm:p-6" role="dialog" aria-modal="true" aria-labelledby="new-challan-modal-title" tabIndex={-1} onKeyDown={(event) => { if (event.key === 'Escape' && !busy) setShowChallanModal(false); }} onMouseDown={(event) => { if (event.target === event.currentTarget && !busy) setShowChallanModal(false); }}>
               <section className="max-h-[calc(100dvh-2rem)] w-[calc(100vw-1.5rem)] max-w-5xl min-w-0 overflow-x-hidden overflow-y-auto rounded-2xl border border-slate-200 bg-white p-4 shadow-2xl sm:p-6">
-                <div className="sticky top-0 z-10 -mx-4 -mt-4 mb-4 flex items-start justify-between gap-4 border-b border-slate-200 bg-white/95 px-4 py-4 backdrop-blur sm:-mx-6 sm:-mt-6 sm:px-6">
+                <div className="-mx-4 -mt-4 mb-5 flex items-start justify-between gap-4 border-b border-slate-200 bg-white px-4 py-4 sm:-mx-6 sm:-mt-6 sm:px-6">
                   <div>
                     <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-violet-700">Logistics & dispatch</p>
                     <h2 id="new-challan-modal-title" className="mt-1 text-lg font-semibold text-slate-950 sm:text-xl">New delivery challan</h2>
