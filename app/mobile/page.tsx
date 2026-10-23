@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import Image from 'next/image';
+import { FormInput as MMFormInputControl, FormSelect as MMFormSelectControl } from '@/components/moneymatters/ui';
 import Link from 'next/link';
 import { supabase, type BusinessContext } from '@/lib/supabase';
 import { FinOpsIcon, type FinOpsIconName } from '@/components/ui/finops/FinOpsPrimitives';
@@ -281,9 +282,9 @@ export default function MobileHomePage() {
           <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-bold text-slate-950">Money Matters</p>
             {businesses.length > 1 ? (
-              <select aria-label="Active business" value={selectedBusiness.business_id} onChange={(event) => switchBusiness(event.target.value)} className="mt-0.5 w-full max-w-[235px] border-0 bg-transparent p-0 text-[11px] font-medium text-slate-500 outline-none focus:ring-0">
+              <MMFormSelectControl aria-label="Active business" value={selectedBusiness.business_id} onChange={(event) => switchBusiness(event.target.value)} className="mt-0.5 w-full max-w-[235px] border-0 bg-transparent p-0 text-[11px] font-medium text-slate-500 outline-none focus:ring-0">
                 {businesses.map((business) => <option key={business.business_id} value={business.business_id}>{business.business_name}</option>)}
-              </select>
+              </MMFormSelectControl>
             ) : (
               <p className="truncate text-[11px] text-slate-500">{selectedBusiness.business_name}</p>
             )}
@@ -379,7 +380,7 @@ export default function MobileHomePage() {
           </div>
           <label className="mt-4 flex min-h-12 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 shadow-sm focus-within:border-violet-400 focus-within:ring-2 focus-within:ring-violet-100">
             <FinOpsIcon name="search" className="h-4 w-4 shrink-0 text-slate-400" />
-            <input value={customerSearch} onChange={(event) => setCustomerSearch(event.target.value)} aria-label="Search customers" placeholder="Search by customer name" className="w-full min-w-0 border-0 bg-transparent py-2 text-sm outline-none placeholder:text-slate-400 focus:ring-0" />
+            <MMFormInputControl value={customerSearch} onChange={(event) => setCustomerSearch(event.target.value)} aria-label="Search customers" placeholder="Search by customer name" type="search" className="w-full min-w-0 border-0 bg-transparent py-2 text-sm outline-none placeholder:text-slate-400 focus:ring-0" />
           </label>
           <div className="mt-3 overflow-hidden rounded-2xl border border-slate-200 bg-white">
             {dataLoading ? <div className="space-y-3 p-4">{[1,2,3].map((n) => <div key={n} className="h-10 animate-pulse rounded-lg bg-slate-100" />)}</div>
