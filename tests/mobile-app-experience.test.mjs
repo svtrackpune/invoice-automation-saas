@@ -22,13 +22,13 @@ test('mobile home focuses everyday tasks with clear bottom navigation and custom
   const page = await read('app/mobile/page.tsx');
   const nav = await read('components/mobile/MobileBottomNav.tsx');
 
-  for (const label of ['Cash Bill', 'New invoice', 'Add customer', 'Receive payment', 'Recent sales', 'Sales', 'Your customers', 'Other tasks']) {
+  for (const label of ['Cash Bill', 'Scan Purchase Bill', 'New invoice', 'Receive payment', 'Recent sales', 'Sales', 'Customers & vendors', 'Other tasks', 'Supplier bills & orders']) {
     assert.ok(page.includes(label), 'mobile app is missing: ' + label);
   }
-  for (const tab of ['home', 'sales', 'customers', 'more']) {
+  for (const tab of ['home', 'sales', 'purchases', 'contacts', 'more']) {
     assert.ok(nav.includes("id: '" + tab + "'"), 'missing mobile navigation tab: ' + tab);
   }
-  assert.ok(page.includes('aria-label="Search customers"'));
+  assert.ok(page.includes('aria-label="Search contacts"'));
   assert.ok(page.includes('customerSearch.trim()'));
   assert.ok(page.includes('Sign out'));
 });

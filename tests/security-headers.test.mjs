@@ -12,7 +12,7 @@ test('middleware injects production security headers', () => {
   const response = middleware(request);
   assert.equal(response.headers.get('X-Content-Type-Options'), 'nosniff');
   assert.equal(response.headers.get('X-Frame-Options'), 'DENY');
-  assert.equal(response.headers.get('Permissions-Policy'), 'camera=(), microphone=(), geolocation=()');
+  assert.equal(response.headers.get('Permissions-Policy'), 'camera=(self), microphone=(), geolocation=()');
   const csp = response.headers.get('Content-Security-Policy');
   assert.ok(csp);
   assert.match(csp, /script-src 'self' 'nonce-[^']+' 'strict-dynamic'/);

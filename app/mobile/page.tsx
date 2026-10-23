@@ -9,6 +9,7 @@ import { FinOpsIcon, type FinOpsIconName } from '@/components/ui/finops/FinOpsPr
 import { MobileBottomNav, type MobileTab } from '@/components/mobile/MobileBottomNav';
 
 type Customer = { id: string; display_name: string };
+type Vendor = { id: string; display_name: string };
 type Invoice = {
   id: string;
   invoice_number: string;
@@ -108,6 +109,8 @@ export default function MobileHomePage() {
   const [activeTab, setActiveTab] = useState<MobileTab>('home');
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
+  const [vendors, setVendors] = useState<Vendor[]>([]);
+  const [contactKind, setContactKind] = useState<'customers' | 'vendors'>('customers');
   const [cashBillEnabled, setCashBillEnabled] = useState(false);
   const [customerSearch, setCustomerSearch] = useState('');
   const [bootError, setBootError] = useState('');
@@ -121,7 +124,10 @@ export default function MobileHomePage() {
       localStorage.setItem('moneymatters.simpleMobileAppMode', '1');
     }
     const requestedTab = params.get('tab');
-    if (requestedTab === 'sales' || requestedTab === 'customers' || requestedTab === 'more' || requestedTab === 'home') {
+    if (requestedTab === 'customers') {
+      setActiveTab('contacts');
+      setContactKind('customers');
+    } else if (requestedTab === 'sales' || requestedTab === 'purchases' || requestedTab === 'contacts' || requestedTab === 'more' || requestedTab === 'home') {
       setActiveTab(requestedTab);
     }
 
@@ -172,13 +178,19 @@ export default function MobileHomePage() {
     setDataLoading(true);
     setDataError('');
     (async () => {
-      const [invoiceResult, customerResult, settingsResult] = await Promise.all([
+      const [invoiceResult, customerResult, vendorResult, settingsResult] = await Promise.all([
         supabase.from('invoices')
           .select('id,invoice_number,invoice_date,status,total,balance_due,customer_id,document_kind')
           .eq('business_id', ctx.business_id)
           .order('invoice_date', { ascending: false })
           .limit(6),
         supabase.from('customers')
+          .select('id,display_name')
+          .eq('business_id', ctx.business_id)
+          .eq('is_active', true)
+          .order('display_name', { ascending: true })
+          .limit(100),
+        supabase.from('vendors')
           .select('id,display_name')
           .eq('business_id', ctx.business_id)
           .eq('is_active', true)
@@ -192,8 +204,9 @@ export default function MobileHomePage() {
       if (!alive) return;
       setInvoices((invoiceResult.data || []) as Invoice[]);
       setCustomers((customerResult.data || []) as Customer[]);
+      setVendors((vendorResult.data || []) as Vendor[]);
       setCashBillEnabled(Boolean(settingsResult.data?.cash_bill_enabled));
-      const firstError = invoiceResult.error || customerResult.error || settingsResult.error;
+      const firstError = invoiceResult.error || customerResult.error || vendorResult.error || settingsResult.error;
       if (firstError) setDataError('Some activity could not be refreshed. Your quick actions are still available.');
       setDataLoading(false);
     })().catch(() => {
@@ -209,6 +222,11 @@ export default function MobileHomePage() {
     return customers.filter((customer) => !term || customer.display_name.toLowerCase().includes(term));
   }, [customers, customerSearch]);
 
+  const filteredVendors = useMemo(() => {
+    const term = customerSearch.trim().toLowerCase();
+    return vendors.filter((vendor) => !term || vendor.display_name.toLowerCase().includes(term));
+  }, [vendors, customerSearch]);
+
   const chooseTab = (tab: MobileTab) => setActiveTab(tab);
   const switchBusiness = (businessId: string) => {
     const selected = businesses.find((row) => row.business_id === businessId);
@@ -219,13 +237,13 @@ export default function MobileHomePage() {
   };
 
   const homeActions: MobileAction[] = cashBillEnabled ? [
-    { label: 'Cash Bill', description: 'Quick counter sale', href: '/next-workspace/cash-bill', icon: 'cash', featured: true },
+    { label: 'Cash Bill', description: 'Start a counter sale', href: '/next-workspace/cash-bill', icon: 'cash', featured: true },
+    { label: 'Scan Purchase Bill', description: 'Take a photo or attach a PDF/image', href: '/next-workspace/purchases/new', icon: 'vendor' },
     { label: 'New invoice', description: 'Bill a customer', href: '/next-workspace/invoices/new', icon: 'invoice' },
-    { label: 'Add customer', description: 'Save customer details', href: '/next-workspace/customers', icon: 'customer' },
     { label: 'Receive payment', description: 'Record money received', href: '/next-workspace/payments', icon: 'bank' },
   ] : [
-    { label: 'New invoice', description: 'Bill a customer', href: '/next-workspace/invoices/new', icon: 'invoice', featured: true },
-    { label: 'Add customer', description: 'Save customer details', href: '/next-workspace/customers', icon: 'customer' },
+    { label: 'New invoice', description: 'Create and share a customer bill', href: '/next-workspace/invoices/new', icon: 'invoice', featured: true },
+    { label: 'Scan Purchase Bill', description: 'Take a photo or attach a PDF/image', href: '/next-workspace/purchases/new', icon: 'vendor' },
     { label: 'Create quotation', description: 'Share a price estimate', href: '/next-workspace/quotations', icon: 'quote' },
     { label: 'Receive payment', description: 'Record money received', href: '/next-workspace/payments', icon: 'bank' },
   ];
@@ -239,11 +257,18 @@ export default function MobileHomePage() {
     { label: 'Payments', description: 'Record money received or paid', href: '/next-workspace/payments', icon: 'bank' },
   ];
 
+  const purchaseActions: MobileAction[] = [
+    { label: 'Scan Purchase Bill', description: 'Use the camera or attach the supplier invoice', href: '/next-workspace/purchases/new', icon: 'vendor', featured: true },
+    { label: 'Enter purchase bill', description: 'Create or post a supplier bill', href: '/next-workspace/purchases/new', icon: 'invoice' },
+    { label: 'Purchase bills', description: 'View vendor bills and outstanding amounts', href: '/next-workspace/bills', icon: 'statement' },
+    { label: 'Purchase orders', description: 'Track orders and goods receipt', href: '/next-workspace/bills?tab=pos', icon: 'vendor' },
+    { label: 'Manage vendors', description: 'Supplier details and balances', href: '/next-workspace/vendors', icon: 'customer' },
+  ];
+
   const moreActions: MobileAction[] = [
     { label: 'Products & services', description: 'Your item catalogue', href: '/next-workspace/items', icon: 'invoice' },
     { label: 'Stock & inventory', description: 'Current stock and movements', href: '/next-workspace/inventory', icon: 'statement' },
     { label: 'Expenses', description: 'Track business spending', href: '/next-workspace/expenses', icon: 'expense' },
-    { label: 'Purchases & vendors', description: 'Supplier bills and orders', href: '/next-workspace/bills', icon: 'vendor' },
     { label: 'Banking', description: 'Accounts and reconciliation', href: '/next-workspace/banking', icon: 'bank' },
     { label: 'Reports', description: 'Business summaries', href: '/next-workspace/reports', icon: 'report' },
     { label: 'Business settings', description: 'Tax, details and preferences', href: '/next-workspace/business-settings', icon: 'settings' },
@@ -370,31 +395,17 @@ export default function MobileHomePage() {
           </div>
         </section>}
 
-        {activeTab === 'customers' && <section>
-          <div className="flex items-end justify-between gap-3">
-            <div>
-              <p className="text-[11px] font-bold uppercase tracking-[.14em] text-violet-700">Customers</p>
-              <h1 className="mt-1 text-2xl font-bold text-slate-950">Your customers</h1>
-            </div>
-            <Link href="/next-workspace/customers" className="inline-flex min-h-10 items-center gap-1 rounded-xl bg-violet-600 px-3 py-2 text-xs font-bold text-white"><FinOpsIcon name="plus" className="h-4 w-4" />Add</Link>
-          </div>
-          <label className="mt-4 flex min-h-12 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 shadow-sm focus-within:border-violet-400 focus-within:ring-2 focus-within:ring-violet-100">
-            <FinOpsIcon name="search" className="h-4 w-4 shrink-0 text-slate-400" />
-            <MMFormInputControl value={customerSearch} onChange={(event) => setCustomerSearch(event.target.value)} aria-label="Search customers" placeholder="Search by customer name" type="search" className="w-full min-w-0 border-0 bg-transparent py-2 text-sm outline-none placeholder:text-slate-400 focus:ring-0" />
-          </label>
-          <div className="mt-3 overflow-hidden rounded-2xl border border-slate-200 bg-white">
-            {dataLoading ? <div className="space-y-3 p-4">{[1,2,3].map((n) => <div key={n} className="h-10 animate-pulse rounded-lg bg-slate-100" />)}</div>
-              : filteredCustomers.length ? <div className="divide-y divide-slate-100">
-                {filteredCustomers.slice(0, 35).map((customer) => <Link key={customer.id} href={'/next-workspace/customers/' + encodeURIComponent(customer.id)} className="flex min-h-14 items-center gap-3 px-3 py-3">
-                  <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-violet-50 text-xs font-bold text-violet-700">{customer.display_name.slice(0, 1).toUpperCase() || 'C'}</span>
-                  <span className="min-w-0 flex-1 truncate text-sm font-semibold text-slate-800">{customer.display_name}</span>
-                  <FinOpsIcon name="chevron" className="h-4 w-4 shrink-0 text-slate-300" />
-                </Link>)}
-              </div>
-              : <p className="p-5 text-center text-sm text-slate-500">{customerSearch.trim() ? 'No matching customers.' : 'No customers yet. Add your first customer to get started.'}</p>}
-          </div>
-          {filteredCustomers.length > 35 && <p className="mt-2 text-center text-xs text-slate-500">Showing 35 customers. Search to narrow the list.</p>}
-          <p className="mt-3 text-xs text-slate-500">Customer details stay in your existing business workspace.</p>
+        {activeTab === 'purchases' && <section>
+          <p className="text-[11px] font-bold uppercase tracking-[.14em] text-violet-700">Purchases</p><h1 className="mt-1 text-2xl font-bold text-slate-950">Supplier bills & orders</h1><p className="mt-2 text-sm leading-5 text-slate-500">Capture the original supplier document, review details, then save or post the bill.</p><div className="mt-4 space-y-3">{purchaseActions.map((action) => <SmallAction key={action.label} action={action} />)}</div><p className="mt-4 rounded-xl border border-slate-200 bg-white p-3 text-xs leading-5 text-slate-500">A scan or attachment is only a reference until you review and confirm the purchase. Drafts do not update stock or balances.</p>
+        </section>}
+
+        {activeTab === 'contacts' && <section>
+          <div className="flex items-end justify-between gap-3"><div><p className="text-[11px] font-bold uppercase tracking-[.14em] text-violet-700">Contacts</p><h1 className="mt-1 text-2xl font-bold text-slate-950">Customers & vendors</h1></div><Link href={contactKind === 'customers' ? '/next-workspace/customers' : '/next-workspace/vendors'} className="inline-flex min-h-10 items-center gap-1 rounded-xl bg-violet-600 px-3 py-2 text-xs font-bold text-white"><FinOpsIcon name="plus" className="h-4 w-4" />Add {contactKind === 'customers' ? 'customer' : 'vendor'}</Link></div>
+          <div role="group" aria-label="Contact type" className="mt-4 grid grid-cols-2 gap-1 rounded-xl bg-slate-200/70 p-1"><button type="button" aria-pressed={contactKind === 'customers'} onClick={() => { setContactKind('customers'); setCustomerSearch(''); }} className={'min-h-10 rounded-lg px-3 text-sm font-semibold transition ' + (contactKind === 'customers' ? 'bg-white text-violet-700 shadow-sm' : 'text-slate-600')}>Customers</button><button type="button" aria-pressed={contactKind === 'vendors'} onClick={() => { setContactKind('vendors'); setCustomerSearch(''); }} className={'min-h-10 rounded-lg px-3 text-sm font-semibold transition ' + (contactKind === 'vendors' ? 'bg-white text-violet-700 shadow-sm' : 'text-slate-600')}>Vendors</button></div>
+          <label className="mt-3 flex min-h-12 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 shadow-sm focus-within:border-violet-400 focus-within:ring-2 focus-within:ring-violet-100"><FinOpsIcon name="search" className="h-4 w-4 shrink-0 text-slate-400" /><MMFormInputControl value={customerSearch} onChange={(event) => setCustomerSearch(event.target.value)} aria-label="Search contacts" placeholder={'Search ' + (contactKind === 'customers' ? 'customers' : 'vendors') + ' by name'} type="search" className="w-full min-w-0 border-0 bg-transparent py-2 text-sm outline-none placeholder:text-slate-400 focus:ring-0" /></label>
+          <div className="mt-3 overflow-hidden rounded-2xl border border-slate-200 bg-white">{dataLoading ? <div className="space-y-3 p-4">{[1,2,3].map((n) => <div key={n} className="h-10 animate-pulse rounded-lg bg-slate-100" />)}</div> : (contactKind === 'customers' ? filteredCustomers.length : filteredVendors.length) ? <div className="divide-y divide-slate-100">{contactKind === 'customers' ? filteredCustomers.slice(0, 35).map((customer) => <Link key={customer.id} href={'/next-workspace/customers/' + encodeURIComponent(customer.id)} className="flex min-h-14 items-center gap-3 px-3 py-3"><span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-violet-50 text-xs font-bold text-violet-700">{customer.display_name.slice(0, 1).toUpperCase() || 'C'}</span><span className="min-w-0 flex-1 truncate text-sm font-semibold text-slate-800">{customer.display_name}</span><FinOpsIcon name="chevron" className="h-4 w-4 shrink-0 text-slate-300" /></Link>) : filteredVendors.slice(0, 35).map((vendor) => <Link key={vendor.id} href={'/next-workspace/vendors/' + encodeURIComponent(vendor.id)} className="flex min-h-14 items-center gap-3 px-3 py-3"><span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-emerald-50 text-xs font-bold text-emerald-700">{vendor.display_name.slice(0, 1).toUpperCase() || 'V'}</span><span className="min-w-0 flex-1 truncate text-sm font-semibold text-slate-800">{vendor.display_name}</span><FinOpsIcon name="chevron" className="h-4 w-4 shrink-0 text-slate-300" /></Link>)}</div> : <p className="p-5 text-center text-sm text-slate-500">{customerSearch.trim() ? 'No matching contacts.' : 'No ' + (contactKind === 'customers' ? 'customers' : 'vendors') + ' yet. Add your first contact to get started.'}</p>}</div>
+          {(contactKind === 'customers' ? filteredCustomers.length : filteredVendors.length) > 35 && <p className="mt-2 text-center text-xs text-slate-500">Showing 35 contacts. Search to narrow the list.</p>}
+          <p className="mt-3 text-xs text-slate-500">Customer and vendor records share this simple contact centre; financial details stay in the existing workspace.</p>
         </section>}
 
         {activeTab === 'more' && <section>

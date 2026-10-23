@@ -1,14 +1,15 @@
 'use client';
 
 import Link from 'next/link';
-import { FinOpsIcon } from '@/components/ui/finops/FinOpsPrimitives';
+import { FinOpsIcon, type FinOpsIconName } from '@/components/ui/finops/FinOpsPrimitives';
 
-export type MobileTab = 'home' | 'sales' | 'customers' | 'more';
+export type MobileTab = 'home' | 'sales' | 'purchases' | 'contacts' | 'more';
 
-const tabs: Array<{ id: MobileTab; label: string; icon: 'dashboard' | 'cash' | 'customer' | 'settings' }> = [
+const tabs: Array<{ id: MobileTab; label: string; icon: FinOpsIconName }> = [
   { id: 'home', label: 'Home', icon: 'dashboard' },
   { id: 'sales', label: 'Sales', icon: 'cash' },
-  { id: 'customers', label: 'Customers', icon: 'customer' },
+  { id: 'purchases', label: 'Purchases', icon: 'vendor' },
+  { id: 'contacts', label: 'Contacts', icon: 'customer' },
   { id: 'more', label: 'More', icon: 'settings' },
 ];
 

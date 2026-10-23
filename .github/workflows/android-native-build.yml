@@ -6,6 +6,16 @@ on:
       - main
     paths:
       - android/**
+      - app/mobile/**
+      - app/next-workspace/layout.tsx
+      - app/next-workspace/purchases/**
+      - components/mobile/**
+      - components/barcode/**
+      - middleware.ts
+      - tests/mobile-app-experience.test.mjs
+      - tests/security-headers.test.mjs
+      - tests/vendor-purchase-attachments.test.mjs
+      - supabase/migrations/**
       - capacitor.config.ts
       - package.json
       - package-lock.json

@@ -376,7 +376,8 @@ function MobileWorkspaceChrome({ children, businesses, activeBusinessId, setActi
   const pathname = usePathname();
   let activeTab: MobileTab = 'more';
   if (pathname === '/mobile' || pathname === '/next-workspace') activeTab = 'home';
-  else if (pathname.startsWith('/next-workspace/customers')) activeTab = 'customers';
+  else if (pathname.startsWith('/next-workspace/customers') || pathname.startsWith('/next-workspace/vendors')) activeTab = 'contacts';
+  else if (/\/(bills|purchases)(\/|$)/.test(pathname)) activeTab = 'purchases';
   else if (/\/(cash-bill|invoices|quotations|quotation|receipts|payments|delivery-challans|documents)(\/|$)/.test(pathname)) activeTab = 'sales';
   const activeBusiness = businesses.find((business) => business.business_id === activeBusinessId);
 
