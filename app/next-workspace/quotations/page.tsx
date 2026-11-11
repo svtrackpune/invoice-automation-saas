@@ -2,6 +2,7 @@
 
 import { FormInput as MMFormInputControl, FormSelect as MMFormSelectControl } from '@/components/moneymatters/ui';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { supabase, type BusinessContext } from '@/lib/supabase';
 import { formatMoney } from '@/lib/i18n';
 import { useLocale } from '@/lib/locale-context';
@@ -43,10 +44,12 @@ export default function QuotationsListPage() {
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
   const [businessName, setBusinessName] = useState('Business');
   const [openActionsId, setOpenActionsId] = useState<string | null>(null);
+  const [actionsPosition, setActionsPosition] = useState<{ top: number; left: number; maxHeight: number } | null>(null);
   const [sharingId, setSharingId] = useState<string | null>(null);
   const [processingId, setProcessingId] = useState<string | null>(null);
   const [actionFeedback, setActionFeedback] = useState<{ kind: 'success' | 'error'; message: string } | null>(null);
   const actionsRef = useRef<HTMLDivElement | null>(null);
+  const actionMenuRef = useRef<HTMLDivElement | null>(null);
 
   const refresh = useCallback(async (preferredBusinessId?: string) => {
     setLoading(true);
@@ -144,21 +147,59 @@ export default function QuotationsListPage() {
     window.location.href = '/next-workspace/documents?type=quotation&id=' + encodeURIComponent(row.id);
   };
 
+  const closeActionsMenu = useCallback(() => {
+    setOpenActionsId(null);
+    setActionsPosition(null);
+  }, []);
+
+  const toggleActionsMenu = useCallback((rowId: string, button: HTMLButtonElement) => {
+    if (openActionsId === rowId) {
+      closeActionsMenu();
+      return;
+    }
+
+    const rect = button.getBoundingClientRect();
+    const menuWidth = 224;
+    const availableBelow = window.innerHeight - rect.bottom - 16;
+    const availableAbove = rect.top - 16;
+    const openAbove = availableBelow < 300 && availableAbove > availableBelow;
+    const availableSpace = Math.max(80, openAbove ? availableAbove : availableBelow);
+    const maxHeight = Math.min(360, availableSpace);
+    const top = openAbove
+      ? Math.max(8, rect.top - maxHeight - 8)
+      : Math.max(8, rect.bottom + 8);
+    const left = Math.max(8, Math.min(window.innerWidth - menuWidth - 8, rect.right - menuWidth));
+
+    setActionsPosition({ top, left, maxHeight });
+    setOpenActionsId(rowId);
+  }, [openActionsId, closeActionsMenu]);
+
   useEffect(() => {
     if (!openActionsId) return;
     const closeOnOutsideClick = (event: MouseEvent) => {
-      if (!actionsRef.current?.contains(event.target as Node)) setOpenActionsId(null);
+      const target = event.target as Node;
+      if (!actionsRef.current?.contains(target) && !actionMenuRef.current?.contains(target)) {
+        closeActionsMenu();
+      }
     };
     const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setOpenActionsId(null);
+      if (event.key === 'Escape') closeActionsMenu();
+    };
+    const closeOnScroll = (event: Event) => {
+      if (actionMenuRef.current?.contains(event.target as Node)) return;
+      closeActionsMenu();
     };
     document.addEventListener('mousedown', closeOnOutsideClick);
     document.addEventListener('keydown', closeOnEscape);
+    window.addEventListener('scroll', closeOnScroll, true);
+    window.addEventListener('resize', closeActionsMenu);
     return () => {
       document.removeEventListener('mousedown', closeOnOutsideClick);
       document.removeEventListener('keydown', closeOnEscape);
+      window.removeEventListener('scroll', closeOnScroll, true);
+      window.removeEventListener('resize', closeActionsMenu);
     };
-  }, [openActionsId]);
+  }, [openActionsId, closeActionsMenu]);
 
   const publicShareAvailable = (row: QuotationRow) => {
     const expired = row.status === 'sent' && Boolean(row.valid_until && row.valid_until < today());
@@ -175,7 +216,7 @@ export default function QuotationsListPage() {
       }
       if (!/^[A-Fa-f0-9]{48,128}$/.test(token)) throw new Error('The quotation does not have a valid public PDF token.');
       window.location.href = '/api/public-documents/pdf?type=quotation&token=' + encodeURIComponent(token);
-      setOpenActionsId(null);
+      closeActionsMenu();
     } catch (error) {
       setActionFeedback({ kind: 'error', message: error instanceof Error ? error.message : 'Unable to download this quotation PDF.' });
     }
@@ -197,7 +238,7 @@ export default function QuotationsListPage() {
         currencyCode: row.currency_code || currencyCode,
         publicUrl,
       }, 'Quotation ' + row.quotation_number);
-      setOpenActionsId(null);
+      closeActionsMenu();
       if (result === 'shared') setActionFeedback({ kind: 'success', message: 'Quotation shared using your device share sheet.' });
       else if (result === 'copied') setActionFeedback({ kind: 'success', message: 'Customer-ready quotation message copied to the clipboard.' });
     } catch (error) {
@@ -214,7 +255,7 @@ export default function QuotationsListPage() {
 
   const convertAcceptedQuotation = async (row: QuotationRow) => {
     setActionFeedback(null);
-    setOpenActionsId(null);
+    closeActionsMenu();
     setProcessingId(row.id);
     try {
       const converted = await supabase.rpc('convert_quotation_to_invoice', {
@@ -235,7 +276,7 @@ export default function QuotationsListPage() {
 
   const acceptQuotation = async (row: QuotationRow) => {
     setActionFeedback(null);
-    setOpenActionsId(null);
+    closeActionsMenu();
     if (!['draft', 'sent'].includes(row.status)) return;
     if (row.status === 'sent' && row.valid_until && row.valid_until < today()) {
       setActionFeedback({ kind: 'error', message: 'Extend the validity date before accepting expired quotation ' + row.quotation_number + '.' });
@@ -267,6 +308,11 @@ export default function QuotationsListPage() {
     }
   };
 
+  const activeActionRow = rows.find(row => row.id === openActionsId) || null;
+  const activeActionExpired = activeActionRow?.status === 'sent' && Boolean(activeActionRow.valid_until && activeActionRow.valid_until < today());
+  const activeActionIsPublic = Boolean(activeActionRow && ['sent', 'accepted', 'converted'].includes(activeActionRow.status));
+  const activeActionIsEditable = Boolean(activeActionRow && ['draft', 'sent'].includes(activeActionRow.status));
+
   return (
     <main className="min-h-screen bg-[#fbfaff] p-4 sm:p-6 lg:p-8">
       <div className="mx-auto max-w-[1500px] space-y-5">
@@ -282,54 +328,67 @@ export default function QuotationsListPage() {
 
         <Card className="overflow-hidden p-0">
           <div className="grid gap-3 border-b border-slate-200 p-4">
-            <div className="grid gap-2 lg:grid-cols-[minmax(220px,1fr)_minmax(160px,220px)_minmax(160px,220px)]">
-              <MMFormInputControl
-                value={search}
-                onChange={event => setSearch(event.target.value)}
-                placeholder="Search quotation no. or customer"
-                aria-label="Search quotations"
-                type="search"
-                className="min-w-0 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-100"
-              />
-              <MMFormSelectControl
-                value={statusFilter}
-                onChange={event => setStatusFilter(event.target.value)}
-                aria-label="Filter by quotation status"
-                className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-800"
-              >
-                <option value="all">All statuses</option>
-                <option value="draft">Draft</option>
-                <option value="sent">Sent</option>
-                <option value="accepted">Accepted</option>
-                <option value="converted">Converted</option>
-                <option value="rejected">Rejected</option>
-                <option value="cancelled">Cancelled</option>
-              </MMFormSelectControl>
-              <MMFormSelectControl
-                value={customerId}
-                onChange={event => setCustomerId(event.target.value)}
-                aria-label="Filter by customer"
-                className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-800"
-              >
-                <option value="all">All customers</option>
-                {Object.values(customers)
-                  .sort((a, b) => String(a.legal_name || a.display_name).localeCompare(String(b.legal_name || b.display_name)))
-                  .map(customer => <option key={customer.id} value={customer.id}>{customer.legal_name || customer.display_name}</option>)}
-              </MMFormSelectControl>
+            <div className="grid gap-3 lg:grid-cols-[minmax(220px,1fr)_minmax(160px,220px)_minmax(180px,240px)]">
+              <label className="block min-w-0">
+                <span className="mb-1.5 block text-xs font-semibold text-slate-600">Search quotations</span>
+                <MMFormInputControl
+                  value={search}
+                  onChange={event => setSearch(event.target.value)}
+                  placeholder="Quotation number or customer"
+                  aria-label="Search quotations"
+                  type="search"
+                  className="w-full min-w-0 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-100"
+                />
+              </label>
+              <label className="block">
+                <span className="mb-1.5 block text-xs font-semibold text-slate-600">Status</span>
+                <MMFormSelectControl
+                  value={statusFilter}
+                  onChange={event => setStatusFilter(event.target.value)}
+                  aria-label="Filter by quotation status"
+                  className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-800"
+                >
+                  <option value="all">All statuses</option>
+                  <option value="draft">Draft</option>
+                  <option value="sent">Sent</option>
+                  <option value="accepted">Accepted</option>
+                  <option value="converted">Converted</option>
+                  <option value="rejected">Rejected</option>
+                  <option value="cancelled">Cancelled</option>
+                </MMFormSelectControl>
+              </label>
+              <label className="block">
+                <span className="mb-1.5 block text-xs font-semibold text-slate-600">Customer</span>
+                <MMFormSelectControl
+                  value={customerId}
+                  onChange={event => setCustomerId(event.target.value)}
+                  aria-label="Filter by customer"
+                  className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-800"
+                >
+                  <option value="all">All customers</option>
+                  {Object.values(customers)
+                    .sort((a, b) => String(a.legal_name || a.display_name).localeCompare(String(b.legal_name || b.display_name)))
+                    .map(customer => <option key={customer.id} value={customer.id}>{customer.legal_name || customer.display_name}</option>)}
+                </MMFormSelectControl>
+              </label>
             </div>
             <div className="flex flex-wrap items-center gap-2">
-              <label className="flex items-center gap-2 text-xs font-semibold text-slate-500">
-                From
+              <label className="block">
+                <span className="mb-1.5 block text-xs font-semibold text-slate-600">From date</span>
                 <MMFormInputControl type="date" value={from} onChange={event => setFrom(event.target.value)} aria-label="Filter quotations from date" className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800" />
               </label>
-              <label className="flex items-center gap-2 text-xs font-semibold text-slate-500">
-                To
+              <label className="block">
+                <span className="mb-1.5 block text-xs font-semibold text-slate-600">To date</span>
                 <MMFormInputControl type="date" value={to} onChange={event => setTo(event.target.value)} aria-label="Filter quotations to date" className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800" />
               </label>
-              <label className="flex items-center gap-2 text-xs font-semibold text-slate-500">
-                Show
+              <label className="block">
+                <span className="mb-1.5 block text-xs font-semibold text-slate-600">Rows per page</span>
                 <MMFormSelectControl value={pageSize} onChange={event => setPageSize(event.target.value)} aria-label="Rows per page" className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-800">
-                  <option value="20">20</option><option value="50">50</option><option value="100">100</option><option value="all">All</option>
+                  <option value="10">10</option>
+                  <option value="20">20</option>
+                  <option value="50">50</option>
+                  <option value="100">100</option>
+                  <option value="all">View all</option>
                 </MMFormSelectControl>
               </label>
               <Button variant="secondary" onClick={() => void refresh(businessId)} disabled={loading}>Refresh</Button>
@@ -359,9 +418,6 @@ export default function QuotationsListPage() {
                 <tbody className="divide-y divide-slate-100">
                   {visible.map(row => {
                     const customer = customers[row.customer_id];
-                    const expired = row.status === 'sent' && Boolean(row.valid_until && row.valid_until < today());
-                    const isPublic = ['sent', 'accepted', 'converted'].includes(row.status);
-                    const isEditable = ['draft', 'sent'].includes(row.status);
                     return (
                       <tr key={row.id} tabIndex={0} aria-label={'Open quotation ' + row.quotation_number} onClick={() => openQuotation(row)} onKeyDown={event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); openQuotation(row); } }} className="cursor-pointer hover:bg-slate-50/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-violet-400">
                         <td className="px-4 py-4 font-semibold text-slate-900">{row.quotation_number}</td>
@@ -371,26 +427,10 @@ export default function QuotationsListPage() {
                         <td className="px-4 py-4"><span className={'inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ' + (row.status === 'converted' || row.status === 'accepted' ? 'bg-emerald-50 text-emerald-700' : row.status === 'sent' ? 'bg-sky-50 text-sky-700' : row.status === 'cancelled' || row.status === 'rejected' ? 'bg-rose-50 text-rose-700' : 'bg-slate-100 text-slate-700')}>{statusLabel(row.status, row.valid_until)}</span></td>
                         <td className="px-4 py-4">
                           <div className="relative flex justify-end" ref={openActionsId === row.id ? actionsRef : null} onClick={event => event.stopPropagation()} onKeyDown={event => event.stopPropagation()}>
-                            <button type="button" aria-haspopup="menu" aria-expanded={openActionsId === row.id} aria-label={'Actions for quotation ' + row.quotation_number} onClick={() => setOpenActionsId(current => current === row.id ? null : row.id)} className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-semibold text-slate-800 shadow-sm hover:border-violet-300 hover:bg-violet-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500">
+                            <button type="button" aria-haspopup="menu" aria-expanded={openActionsId === row.id} aria-label={'Actions for quotation ' + row.quotation_number} onClick={event => toggleActionsMenu(row.id, event.currentTarget)} className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-semibold text-slate-800 shadow-sm hover:border-violet-300 hover:bg-violet-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500">
                               Actions <span aria-hidden="true" className="text-slate-500">▾</span>
                             </button>
-                            {openActionsId === row.id && <div role="menu" aria-label={'Quotation actions for ' + row.quotation_number} className="absolute right-0 top-full z-50 mt-2 w-52 overflow-hidden rounded-xl border border-slate-200 bg-white p-1.5 shadow-xl">
-                              <a role="menuitem" className="block rounded-lg px-3 py-2.5 text-left text-sm text-slate-700 hover:bg-slate-50" href={'/next-workspace/documents?type=quotation&id=' + encodeURIComponent(row.id)}>View quotation</a>
-                              {isEditable
-                                ? <a role="menuitem" className="block rounded-lg px-3 py-2.5 text-left text-sm text-slate-700 hover:bg-slate-50" href={'/next-workspace/quotation?edit=' + encodeURIComponent(row.id)}>Edit quotation</a>
-                                : <button role="menuitem" type="button" disabled title="Accepted or converted quotations are locked against editing." className="block w-full cursor-not-allowed rounded-lg px-3 py-2.5 text-left text-sm text-slate-400">Edit quotation</button>}
-                              {(row.status === 'draft' || row.status === 'sent') && <button role="menuitem" type="button" disabled={processingId === row.id || expired} title={expired ? 'Extend validity before accepting this expired quotation.' : undefined} onClick={() => void acceptQuotation(row)} className="block w-full rounded-lg px-3 py-2.5 text-left text-sm text-slate-700 hover:bg-emerald-50 disabled:cursor-not-allowed disabled:text-slate-400">{processingId === row.id ? 'Processing…' : 'Mark as accepted'}</button>}
-                              {row.status === 'accepted' && !row.invoice_id && <button role="menuitem" type="button" disabled={processingId === row.id} onClick={() => void convertAcceptedQuotation(row)} className="block w-full rounded-lg px-3 py-2.5 text-left text-sm text-slate-700 hover:bg-emerald-50 disabled:opacity-50">{processingId === row.id ? 'Converting…' : 'Convert to invoice'}</button>}
-                              {isPublic
-                                ? <button role="menuitem" type="button" onClick={() => void downloadPdf(row)} className="block w-full rounded-lg px-3 py-2.5 text-left text-sm text-slate-700 hover:bg-slate-50">Download PDF</button>
-                                : <button role="menuitem" type="button" disabled title="Send the quotation before creating a customer PDF." className="block w-full cursor-not-allowed rounded-lg px-3 py-2.5 text-left text-sm text-slate-400">Download PDF</button>}
-                              {publicShareAvailable(row)
-                                ? <CopyButton getValue={() => getPublicDocumentUrl('quotation', row.id)} label="Copy customer link" successMessage={'Customer link copied for ' + row.quotation_number + '.'} className="block w-full rounded-lg px-3 py-2.5 text-left text-sm text-slate-700 hover:bg-violet-50" />
-                                : <button role="menuitem" type="button" disabled title={expired ? 'Extend validity before sharing this expired quotation.' : 'Send the quotation before sharing.'} className="block w-full cursor-not-allowed rounded-lg px-3 py-2.5 text-left text-sm text-slate-400">Copy customer link</button>}
-                              {publicShareAvailable(row)
-                                ? <button role="menuitem" type="button" disabled={sharingId === row.id} onClick={() => void shareQuotation(row)} className="block w-full rounded-lg px-3 py-2.5 text-left text-sm text-slate-700 hover:bg-violet-50 disabled:opacity-50">{sharingId === row.id ? 'Preparing share…' : 'Share document'}</button>
-                                : <button role="menuitem" type="button" disabled title={expired ? 'Extend validity before sharing this expired quotation.' : 'Send the quotation before sharing.'} className="block w-full cursor-not-allowed rounded-lg px-3 py-2.5 text-left text-sm text-slate-400">Share document</button>}
-                            </div>}
+
                           </div>
                         </td>
                       </tr>
@@ -408,6 +448,34 @@ export default function QuotationsListPage() {
             </div>
           </div>}
         </Card>
+        {typeof document !== 'undefined' && openActionsId && activeActionRow && actionsPosition && createPortal(
+          <div
+            ref={actionMenuRef}
+            role="menu"
+            aria-label={'Quotation actions for ' + activeActionRow.quotation_number}
+            onClick={event => event.stopPropagation()}
+            onKeyDown={event => event.stopPropagation()}
+            style={{ position: 'fixed', top: actionsPosition.top, left: actionsPosition.left, maxHeight: actionsPosition.maxHeight }}
+            className="z-[100] w-56 overflow-y-auto overscroll-contain rounded-xl border border-slate-200 bg-white p-1.5 shadow-2xl"
+          >
+            <a role="menuitem" className="block rounded-lg px-3 py-2.5 text-left text-sm text-slate-700 hover:bg-slate-50" href={'/next-workspace/documents?type=quotation&id=' + encodeURIComponent(activeActionRow.id)}>View quotation</a>
+            {activeActionIsEditable
+              ? <a role="menuitem" className="block rounded-lg px-3 py-2.5 text-left text-sm text-slate-700 hover:bg-slate-50" href={'/next-workspace/quotation?edit=' + encodeURIComponent(activeActionRow.id)}>Edit quotation</a>
+              : <button role="menuitem" type="button" disabled title="Accepted or converted quotations are locked against editing." className="block w-full cursor-not-allowed rounded-lg px-3 py-2.5 text-left text-sm text-slate-400">Edit quotation</button>}
+            {(activeActionRow.status === 'draft' || activeActionRow.status === 'sent') && <button role="menuitem" type="button" disabled={processingId === activeActionRow.id || activeActionExpired} title={activeActionExpired ? 'Extend validity before accepting this expired quotation.' : undefined} onClick={() => void acceptQuotation(activeActionRow)} className="block w-full rounded-lg px-3 py-2.5 text-left text-sm text-slate-700 hover:bg-emerald-50 disabled:cursor-not-allowed disabled:text-slate-400">{processingId === activeActionRow.id ? 'Processing…' : 'Mark as accepted'}</button>}
+            {activeActionRow.status === 'accepted' && !activeActionRow.invoice_id && <button role="menuitem" type="button" disabled={processingId === activeActionRow.id} onClick={() => void convertAcceptedQuotation(activeActionRow)} className="block w-full rounded-lg px-3 py-2.5 text-left text-sm text-slate-700 hover:bg-emerald-50 disabled:opacity-50">{processingId === activeActionRow.id ? 'Converting…' : 'Convert to invoice'}</button>}
+            {activeActionIsPublic
+              ? <button role="menuitem" type="button" onClick={() => void downloadPdf(activeActionRow)} className="block w-full rounded-lg px-3 py-2.5 text-left text-sm text-slate-700 hover:bg-slate-50">Download PDF</button>
+              : <button role="menuitem" type="button" disabled title="Send the quotation before creating a customer PDF." className="block w-full cursor-not-allowed rounded-lg px-3 py-2.5 text-left text-sm text-slate-400">Download PDF</button>}
+            {publicShareAvailable(activeActionRow)
+              ? <CopyButton getValue={() => getPublicDocumentUrl('quotation', activeActionRow.id)} label="Copy customer link" successMessage={'Customer link copied for ' + activeActionRow.quotation_number + '.'} className="block w-full rounded-lg px-3 py-2.5 text-left text-sm text-slate-700 hover:bg-violet-50" />
+              : <button role="menuitem" type="button" disabled title={activeActionExpired ? 'Extend validity before sharing this expired quotation.' : 'Send the quotation before sharing.'} className="block w-full cursor-not-allowed rounded-lg px-3 py-2.5 text-left text-sm text-slate-400">Copy customer link</button>}
+            {publicShareAvailable(activeActionRow)
+              ? <button role="menuitem" type="button" disabled={sharingId === activeActionRow.id} onClick={() => void shareQuotation(activeActionRow)} className="block w-full rounded-lg px-3 py-2.5 text-left text-sm text-slate-700 hover:bg-violet-50 disabled:opacity-50">{sharingId === activeActionRow.id ? 'Preparing share…' : 'Share document'}</button>
+              : <button role="menuitem" type="button" disabled title={activeActionExpired ? 'Extend validity before sharing this expired quotation.' : 'Send the quotation before sharing.'} className="block w-full cursor-not-allowed rounded-lg px-3 py-2.5 text-left text-sm text-slate-400">Share document</button>}
+          </div>,
+          document.body
+        )}
         <p className="text-xs text-slate-500">Sent quotations past their validity date remain visible for audit. Edit the validity date before sharing or accepting them.</p>
       </div>
     </main>
