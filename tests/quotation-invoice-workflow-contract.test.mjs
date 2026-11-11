@@ -112,10 +112,10 @@ test('quotation list menu routes each action through the public quotation workfl
   assert.ok(quotationList.includes('Actions for quotation'));
   assert.ok(quotationList.includes('View quotation'));
   assert.ok(quotationList.includes("'/next-workspace/quotation?edit=' + encodeURIComponent(activeActionRow.id)"));
-  assert.ok(quotationList.includes('onClick={() => void downloadPdf(row)}'));
-  assert.ok(quotationList.includes("getPublicDocumentUrl('quotation', row.id)"));
-  assert.ok(quotationList.includes('onClick={() => void shareQuotation(row)}'));
-  assert.ok(quotationList.includes('publicShareAvailable(row)'));
+  assert.ok(quotationList.includes('onClick={() => void downloadPdf(activeActionRow)}'));
+  assert.ok(quotationList.includes("getPublicDocumentUrl('quotation', activeActionRow.id)"));
+  assert.ok(quotationList.includes('onClick={() => void shareQuotation(activeActionRow)}'));
+  assert.ok(quotationList.includes('publicShareAvailable(activeActionRow)'));
   assert.ok(quotationList.includes('closeOnOutsideClick'));
   assert.ok(quotationList.includes("event.key === 'Escape'"));
   assert.ok(quotationList.includes("p_status: 'accepted'"));
@@ -123,7 +123,7 @@ test('quotation list menu routes each action through the public quotation workfl
   assert.ok(quotationList.includes("supabase.rpc('convert_quotation_to_invoice'"));
   assert.ok(quotationList.includes('Mark as accepted'));
   assert.ok(quotationList.includes('Extend validity before accepting this expired quotation.'));
-  assert.ok(quotationList.includes("row.status === 'accepted' && !row.invoice_id"));
+  assert.ok(quotationList.includes("activeActionRow.status === 'accepted' && !activeActionRow.invoice_id"));
   assert.ok(quotationList.includes("const [pageSize, setPageSize] = useState('20')"));
   for (const pageSize of ['20','50','100','all']) assert.ok(quotationList.includes('<option value="' + pageSize + '">'));
   assert.ok(quotationList.includes('Rows per page'));
