@@ -132,11 +132,11 @@ test('quotation list menu routes each action through the public quotation workfl
   for (const column of ["['quotation','Quotation No.']","['customer','Customer']","['date','Date']","['amount','Total Amount']","['status','Status']"]) assert.ok(quotationList.includes(column),'missing sortable quotation column '+column);
   assert.ok(quotationList.includes('aria-sort='));
   assert.ok(quotationList.includes('sortIndicator(key)'));
-  assert.ok(quotationList.includes('const visible = pageSize === \'all\' ? sorted : sorted.slice('));
-  assert.ok(quotationList.includes('Showing {(page - 1)'));
-  assert.ok(quotationList.includes('Page {page} / {pages}'));
-  assert.ok(quotationList.includes('onClick={() => setPage(current => Math.max(1, current - 1))}'));
-  assert.ok(quotationList.includes('onClick={() => setPage(current => Math.min(pages, current + 1))}'));
+  assert.ok(quotationList.includes('const visible = pageSize === 'all' ? sorted : sorted.slice((currentPage - 1) * Number(pageSize), currentPage * Number(pageSize))'));
+  assert.ok(quotationList.includes('Showing {rangeStart}–{rangeEnd} of {sorted.length}'));
+  assert.ok(quotationList.includes('Page {currentPage} / {pages}'));
+  assert.ok(quotationList.includes('onClick={() => setPage(Math.max(1, currentPage - 1))}'));
+  assert.ok(quotationList.includes('onClick={() => setPage(Math.min(pages, currentPage + 1))}'));
   assert.ok(quotationEditor.includes("supabase.rpc('update_quotation_from_items',{p_quotation_id:editId"));
   assert.ok(quotationEditor.includes('setQuote(q.data)'));
 });
