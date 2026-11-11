@@ -1,7 +1,22 @@
 import { NextResponse } from 'next/server';
 
 const DEFAULT_NEXT = '/next-workspace';
+const PRODUCTION_APP_ORIGIN = 'https://mm.nilanga.in';
 const OAUTH_ERRORS = new Set(['access_denied', 'server_error', 'validation_failed']);
+
+function getPublicAppOrigin(requestUrl: URL): string {
+  const configured = process.env.NEXT_PUBLIC_APP_URL?.trim();
+  const candidate = configured || (process.env.NODE_ENV === 'production' ? PRODUCTION_APP_ORIGIN : requestUrl.origin);
+
+  try {
+    const parsed = new URL(candidate);
+    const isLocalHttp = process.env.NODE_ENV !== 'production' && parsed.protocol === 'http:';
+    if (parsed.protocol !== 'https:' && !isLocalHttp) return PRODUCTION_APP_ORIGIN;
+    return parsed.origin;
+  } catch {
+    return PRODUCTION_APP_ORIGIN;
+  }
+}
 
 function safeNext(value: string | null): string {
   if (!value || !value.startsWith('/') || value.startsWith('//') || value.includes('\\')) return DEFAULT_NEXT;
@@ -22,7 +37,9 @@ function safeNext(value: string | null): string {
  */
 export function GET(request: Request) {
   const incoming = new URL(request.url);
-  const target = new URL('/', incoming.origin);
+  // Plesk/IIS may expose the internal listener as the request origin. Never
+  // send the user's browser to 0.0.0.0:3000; use the configured public origin.
+  const target = new URL('/', getPublicAppOrigin(incoming));
   const code = incoming.searchParams.get('code');
   const next = safeNext(incoming.searchParams.get('next'));
 
