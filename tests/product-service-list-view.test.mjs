@@ -39,3 +39,10 @@ test('search and type changes reset pagination while inactive filtering still wo
   assert.ok(page.includes("iq=iq.eq('is_active',true)"));
   assert.ok(page.includes('value={type} onChange={e=>setType(e.target.value)}'));
 });
+
+test('catalog creation only requires HSN/SAC for GST-enabled businesses', () => {
+  assert.ok(page.includes("ctx.tax_enabled&&!f.hsn.trim()"));
+  assert.ok(page.includes("Required for this GST-enabled business."));
+  assert.ok(page.includes("Optional while GST is disabled."));
+  assert.ok(page.includes("ctx?.tax_enabled?' *':''"));
+});
