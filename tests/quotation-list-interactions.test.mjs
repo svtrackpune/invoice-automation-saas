@@ -51,3 +51,28 @@ test('quotation list exposes functional date, customer and status controls plus 
   assert.match(page, /Clear filters/);
   assert.match(page, /!loading && <div className="flex flex-col gap-3 border-t/);
 });
+
+
+test('quotation filters have visible labels and all expected page-size choices', () => {
+  for (const label of ['Search quotations','Status','Customer','From date','To date','Rows per page']) {
+    assert.ok(page.includes('>' + label + '</span>'), 'missing visible filter label: ' + label);
+  }
+  for (const value of ['10','20','50','100']) {
+    assert.ok(page.includes('<option value="' + value + '">' + value + '</option>'), 'missing page-size option: ' + value);
+  }
+  assert.ok(page.includes('<option value="all">View all</option>'));
+});
+
+test('quotation action menu renders outside the scrollable table and is viewport positioned', () => {
+  assert.match(page, /import \{ createPortal \} from 'react-dom'/);
+  assert.match(page, /createPortal\([\s\S]*?document\.body/);
+  assert.match(page, /position: 'fixed'/);
+  assert.match(page, /getBoundingClientRect\(\)/);
+  assert.match(page, /availableBelow/);
+  assert.match(page, /availableAbove/);
+  assert.match(page, /maxHeight: actionsPosition\.maxHeight/);
+  assert.match(page, /ref=\{actionMenuRef\}/);
+  assert.doesNotMatch(page, /className="absolute right-0 top-full z-50/);
+  assert.match(page, /window\.addEventListener\('scroll', closeOnScroll, true\)/);
+  assert.match(page, /window\.addEventListener\('resize', closeActionsMenu\)/);
+});
