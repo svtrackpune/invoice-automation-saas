@@ -39,3 +39,6 @@ test('RLS auth context optimization is transactional', () => {
   assert.match(migration, /^BEGIN;/);
   assert.match(migration, /COMMIT;\s*$/);
 });
+test('preflight accepts PostgreSQL-normalized auth.uid policy expressions', () => {
+  assert.ok(migration.includes(String.raw`created_by\s*=\s*\(\s*SELECT\s+auth\.uid\(\)`));
+});
