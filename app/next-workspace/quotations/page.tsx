@@ -160,13 +160,14 @@ export default function QuotationsListPage() {
 
     const rect = button.getBoundingClientRect();
     const menuWidth = 224;
-    const maxHeight = Math.max(160, Math.min(360, window.innerHeight - 24));
-    const availableBelow = window.innerHeight - rect.bottom - 8;
-    const availableAbove = rect.top - 8;
-    const openAbove = availableBelow < Math.min(maxHeight, 300) && availableAbove > availableBelow;
+    const availableBelow = window.innerHeight - rect.bottom - 16;
+    const availableAbove = rect.top - 16;
+    const openAbove = availableBelow < 300 && availableAbove > availableBelow;
+    const availableSpace = Math.max(80, openAbove ? availableAbove : availableBelow);
+    const maxHeight = Math.min(360, availableSpace);
     const top = openAbove
       ? Math.max(8, rect.top - maxHeight - 8)
-      : Math.min(rect.bottom + 8, window.innerHeight - maxHeight - 8);
+      : Math.max(8, rect.bottom + 8);
     const left = Math.max(8, Math.min(window.innerWidth - menuWidth - 8, rect.right - menuWidth));
 
     setActionsPosition({ top, left, maxHeight });
