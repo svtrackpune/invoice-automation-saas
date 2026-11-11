@@ -111,7 +111,7 @@ test('public token RPC wrappers delegate to private validated implementations', 
 test('quotation list menu routes each action through the public quotation workflow', () => {
   assert.ok(quotationList.includes('Actions for quotation'));
   assert.ok(quotationList.includes('View quotation'));
-  assert.ok(quotationList.includes("'/next-workspace/quotation?edit=' + encodeURIComponent(row.id)"));
+  assert.ok(quotationList.includes("'/next-workspace/quotation?edit=' + encodeURIComponent(activeActionRow.id)"));
   assert.ok(quotationList.includes('onClick={() => void downloadPdf(row)}'));
   assert.ok(quotationList.includes("getPublicDocumentUrl('quotation', row.id)"));
   assert.ok(quotationList.includes('onClick={() => void shareQuotation(row)}'));
