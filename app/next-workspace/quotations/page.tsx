@@ -34,6 +34,9 @@ export default function QuotationsListPage() {
   const [loadError, setLoadError] = useState('');
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [customerId, setCustomerId] = useState('all');
+  const [from, setFrom] = useState('');
+  const [to, setTo] = useState('');
   const [pageSize, setPageSize] = useState('20');
   const [page, setPage] = useState(1);
   const [sortBy, setSortBy] = useState<SortKey>('date');
@@ -80,11 +83,19 @@ export default function QuotationsListPage() {
     const query = search.trim().toLowerCase();
     return rows.filter(row => {
       const customer = customers[row.customer_id];
-      const matchesQuery = !query || [row.quotation_number, customer?.display_name, customer?.legal_name, row.status]
-        .some(value => String(value || '').toLowerCase().includes(query));
-      return matchesQuery && (statusFilter === 'all' || row.status === statusFilter);
+      const matchesQuery = !query || [
+        row.quotation_number,
+        customer?.display_name,
+        customer?.legal_name,
+        row.status,
+        statusLabel(row.status, row.valid_until),
+      ].some(value => String(value || '').toLowerCase().includes(query));
+      const matchesStatus = statusFilter === 'all' || row.status === statusFilter;
+      const matchesCustomer = customerId === 'all' || row.customer_id === customerId;
+      const matchesDate = (!from || row.quotation_date >= from) && (!to || row.quotation_date <= to);
+      return matchesQuery && matchesStatus && matchesCustomer && matchesDate;
     });
-  }, [rows, customers, search, statusFilter]);
+  }, [rows, customers, search, statusFilter, customerId, from, to]);
 
   const sorted = useMemo(() => {
     const result = [...filtered];
@@ -117,15 +128,24 @@ export default function QuotationsListPage() {
     return result;
   }, [filtered, customers, sortBy, sortDirection]);
 
-  useEffect(() => { setPage(1); }, [search, statusFilter, pageSize, sortBy, sortDirection]);
+  useEffect(() => { setPage(1); }, [search, statusFilter, customerId, from, to, pageSize, sortBy, sortDirection]);
 
   const pages = pageSize === 'all' ? 1 : Math.max(1, Math.ceil(sorted.length / Number(pageSize)));
   const visible = pageSize === 'all' ? sorted : sorted.slice((page - 1) * Number(pageSize), page * Number(pageSize));
+  const rangeStart = sorted.length === 0 ? 0 : (page - 1) * (pageSize === 'all' ? sorted.length : Number(pageSize)) + 1;
+  const rangeEnd = pageSize === 'all' ? sorted.length : Math.min(page * Number(pageSize), sorted.length);
+
+  useEffect(() => {
+    setPage(current => Math.min(current, pages));
+  }, [pages]);
   const toggleSort = (key: SortKey) => {
     if (sortBy === key) setSortDirection(current => current === 'asc' ? 'desc' : 'asc');
     else { setSortBy(key); setSortDirection(key === 'quotation' || key === 'customer' || key === 'status' ? 'asc' : 'desc'); }
   };
   const sortIndicator = (key: SortKey) => sortBy === key ? (sortDirection === 'asc' ? '↑' : '↓') : '↕';
+  const openQuotation = (row: QuotationRow) => {
+    window.location.href = '/next-workspace/documents?type=quotation&id=' + encodeURIComponent(row.id);
+  };
 
   useEffect(() => {
     if (!openActionsId) return;
@@ -264,14 +284,50 @@ export default function QuotationsListPage() {
         {actionFeedback && <div role={actionFeedback.kind === 'error' ? 'alert' : 'status'} className={'rounded-xl border p-3 text-sm ' + (actionFeedback.kind === 'error' ? 'border-rose-200 bg-rose-50 text-rose-800' : 'border-emerald-200 bg-emerald-50 text-emerald-800')}>{actionFeedback.message}</div>}
 
         <Card className="overflow-hidden p-0">
-          <div className="flex flex-col gap-3 border-b border-slate-200 p-4 xl:flex-row xl:items-center">
-            <MMFormInputControl value={search} onChange={event => setSearch(event.target.value)} placeholder="Search quotation no. or customer" aria-label="Search quotations" className="min-w-0 flex-1 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-100" />
+          <div className="grid gap-3 border-b border-slate-200 p-4">
+            <div className="grid gap-2 lg:grid-cols-[minmax(220px,1fr)_minmax(160px,220px)_minmax(160px,220px)]">
+              <MMFormInputControl
+                value={search}
+                onChange={event => setSearch(event.target.value)}
+                placeholder="Search quotation no. or customer"
+                aria-label="Search quotations"
+                type="search"
+                className="min-w-0 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-100"
+              />
+              <MMFormSelectControl
+                value={statusFilter}
+                onChange={event => setStatusFilter(event.target.value)}
+                aria-label="Filter by quotation status"
+                className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-800"
+              >
+                <option value="all">All statuses</option>
+                <option value="draft">Draft</option>
+                <option value="sent">Sent</option>
+                <option value="accepted">Accepted</option>
+                <option value="converted">Converted</option>
+                <option value="rejected">Rejected</option>
+                <option value="cancelled">Cancelled</option>
+              </MMFormSelectControl>
+              <MMFormSelectControl
+                value={customerId}
+                onChange={event => setCustomerId(event.target.value)}
+                aria-label="Filter by customer"
+                className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-800"
+              >
+                <option value="all">All customers</option>
+                {Object.values(customers)
+                  .sort((a, b) => String(a.legal_name || a.display_name).localeCompare(String(b.legal_name || b.display_name)))
+                  .map(customer => <option key={customer.id} value={customer.id}>{customer.legal_name || customer.display_name}</option>)}
+              </MMFormSelectControl>
+            </div>
             <div className="flex flex-wrap items-center gap-2">
               <label className="flex items-center gap-2 text-xs font-semibold text-slate-500">
-                Status
-                <MMFormSelectControl value={statusFilter} onChange={event => setStatusFilter(event.target.value)} aria-label="Filter by quotation status" className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-800">
-                  <option value="all">All statuses</option><option value="draft">Draft</option><option value="sent">Sent</option><option value="accepted">Accepted</option><option value="converted">Converted</option><option value="rejected">Rejected</option><option value="cancelled">Cancelled</option>
-                </MMFormSelectControl>
+                From
+                <MMFormInputControl type="date" value={from} onChange={event => setFrom(event.target.value)} aria-label="Filter quotations from date" className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800" />
+              </label>
+              <label className="flex items-center gap-2 text-xs font-semibold text-slate-500">
+                To
+                <MMFormInputControl type="date" value={to} onChange={event => setTo(event.target.value)} aria-label="Filter quotations to date" className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800" />
               </label>
               <label className="flex items-center gap-2 text-xs font-semibold text-slate-500">
                 Show
@@ -280,17 +336,22 @@ export default function QuotationsListPage() {
                 </MMFormSelectControl>
               </label>
               <Button variant="secondary" onClick={() => void refresh(businessId)} disabled={loading}>Refresh</Button>
+              {(search || statusFilter !== 'all' || customerId !== 'all' || from || to) && (
+                <Button variant="ghost" onClick={() => { setSearch(''); setStatusFilter('all'); setCustomerId('all'); setFrom(''); setTo(''); }}>
+                  Clear filters
+                </Button>
+              )}
             </div>
           </div>
           {loading ? <div className="p-8 text-center text-sm text-slate-500">Loading quotations…</div>
-            : sorted.length === 0 ? <div className="p-8 text-center text-sm text-slate-500">No quotations match this filter.</div>
+            : sorted.length === 0 ? <div className="p-8 text-center text-sm text-slate-500">No quotations match these filters. Clear the filters or refresh the list.</div>
             : <div className="overflow-x-auto">
               <table className="w-full min-w-[1050px] text-sm">
                 <thead className="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">
                   <tr>
                     {([['quotation','Quotation No.'],['customer','Customer'],['date','Date'],['amount','Total Amount'],['status','Status']] as [SortKey,string][]).map(([key,label]) => (
                       <th key={key} aria-sort={sortBy === key ? (sortDirection === 'asc' ? 'ascending' : 'descending') : 'none'} className={'px-4 py-3 ' + (key === 'amount' ? 'text-right' : '')}>
-                        <button type="button" onClick={() => toggleSort(key)} className={'inline-flex items-center gap-1.5 rounded-md py-1 font-bold uppercase tracking-wide ' + (sortBy === key ? 'text-violet-700' : 'text-slate-500 hover:text-slate-800')}>
+                        <button type="button" onClick={event => { event.stopPropagation(); toggleSort(key); }} className={'inline-flex items-center gap-1.5 rounded-md py-1 font-bold uppercase tracking-wide ' + (sortBy === key ? 'text-violet-700' : 'text-slate-500 hover:text-slate-800')}>
                           {label}<span aria-hidden="true" className={sortBy === key ? 'text-violet-600' : 'text-slate-300'}>{sortIndicator(key)}</span>
                         </button>
                       </th>
@@ -305,14 +366,14 @@ export default function QuotationsListPage() {
                     const isPublic = ['sent', 'accepted', 'converted'].includes(row.status);
                     const isEditable = ['draft', 'sent'].includes(row.status);
                     return (
-                      <tr key={row.id} className="hover:bg-slate-50/80">
+                      <tr key={row.id} tabIndex={0} aria-label={'Open quotation ' + row.quotation_number} onClick={() => openQuotation(row)} onKeyDown={event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); openQuotation(row); } }} className="cursor-pointer hover:bg-slate-50/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-violet-400">
                         <td className="px-4 py-4 font-semibold text-slate-900">{row.quotation_number}</td>
                         <td className="px-4 py-4">{customer?.legal_name || customer?.display_name || '—'}</td>
                         <td className="px-4 py-4 text-slate-600">{dateLabel(row.quotation_date)}</td>
                         <td className="px-4 py-4 text-right font-medium tabular-nums">{money(Number(row.total), row.currency_code || currencyCode, locale)}</td>
                         <td className="px-4 py-4"><span className={'inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ' + (row.status === 'converted' || row.status === 'accepted' ? 'bg-emerald-50 text-emerald-700' : row.status === 'sent' ? 'bg-sky-50 text-sky-700' : row.status === 'cancelled' || row.status === 'rejected' ? 'bg-rose-50 text-rose-700' : 'bg-slate-100 text-slate-700')}>{statusLabel(row.status, row.valid_until)}</span></td>
                         <td className="px-4 py-4">
-                          <div className="relative flex justify-end" ref={openActionsId === row.id ? actionsRef : null}>
+                          <div className="relative flex justify-end" ref={openActionsId === row.id ? actionsRef : null} onClick={event => event.stopPropagation()} onKeyDown={event => event.stopPropagation()}>
                             <button type="button" aria-haspopup="menu" aria-expanded={openActionsId === row.id} aria-label={'Actions for quotation ' + row.quotation_number} onClick={() => setOpenActionsId(current => current === row.id ? null : row.id)} className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-semibold text-slate-800 shadow-sm hover:border-violet-300 hover:bg-violet-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500">
                               Actions <span aria-hidden="true" className="text-slate-500">▾</span>
                             </button>
@@ -341,12 +402,12 @@ export default function QuotationsListPage() {
                 </tbody>
               </table>
             </div>}
-          {!loading && sorted.length > 0 && <div className="flex flex-col gap-2 border-t border-slate-100 px-4 py-3 text-xs text-slate-500 sm:flex-row sm:items-center sm:justify-between">
-            <span>Showing {(page - 1) * Number(pageSize === 'all' ? sorted.length || 1 : pageSize) + 1}–{pageSize === 'all' ? sorted.length : Math.min(page * Number(pageSize), sorted.length)} of {sorted.length}</span>
+          {!loading && <div className="flex flex-col gap-3 border-t border-slate-100 px-4 py-3 text-xs text-slate-500 sm:flex-row sm:items-center sm:justify-between">
+            <span aria-live="polite">Showing {rangeStart}–{rangeEnd} of {sorted.length}</span>
             <div className="flex items-center gap-2">
-              <Button size="sm" variant="secondary" disabled={page <= 1 || pageSize === 'all'} onClick={() => setPage(current => Math.max(1, current - 1))}>Previous</Button>
-              <span>Page {page} / {pages}</span>
-              <Button size="sm" variant="secondary" disabled={page >= pages || pageSize === 'all'} onClick={() => setPage(current => Math.min(pages, current + 1))}>Next</Button>
+              <button type="button" disabled={page <= 1 || pageSize === 'all' || sorted.length === 0} onClick={() => setPage(current => Math.max(1, current - 1))} className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40">Previous</button>
+              <span className="min-w-16 text-center" aria-live="polite">Page {page} / {pages}</span>
+              <button type="button" disabled={page >= pages || pageSize === 'all' || sorted.length === 0} onClick={() => setPage(current => Math.min(pages, current + 1))} className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40">Next</button>
             </div>
           </div>}
         </Card>
