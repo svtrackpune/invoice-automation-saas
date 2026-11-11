@@ -95,7 +95,7 @@ test('quotation action menu renders outside the scrollable table and is viewport
   assert.match(page, /getBoundingClientRect\(\)/);
   assert.match(page, /availableBelow/);
   assert.match(page, /availableAbove/);
-  assert.match(page, /maxHeight: actionsPosition\.maxHeight/);
+  assert.doesNotMatch(page, /maxHeight: actionsPosition\.maxHeight/);
   assert.match(page, /ref=\{actionMenuRef\}/);
   assert.doesNotMatch(page, /className="absolute right-0 top-full z-50/);
   assert.match(page, /window\.addEventListener\('scroll', closeOnScroll, true\)/);
