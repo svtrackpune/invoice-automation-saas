@@ -131,13 +131,10 @@ export default function QuotationsListPage() {
   useEffect(() => { setPage(1); }, [search, statusFilter, customerId, from, to, pageSize, sortBy, sortDirection]);
 
   const pages = pageSize === 'all' ? 1 : Math.max(1, Math.ceil(sorted.length / Number(pageSize)));
-  const visible = pageSize === 'all' ? sorted : sorted.slice((page - 1) * Number(pageSize), page * Number(pageSize));
-  const rangeStart = sorted.length === 0 ? 0 : (page - 1) * (pageSize === 'all' ? sorted.length : Number(pageSize)) + 1;
-  const rangeEnd = pageSize === 'all' ? sorted.length : Math.min(page * Number(pageSize), sorted.length);
-
-  useEffect(() => {
-    setPage(current => Math.min(current, pages));
-  }, [pages]);
+  const currentPage = Math.min(page, pages);
+  const visible = pageSize === 'all' ? sorted : sorted.slice((currentPage - 1) * Number(pageSize), currentPage * Number(pageSize));
+  const rangeStart = sorted.length === 0 ? 0 : (currentPage - 1) * (pageSize === 'all' ? sorted.length : Number(pageSize)) + 1;
+  const rangeEnd = pageSize === 'all' ? sorted.length : Math.min(currentPage * Number(pageSize), sorted.length);
   const toggleSort = (key: SortKey) => {
     if (sortBy === key) setSortDirection(current => current === 'asc' ? 'desc' : 'asc');
     else { setSortBy(key); setSortDirection(key === 'quotation' || key === 'customer' || key === 'status' ? 'asc' : 'desc'); }
@@ -351,7 +348,7 @@ export default function QuotationsListPage() {
                   <tr>
                     {([['quotation','Quotation No.'],['customer','Customer'],['date','Date'],['amount','Total Amount'],['status','Status']] as [SortKey,string][]).map(([key,label]) => (
                       <th key={key} aria-sort={sortBy === key ? (sortDirection === 'asc' ? 'ascending' : 'descending') : 'none'} className={'px-4 py-3 ' + (key === 'amount' ? 'text-right' : '')}>
-                        <button type="button" onClick={event => { event.stopPropagation(); toggleSort(key); }} className={'inline-flex items-center gap-1.5 rounded-md py-1 font-bold uppercase tracking-wide ' + (sortBy === key ? 'text-violet-700' : 'text-slate-500 hover:text-slate-800')}>
+                        <button type="button" onClick={event => { event.stopPropagation(); toggleSort(key); }} onKeyDown={event => event.stopPropagation()} className={'inline-flex items-center gap-1.5 rounded-md py-1 font-bold uppercase tracking-wide ' + (sortBy === key ? 'text-violet-700' : 'text-slate-500 hover:text-slate-800')}>
                           {label}<span aria-hidden="true" className={sortBy === key ? 'text-violet-600' : 'text-slate-300'}>{sortIndicator(key)}</span>
                         </button>
                       </th>
@@ -405,9 +402,9 @@ export default function QuotationsListPage() {
           {!loading && <div className="flex flex-col gap-3 border-t border-slate-100 px-4 py-3 text-xs text-slate-500 sm:flex-row sm:items-center sm:justify-between">
             <span aria-live="polite">Showing {rangeStart}–{rangeEnd} of {sorted.length}</span>
             <div className="flex items-center gap-2">
-              <button type="button" disabled={page <= 1 || pageSize === 'all' || sorted.length === 0} onClick={() => setPage(current => Math.max(1, current - 1))} className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40">Previous</button>
-              <span className="min-w-16 text-center" aria-live="polite">Page {page} / {pages}</span>
-              <button type="button" disabled={page >= pages || pageSize === 'all' || sorted.length === 0} onClick={() => setPage(current => Math.min(pages, current + 1))} className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40">Next</button>
+              <button type="button" disabled={currentPage <= 1 || pageSize === 'all' || sorted.length === 0} onClick={() => setPage(Math.max(1, currentPage - 1))} className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40">Previous</button>
+              <span className="min-w-16 text-center" aria-live="polite">Page {currentPage} / {pages}</span>
+              <button type="button" disabled={currentPage >= pages || pageSize === 'all' || sorted.length === 0} onClick={() => setPage(Math.min(pages, currentPage + 1))} className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40">Next</button>
             </div>
           </div>}
         </Card>
