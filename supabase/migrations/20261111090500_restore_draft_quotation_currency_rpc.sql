@@ -46,7 +46,7 @@ SET search_path TO 'public','pg_temp'
 AS $function$
 DECLARE
   q public.quotations%rowtype;
-  v_currency char(3) := upper(btrim(coalesce(p_currency_code,'')));
+  v_currency text := upper(btrim(coalesce(p_currency_code,'')));
   v_can_create boolean;
   v_can_edit boolean;
 BEGIN
