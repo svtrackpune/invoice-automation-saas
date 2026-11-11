@@ -62,7 +62,7 @@ test('catalog UI exposes template import and master export with row-level result
   assert.ok(page.includes('Successfully imported '));
   assert.ok(page.includes('Review skipped rows'));
   assert.ok(page.includes('downloadCatalogMasterWorkbook(ctx.business_name'));
-  assert.ok(page.includes('HSN is required for goods.'));
+  assert.ok(page.includes('HSN is required for this GST-enabled business.'));
   assert.ok(page.includes("unit:x.unit||'hrs'"));
 });
 
