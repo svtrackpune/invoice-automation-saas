@@ -101,3 +101,27 @@ test('quotation action menu renders outside the scrollable table and is viewport
   assert.match(page, /window\.addEventListener\('scroll', closeOnScroll, true\)/);
   assert.match(page, /window\.addEventListener\('resize', closeActionsMenu\)/);
 });
+
+
+test('quotation action dropdown never creates an internal vertical scrollbar', () => {
+  const portalStart = page.indexOf('createPortal(');
+  const portalEnd = page.indexOf('document.body', portalStart);
+  assert.ok(portalStart >= 0 && portalEnd > portalStart, 'actions menu must render through a body portal');
+  const portal = page.slice(portalStart, portalEnd);
+
+  assert.match(portal, /position: 'fixed'/);
+  assert.match(portal, /overflow-visible/);
+  assert.doesNotMatch(portal, /overflow-y-auto|overflow-y-scroll|overscroll-contain/);
+  assert.doesNotMatch(portal, /maxHeight|max-height/);
+  assert.doesNotMatch(portal, /max-h-/);
+});
+
+test('quotation action dropdown positions its full content above or below the trigger without a height cap', () => {
+  assert.match(page, /const menuHeight = 272/);
+  assert.match(page, /const availableBelow = window\.innerHeight - rect\.bottom - gap/);
+  assert.match(page, /const availableAbove = rect\.top - gap/);
+  assert.match(page, /const openAbove = availableBelow < menuHeight && availableAbove > availableBelow/);
+  assert.match(page, /setActionsPosition\(\{ top, left \}\)/);
+  assert.doesNotMatch(page, /maxHeight: number/);
+  assert.doesNotMatch(page, /maxHeight: actionsPosition\.maxHeight/);
+});
