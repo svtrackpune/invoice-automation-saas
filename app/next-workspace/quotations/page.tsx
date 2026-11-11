@@ -44,7 +44,7 @@ export default function QuotationsListPage() {
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
   const [businessName, setBusinessName] = useState('Business');
   const [openActionsId, setOpenActionsId] = useState<string | null>(null);
-  const [actionsPosition, setActionsPosition] = useState<{ top: number; left: number; maxHeight: number } | null>(null);
+  const [actionsPosition, setActionsPosition] = useState<{ top: number; left: number } | null>(null);
   const [sharingId, setSharingId] = useState<string | null>(null);
   const [processingId, setProcessingId] = useState<string | null>(null);
   const [actionFeedback, setActionFeedback] = useState<{ kind: 'success' | 'error'; message: string } | null>(null);
@@ -160,17 +160,20 @@ export default function QuotationsListPage() {
 
     const rect = button.getBoundingClientRect();
     const menuWidth = 224;
-    const availableBelow = window.innerHeight - rect.bottom - 16;
-    const availableAbove = rect.top - 16;
-    const openAbove = availableBelow < 300 && availableAbove > availableBelow;
-    const availableSpace = Math.max(80, openAbove ? availableAbove : availableBelow);
-    const maxHeight = Math.min(360, availableSpace);
-    const top = openAbove
-      ? Math.max(8, rect.top - maxHeight - 8)
-      : Math.max(8, rect.bottom + 8);
+    // The menu has six compact actions at most. Position the complete menu
+    // above or below the trigger; do not constrain its height or make it scroll.
+    const menuHeight = 272;
+    const gap = 8;
+    const availableBelow = window.innerHeight - rect.bottom - gap;
+    const availableAbove = rect.top - gap;
+    const openAbove = availableBelow < menuHeight && availableAbove > availableBelow;
+    const preferredTop = openAbove
+      ? rect.top - menuHeight - gap
+      : rect.bottom + gap;
+    const top = Math.max(8, Math.min(preferredTop, window.innerHeight - menuHeight - 8));
     const left = Math.max(8, Math.min(window.innerWidth - menuWidth - 8, rect.right - menuWidth));
 
-    setActionsPosition({ top, left, maxHeight });
+    setActionsPosition({ top, left });
     setOpenActionsId(rowId);
   }, [openActionsId, closeActionsMenu]);
 
@@ -455,8 +458,8 @@ export default function QuotationsListPage() {
             aria-label={'Quotation actions for ' + activeActionRow.quotation_number}
             onClick={event => event.stopPropagation()}
             onKeyDown={event => event.stopPropagation()}
-            style={{ position: 'fixed', top: actionsPosition.top, left: actionsPosition.left, maxHeight: actionsPosition.maxHeight }}
-            className="z-[100] w-56 overflow-y-auto overscroll-contain rounded-xl border border-slate-200 bg-white p-1.5 shadow-2xl"
+            style={{ position: 'fixed', top: actionsPosition.top, left: actionsPosition.left }}
+            className="z-[100] w-56 overflow-visible rounded-xl border border-slate-200 bg-white p-1.5 shadow-2xl"
           >
             <a role="menuitem" className="block rounded-lg px-3 py-2.5 text-left text-sm text-slate-700 hover:bg-slate-50" href={'/next-workspace/documents?type=quotation&id=' + encodeURIComponent(activeActionRow.id)}>View quotation</a>
             {activeActionIsEditable
