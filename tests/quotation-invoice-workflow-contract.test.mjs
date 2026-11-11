@@ -132,7 +132,7 @@ test('quotation list menu routes each action through the public quotation workfl
   for (const column of ["['quotation','Quotation No.']","['customer','Customer']","['date','Date']","['amount','Total Amount']","['status','Status']"]) assert.ok(quotationList.includes(column),'missing sortable quotation column '+column);
   assert.ok(quotationList.includes('aria-sort='));
   assert.ok(quotationList.includes('sortIndicator(key)'));
-  assert.ok(quotationList.includes('const visible = pageSize === 'all' ? sorted : sorted.slice((currentPage - 1) * Number(pageSize), currentPage * Number(pageSize))'));
+  assert.ok(quotationList.includes("const visible = pageSize === 'all' ? sorted : sorted.slice((currentPage - 1) * Number(pageSize), currentPage * Number(pageSize))"));
   assert.ok(quotationList.includes('Showing {rangeStart}–{rangeEnd} of {sorted.length}'));
   assert.ok(quotationList.includes('Page {currentPage} / {pages}'));
   assert.ok(quotationList.includes('onClick={() => setPage(Math.max(1, currentPage - 1))}'));
