@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 
 const migration = await readFile(
-  new URL('../supabase/migrations/20261111090000_cleanup_duplicate_quotation_accept_index_and_entitlement_policy.sql', import.meta.url),
+  new URL('../supabase/migrations/20261111082718_cleanup_duplicate_quotation_accept_index_and_entitlement_policy.sql', import.meta.url),
   'utf8',
 );
 
