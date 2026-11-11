@@ -215,7 +215,7 @@ export default function QuotationsListPage() {
       }
       if (!/^[A-Fa-f0-9]{48,128}$/.test(token)) throw new Error('The quotation does not have a valid public PDF token.');
       window.location.href = '/api/public-documents/pdf?type=quotation&token=' + encodeURIComponent(token);
-      setOpenActionsId(null);
+      closeActionsMenu();
     } catch (error) {
       setActionFeedback({ kind: 'error', message: error instanceof Error ? error.message : 'Unable to download this quotation PDF.' });
     }
@@ -237,7 +237,7 @@ export default function QuotationsListPage() {
         currencyCode: row.currency_code || currencyCode,
         publicUrl,
       }, 'Quotation ' + row.quotation_number);
-      setOpenActionsId(null);
+      closeActionsMenu();
       if (result === 'shared') setActionFeedback({ kind: 'success', message: 'Quotation shared using your device share sheet.' });
       else if (result === 'copied') setActionFeedback({ kind: 'success', message: 'Customer-ready quotation message copied to the clipboard.' });
     } catch (error) {
@@ -254,7 +254,7 @@ export default function QuotationsListPage() {
 
   const convertAcceptedQuotation = async (row: QuotationRow) => {
     setActionFeedback(null);
-    setOpenActionsId(null);
+    closeActionsMenu();
     setProcessingId(row.id);
     try {
       const converted = await supabase.rpc('convert_quotation_to_invoice', {
@@ -275,7 +275,7 @@ export default function QuotationsListPage() {
 
   const acceptQuotation = async (row: QuotationRow) => {
     setActionFeedback(null);
-    setOpenActionsId(null);
+    closeActionsMenu();
     if (!['draft', 'sent'].includes(row.status)) return;
     if (row.status === 'sent' && row.valid_until && row.valid_until < today()) {
       setActionFeedback({ kind: 'error', message: 'Extend the validity date before accepting expired quotation ' + row.quotation_number + '.' });
