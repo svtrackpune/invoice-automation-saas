@@ -11,8 +11,13 @@ test('Google and Facebook OAuth use the callback route and email is the only req
   assert.match(auth, /Continue with Facebook/);
   assert.match(auth, /signInWithOAuth/);
   assert.match(auth, /auth\/callback\?next=' \+ encodeURIComponent\(requestedLandingPath\(\)\)/);
-  assert.match(auth, /access_type:'offline',prompt:'consent'/);
+  assert.match(auth, /publicAppOrigin\(window\.location\.origin\)/);
+  assert.doesNotMatch(auth, /access_type:'offline'|provider_refresh_token/);
   assert.match(callback, /searchParams\.get\('code'\)/);
+  assert.match(callback, /process\.env\.NEXT_PUBLIC_APP_URL/);
+  assert.match(callback, /PRODUCTION_APP_ORIGIN/);
+  const supabaseClient = await read('lib/supabase.ts');
+  assert.match(supabaseClient, /flowType: 'pkce'/);
   assert.match(callback, /target\.searchParams\.set\('code', code\)/);
   assert.match(callback, /oauth_exchange_failed/);
   assert.doesNotMatch(callback, /business_memberships/);
