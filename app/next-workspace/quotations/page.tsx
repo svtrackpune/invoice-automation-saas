@@ -147,12 +147,12 @@ export default function QuotationsListPage() {
     window.location.href = '/next-workspace/documents?type=quotation&id=' + encodeURIComponent(row.id);
   };
 
-  const closeActionsMenu = () => {
+  const closeActionsMenu = useCallback(() => {
     setOpenActionsId(null);
     setActionsPosition(null);
-  };
+  }, []);
 
-  const toggleActionsMenu = (rowId: string, button: HTMLButtonElement) => {
+  const toggleActionsMenu = useCallback((rowId: string, button: HTMLButtonElement) => {
     if (openActionsId === rowId) {
       closeActionsMenu();
       return;
@@ -171,7 +171,7 @@ export default function QuotationsListPage() {
 
     setActionsPosition({ top, left, maxHeight });
     setOpenActionsId(rowId);
-  };
+  }, [openActionsId, closeActionsMenu]);
 
   useEffect(() => {
     if (!openActionsId) return;
@@ -198,7 +198,7 @@ export default function QuotationsListPage() {
       window.removeEventListener('scroll', closeOnScroll, true);
       window.removeEventListener('resize', closeActionsMenu);
     };
-  }, [openActionsId]);
+  }, [openActionsId, closeActionsMenu]);
 
   const publicShareAvailable = (row: QuotationRow) => {
     const expired = row.status === 'sent' && Boolean(row.valid_until && row.valid_until < today());
