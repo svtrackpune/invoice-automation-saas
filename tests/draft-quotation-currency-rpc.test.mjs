@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 
 const migration = await readFile(
-  new URL('../supabase/migrations/20261111090500_restore_draft_quotation_currency_rpc.sql', import.meta.url),
+  new URL('../supabase/migrations/20261111091026_restore_draft_quotation_currency_rpc.sql', import.meta.url),
   'utf8',
 );
 const editor = await readFile(
