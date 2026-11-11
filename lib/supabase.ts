@@ -13,6 +13,9 @@ export const supabase = createClient(url, key, {
     fetch: businessAwareFetch,
   },
   auth: {
+    // The OAuth callback route is an authorization-code relay. PKCE is required
+    // so session tokens are never delivered in the URL fragment.
+    flowType: 'pkce',
     persistSession: true,
     autoRefreshToken: true,
     detectSessionInUrl: true,
