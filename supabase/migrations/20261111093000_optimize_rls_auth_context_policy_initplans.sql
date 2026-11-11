@@ -23,7 +23,10 @@ BEGIN
       AND policyname='api_keys_member_insert' AND cmd='INSERT'
       AND roles @> ARRAY['authenticated'::name]
       AND position('integrations.manage' IN coalesce(with_check,'')) > 0
-      AND position('created_by = auth.uid()' IN coalesce(with_check,'')) > 0
+      AND (
+        coalesce(with_check,'') ~ 'created_by\\s*=\\s*auth\\.uid\\(\\)'
+        OR coalesce(with_check,'') ~ 'created_by\\s*=\\s*\\(\\s*SELECT\\s+auth\\.uid\\(\\)'
+      )
   ) THEN
     RAISE EXCEPTION 'api_keys_member_insert policy drifted; refusing to alter it';
   END IF;
