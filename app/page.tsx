@@ -26,8 +26,20 @@ function onboardingLandingPath(): string {
   return requestedLandingPath() === '/mobile' ? '/onboarding?next=%2Fmobile' : '/onboarding';
 }
 
+function publicAppOrigin(fallback: string): string {
+  const configured = process.env.NEXT_PUBLIC_APP_URL?.trim();
+  if (!configured) return fallback;
+  try {
+    const parsed = new URL(configured);
+    if (parsed.protocol === 'https:' || (process.env.NODE_ENV !== 'production' && parsed.protocol === 'http:')) return parsed.origin;
+  } catch {
+    // Fall back to the page origin for local and misconfigured environments.
+  }
+  return fallback;
+}
+
 function emailConfirmationRedirect(origin: string): string {
-  return origin + '/?next=' + encodeURIComponent(requestedLandingPath());
+  return publicAppOrigin(origin) + '/?next=' + encodeURIComponent(requestedLandingPath());
 }
 
 function Field({label,children}:{label:string;children:React.ReactNode}) {
@@ -117,12 +129,11 @@ function Auth({onReady}:{onReady:()=>void}) {
   async function beginOAuth(provider:OAuthProvider) {
     setBusy(true);setError('');setNotice('');
     try {
-      const origin = typeof window !== 'undefined' ? window.location.origin : 'https://mm.nilanga.in';
+      const origin = publicAppOrigin(window.location.origin);
       const result=await supabase.auth.signInWithOAuth({
         provider,
         options:{
           redirectTo:origin + '/auth/callback?next=' + encodeURIComponent(requestedLandingPath()),
-          ...(provider==='google' ? {queryParams:{access_type:'offline',prompt:'consent'}} : {}),
         },
       });
       if(result.error) setError(`${provider==='google'?'Google':'Facebook'} Sign-In Error: ${result.error.message}`);
