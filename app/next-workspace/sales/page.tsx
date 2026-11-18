@@ -5,6 +5,7 @@ import { PageHeader } from '@/components/ui/finops/PageHeader';
 import { useBusinessDNA } from '@/lib/use-business-dna';
 
 const actions = [
+  { title: 'Cash Bill (POS)', description: 'Create counter sales with instant Cash or UPI settlement, stock updates and a customer receipt.', href: '/next-workspace/cash-bill', label: 'Open Cash Bill' },
   { title: 'Create invoice', description: 'Use the canonical invoice editor, review the document, then finalize and post.', href: '/next-workspace/invoices/new', label: 'Create invoice' },
   { title: 'Invoices', description: 'Review drafts, posted invoices, outstanding balances and document actions.', href: '/next-workspace/invoices', label: 'Open invoices' },
   { title: 'Quotations', description: 'Review quotations, search statuses and share customer links.', href: '/next-workspace/quotations', label: 'Open quotations' },
@@ -47,7 +48,7 @@ export default function SalesPage() {
         <Card className="mt-6 p-5">
           <p className="text-xs font-bold uppercase tracking-[.16em] text-slate-400">Canonical lifecycle</p>
           <div className="mt-3 flex flex-wrap items-center gap-2 text-sm font-semibold text-slate-700">
-            {['Customer', 'Quotation', 'Invoice Draft', 'Document Review', 'Finalize & Post', 'Payment', 'Receipt', 'Accounting'].map((step, index) => (
+            {['Customer', 'Quotation', 'Invoice Draft', 'Cash Bill (instant settlement)', 'Document Review', 'Finalize & Post', 'Payment', 'Receipt', 'Accounting'].map((step, index) => (
               <span key={step} className="flex items-center gap-2">
                 <span className="rounded-lg bg-slate-100 px-3 py-2">{step}</span>
                 {index < 7 && <span className="text-slate-300">→</span>}
