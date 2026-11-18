@@ -28,7 +28,7 @@ AS $function$
 DECLARE
   v_customer uuid;
   v_invoice uuid;
-  v_payment uuid;
+  v_receipt uuid;
   v_currency char(3);
 BEGIN
   PERFORM set_config('moneymatters.pos_cash_bill', '1', true);
@@ -92,7 +92,7 @@ BEGIN
 
   PERFORM public.post_invoice(v_invoice, NULL);
 
-  v_payment := public.record_customer_payment(
+  v_receipt := public.record_customer_payment(
     p_business_id, v_customer, v_invoice,
     (SELECT total FROM public.invoices WHERE id = v_invoice),
     p_payment_method, p_account_id, NULL, NULL, p_invoice_date, p_notes, v_currency
@@ -103,7 +103,7 @@ BEGIN
   -- notification triggers run at commit.
   UPDATE public.receipts
   SET delivery_phone = p_phone
-  WHERE payment_id = v_payment
+  WHERE id = v_receipt
     AND business_id = p_business_id;
 
   IF NOT FOUND THEN
