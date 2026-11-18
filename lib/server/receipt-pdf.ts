@@ -15,6 +15,7 @@ type ReceiptRow = {
   reference_number: string | null;
   customer_id: string | null;
   payment_id: string | null;
+  delivery_phone: string | null;
   notes: string | null;
   business_id: string;
 };
@@ -139,9 +140,10 @@ const buildReceiptPdf = async (data: PdfData): Promise<Buffer> => {
   const ledgerCurrency = plain(data.business?.base_currency_code || data.business?.currency_code || currency).toUpperCase() || currency;
   const receiptNumber = plain(data.receipt.receipt_number);
   const customerName = plain(data.customer?.legal_name || data.customer?.display_name || 'Cash Customer');
-  const customerPhone = plain(data.customer?.phone || '');
+  const customerPhone = plain(data.receipt.delivery_phone || data.customer?.phone || '');
   const customerEmail = plain(data.customer?.email || '');
   const invoiceNumber = plain(data.invoice?.invoice_number || (data.allocations.length === 1 ? data.allocations[0].invoice_number : ''));
+  const isCashBill = data.invoice?.document_kind === 'cash_bill';
 
   const pageWidth = 595;
   const pageHeight = 842;
@@ -242,12 +244,12 @@ const buildReceiptPdf = async (data: PdfData): Promise<Buffer> => {
   y -= 3;
   line(page, left, y, pageWidth - right, y);
   y -= 19;
-  textLine(page, left, y, 'PAYMENT RECEIPT / VOUCHER', 13, true, palette.primary);
+  textLine(page, left, y, isCashBill ? 'CASH BILL PAYMENT RECEIPT' : 'PAYMENT RECEIPT / VOUCHER', 13, true, palette.primary);
   const receiptLabel = `Receipt: ${receiptNumber}`;
   textLine(page, pageWidth - right - estimateTextWidth(receiptLabel, 8.5, true), y + 1, receiptLabel, 8.5, true);
   y -= 16;
   textLine(page, left, y, `Receipt date: ${plain(data.receipt.receipt_date)}`, 8.5);
-  if (invoiceNumber) textLine(page, left + 210, y, `Invoice: ${invoiceNumber}`, 8.5);
+  if (invoiceNumber) textLine(page, left + 210, y, `${isCashBill ? 'Bill' : 'Invoice'}: ${invoiceNumber}`, 8.5);
   y -= 13;
 
   const nameLines = wrap(customerName, 78);
@@ -270,13 +272,14 @@ const buildReceiptPdf = async (data: PdfData): Promise<Buffer> => {
   y = customerTop - customerCardHeight - 10;
 
   const reference = plain(data.receipt.reference_number || '');
-  const paymentCardHeight = reference ? 37 : 25;
+  const paymentCardHeight = isCashBill ? (reference ? 49 : 37) : (reference ? 37 : 25);
   const paymentTop = drawTopBox(paymentCardHeight, palette.pale);
   textLine(page, left + 10, paymentTop - 12, `Payment mode: ${plain(data.receipt.payment_method || '—')}`, 8.2);
-  if (reference) textLine(page, left + 10, paymentTop - 27, `UTR / transaction reference: ${reference}`, 8.1);
+  if (isCashBill) textLine(page, left + 10, paymentTop - 26, 'Payment status: PAID IN FULL', 8.5, true, palette.primary);
+  if (reference) textLine(page, left + 10, paymentTop - (isCashBill ? 40 : 27), `UTR / transaction reference: ${reference}`, 8.1);
   y = paymentTop - paymentCardHeight - 10;
 
-  if (data.allocations.length) {
+  if (data.allocations.length && !isCashBill) {
     ensureSpace(24 + data.allocations.length * 12);
     textLine(page, left, y, 'INVOICE ALLOCATION', 8.5, true);
     y -= 12;
@@ -294,7 +297,7 @@ const buildReceiptPdf = async (data: PdfData): Promise<Buffer> => {
 
   if (data.items.length) {
     ensureSpace(38 + data.items.length * 14);
-    textLine(page, left, y, 'INVOICE ITEMS (REFERENCE ONLY)', 8.5, true);
+    textLine(page, left, y, isCashBill ? 'CASH BILL ITEMS' : 'INVOICE ITEMS (REFERENCE ONLY)', 8.5, true);
     y -= 12;
     textLine(page, left, y, 'Item / description', 7.8, true);
     textLine(page, left + 370, y, 'Qty', 7.8, true);
@@ -334,11 +337,13 @@ const buildReceiptPdf = async (data: PdfData): Promise<Buffer> => {
   textLine(page, left + 10, summaryTop - 29, `Amount in words: ${canonical.financials.amountInWords}`, 7.2);
   y = summaryTop - 53;
 
-  const ledgerTop = drawTopBox(25, palette.pale);
-  textLine(page, left + 10, ledgerTop - 16, 'Current customer ledger balance', 8.2, false, palette.primary);
-  const ledgerText = money(data.customer_outstanding, ledgerCurrency);
-  textLine(page, pageWidth - right - estimateTextWidth(ledgerText, 9, true) - 10, ledgerTop - 16, ledgerText, 9, true, palette.primary);
-  y = ledgerTop - 35;
+  if (!isCashBill) {
+    const ledgerTop = drawTopBox(25, palette.pale);
+    textLine(page, left + 10, ledgerTop - 16, 'Current customer ledger balance', 8.2, false, palette.primary);
+    const ledgerText = money(data.customer_outstanding, ledgerCurrency);
+    textLine(page, pageWidth - right - estimateTextWidth(ledgerText, 9, true) - 10, ledgerTop - 16, ledgerText, 9, true, palette.primary);
+    y = ledgerTop - 35;
+  }
 
   ensureSpace(45);
   line(page, left, y, pageWidth - right, y);
@@ -376,7 +381,7 @@ export const sha256Hex = (value: string) => createHash('sha256').update(value, '
 export async function loadReceiptPdfData(db: SupabaseClient, receiptId: string): Promise<PdfData> {
   const { data: receipt, error: receiptError } = await db
     .from('receipts')
-    .select('id,business_id,receipt_number,receipt_date,amount,currency_code,payment_method,reference_number,customer_id,payment_id,notes')
+    .select('id,business_id,receipt_number,receipt_date,amount,currency_code,payment_method,reference_number,customer_id,payment_id,delivery_phone,notes')
     .eq('id', receiptId)
     .single();
   if (receiptError || !receipt) throw new Error('Receipt not found.');
