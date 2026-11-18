@@ -67,7 +67,7 @@ smokeTest('authenticated Cash Bill creation is atomic and produces one paid paym
 
   const { data: invoiceId, error } = await client.rpc('create_cash_bill', {
     p_business_id: businessId,
-    p_phone: '',
+    p_phone: '+919876543210',
     p_invoice_date: billDate,
     p_items: [{
       product_service_id: product.id,
