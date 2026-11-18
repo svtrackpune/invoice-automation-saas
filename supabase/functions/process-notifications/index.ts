@@ -196,7 +196,7 @@ function documentPlainText(doc: PublicDispatchContext) {
       ? `Customer outstanding balance: ${formatDocumentMoney(doc.customer_outstanding_balance,doc.currency_code)}` : "",
     doc.document_type === "invoice" && doc.upi_qr_string ? `Pay Now via UPI: ${doc.upi_qr_string}` : "",
     doc.document_type === "invoice" && doc.payment_link ? `Pay online: ${doc.payment_link}` : "",
-    `Status: ${doc.status.replace(/_/g," ")}`,
+    `Status: ${doc.document_type === "receipt" ? "PAID" : doc.status.replace(/_/g," ")}`,
     `View document: ${doc.public_url}`,
     doc.business_tax_id ? `GSTIN / Tax ID: ${doc.business_tax_id}` : "",
     "Sent securely via Money Matters FinOps. Learn more at https://mm.nilanga.in",
@@ -207,7 +207,8 @@ function documentSmsText(doc: PublicDispatchContext) {
   const due = doc.document_type === "invoice" ? ` Balance due ${String(doc.currency_code || "INR").toUpperCase()} ${Number(doc.balance_due || 0).toFixed(2)}.`
     : doc.document_type === "receipt" && doc.customer_outstanding_balance !== null
       ? ` Customer outstanding ${String(doc.currency_code || "INR").toUpperCase()} ${Number(doc.customer_outstanding_balance).toFixed(2)}.` : "";
-  return `${documentLabel(doc.document_type)} #${doc.document_number} from ${doc.business_name}. Amount ${amount}.${due} View: ${doc.public_url} - Money Matters FinOps`;
+  const paid = doc.document_type === "receipt" ? " Status: PAID." : "";
+  return `${documentLabel(doc.document_type)} #${doc.document_number} from ${doc.business_name}. Amount ${amount}.${paid}${due} View: ${doc.public_url} - Money Matters FinOps`;
 }
 function documentCaption(doc: PublicDispatchContext) {
   const caption = [
@@ -226,7 +227,7 @@ function documentCaption(doc: PublicDispatchContext) {
     doc.document_type === "invoice" && doc.upi_id ? `• *UPI ID:* ${markdownEscape(doc.upi_id)}` : "",
     doc.document_type === "invoice" && doc.upi_qr_string ? `💳 Pay Now via UPI: ${doc.upi_qr_string}` : "",
     doc.document_type === "invoice" && doc.payment_link ? `💳 Pay Online: ${doc.payment_link}` : "",
-    `• *Status:* ${markdownEscape(doc.status.replace(/_/g," "))}`,
+    `• *Status:* ${markdownEscape(doc.document_type === "receipt" ? "PAID" : doc.status.replace(/_/g," "))}`,
     "",
     `🔗 View ${doc.document_type === "invoice" ? "& Pay " : ""}Online: ${doc.public_url}`,
     "",
