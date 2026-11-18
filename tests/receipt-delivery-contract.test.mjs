@@ -41,12 +41,27 @@ test('receipt delivery is payment-wide and channel-flexible', async () => {
   assert.match(prefs, /Customer delivery channels/);
 });
 
-test('walk-in Cash & Carry remains optional-contact while phone enables receipt delivery', async () => {
-  const sql = await read('supabase/migrations/20261001188000_cash_bill_walkin_customer_optional_v1.sql');
+test('Cash Bill requires a walk-in mobile and keeps it on the receipt without creating customer profiles', async () => {
+  const migration = await read('supabase/migrations/20261118120000_cash_bill_walkin_receipt_contact_and_paid_format.sql');
   const ui = await read('app/next-workspace/cash-bill/CashBillControlled.tsx');
-  assert.match(sql, /nullif\(trim\(coalesce\(p_phone,''\)\),''\) IS NULL/);
-  assert.match(ui, /Customer mobile number \(optional\)/);
-  assert.doesNotMatch(ui, /!p\.customerPhone\.trim\(\).*Complete Cash & Carry/);
+  const page = await read('app/next-workspace/cash-bill/page.tsx');
+  const renderer = await read('lib/server/receipt-pdf.ts');
+  const thermal = await read('lib/hardware/thermal-printer.ts');
+  assert.match(ui, /Customer mobile number for receipt/);
+  assert.match(ui, /Required to send the paid Cash Bill receipt/);
+  assert.match(ui, /mobileReady/);
+  assert.match(page, /normalizeIndianMobile/);
+  assert.match(page, /valid 10-digit Indian mobile number/);
+  assert.match(migration, /ADD COLUMN IF NOT EXISTS delivery_phone/);
+  assert.match(migration, /get_or_create_cash_customer\(p_business_id\)/);
+  assert.doesNotMatch(migration, /get_or_create_cash_customer_by_phone/);
+  assert.match(migration, /SET delivery_phone = p_phone/);
+  assert.match(migration, /coalesce\(r\.delivery_phone, c\.phone\)/);
+  assert.match(renderer, /data\.receipt\.delivery_phone \|\| data\.customer\?\.phone/);
+  assert.match(renderer, /isCashBill \? 'CASH BILL PAYMENT RECEIPT'/);
+  assert.match(renderer, /Payment status: PAID IN FULL/);
+  assert.match(thermal, /customerMobile: string/);
+  assert.match(thermal, /\.row\('Status', 'PAID', width\)/);
 });
 
 test('secure customer receipt PDF endpoint is bearer-token protected and non-cacheable', async () => {
