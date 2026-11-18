@@ -37,7 +37,7 @@ BEGIN
     RAISE EXCEPTION 'Access denied';
   END IF;
 
-  IF p_phone IS NULL OR btrim(p_phone) !~ '^\\+91[6-9][0-9]{9}$' THEN
+  IF p_phone IS NULL OR btrim(p_phone) !~ '^[+]91[6-9][0-9]{9}$' THEN
     RAISE EXCEPTION 'A valid Indian mobile number is required for the paid Cash Bill receipt.';
   END IF;
 
