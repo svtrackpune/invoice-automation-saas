@@ -238,6 +238,8 @@ export interface CashBillReceiptItem {
 export interface CashBillReceiptInput {
   businessName: string;
   invoiceNumber: string;
+  billDate: string;
+  customerMobile: string;
   cashier: string;
   items: CashBillReceiptItem[];
   subtotal: number;
@@ -271,7 +273,10 @@ export function buildCashBillReceipt(input: CashBillReceiptInput): Uint8Array {
     .text('CASH BILL')
     .newLine(2)
     .align('left')
-    .row('Invoice', input.invoiceNumber, width)
+    .row('Bill No.', input.invoiceNumber, width)
+    .row('Date', input.billDate, width)
+    .row('Mobile', input.customerMobile, width)
+    .row('Status', 'PAID', width)
     .row('Cashier', input.cashier || 'Counter', width)
     .divider('-', width);
 
