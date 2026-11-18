@@ -168,20 +168,19 @@ function monthPeriodLabel(locale: string) {
   catch { return new Intl.DateTimeFormat('en-IN', { month: 'long', year: 'numeric' }).format(new Date()); }
 }
 
-function Nav({ pathname, go, openSections, setOpenSections, cashBillEnabled, collapsed, business, locale }: {
+function Nav({ pathname, go, openSections, setOpenSections, collapsed, business, locale }: {
   pathname: string;
   go: (href: string) => void;
   openSections: string[];
   setOpenSections: Dispatch<SetStateAction<string[]>>;
-  cashBillEnabled: boolean;
   collapsed: boolean;
   business: BusinessContext | null;
   locale: string;
 }) {
   const groups = useMemo(() => baseGroups.map(group => ({
     ...group,
-    items: group.items.filter(item => (item.href !== '/next-workspace/cash-bill' || cashBillEnabled) && canAccessRoute(business, item.href)),
-  })).filter(group => group.items.length), [business, cashBillEnabled]);
+    items: group.items.filter(item => canAccessRoute(business, item.href)),
+  })).filter(group => group.items.length), [business]);
 
   return (
     <nav aria-label={translate(locale, 'Workspace navigation')} className="space-y-4">
@@ -241,13 +240,12 @@ function QuickActionMenu({ go, locale }: { go: (href: string) => void; locale: s
   </div>;
 }
 
-function WorkspaceChrome({ children, businesses, activeBusinessId, setActiveBusinessId, userName, cashBillEnabled }: {
+function WorkspaceChrome({ children, businesses, activeBusinessId, setActiveBusinessId, userName }: {
   children: ReactNode;
   businesses: BusinessContext[];
   activeBusinessId: string;
   setActiveBusinessId: (id: string) => void;
   userName: string;
-  cashBillEnabled: boolean;
 }) {
   const pathname = usePathname();
   const { locale } = useLocale();
@@ -350,7 +348,7 @@ function WorkspaceChrome({ children, businesses, activeBusinessId, setActiveBusi
           {!collapsed ? <span className="px-2 text-[10px] font-bold uppercase tracking-wider text-slate-400">{translate(locale, 'Workspace navigation')}</span> : null}
           <button type="button" onClick={toggleSidebar} aria-label={translate(locale, collapsed ? 'Expand sidebar' : 'Collapse sidebar')} title={translate(locale, collapsed ? 'Expand sidebar' : 'Collapse sidebar')} className="grid h-8 w-8 place-items-center rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50"><span>{collapsed ? '›' : '‹'}</span></button>
         </div>
-        <Nav pathname={pathname} go={go} openSections={openSections} setOpenSections={setOpenSections} cashBillEnabled={cashBillEnabled} collapsed={collapsed} business={active || null} locale={locale}/>
+        <Nav pathname={pathname} go={go} openSections={openSections} setOpenSections={setOpenSections} collapsed={collapsed} business={active || null} locale={locale}/>
       </aside>
 
       {mobile ? <><button type="button" aria-label={translate(locale, 'Close navigation menu')} onClick={() => setMobile(false)} className="fixed inset-0 z-[60] bg-slate-950/20 lg:hidden"/><aside className="fixed inset-y-0 left-0 z-[70] w-72 overflow-y-auto border-r border-slate-200 bg-white px-4 py-4 shadow-2xl lg:hidden"><div className="mb-5 flex items-center justify-between"><div className="flex min-w-0 items-center gap-2.5"><Image src="/moneymatters-192.png" alt="" width={28} height={28} unoptimized className="shrink-0 rounded-lg object-contain" /><div className="min-w-0"><b className="text-sm">Money Matters FinOps</b><span className="block text-[10px] text-slate-400">{translate(locale, 'FinOps workspace')}</span></div></div><button type="button" aria-label={translate(locale, 'Close navigation menu')} onClick={() => setMobile(false)} className="grid h-8 w-8 place-items-center rounded-lg border border-slate-200">×</button></div><Nav pathname={pathname} go={go} openSections={openSections} setOpenSections={setOpenSections} cashBillEnabled={cashBillEnabled} collapsed={false} business={active || null} locale={locale}/></aside></> : null}
@@ -417,7 +415,6 @@ export default function WorkspaceLayout({ children }: { children: ReactNode }) {
   const [userName, setUserName] = useState('Account');
   const [businesses, setBusinesses] = useState<BusinessContext[]>([]);
   const [activeBusinessId, setActiveBusinessId] = useState('');
-  const [cashBillEnabled, setCashBillEnabled] = useState(false);
   const [locale, setLocale] = useState<SupportedLocale>('en-IN');
   const [simpleMobileAppMode, setSimpleMobileAppMode] = useState(false);
 
@@ -438,11 +435,9 @@ export default function WorkspaceLayout({ children }: { children: ReactNode }) {
       const active = rows.find(row => row.business_id === saved) || rows[0];
       setActiveBusinessId(active.business_id);
       localStorage.setItem('moneymatters.activeBusinessId', active.business_id);
-      const pref = await supabase.from('business_settings').select('cash_bill_enabled').eq('business_id', active.business_id).maybeSingle();
-      setCashBillEnabled(Boolean(pref.data?.cash_bill_enabled));
     })();
   }, []);
 
   if (!activeBusinessId) return <div className="grid min-h-screen place-items-center bg-slate-50 text-sm text-slate-500">Loading workspace…</div>;
-  return <LocaleProvider initialLocale={locale}><BusinessConfigProvider businessId={activeBusinessId}>{simpleMobileAppMode ? <MobileWorkspaceChrome businesses={businesses} activeBusinessId={activeBusinessId} setActiveBusinessId={setActiveBusinessId} userName={userName}>{children}</MobileWorkspaceChrome> : <WorkspaceChrome businesses={businesses} activeBusinessId={activeBusinessId} setActiveBusinessId={setActiveBusinessId} userName={userName} cashBillEnabled={cashBillEnabled}>{children}</WorkspaceChrome>}</BusinessConfigProvider></LocaleProvider>;
+  return <LocaleProvider initialLocale={locale}><BusinessConfigProvider businessId={activeBusinessId}>{simpleMobileAppMode ? <MobileWorkspaceChrome businesses={businesses} activeBusinessId={activeBusinessId} setActiveBusinessId={setActiveBusinessId} userName={userName}>{children}</MobileWorkspaceChrome> : <WorkspaceChrome businesses={businesses} activeBusinessId={activeBusinessId} setActiveBusinessId={setActiveBusinessId} userName={userName}>{children}</WorkspaceChrome>}</BusinessConfigProvider></LocaleProvider>;
 }
